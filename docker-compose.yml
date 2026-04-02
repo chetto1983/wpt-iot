@@ -1,0 +1,58 @@
+services:
+  db:
+    image: postgres:17-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: wpt
+      POSTGRES_USER: wpt
+      POSTGRES_PASSWORD: ${PG_PASSWORD:-wpt_dev_password}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U wpt"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  backend:
+    build:
+      context: .
+      dockerfile: apps/backend/Dockerfile
+    network_mode: host
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PG_HOST: localhost
+      PG_PORT: 5432
+      PG_DB: wpt
+      PG_USERNAME: wpt
+      PG_PASSWORD: ${PG_PASSWORD:-wpt_dev_password}
+      PORT: 3001
+      HOST: 0.0.0.0
+      UDP_PORT_DATA: 9090
+      UDP_PORT_ALARMS: 9091
+      UDP_PORT_USERS: 9092
+      UDP_PORT_ACK: 9093
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3001/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 15s
+
+  frontend:
+    build:
+      context: .
+      dockerfile: apps/frontend/Dockerfile
+    ports:
+      - "3000:3000"
+    depends_on:
+      backend:
+        condition: service_healthy
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:3001
+
+volumes:
+  pgdata:

@@ -1,0 +1,88 @@
+/** Cycle types from Mappatura IOT->AC500_9090 R1_I_DATO_4 */
+export enum CycleType {
+  NO_CYCLE = 0,
+  DISCHARGE_ONLY = 1,
+  LOAD_ONLY = 2,
+  DRY_MIXED = 3,
+  ORGANIC = 4,
+  PAPER_CARDBOARD = 5,
+  CANS = 6,
+  HOSPITAL = 7,
+  GLASS = 8,
+  PLASTIC = 9,
+  PAPER_CARDBOARD_END = 10,
+  CANS_END = 11,
+  PLASTIC_END = 12,
+}
+
+/** Machine phase from Mappatura S1_I_DATO_60 — 5 states per spec PDF */
+export enum MachinePhase {
+  IDLE = 0,
+  LOADING = 1,
+  PROCESSING = 2,
+  DRYING = 3,
+  UNLOADING = 4,
+}
+
+/** Machine status from Mappatura S1_I_DATO_61 — 9 states per spec PDF */
+export enum MachineStatus {
+  OFF = 0,
+  STANDBY = 1,
+  READY = 2,
+  RUNNING = 3,
+  PAUSED = 4,
+  ALARM = 5,
+  MAINTENANCE = 6,
+  EMERGENCY = 7,
+  MANUAL = 8,
+}
+
+/** IoT login user roles (local auth, not RFID PLC users) */
+export enum UserRole {
+  SUPER_ADMIN = 'SUPER_ADMIN',
+  WPT = 'WPT',
+  CLIENT = 'CLIENT',
+}
+
+/** RFID tag user group (PLC-side, from port 9092 S3_B_DATO_1..48) */
+export enum RfidUserGroup {
+  OPERATOR = 0,
+  MAINTENANCE = 1,
+  ADMIN = 2,
+}
+
+/** UDP handshake FSM states */
+export enum HandshakeState {
+  IDLE = 2,
+  REQUEST_READ = 255,
+  REQUEST_WRITE = 254,
+  ACK = 100,
+}
+
+/** Remote job assignment enable */
+export enum RemoteJobEnable {
+  NO_REQUEST = 0,
+  NEW_CYCLE_JOB_ENTRY = 1,
+}
+
+/** Maintenance request */
+export enum MaintenanceRequest {
+  NO_REQUEST = 0,
+  MAINTENANCE_REQUEST = 1,
+}
+
+/** Remote cycle selection */
+export enum RemoteCycleSelection {
+  NO_REQUEST = 0,
+  WAITING_FOR_REMOTE_CYCLE = 1,
+}
+
+/** WebSocket message types */
+export enum WsMessageType {
+  MACHINE_DATA = 'MACHINE_DATA',
+  ALARM_UPDATE = 'ALARM_UPDATE',
+  READ_USERS = 'READ_USERS',
+  WRITE_USERS = 'WRITE_USERS',
+  READ_JOB = 'READ_JOB',
+  WRITE_JOB = 'WRITE_JOB',
+}
