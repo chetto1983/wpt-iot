@@ -5,6 +5,8 @@ import { startAlarmListener, seedAlarmState } from './alarmListener.js';
 import { initHandshakeFsms, resetHandshakeChannel } from './handshakeFsm.js';
 import { startMachineStore } from '../persistence/machineStore.js';
 import { startAlarmStore, getActiveAlarmIndices } from '../persistence/alarmStore.js';
+import { startUserStore } from '../persistence/userStore.js';
+import { startJobStore } from '../persistence/jobStore.js';
 
 /**
  * Start the complete UDP pipeline:
@@ -33,6 +35,8 @@ export async function startUdpPipeline(log: FastifyBaseLogger): Promise<void> {
   // 3. Start persistence subscribers
   startMachineStore(log);
   startAlarmStore(log);
+  startUserStore(log);
+  startJobStore(log);
 
   // 4. Start listeners
   startMachineListener(sockets, log);
