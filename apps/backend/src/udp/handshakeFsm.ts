@@ -1,0 +1,316 @@
+import type dgram from 'node:dgram';
+import { HandshakeState } from '@wpt/types';
+import type { IRfidUser, IJobData } from '@wpt/types';
+import { parseUserData, parseJobData, buildUserWritePacket, buildJobWritePacket } from './parsers.js';
+import { USER_DATA_PACKET_SIZE, JOB_DATA_PACKET_SIZE } from './packetSizes.js';
+import { config } from '../config.js';
+
+/** Configuration for a single HandshakeFSM instance */
+export interface IFsmConfig {
+  channelName: string;         // 'users' or 'jobs'
+  controlByteIndex: number;    // 0 for jobs (port 9090 byte), 1 for users (port 9092 byte)
+  simTargetDataPort: number;   // Where to send data TO simulator (19092 for users, 19090 for jobs)
+  expectedDataSize: number;    // 1056 for users, 88 for jobs
+  watchdogMs: number;          // 5000
+}
+
+/** Minimal structured logger accepted by HandshakeFSM methods */
+interface IFsmLogger {
+  info: (...args: unknown[]) => void;
+  warn: (...args: unknown[]) => void;
+  error: (...args: unknown[]) => void;
+}
+
+/**
+ * HandshakeFSM implements the bidirectional handshake protocol for one channel.
+ *
+ * Protocol (read):
+ *   IoT sends REQUEST_READ(255) on port 9093 -> PLC responds ACK(100) on 9093
+ *   -> PLC sends data on data port -> IoT sends IDLE(2) on 9093
+ *
+ * Protocol (write):
+ *   IoT sends REQUEST_WRITE(254) on port 9093 -> PLC responds ACK(100) on 9093
+ *   -> IoT sends data to PLC data port -> IoT sends IDLE(2) on 9093
+ *
+ * Two instances exist: one for users (controlByteIndex=1, port 9092)
+ * and one for jobs (controlByteIndex=0, port 9090). They share the ACK
+ * socket (port 9093) but each manages its own state, timer, and mutex.
+ */
+export class HandshakeFSM {
+  private state: HandshakeState = HandshakeState.IDLE;
+  private busy = false;
+  private watchdogTimer: ReturnType<typeof setTimeout> | null = null;
+  private readonly fsmConfig: IFsmConfig;
+
+  constructor(fsmConfig: IFsmConfig) {
+    this.fsmConfig = fsmConfig;
+  }
+
+  /** Build a 2-byte control message with this channel's byte set, other byte = IDLE */
+  private buildControlMsg(value: HandshakeState): Buffer {
+    const buf = Buffer.alloc(2);
+    buf.writeUInt8(HandshakeState.IDLE, 0);
+    buf.writeUInt8(HandshakeState.IDLE, 1);
+    buf.writeUInt8(value, this.fsmConfig.controlByteIndex);
+    return buf;
+  }
+
+  /** Send a control message to the simulator's ACK port (19093) via the ackSocket */
+  private sendControl(ackSocket: dgram.Socket, value: HandshakeState): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const msg = this.buildControlMsg(value);
+      ackSocket.send(msg, 0, 2, config.simAckPort, config.simHost, (err) => {
+        if (err) reject(err);
+        else resolve();
+      });
+    });
+  }
+
+  /**
+   * Read data from PLC via handshake protocol.
+   * Sequence: send REQUEST_READ(255) on ack port -> await ACK(100) on ack port
+   *           -> receive data on data socket -> return to IDLE(2)
+   */
+  async read(
+    ackSocket: dgram.Socket,
+    dataSocket: dgram.Socket,
+    log: IFsmLogger,
+  ): Promise<Buffer> {
+    if (this.busy) {
+      throw new Error(`Handshake in progress on ${this.fsmConfig.channelName}`);
+    }
+    this.busy = true;
+    this.state = HandshakeState.REQUEST_READ;
+
+    try {
+      // Send REQUEST_READ to simulator
+      await this.sendControl(ackSocket, HandshakeState.REQUEST_READ);
+      log.info({ name: 'HandshakeFSM', channel: this.fsmConfig.channelName }, 'Sent REQUEST_READ');
+
+      // Wait for ACK on ack socket
+      await this.waitForAck(ackSocket, log);
+
+      // Wait for data on data socket
+      const data = await this.waitForData(dataSocket, log);
+
+      // Send IDLE to confirm completion
+      await this.sendControl(ackSocket, HandshakeState.IDLE);
+      this.state = HandshakeState.IDLE;
+
+      return data;
+    } catch (err) {
+      // Reset to IDLE on any error
+      this.state = HandshakeState.IDLE;
+      try { await this.sendControl(ackSocket, HandshakeState.IDLE); } catch { /* best effort */ }
+      throw err;
+    } finally {
+      this.busy = false;
+      this.clearWatchdog();
+    }
+  }
+
+  /**
+   * Write data to PLC via handshake protocol.
+   * Sequence: send REQUEST_WRITE(254) on ack port -> await ACK(100)
+   *           -> send data to sim data port -> return to IDLE(2)
+   */
+  async write(
+    ackSocket: dgram.Socket,
+    dataSocket: dgram.Socket,
+    data: Buffer,
+    log: IFsmLogger,
+  ): Promise<void> {
+    if (this.busy) {
+      throw new Error(`Handshake in progress on ${this.fsmConfig.channelName}`);
+    }
+    this.busy = true;
+    this.state = HandshakeState.REQUEST_WRITE;
+
+    try {
+      // Send REQUEST_WRITE to simulator
+      await this.sendControl(ackSocket, HandshakeState.REQUEST_WRITE);
+      log.info({ name: 'HandshakeFSM', channel: this.fsmConfig.channelName }, 'Sent REQUEST_WRITE');
+
+      // Wait for ACK
+      await this.waitForAck(ackSocket, log);
+
+      // Send data to simulator's data port
+      await new Promise<void>((resolve, reject) => {
+        dataSocket.send(data, 0, data.length, this.fsmConfig.simTargetDataPort, config.simHost, (err) => {
+          if (err) reject(err);
+          else resolve();
+        });
+      });
+      log.info({ name: 'HandshakeFSM', channel: this.fsmConfig.channelName, bytes: data.length }, 'Data sent');
+
+      // Send IDLE to confirm completion
+      await this.sendControl(ackSocket, HandshakeState.IDLE);
+      this.state = HandshakeState.IDLE;
+    } catch (err) {
+      this.state = HandshakeState.IDLE;
+      try { await this.sendControl(ackSocket, HandshakeState.IDLE); } catch { /* best effort */ }
+      throw err;
+    } finally {
+      this.busy = false;
+      this.clearWatchdog();
+    }
+  }
+
+  /** Wait for ACK (100) on the ack socket, with watchdog timeout (D-06) */
+  private waitForAck(ackSocket: dgram.Socket, log: IFsmLogger): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const onMessage = (msg: Buffer): void => {
+        if (msg.length < 2) return;
+        const ctrlByte = msg.readUInt8(this.fsmConfig.controlByteIndex);
+        if (ctrlByte === HandshakeState.ACK) {
+          cleanup();
+          this.state = HandshakeState.ACK;
+          resolve();
+        }
+      };
+
+      const onTimeout = (): void => {
+        cleanup();
+        log.warn({ name: 'HandshakeFSM', channel: this.fsmConfig.channelName }, 'Watchdog timeout waiting for ACK');
+        reject(new Error(`Handshake timeout on ${this.fsmConfig.channelName}: no ACK within ${this.fsmConfig.watchdogMs}ms`));
+      };
+
+      const cleanup = (): void => {
+        ackSocket.removeListener('message', onMessage);
+        this.clearWatchdog();
+      };
+
+      ackSocket.on('message', onMessage);
+      this.watchdogTimer = setTimeout(onTimeout, this.fsmConfig.watchdogMs);
+    });
+  }
+
+  /** Wait for data packet on the data socket, with watchdog timeout */
+  private waitForData(dataSocket: dgram.Socket, log: IFsmLogger): Promise<Buffer> {
+    return new Promise((resolve, reject) => {
+      const onMessage = (msg: Buffer): void => {
+        if (msg.length >= this.fsmConfig.expectedDataSize) {
+          cleanup();
+          resolve(msg);
+        }
+      };
+
+      const onTimeout = (): void => {
+        cleanup();
+        log.warn({ name: 'HandshakeFSM', channel: this.fsmConfig.channelName }, 'Watchdog timeout waiting for data');
+        reject(new Error(`Handshake timeout on ${this.fsmConfig.channelName}: no data within ${this.fsmConfig.watchdogMs}ms`));
+      };
+
+      const cleanup = (): void => {
+        dataSocket.removeListener('message', onMessage);
+        this.clearWatchdog();
+      };
+
+      dataSocket.on('message', onMessage);
+      this.watchdogTimer = setTimeout(onTimeout, this.fsmConfig.watchdogMs);
+    });
+  }
+
+  private clearWatchdog(): void {
+    if (this.watchdogTimer) {
+      clearTimeout(this.watchdogTimer);
+      this.watchdogTimer = null;
+    }
+  }
+
+  /** Force-reset the channel to IDLE (Pitfall 5: recovery after crash) */
+  async resetChannel(ackSocket: dgram.Socket): Promise<void> {
+    await this.sendControl(ackSocket, HandshakeState.IDLE);
+    this.state = HandshakeState.IDLE;
+    this.busy = false;
+    this.clearWatchdog();
+  }
+
+  getState(): HandshakeState { return this.state; }
+  isBusy(): boolean { return this.busy; }
+}
+
+// ---------------------------------------------------------------------------
+// Singleton instances and convenience functions (D-04, D-07)
+// ---------------------------------------------------------------------------
+
+/** Two singleton FSM instances: one for users, one for jobs */
+let usersFsm: HandshakeFSM | null = null;
+let jobsFsm: HandshakeFSM | null = null;
+
+/** Initialize both FSM instances. Call once at startup. */
+export function initHandshakeFsms(): { usersFsm: HandshakeFSM; jobsFsm: HandshakeFSM } {
+  usersFsm = new HandshakeFSM({
+    channelName: 'users',
+    controlByteIndex: 1,                         // Byte 1 = port 9092 control
+    simTargetDataPort: config.simUsersPort,       // 19092
+    expectedDataSize: USER_DATA_PACKET_SIZE,      // 1056
+    watchdogMs: config.handshakeTimeoutMs,        // 5000
+  });
+  jobsFsm = new HandshakeFSM({
+    channelName: 'jobs',
+    controlByteIndex: 0,                          // Byte 0 = port 9090 control
+    simTargetDataPort: config.simDataPort,        // 19090
+    expectedDataSize: JOB_DATA_PACKET_SIZE,       // 88
+    watchdogMs: config.handshakeTimeoutMs,        // 5000
+  });
+  return { usersFsm, jobsFsm };
+}
+
+function getFsms(): { usersFsm: HandshakeFSM; jobsFsm: HandshakeFSM } {
+  if (!usersFsm || !jobsFsm) throw new Error('HandshakeFSMs not initialized');
+  return { usersFsm, jobsFsm };
+}
+
+/** Read RFID users from PLC (D-07: internal method, no HTTP route yet) */
+export async function readUsers(
+  ackSocket: dgram.Socket,
+  dataSocket: dgram.Socket,
+  log: IFsmLogger,
+): Promise<IRfidUser[]> {
+  const { usersFsm: fsm } = getFsms();
+  const buf = await fsm.read(ackSocket, dataSocket, log);
+  return parseUserData(buf);
+}
+
+/** Write RFID users to PLC */
+export async function writeUsers(
+  ackSocket: dgram.Socket,
+  dataSocket: dgram.Socket,
+  users: IRfidUser[],
+  log: IFsmLogger,
+): Promise<void> {
+  const { usersFsm: fsm } = getFsms();
+  const packet = buildUserWritePacket(users);
+  await fsm.write(ackSocket, dataSocket, packet, log);
+}
+
+/** Read job data from PLC */
+export async function readJob(
+  ackSocket: dgram.Socket,
+  dataSocket: dgram.Socket,
+  log: IFsmLogger,
+): Promise<IJobData> {
+  const { jobsFsm: fsm } = getFsms();
+  const buf = await fsm.read(ackSocket, dataSocket, log);
+  return parseJobData(buf);
+}
+
+/** Write job data to PLC (UDP-10) */
+export async function writeJob(
+  ackSocket: dgram.Socket,
+  dataSocket: dgram.Socket,
+  job: IJobData,
+  log: IFsmLogger,
+): Promise<void> {
+  const { jobsFsm: fsm } = getFsms();
+  const packet = buildJobWritePacket(job);
+  await fsm.write(ackSocket, dataSocket, packet, log);
+}
+
+/** Reset both channels to IDLE on startup (Pitfall 5) */
+export async function resetHandshakeChannel(ackSocket: dgram.Socket): Promise<void> {
+  const { usersFsm: uFsm, jobsFsm: jFsm } = getFsms();
+  await uFsm.resetChannel(ackSocket);
+  await jFsm.resetChannel(ackSocket);
+}
