@@ -14,7 +14,9 @@ export async function buildServer(): Promise<ReturnType<typeof Fastify>> {
   const server = Fastify({
     logger: {
       level: 'info',
-      transport: { target: 'pino-pretty' },
+      ...(process.env.NODE_ENV !== 'production' && {
+        transport: { target: 'pino-pretty' },
+      }),
     },
   });
 

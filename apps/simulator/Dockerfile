@@ -13,20 +13,24 @@ RUN pnpm install --frozen-lockfile --filter @wpt/simulator --filter @wpt/types
 FROM base AS builder
 WORKDIR /app
 COPY --from=deps /app ./
+COPY tsconfig.base.json ./
 COPY packages/types/ packages/types/
 COPY apps/simulator/ apps/simulator/
 RUN pnpm --filter @wpt/types run build
 RUN pnpm --filter @wpt/simulator run build
+# Deploy creates a standalone bundle with resolved dependencies (no pnpm symlinks)
+RUN pnpm --filter @wpt/simulator deploy /deploy --prod --legacy
 
 # Stage 3: Production
 FROM node:22-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 
+COPY --from=builder /deploy/node_modules ./node_modules
+COPY --from=builder /deploy/package.json ./
 COPY --from=builder /app/apps/simulator/dist ./dist
 COPY --from=builder /app/apps/simulator/public ./public
-COPY --from=builder /app/apps/simulator/package.json ./
-COPY --from=builder /app/apps/simulator/node_modules ./node_modules
+# Wire @wpt/types compiled output into node_modules
 COPY --from=builder /app/packages/types/dist ./node_modules/@wpt/types/dist
 COPY --from=builder /app/packages/types/package.json ./node_modules/@wpt/types/
 
