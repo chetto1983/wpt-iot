@@ -1,0 +1,538 @@
+/* ===== CSS Custom Properties (Design Tokens from 02-UI-SPEC.md) ===== */
+:root {
+  /* Spacing scale (multiples of 4) */
+  --sp-xs: 4px;
+  --sp-sm: 8px;
+  --sp-md: 16px;
+  --sp-lg: 24px;
+  --sp-xl: 32px;
+  --sp-2xl: 48px;
+
+  /* Colors */
+  --color-accent: #1ABC9C;
+  --color-accent-hover: #17a689;
+  --color-destructive: #dc3545;
+  --color-warning: #bfae82;
+  --color-success: #28a745;
+  --color-muted: #6c757d;
+  --color-dark: #282828;
+  --color-border: #dee2e6;
+  --color-bg: #F5F5F5;
+  --color-card: #FFFFFF;
+  --color-text: #333333;
+  --color-text-secondary: #666666;
+
+  /* Typography */
+  --font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "Cascadia Code", "Fira Code", "Consolas", monospace;
+}
+
+/* ===== Reset & Base ===== */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font-family);
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.5;
+  color: var(--color-text);
+  background-color: var(--color-bg);
+}
+
+/* ===== Header Bar ===== */
+.header-bar {
+  background-color: var(--color-dark);
+  color: #FFFFFF;
+  padding: var(--sp-md) var(--sp-lg);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--sp-md);
+}
+
+.header-left {
+  display: flex;
+  flex-direction: column;
+}
+
+.page-title {
+  font-size: 24px;
+  font-weight: 600;
+  line-height: 1.2;
+  margin: 0;
+}
+
+.page-subtitle {
+  font-size: 14px;
+  font-weight: 400;
+  color: #cccccc;
+  margin: var(--sp-xs) 0 0 0;
+}
+
+.header-right {
+  display: flex;
+  gap: var(--sp-sm);
+  flex-wrap: wrap;
+}
+
+/* ===== Port Status Badges ===== */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  padding: var(--sp-xs) var(--sp-sm);
+  border-radius: 12px;
+  gap: var(--sp-xs);
+}
+
+.badge-active {
+  background: rgba(40, 167, 69, 0.15);
+  color: var(--color-success);
+}
+
+.badge-inactive {
+  background: rgba(108, 117, 125, 0.15);
+  color: var(--color-muted);
+}
+
+.dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.badge-active .dot {
+  background-color: var(--color-success);
+}
+
+.badge-inactive .dot {
+  background-color: var(--color-muted);
+}
+
+.dot-green {
+  background-color: var(--color-success);
+}
+
+/* ===== Error Banner ===== */
+.error-banner {
+  background-color: #f8d7da;
+  color: var(--color-destructive);
+  border: 1px solid var(--color-destructive);
+  padding: var(--sp-md);
+  text-align: center;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+/* ===== Sections ===== */
+.section {
+  padding: var(--sp-lg);
+}
+
+/* ===== Grid Layouts ===== */
+.grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--sp-xl);
+}
+
+.grid-2 {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--sp-xl);
+}
+
+/* ===== Panel Card ===== */
+.panel {
+  background-color: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: var(--sp-md);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.panel-heading {
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--color-text);
+  margin-bottom: var(--sp-md);
+}
+
+/* ===== Form Elements ===== */
+.form-group {
+  margin-bottom: var(--sp-md);
+}
+
+.form-group:last-child {
+  margin-bottom: 0;
+}
+
+label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  margin-bottom: var(--sp-xs);
+}
+
+select {
+  font-family: var(--font-family);
+  font-size: 14px;
+  width: 100%;
+  padding: var(--sp-sm) 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  background-color: var(--color-card);
+  color: var(--color-text);
+  cursor: pointer;
+  appearance: auto;
+}
+
+select:focus {
+  outline: 2px solid var(--color-accent);
+  outline-offset: -2px;
+}
+
+/* ===== Primary Button ===== */
+.btn-primary {
+  font-family: var(--font-family);
+  background-color: var(--color-accent);
+  color: #FFFFFF;
+  font-size: 14px;
+  font-weight: 600;
+  padding: var(--sp-sm) var(--sp-md);
+  border: 2px solid var(--color-accent);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.15s, border-color 0.3s;
+}
+
+.btn-primary:hover {
+  background-color: var(--color-accent-hover);
+  border-color: var(--color-accent-hover);
+}
+
+.btn-primary.flash {
+  border-color: var(--color-warning);
+}
+
+/* ===== Scenario Row ===== */
+.scenario-row {
+  display: flex;
+  gap: var(--sp-md);
+  align-items: center;
+}
+
+.scenario-row select {
+  flex: 1;
+  max-width: 300px;
+}
+
+/* ===== Slider ===== */
+.slider-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-sm);
+}
+
+.slider {
+  flex: 1;
+  -webkit-appearance: none;
+  appearance: none;
+  height: 6px;
+  background: var(--color-border);
+  border-radius: 3px;
+  outline: none;
+}
+
+.slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--color-accent);
+  border: 2px solid #FFFFFF;
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.slider::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--color-accent);
+  border: 2px solid #FFFFFF;
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.slider::-webkit-slider-runnable-track {
+  height: 6px;
+  border-radius: 3px;
+}
+
+/* Gold slider variant for ACK delay */
+.slider-gold::-webkit-slider-thumb {
+  background: var(--color-warning);
+}
+
+.slider-gold::-moz-range-thumb {
+  background: var(--color-warning);
+}
+
+.slider-value {
+  width: 60px;
+  font-family: var(--font-family);
+  font-size: 14px;
+  text-align: right;
+  padding: var(--sp-xs) var(--sp-sm);
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+}
+
+.slider-display {
+  display: inline-block;
+  min-width: 60px;
+  font-size: 14px;
+  text-align: right;
+}
+
+/* ===== Alarm Toggle Grid ===== */
+.alarm-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: var(--sp-sm);
+}
+
+.alarm-toggle {
+  font-family: var(--font-family);
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--color-text);
+  background-color: var(--color-card);
+  border: 1px solid var(--color-border);
+  padding: var(--sp-xs) var(--sp-sm);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.15s, color 0.15s, border-color 0.15s;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.alarm-toggle.active {
+  background-color: var(--color-destructive);
+  border-color: var(--color-destructive);
+  color: #FFFFFF;
+  font-weight: 600;
+}
+
+/* ===== Checkbox (Fault Injection) ===== */
+.checkbox-group {
+  margin-bottom: var(--sp-md);
+}
+
+.checkbox-group:last-child {
+  margin-bottom: 0;
+}
+
+.checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-sm);
+}
+
+.checkbox-row input[type="checkbox"] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--color-border);
+  border-radius: 3px;
+  background-color: var(--color-card);
+  cursor: pointer;
+  position: relative;
+  flex-shrink: 0;
+}
+
+.checkbox-row input[type="checkbox"]:checked {
+  background-color: var(--color-destructive);
+  border-color: var(--color-destructive);
+}
+
+.checkbox-row input[type="checkbox"]:checked::after {
+  content: "";
+  position: absolute;
+  left: 5px;
+  top: 1px;
+  width: 6px;
+  height: 11px;
+  border: solid #FFFFFF;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+.checkbox-row label {
+  display: inline;
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--color-text);
+  margin-bottom: 0;
+  cursor: pointer;
+}
+
+.fault-warning {
+  font-size: 12px;
+  font-style: italic;
+  color: var(--color-destructive);
+  margin-top: var(--sp-xs);
+  margin-left: 28px;
+}
+
+/* ===== Live Status Dashboard ===== */
+.status-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--sp-sm) 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.status-item:last-child {
+  border-bottom: none;
+}
+
+.status-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.mono {
+  font-family: var(--font-mono);
+  font-size: 14px;
+}
+
+/* ===== FSM State Badges ===== */
+.fsm-badge {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  padding: 2px var(--sp-sm);
+  border-radius: 4px;
+  color: #FFFFFF;
+}
+
+.fsm-idle {
+  background-color: var(--color-success);
+}
+
+.fsm-reading {
+  background-color: var(--color-accent);
+}
+
+.fsm-writing {
+  background-color: var(--color-warning);
+  color: var(--color-text);
+}
+
+.fsm-timeout {
+  background-color: var(--color-destructive);
+}
+
+/* ===== Values Table ===== */
+.values-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.values-table th {
+  text-align: left;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  padding: var(--sp-xs) var(--sp-sm);
+  border-bottom: 2px solid var(--color-border);
+}
+
+.values-table td {
+  padding: var(--sp-xs) var(--sp-sm);
+}
+
+.values-table td:last-child {
+  font-family: var(--font-mono);
+  text-align: right;
+}
+
+.values-table tbody tr:nth-child(odd) {
+  background-color: var(--color-bg);
+}
+
+.values-table tbody tr:nth-child(even) {
+  background-color: var(--color-card);
+}
+
+/* ===== Active Alarms List ===== */
+.alarm-list {
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.alarm-list-item {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-sm);
+  padding: var(--sp-xs) 0;
+  font-size: 12px;
+}
+
+.alarm-list-item .dot {
+  width: 8px;
+  height: 8px;
+  flex-shrink: 0;
+  background-color: var(--color-destructive);
+}
+
+.muted-text {
+  color: var(--color-muted);
+  font-size: 12px;
+  font-style: italic;
+}
+
+/* ===== Responsive Breakpoints ===== */
+@media (max-width: 1199px) {
+  .grid-3 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 959px) {
+  .grid-3,
+  .grid-2 {
+    grid-template-columns: 1fr;
+  }
+
+  .header-bar {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .scenario-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .scenario-row select {
+    max-width: 100%;
+  }
+}
