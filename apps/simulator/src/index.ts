@@ -1,12 +1,39 @@
+import { buildServer } from './server.js';
 import { config } from './config.js';
-import { getState } from './state/simulatorState.js';
+import { startBroadcasting, stopBroadcasting } from './udp/broadcaster.js';
+import { HandshakeHandler } from './udp/handshakeHandler.js';
+import { loadPersistedState } from './persistence/jsonStore.js';
+import { updateState } from './state/simulatorState.js';
 
-const state = getState();
+async function main(): Promise<void> {
+  // Load persisted state if exists
+  const persisted = loadPersistedState(config.STATE_FILE_PATH);
+  if (persisted) {
+    updateState(persisted);
+    console.log('Loaded persisted state from', config.STATE_FILE_PATH);
+  }
 
-console.log(`[Simulator] Starting WPT PLC Simulator v0.0.1`);
-console.log(`[Simulator] HTTP port: ${config.SIM_PORT}`);
-console.log(`[Simulator] Target host: ${config.TARGET_HOST}`);
-console.log(`[Simulator] Data interval: ${config.DATA_INTERVAL_MS}ms`);
-console.log(`[Simulator] Alarm interval: ${config.ALARM_INTERVAL_MS}ms`);
-console.log(`[Simulator] Users loaded: ${state.users.length}`);
-console.log(`[Simulator] Machine status: ${state.machine.machineStatus}`);
+  // Start Fastify server
+  const server = await buildServer();
+  await server.listen({ port: config.SIM_PORT, host: '0.0.0.0' });
+
+  // Start UDP broadcasting
+  startBroadcasting();
+
+  // Start handshake handler
+  const handshake = new HandshakeHandler();
+  handshake.start();
+
+  // Graceful shutdown
+  const shutdown = async (): Promise<void> => {
+    server.log.info('Shutting down...');
+    stopBroadcasting();
+    handshake.stop();
+    await server.close();
+    process.exit(0);
+  };
+  process.on('SIGTERM', shutdown);
+  process.on('SIGINT', shutdown);
+}
+
+main();

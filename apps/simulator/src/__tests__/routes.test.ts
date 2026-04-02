@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import { buildServer } from '../server.js';
-import { resetState, getState, updateState } from '../state/simulatorState.js';
+import { resetState } from '../state/simulatorState.js';
 import type { FastifyInstance } from 'fastify';
 
 describe('REST API', () => {
