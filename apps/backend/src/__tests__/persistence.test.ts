@@ -17,6 +17,13 @@ vi.mock('../events/hub.js', () => ({
   },
 }));
 
+// Mock alarm descriptions (added in Phase 4 DATA-03)
+vi.mock('../i18n/alarmDescriptions.js', () => ({
+  getAlarmDescription: vi.fn((index: number, locale: string) =>
+    `mock-${locale}-${index}`
+  ),
+}));
+
 import { startMachineStore } from '../persistence/machineStore.js';
 import { startAlarmStore, getActiveAlarmIndices } from '../persistence/alarmStore.js';
 import { machineSnapshots } from '../db/schema/machine.js';

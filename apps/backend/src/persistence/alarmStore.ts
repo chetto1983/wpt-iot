@@ -3,6 +3,7 @@ import { dataHub } from '../events/hub.js';
 import { db } from '../db/index.js';
 import { alarmEvents } from '../db/schema/alarms.js';
 import type { IAlarmTransition } from '../events/types.js';
+import { getAlarmDescription } from '../i18n/alarmDescriptions.js';
 
 /** Logger interface compatible with Pino/Fastify logger */
 interface IStoreLogger {
@@ -29,8 +30,8 @@ export function startAlarmStore(log: IStoreLogger): void {
             transitionType: 'ACTIVE',
             activatedAt: t.timestamp,
             resetAt: null,
-            descriptionIt: '',  // Phase 4 fills in DATA-03
-            descriptionEn: '',  // Phase 4 fills in DATA-03
+            descriptionIt: getAlarmDescription(t.alarmIndex, 'it'),
+            descriptionEn: getAlarmDescription(t.alarmIndex, 'en'),
           });
         } else {
           // CLEAR transition: update the most recent active row for this alarm
