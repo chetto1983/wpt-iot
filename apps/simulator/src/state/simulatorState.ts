@@ -52,10 +52,11 @@ function createDefaultState(): ISimulatorState {
 /** Singleton state instance */
 let state: ISimulatorState = createDefaultState();
 
-/** Deep merge source into target */
-function deepMerge<T extends Record<string, unknown>>(target: T, source: DeepPartial<T>): T {
+/** Deep merge source into target (works on plain objects) */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function deepMerge(target: any, source: any): any {
   const result = { ...target };
-  for (const key of Object.keys(source) as (keyof T)[]) {
+  for (const key of Object.keys(source)) {
     const sourceVal = source[key];
     const targetVal = target[key];
     if (
@@ -67,12 +68,9 @@ function deepMerge<T extends Record<string, unknown>>(target: T, source: DeepPar
       targetVal !== null &&
       !Array.isArray(targetVal)
     ) {
-      result[key] = deepMerge(
-        targetVal as Record<string, unknown>,
-        sourceVal as DeepPartial<Record<string, unknown>>,
-      ) as T[keyof T];
+      result[key] = deepMerge(targetVal, sourceVal);
     } else if (sourceVal !== undefined) {
-      result[key] = sourceVal as T[keyof T];
+      result[key] = sourceVal;
     }
   }
   return result;
@@ -85,7 +83,7 @@ export function getState(): ISimulatorState {
 
 /** Deep merge a partial update into the current state */
 export function updateState(partial: DeepPartial<ISimulatorState>): void {
-  state = deepMerge(state, partial);
+  state = deepMerge(state, partial) as ISimulatorState;
 }
 
 /** Reset state to defaults */

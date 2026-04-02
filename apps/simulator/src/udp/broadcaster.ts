@@ -29,7 +29,8 @@ function applyNoise(machine: IMachineSnapshot): IMachineSnapshot {
   for (const field of NOISY_FIELDS) {
     const range = SENSOR_RANGES[field];
     if (range) {
-      (copy as Record<string, number>)[field] = addNoise(copy[field] as number, range);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (copy as any)[field] = addNoise(copy[field] as number, range);
     }
   }
   return copy;
