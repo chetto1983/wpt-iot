@@ -30,15 +30,15 @@ const mockLog = {
 };
 
 /** Helper to extract the handler passed to onMachineData */
-function getMachineHandler(): (snapshot: Record<string, unknown>, timestamp: Date) => Promise<void> {
+function getMachineHandler(): (snapshot: unknown, timestamp: Date) => Promise<void> {
   const calls = vi.mocked(dataHub.onMachineData).mock.calls;
-  return calls[calls.length - 1]![0] as (snapshot: Record<string, unknown>, timestamp: Date) => Promise<void>;
+  return calls[calls.length - 1]![0] as unknown as (snapshot: unknown, timestamp: Date) => Promise<void>;
 }
 
 /** Helper to extract the handler passed to onAlarmChange */
-function getAlarmHandler(): (transitions: Array<Record<string, unknown>>) => Promise<void> {
+function getAlarmHandler(): (transitions: unknown[]) => Promise<void> {
   const calls = vi.mocked(dataHub.onAlarmChange).mock.calls;
-  return calls[calls.length - 1]![0] as (transitions: Array<Record<string, unknown>>) => Promise<void>;
+  return calls[calls.length - 1]![0] as unknown as (transitions: unknown[]) => Promise<void>;
 }
 
 describe('machineStore', () => {
