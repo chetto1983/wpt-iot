@@ -26,8 +26,8 @@ export const JobDataSchema = z.object({
   supervisor: z.string().max(20),
   orderNumber: z.string().max(20),
   serialNumber: z.string().max(20),
-  remoteJobEnable: z.nativeEnum(RemoteJobEnable),
-  maintenanceRequest: z.nativeEnum(MaintenanceRequest),
-  remoteCycleSelection: z.nativeEnum(RemoteCycleSelection),
-  cycleType: z.nativeEnum(CycleType),
+  remoteJobEnable: z.enum(RemoteJobEnable),
+  maintenanceRequest: z.enum(MaintenanceRequest),
+  remoteCycleSelection: z.enum(RemoteCycleSelection),
+  cycleType: z.enum(CycleType),
 });
