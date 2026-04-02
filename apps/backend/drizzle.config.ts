@@ -9,5 +9,6 @@ export default defineConfig({
     database: process.env.PG_DB ?? 'wpt',
     user: process.env.PG_USERNAME ?? 'wpt',
     password: process.env.PG_PASSWORD ?? 'wpt_dev_password',
+    ssl: false,
   },
 });
