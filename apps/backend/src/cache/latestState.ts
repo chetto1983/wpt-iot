@@ -100,7 +100,7 @@ class LatestState {
       const wordIdx = Math.floor(alarmIndex / 16);
       const bitIdx = alarmIndex % 16;
       if (wordIdx >= 0 && wordIdx < 40) {
-        words[wordIdx] |= (1 << bitIdx);
+        words[wordIdx] = (words[wordIdx] ?? 0) | (1 << bitIdx);
       }
     }
     this.alarmWords = words;
