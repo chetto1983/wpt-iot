@@ -11,6 +11,7 @@ RUN pnpm install --frozen-lockfile --filter @wpt/frontend --filter @wpt/types
 FROM base AS builder
 WORKDIR /app
 COPY --from=deps /app ./
+COPY tsconfig.base.json ./
 COPY packages/types/ packages/types/
 COPY apps/frontend/ apps/frontend/
 RUN pnpm --filter @wpt/types run build
