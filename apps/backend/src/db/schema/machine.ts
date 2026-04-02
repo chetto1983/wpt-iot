@@ -107,4 +107,5 @@ export const machineSnapshots = pgTable('machine_snapshots', {
   thermoRightHighSel: smallint('thermo_right_high_sel'),
 }, (table) => [
   index('machine_snapshots_timestamp_idx').on(table.timestamp),
+  index('machine_snapshots_completed_cycles_idx').on(table.completedCycles),
 ]);
