@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { CycleType, MachinePhase, MachineStatus, RfidUserGroup, RemoteJobEnable, MaintenanceRequest, RemoteCycleSelection } from '@wpt/types';
-import type { IMachineSnapshot, IAlarmWords, IRfidUser, IJobData } from '@wpt/types';
+import { CycleType, MachineStatus, RfidUserGroup, RemoteJobEnable } from '@wpt/types';
+import type { IMachineSnapshot, IAlarmWords, IRfidUser } from '@wpt/types';
 import { createDefaultMachineData, createDefaultUsers, createDefaultJob } from '../state/defaults.js';
 import {
   buildMachineDataPacket,

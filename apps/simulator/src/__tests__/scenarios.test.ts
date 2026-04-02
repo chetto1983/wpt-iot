@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { CycleType, MachinePhase, MachineStatus, RfidUserGroup, RemoteJobEnable, MaintenanceRequest, RemoteCycleSelection } from '@wpt/types';
-import type { IMachineSnapshot, IRfidUser, IJobData } from '@wpt/types';
+import { CycleType, MachineStatus, RfidUserGroup, RemoteJobEnable, MaintenanceRequest, RemoteCycleSelection } from '@wpt/types';
+import type { IRfidUser } from '@wpt/types';
 import { createDefaultMachineData, createDefaultUsers, createDefaultJob, ITALIAN_NAMES } from '../state/defaults.js';
 import { SCENARIOS, applyScenario } from '../state/scenarios.js';
 import { getState, resetState } from '../state/simulatorState.js';

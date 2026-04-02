@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { HandshakeState, RfidUserGroup, CycleType, RemoteJobEnable, MaintenanceRequest, RemoteCycleSelection } from '@wpt/types';
 import { processControlMessage, parseUserDataBuffer, parseJobDataBuffer } from '../udp/handshakeHandler.js';
 import { getState, resetState, updateState } from '../state/simulatorState.js';

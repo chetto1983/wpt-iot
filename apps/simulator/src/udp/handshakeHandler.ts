@@ -1,6 +1,6 @@
 import dgram from 'node:dgram';
-import { HandshakeState, RfidUserGroup } from '@wpt/types';
-import type { IRfidUser, IJobData } from '@wpt/types';
+import { HandshakeState } from '@wpt/types';
+import type { IRfidUser, IJobData , RfidUserGroup } from '@wpt/types';
 import { getState, updateState, type ISimulatorState } from '../state/simulatorState.js';
 import { buildUserDataPacket, buildJobReadPacket } from './packetBuilder.js';
 import { savePersistedState } from '../persistence/jsonStore.js';
