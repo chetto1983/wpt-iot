@@ -1,5 +1,5 @@
 import { EventEmitter } from 'node:events';
-import type { IMachineSnapshot, IAlarmWords } from '@wpt/types';
+import type { IMachineSnapshot, IAlarmWords, IRfidUser, IJobData } from '@wpt/types';
 import type { IAlarmTransition } from './types.js';
 import { DATA_EVENTS } from './types.js';
 
@@ -31,6 +31,22 @@ class DataHub extends EventEmitter {
 
   onAlarmChange(handler: (transitions: IAlarmTransition[]) => void): this {
     return this.on(DATA_EVENTS.ALARM_CHANGE, handler);
+  }
+
+  emitUserData(users: IRfidUser[]): boolean {
+    return this.emit(DATA_EVENTS.USER_DATA, users);
+  }
+
+  onUserData(handler: (users: IRfidUser[]) => void): this {
+    return this.on(DATA_EVENTS.USER_DATA, handler);
+  }
+
+  emitJobData(job: IJobData): boolean {
+    return this.emit(DATA_EVENTS.JOB_DATA, job);
+  }
+
+  onJobData(handler: (job: IJobData) => void): this {
+    return this.on(DATA_EVENTS.JOB_DATA, handler);
   }
 }
 
