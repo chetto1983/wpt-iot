@@ -54,5 +54,40 @@ services:
     environment:
       NEXT_PUBLIC_API_URL: http://localhost:3001
 
+  simulator:
+    build:
+      context: .
+      dockerfile: apps/simulator/Dockerfile
+    profiles: ["dev"]
+    ports:
+      - "3002:3002"
+      - "19090:9090/udp"
+      - "19091:9091/udp"
+      - "19092:9092/udp"
+      - "19093:9093/udp"
+    environment:
+      SIM_PORT: 3002
+      TARGET_HOST: host.docker.internal
+      TARGET_DATA_PORT: 9090
+      TARGET_ALARMS_PORT: 9091
+      UDP_LISTEN_DATA: 9090
+      UDP_LISTEN_ALARMS: 9091
+      UDP_LISTEN_USERS: 9092
+      UDP_LISTEN_ACK: 9093
+      DATA_INTERVAL_MS: 15000
+      ALARM_INTERVAL_MS: 1000
+      STATE_FILE_PATH: /app/data/simulator-state.json
+    volumes:
+      - simulator-data:/app/data
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3002/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    restart: unless-stopped
+
 volumes:
   pgdata:
+  simulator-data:
