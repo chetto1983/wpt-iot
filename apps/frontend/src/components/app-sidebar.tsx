@@ -26,6 +26,7 @@ import {
   SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
+  SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
@@ -66,134 +67,137 @@ export function AppSidebar() {
   const isWptOrAdmin = user.role === 'SUPER_ADMIN' || user.role === 'WPT';
   const isSuperAdmin = user.role === 'SUPER_ADMIN';
 
-  const renderNavItems = (items: NavItem[]) =>
-    items.map((item) => {
-      const isActive = pathname === item.href;
-      return (
-        <SidebarMenuItem key={item.href}>
-          <SidebarMenuButton
-            isActive={isActive}
-            tooltip={item.label}
+  const renderNavItem = (item: NavItem) => {
+    const isActive = pathname === item.href;
+    return (
+      <SidebarMenuItem key={item.href}>
+        <SidebarMenuButton
+          isActive={isActive}
+          tooltip={item.label}
+          className={cn(
+            'h-9 transition-colors duration-100',
+            isActive
+              ? 'bg-white/[0.08] text-white font-medium'
+              : 'text-white/50 hover:bg-white/[0.05] hover:text-white/80',
+          )}
+          render={<Link href={item.href} />}
+        >
+          <item.icon
             className={cn(
-              'h-10 rounded-lg transition-all duration-150',
-              'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/30',
-              isActive
-                ? 'bg-white/[0.08] text-white font-medium shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)]'
-                : 'text-white/60 hover:bg-white/[0.04] hover:text-white/90',
+              'size-[18px] shrink-0',
+              isActive ? 'text-[#1ABC9C]' : 'text-white/40',
             )}
-            render={<Link href={item.href} />}
-          >
-            <item.icon className={cn('size-[18px]', isActive && 'text-[#1ABC9C]')} />
-            <span>{item.label}</span>
-          </SidebarMenuButton>
-        </SidebarMenuItem>
-      );
-    });
+          />
+          <span>{item.label}</span>
+        </SidebarMenuButton>
+      </SidebarMenuItem>
+    );
+  };
 
   return (
-    <Sidebar collapsible="icon">
+    <Sidebar collapsible="icon" className="border-r-0">
       {/* ── Brand ── */}
-      <SidebarHeader className="px-4 py-5">
+      <SidebarHeader className="p-3">
         <Link
           href="/dashboard"
-          className="flex items-center gap-3 group-data-[collapsible=icon]:justify-center"
+          className="flex h-9 items-center gap-2.5 rounded-md px-2 hover:bg-white/[0.04] transition-colors group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0"
         >
           <Image
             src="/logo.png"
             alt="WPT"
-            width={36}
-            height={17}
+            width={32}
+            height={15}
             className="shrink-0"
           />
-          <span className="text-[13px] font-semibold tracking-widest uppercase text-white/50 group-data-[collapsible=icon]:hidden">
+          <span className="text-xs font-medium tracking-wider uppercase text-white/40 group-data-[collapsible=icon]:hidden">
             Sistema IoT
           </span>
         </Link>
       </SidebarHeader>
 
-      {/* Thin rule — white/8% per gallery best practice */}
-      <div className="mx-3 h-px bg-white/[0.08]" />
-
-      <SidebarContent className="px-2 pt-3 pb-2">
-        {/* Main nav */}
+      <SidebarContent className="px-2">
+        {/* Main */}
         <SidebarGroup>
+          <SidebarGroupLabel className="text-[10px] uppercase tracking-wider text-white/25 px-2 mb-1">
+            Menu
+          </SidebarGroupLabel>
           <SidebarGroupContent>
-            <SidebarMenu className="gap-1">
-              {renderNavItems(navItems)}
+            <SidebarMenu className="gap-px">
+              {navItems.map(renderNavItem)}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {/* Reports — WPT + SuperAdmin */}
+        {/* Reports */}
         {isWptOrAdmin ? (
-          <>
-            <div className="mx-3 my-3 h-px bg-white/[0.06]" />
-            <SidebarGroup>
-              <SidebarGroupContent>
-                <SidebarMenu className="gap-1">
-                  {renderNavItems(reportItems)}
-                </SidebarMenu>
-              </SidebarGroupContent>
-            </SidebarGroup>
-          </>
+          <SidebarGroup>
+            <SidebarGroupLabel className="text-[10px] uppercase tracking-wider text-white/25 px-2 mb-1">
+              {t('nav.reports')}
+            </SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu className="gap-px">
+                {reportItems.map(renderNavItem)}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
         ) : null}
 
-        {/* Admin — SuperAdmin only */}
+        {/* Admin */}
         {isSuperAdmin ? (
-          <>
-            <div className="mx-3 my-3 h-px bg-white/[0.06]" />
-            <SidebarGroup>
-              <SidebarGroupContent>
-                <SidebarMenu className="gap-1">
-                  {renderNavItems(adminItems)}
-                </SidebarMenu>
-              </SidebarGroupContent>
-            </SidebarGroup>
-          </>
+          <SidebarGroup>
+            <SidebarGroupLabel className="text-[10px] uppercase tracking-wider text-white/25 px-2 mb-1">
+              Admin
+            </SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu className="gap-px">
+                {adminItems.map(renderNavItem)}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
         ) : null}
       </SidebarContent>
 
       {/* ── Footer ── */}
-      <div className="mx-3 h-px bg-white/[0.08]" />
+      <SidebarFooter className="p-2">
+        <SidebarMenu className="gap-px">
+          {/* Change password */}
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              tooltip={tAuth('changePassword.title')}
+              className="h-9 text-white/40 hover:bg-white/[0.05] hover:text-white/70"
+              onClick={() => setChangePasswordOpen(true)}
+            >
+              <KeyRound className="size-[18px] shrink-0" />
+              <span>{tAuth('changePassword.title')}</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
 
-      <SidebarFooter className="px-3 py-3">
-        {/* User card */}
-        <div className="flex items-center gap-3 rounded-lg bg-white/[0.04] px-3 py-2.5">
+          {/* Logout */}
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              tooltip={t('signOut')}
+              className="h-9 text-white/40 hover:bg-red-500/10 hover:text-red-400"
+              onClick={logout}
+            >
+              <LogOut className="size-[18px] shrink-0" />
+              <span>{t('signOut')}</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
+
+        {/* User — always at the very bottom */}
+        <div className="mt-1 flex h-10 items-center gap-2.5 rounded-md px-2 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
           <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#1ABC9C] text-xs font-bold text-white">
             {user.username.charAt(0).toUpperCase()}
           </div>
-          <div className="flex min-w-0 flex-col group-data-[collapsible=icon]:hidden">
-            <span className="truncate text-sm font-medium text-white">
+          <div className="min-w-0 group-data-[collapsible=icon]:hidden">
+            <div className="truncate text-xs font-medium text-white/70">
               {user.username}
-            </span>
-            <span className="text-[11px] text-white/40">
+            </div>
+            <div className="text-[10px] text-white/30">
               {user.role === 'SUPER_ADMIN' ? 'Admin' : user.role}
-            </span>
+            </div>
           </div>
-        </div>
-
-        {/* Actions */}
-        <div className="mt-1.5 flex flex-col gap-0.5">
-          <button
-            type="button"
-            onClick={() => setChangePasswordOpen(true)}
-            className="flex h-9 items-center gap-2.5 rounded-lg px-3 text-[13px] text-white/50 transition-colors hover:bg-white/[0.04] hover:text-white/80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/30 group-data-[collapsible=icon]:justify-center"
-          >
-            <KeyRound className="size-4 shrink-0" />
-            <span className="group-data-[collapsible=icon]:hidden">
-              {tAuth('changePassword.title')}
-            </span>
-          </button>
-          <button
-            type="button"
-            onClick={logout}
-            className="flex h-9 items-center gap-2.5 rounded-lg px-3 text-[13px] text-white/50 transition-colors hover:bg-red-500/10 hover:text-red-400 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/30 group-data-[collapsible=icon]:justify-center"
-          >
-            <LogOut className="size-4 shrink-0" />
-            <span className="group-data-[collapsible=icon]:hidden">
-              {t('signOut')}
-            </span>
-          </button>
         </div>
 
         <ChangeOwnPasswordDialog
