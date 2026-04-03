@@ -2,11 +2,13 @@ import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import fastifyCookie from '@fastify/cookie';
 import fastifySession from '@fastify/session';
+import websocket from '@fastify/websocket';
 import { config } from './config.js';
 import { DrizzleSessionStore } from './auth/sessionStore.js';
 import { healthRoute } from './routes/health.js';
 import { authRoutes } from './routes/auth.js';
 import { userRoutes } from './routes/users.js';
+import { wsRoute } from './ws/route.js';
 
 const isDev = process.env.NODE_ENV !== 'production';
 
@@ -50,13 +52,23 @@ export function buildServer(): ReturnType<typeof Fastify> {
     saveUninitialized: false,
   });
 
-  // 4. Health check
+  // 4. WebSocket plugin
+  server.register(websocket, {
+    options: {
+      maxPayload: 65536, // 64KB -- generous for JSON machine data (~4KB)
+    },
+  });
+
+  // 5. WebSocket route (session-authenticated)
+  server.register(wsRoute);
+
+  // 6. Health check
   server.register(healthRoute);
 
-  // 5. Auth routes (login, logout, me, change-password)
+  // 7. Auth routes (login, logout, me, change-password)
   server.register(authRoutes);
 
-  // 6. User CRUD routes (SuperAdmin only)
+  // 8. User CRUD routes (SuperAdmin only)
   server.register(userRoutes);
 
   return server;
