@@ -19,4 +19,7 @@ export const config = {
   simUsersPort: Number(process.env.SIM_USERS_PORT ?? 19092),
   simHost: process.env.SIM_HOST ?? 'localhost',
   handshakeTimeoutMs: Number(process.env.HANDSHAKE_TIMEOUT_MS ?? 5000),
+  sessionSecret: process.env.SESSION_SECRET ?? 'dev-only-session-secret-minimum-32-chars!!',
+  adminPassword: process.env.ADMIN_PASSWORD ?? '',
+  corsOrigin: (process.env.CORS_ORIGIN ?? 'http://localhost:3000').split(','),
 } as const;

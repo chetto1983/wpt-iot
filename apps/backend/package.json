@@ -14,15 +14,20 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@fastify/cookie": "^11.0.2",
+    "@fastify/cors": "^11.2.0",
+    "@fastify/session": "^11.1.1",
     "@wpt/types": "workspace:*",
-    "fastify": "^5.8.0",
+    "bcryptjs": "^3.0.3",
+    "dotenv": "^16.4.0",
     "drizzle-orm": "^0.45.0",
+    "fastify": "^5.8.0",
     "pg": "^8.13.0",
     "pino": "^10.3.0",
-    "dotenv": "^16.4.0",
     "zod": "^3.25.0"
   },
   "devDependencies": {
+    "@types/bcryptjs": "^3.0.0",
     "@types/node": "^22.0.0",
     "@types/pg": "^8.11.0",
     "drizzle-kit": "^0.31.0",
