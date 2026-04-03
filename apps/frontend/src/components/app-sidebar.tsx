@@ -84,7 +84,7 @@ export function AppSidebar() {
         >
           <item.icon
             className={cn(
-              'size-5 shrink-0',
+              '!size-5 shrink-0',
               isActive ? 'text-[#1ABC9C]' : 'text-white/40',
             )}
           />
@@ -95,7 +95,16 @@ export function AppSidebar() {
   };
 
   return (
-    <Sidebar collapsible="icon" className="border-r border-white/[0.06]">
+    <Sidebar
+      collapsible="icon"
+      className="border-r border-white/[0.06]"
+      style={{
+        // Override shadcn sidebar-accent (gold #bfae82) for nav active state.
+        // We want translucent white, not gold, for active backgrounds.
+        '--sidebar-accent': 'rgba(255,255,255,0.08)',
+        '--sidebar-accent-foreground': '#ffffff',
+      } as React.CSSProperties}
+    >
       {/* ── Brand ── */}
       <SidebarHeader className="px-4 py-4">
         <Link
@@ -166,7 +175,7 @@ export function AppSidebar() {
               className="h-10 text-white/40 hover:bg-white/[0.05] hover:text-white/70"
               onClick={() => setChangePasswordOpen(true)}
             >
-              <KeyRound className="size-5 shrink-0" />
+              <KeyRound className="!size-5 shrink-0" />
               <span className="text-sm">{tAuth('changePassword.title')}</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
@@ -176,7 +185,7 @@ export function AppSidebar() {
               className="h-10 text-white/40 hover:bg-red-500/10 hover:text-red-400"
               onClick={logout}
             >
-              <LogOut className="size-5 shrink-0" />
+              <LogOut className="!size-5 shrink-0" />
               <span className="text-sm">{t('signOut')}</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
