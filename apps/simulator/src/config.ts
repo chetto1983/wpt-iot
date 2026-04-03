@@ -1,5 +1,10 @@
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import dotenv from 'dotenv';
-dotenv.config();
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+// Load .env from workspace root (wpt-iot/.env) since pnpm sets cwd to package dir
+dotenv.config({ path: path.resolve(__dirname, '..', '..', '..', '.env') });
 
 export interface ISimulatorConfig {
   SIM_PORT: number;

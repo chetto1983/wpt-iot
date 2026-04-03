@@ -24,7 +24,11 @@ function safeSend(socket: WebSocket, data: unknown): void {
   if (socket.readyState !== WebSocket.OPEN) return;
   try {
     socket.send(JSON.stringify(data));
-  } catch (_err) {
+  } catch (err) {
+    log.error(
+      { name: 'WsBroadcaster', err: (err as Error).message },
+      'WebSocket send failed',
+    );
     removeClient(socket);
     socket.terminate();
   }
@@ -110,6 +114,14 @@ async function checkSessionExpiry(): Promise<void> {
 
       const row = rows[0];
       if (!row || row.expiresAt < new Date()) {
+        log.warn(
+          {
+            name: 'WsBroadcaster',
+            sessionId: client.sessionId,
+            expiresAt: row?.expiresAt?.toISOString() ?? null,
+          },
+          'Closing WebSocket for expired session',
+        );
         client.socket.close(4401, 'session_expired');
       }
     } catch (err) {

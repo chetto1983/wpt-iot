@@ -7,6 +7,7 @@ import type { IActiveAlarm, IMachineSnapshot, IWsMessage } from '@wpt/types';
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || '';
 const MIN_RECONNECT_DELAY = 1000;
 const MAX_RECONNECT_DELAY = 30000;
+const MAX_LOGGED_MESSAGE_CHARS = 200;
 
 function getWsUrl(): string {
   const base = (API_BASE || window.location.origin).replace(/\/$/, '');
@@ -62,6 +63,13 @@ export function useWebSocket(enabled: boolean): WsState {
         return;
       }
 
+      if (event.code !== 1000) {
+        console.warn('[ws] connection closed', {
+          code: event.code,
+          reason: event.reason || '(empty)',
+        });
+      }
+
       if (!enabledRef.current) {
         return;
       }
@@ -83,7 +91,9 @@ export function useWebSocket(enabled: boolean): WsState {
     };
 
     ws.onerror = () => {
-      // Reconnect logic is centralized in onclose.
+      // Browser WebSocket error events do not expose the underlying cause.
+      // Log the failure so transport/auth issues do not disappear into retries.
+      console.error('[ws] connection error', { url: getWsUrl() });
     };
 
     ws.onmessage = (event) => {
@@ -106,10 +116,17 @@ export function useWebSocket(enabled: boolean): WsState {
             });
             break;
           default:
+            console.warn('[ws] unsupported message type', { type: message.type });
             break;
         }
-      } catch {
-        // Ignore malformed messages.
+      } catch (error) {
+        const raw = event.data.length > MAX_LOGGED_MESSAGE_CHARS
+          ? `${event.data.slice(0, MAX_LOGGED_MESSAGE_CHARS)}...`
+          : event.data;
+        console.error('[ws] failed to parse message', {
+          error: error instanceof Error ? error.message : String(error),
+          raw,
+        });
       }
     };
   }, []);

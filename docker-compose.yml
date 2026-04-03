@@ -19,12 +19,17 @@ services:
     build:
       context: .
       dockerfile: apps/backend/Dockerfile
-    network_mode: host
+    ports:
+      - "3001:3001"
+      - "9090:9090/udp"
+      - "9091:9091/udp"
+      - "9092:9092/udp"
+      - "9093:9093/udp"
     depends_on:
       db:
         condition: service_healthy
     environment:
-      PG_HOST: localhost
+      PG_HOST: db
       PG_PORT: 5432
       PG_DB: wpt
       PG_USERNAME: wpt
@@ -35,8 +40,12 @@ services:
       UDP_PORT_ALARMS: 9091
       UDP_PORT_USERS: 9092
       UDP_PORT_ACK: 9093
+      SIM_HOST: simulator
+      SIM_ACK_PORT: 9093
+      SIM_DATA_PORT: 9090
+      SIM_USERS_PORT: 9092
     healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3001/health"]
+      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:3001/health"]
       interval: 10s
       timeout: 3s
       retries: 5
@@ -46,6 +55,8 @@ services:
     build:
       context: .
       dockerfile: apps/frontend/Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:3001
     ports:
       - "3000:3000"
     depends_on:
@@ -67,7 +78,7 @@ services:
       - "19093:9093/udp"
     environment:
       SIM_PORT: 3002
-      TARGET_HOST: host.docker.internal
+      TARGET_HOST: backend
       TARGET_DATA_PORT: 9090
       TARGET_ALARMS_PORT: 9091
       UDP_LISTEN_DATA: 9090
@@ -82,7 +93,7 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
     healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3002/health"]
+      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:3002/health"]
       interval: 10s
       timeout: 3s
       retries: 3

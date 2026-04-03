@@ -43,11 +43,23 @@ export async function wsRoute(server: FastifyInstance): Promise<void> {
     const sessionId = request.session.sessionId as string;
 
     // Attach event handlers synchronously per Pitfall 1
-    socket.on('close', () => {
+    socket.on('close', (code, reason) => {
+      request.log.info(
+        {
+          name: 'WsRoute',
+          code,
+          reason: reason.toString() || null,
+        },
+        'WebSocket closed',
+      );
       removeClient(socket);
     });
 
-    socket.on('error', () => {
+    socket.on('error', (err) => {
+      request.log.error(
+        { name: 'WsRoute', err: err.message },
+        'WebSocket client error',
+      );
       removeClient(socket);
       socket.terminate();
     });
