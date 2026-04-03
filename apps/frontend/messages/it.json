@@ -1,0 +1,97 @@
+{
+  "common": {
+    "save": "Salva Modifiche",
+    "cancel": "Annulla",
+    "delete": "Elimina",
+    "edit": "Modifica",
+    "create": "Crea",
+    "loading": "Caricamento...",
+    "error": "Si e' verificato un errore",
+    "roles": {
+      "SUPER_ADMIN": "SuperAdmin",
+      "WPT": "WPT",
+      "CLIENT": "Client"
+    },
+    "nav": {
+      "dashboard": "Cruscotto",
+      "users": "Utenti",
+      "rfid": "Utenti RFID",
+      "jobs": "Commesse",
+      "reports": "Report",
+      "alarms": "Allarmi",
+      "charts": "Grafici"
+    },
+    "signOut": "Esci"
+  },
+  "login": {
+    "title": "WPT Sistema IoT",
+    "subtitle": "Sistema di Monitoraggio Industriale",
+    "username": "Nome utente",
+    "password": "Password",
+    "signIn": "Accedi",
+    "language": "Lingua",
+    "errors": {
+      "invalid": "Nome utente o password non validi. Controlla le credenziali e riprova.",
+      "expired": "La sessione e' scaduta. Accedi nuovamente.",
+      "server": "Impossibile connettersi al server. Contatta l'amministratore di sistema."
+    }
+  },
+  "auth": {
+    "unauthorized": "Non hai i permessi per accedere a questa pagina.",
+    "changePassword": {
+      "title": "Cambia Password",
+      "current": "Password Attuale",
+      "new": "Nuova Password",
+      "confirm": "Conferma Password",
+      "mismatch": "Le password non corrispondono.",
+      "success": "Password cambiata con successo."
+    }
+  },
+  "users": {
+    "heading": "Gestione Utenti",
+    "createUser": "Crea Utente",
+    "table": {
+      "username": "Nome utente",
+      "role": "Ruolo",
+      "created": "Creato il",
+      "actions": "Azioni"
+    },
+    "empty": {
+      "heading": "Nessun utente trovato",
+      "body": "Crea il primo utente per iniziare."
+    },
+    "dialog": {
+      "createTitle": "Crea Utente",
+      "editTitle": "Modifica Utente",
+      "username": "Nome utente",
+      "password": "Password",
+      "passwordEdit": "Nuova Password (lascia vuoto per mantenere quella attuale)",
+      "role": "Ruolo"
+    },
+    "delete": {
+      "title": "Elimina Utente",
+      "body": "Sei sicuro di voler eliminare \"{username}\"? Questa azione non puo' essere annullata.",
+      "confirm": "Elimina Utente",
+      "cancel": "Mantieni Utente"
+    },
+    "actions": {
+      "edit": "Modifica",
+      "changePassword": "Cambia Password",
+      "delete": "Elimina"
+    },
+    "toast": {
+      "created": "Utente \"{username}\" creato con successo.",
+      "updated": "Utente \"{username}\" aggiornato con successo.",
+      "deleted": "Utente \"{username}\" eliminato.",
+      "errorUsernameTaken": "Un utente con questo nome utente esiste gia'.",
+      "errorDeleteSelf": "Non puoi eliminare il tuo account.",
+      "errorSave": "Impossibile salvare l'utente. Riprova o contatta l'amministratore."
+    }
+  },
+  "dashboard": {},
+  "rfid": {},
+  "jobs": {},
+  "reports": {},
+  "alarms": {},
+  "charts": {}
+}

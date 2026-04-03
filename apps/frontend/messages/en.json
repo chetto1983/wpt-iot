@@ -1,0 +1,97 @@
+{
+  "common": {
+    "save": "Save Changes",
+    "cancel": "Discard",
+    "delete": "Delete",
+    "edit": "Edit",
+    "create": "Create",
+    "loading": "Loading...",
+    "error": "An error occurred",
+    "roles": {
+      "SUPER_ADMIN": "SuperAdmin",
+      "WPT": "WPT",
+      "CLIENT": "Client"
+    },
+    "nav": {
+      "dashboard": "Dashboard",
+      "users": "Users",
+      "rfid": "RFID Users",
+      "jobs": "Jobs",
+      "reports": "Reports",
+      "alarms": "Alarms",
+      "charts": "Charts"
+    },
+    "signOut": "Sign Out"
+  },
+  "login": {
+    "title": "WPT Sistema IoT",
+    "subtitle": "Industrial Monitoring System",
+    "username": "Username",
+    "password": "Password",
+    "signIn": "Sign In",
+    "language": "Language",
+    "errors": {
+      "invalid": "Invalid username or password. Check your credentials and try again.",
+      "expired": "Your session has expired. Please sign in again.",
+      "server": "Unable to connect to the server. Contact the system administrator."
+    }
+  },
+  "auth": {
+    "unauthorized": "You do not have permission to access this page.",
+    "changePassword": {
+      "title": "Change Password",
+      "current": "Current Password",
+      "new": "New Password",
+      "confirm": "Confirm Password",
+      "mismatch": "Passwords do not match.",
+      "success": "Password changed successfully."
+    }
+  },
+  "users": {
+    "heading": "User Management",
+    "createUser": "Create User",
+    "table": {
+      "username": "Username",
+      "role": "Role",
+      "created": "Created",
+      "actions": "Actions"
+    },
+    "empty": {
+      "heading": "No users found",
+      "body": "Create the first user to get started."
+    },
+    "dialog": {
+      "createTitle": "Create User",
+      "editTitle": "Edit User",
+      "username": "Username",
+      "password": "Password",
+      "passwordEdit": "New Password (leave blank to keep current)",
+      "role": "Role"
+    },
+    "delete": {
+      "title": "Delete User",
+      "body": "Are you sure you want to delete \"{username}\"? This action cannot be undone.",
+      "confirm": "Delete User",
+      "cancel": "Keep User"
+    },
+    "actions": {
+      "edit": "Edit",
+      "changePassword": "Change Password",
+      "delete": "Delete"
+    },
+    "toast": {
+      "created": "User \"{username}\" created successfully.",
+      "updated": "User \"{username}\" updated successfully.",
+      "deleted": "User \"{username}\" deleted.",
+      "errorUsernameTaken": "A user with this username already exists.",
+      "errorDeleteSelf": "You cannot delete your own account.",
+      "errorSave": "Failed to save user. Try again or contact the administrator."
+    }
+  },
+  "dashboard": {},
+  "rfid": {},
+  "jobs": {},
+  "reports": {},
+  "alarms": {},
+  "charts": {}
+}
