@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import { SidebarProvider, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar';
 import { AppSidebar } from '@/components/app-sidebar';
+import { WebSocketProvider } from '@/lib/ws-context';
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -30,15 +31,17 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <SidebarProvider>
-      <AppSidebar />
-      <SidebarInset>
-        <header className="flex h-12 items-center border-b px-4">
-          <SidebarTrigger />
-        </header>
-        <div className="flex-1 p-6 bg-background">
-          {children}
-        </div>
-      </SidebarInset>
+      <WebSocketProvider>
+        <AppSidebar />
+        <SidebarInset>
+          <header className="flex h-12 items-center border-b px-4">
+            <SidebarTrigger />
+          </header>
+          <div className="flex-1 p-6 bg-background">
+            {children}
+          </div>
+        </SidebarInset>
+      </WebSocketProvider>
     </SidebarProvider>
   );
 }
