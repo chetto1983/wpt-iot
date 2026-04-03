@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
@@ -12,12 +13,14 @@ import {
   AlertTriangle,
   BarChart3,
   LogOut,
+  KeyRound,
 } from 'lucide-react';
 
 import { useAuth } from '@/lib/auth-context';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { ChangeOwnPasswordDialog } from '@/components/change-own-password-dialog';
 import {
   Sidebar,
   SidebarContent,
@@ -51,8 +54,10 @@ function roleBadgeClass(role: string): string {
 
 export function AppSidebar() {
   const t = useTranslations('common');
+  const tAuth = useTranslations('auth');
   const { user, logout } = useAuth();
   const pathname = usePathname();
+  const [changePasswordOpen, setChangePasswordOpen] = useState(false);
 
   if (!user) return null;
 
@@ -159,6 +164,16 @@ export function AppSidebar() {
         <Button
           variant="ghost"
           className="h-11 w-full justify-start gap-2 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground group-data-[collapsible=icon]:justify-center"
+          onClick={() => setChangePasswordOpen(true)}
+        >
+          <KeyRound className="size-4" />
+          <span className="group-data-[collapsible=icon]:hidden">
+            {tAuth('changePassword.title')}
+          </span>
+        </Button>
+        <Button
+          variant="ghost"
+          className="h-11 w-full justify-start gap-2 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground group-data-[collapsible=icon]:justify-center"
           onClick={logout}
         >
           <LogOut className="size-4" />
@@ -166,6 +181,10 @@ export function AppSidebar() {
             {t('signOut')}
           </span>
         </Button>
+        <ChangeOwnPasswordDialog
+          open={changePasswordOpen}
+          onOpenChange={setChangePasswordOpen}
+        />
       </SidebarFooter>
     </Sidebar>
   );
