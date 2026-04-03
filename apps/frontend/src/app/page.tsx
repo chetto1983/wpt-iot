@@ -1,11 +1,10 @@
-import { UserRole } from '@wpt/types';
+import { Suspense } from 'react';
+import { LoginForm } from '@/components/login-form';
 
-export default function Home() {
+export default function LoginPage() {
   return (
-    <main>
-      <h1>WPT IoT System</h1>
-      <p>Status: Running</p>
-      <p>Roles: {Object.values(UserRole).join(', ')}</p>
-    </main>
+    <Suspense>
+      <LoginForm />
+    </Suspense>
   );
 }
