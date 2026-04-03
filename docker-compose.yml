@@ -20,7 +20,7 @@ services:
       context: .
       dockerfile: apps/backend/Dockerfile
     ports:
-      - "3001:3001"
+      - "3000:3000"
       - "9090:9090/udp"
       - "9091:9091/udp"
       - "9092:9092/udp"
@@ -34,7 +34,7 @@ services:
       PG_DB: wpt
       PG_USERNAME: wpt
       PG_PASSWORD: ${PG_PASSWORD:-wpt_dev_password}
-      PORT: 3001
+      PORT: 3000
       HOST: 0.0.0.0
       UDP_PORT_DATA: 9090
       UDP_PORT_ALARMS: 9091
@@ -44,8 +44,9 @@ services:
       SIM_ACK_PORT: 9093
       SIM_DATA_PORT: 9090
       SIM_USERS_PORT: 9092
+      CORS_ORIGIN: http://localhost:3001
     healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:3001/health"]
+      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:3000/health"]
       interval: 10s
       timeout: 3s
       retries: 5
@@ -56,14 +57,14 @@ services:
       context: .
       dockerfile: apps/frontend/Dockerfile
       args:
-        NEXT_PUBLIC_API_URL: http://localhost:3001
+        NEXT_PUBLIC_API_URL: http://localhost:3000
     ports:
-      - "3000:3000"
+      - "3001:3000"
     depends_on:
       backend:
         condition: service_healthy
     environment:
-      NEXT_PUBLIC_API_URL: http://localhost:3001
+      NEXT_PUBLIC_API_URL: http://localhost:3000
 
   simulator:
     build:
