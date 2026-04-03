@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { Loader2 } from 'lucide-react';
 
+import Image from 'next/image';
 import { useAuth } from '@/lib/auth-context';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -122,14 +123,17 @@ export function LoginForm() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-[#282828] px-4">
       <Card className="w-full max-w-sm">
-        <CardHeader className="items-center space-y-2 pb-2">
-          <span className="text-3xl font-bold tracking-tight text-primary">
-            WPT
-          </span>
-          <h1 className="text-[1.75rem] font-semibold leading-tight">
-            {t('title')}
+        <CardHeader className="items-center space-y-3 pb-2">
+          <Image
+            src="/logo.png"
+            alt="WPT"
+            width={120}
+            height={120}
+            priority
+          />
+          <h1 className="text-lg font-semibold leading-tight">
+            {t('subtitle')}
           </h1>
-          <p className="text-sm text-muted-foreground">{t('subtitle')}</p>
         </CardHeader>
 
         <form onSubmit={handleSubmit}>
