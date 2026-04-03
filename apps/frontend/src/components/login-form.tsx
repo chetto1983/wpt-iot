@@ -3,12 +3,13 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { Eye, EyeOff, Loader2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 
 import Image from 'next/image';
 import { useAuth } from '@/lib/auth-context';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { PasswordInput } from '@/components/password-input';
 import { Label } from '@/components/ui/label';
 import {
   Card,
@@ -38,7 +39,6 @@ export function LoginForm() {
     }
     return 'it';
   });
-  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
@@ -155,25 +155,14 @@ export function LoginForm() {
 
             <div className="space-y-2">
               <Label htmlFor="password">{t('password')}</Label>
-              <div className="relative">
-                <Input
-                  id="password"
-                  type={showPassword ? 'text' : 'password'}
-                  autoComplete="current-password"
-                  value={password}
-                  onChange={handlePasswordChange}
-                  disabled={submitting}
-                  className="h-11 pr-10"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword((v) => !v)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                  tabIndex={-1}
-                >
-                  {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-                </button>
-              </div>
+              <PasswordInput
+                id="password"
+                autoComplete="current-password"
+                value={password}
+                onChange={handlePasswordChange}
+                disabled={submitting}
+                className="h-11"
+              />
             </div>
 
             <div className="space-y-2">

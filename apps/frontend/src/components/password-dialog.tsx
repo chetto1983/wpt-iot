@@ -7,8 +7,8 @@ import { toast } from 'sonner';
 
 import { apiFetch } from '@/lib/api';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { PasswordInput } from '@/components/password-input';
 import {
   Dialog,
   DialogContent,
@@ -93,11 +93,10 @@ export function PasswordDialog({ open, onOpenChange, user, onSuccess }: Password
         <form onSubmit={handleSubmit} className="grid gap-4">
           <div className="grid gap-2">
             <Label htmlFor="pw-new">{tAuth('changePassword.new')}</Label>
-            <Input
+            <PasswordInput
               id="pw-new"
-              type="password"
               value={newPassword}
-              onChange={(e) => {
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
                 setNewPassword(e.target.value);
                 setMismatch(false);
               }}
@@ -108,11 +107,10 @@ export function PasswordDialog({ open, onOpenChange, user, onSuccess }: Password
 
           <div className="grid gap-2">
             <Label htmlFor="pw-confirm">{tAuth('changePassword.confirm')}</Label>
-            <Input
+            <PasswordInput
               id="pw-confirm"
-              type="password"
               value={confirmPassword}
-              onChange={(e) => {
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
                 setConfirmPassword(e.target.value);
                 setMismatch(false);
               }}

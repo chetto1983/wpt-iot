@@ -7,7 +7,6 @@ import { toast } from 'sonner';
 
 import { apiFetch } from '@/lib/api';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
   Dialog,
@@ -16,6 +15,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { PasswordInput } from '@/components/password-input';
 
 interface ChangeOwnPasswordDialogProps {
   open: boolean;
@@ -32,7 +32,6 @@ export function ChangeOwnPasswordDialog({ open, onOpenChange }: ChangeOwnPasswor
   const [mismatch, setMismatch] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  // Reset form when dialog opens
   useEffect(() => {
     if (open) {
       setCurrentPassword('');
@@ -45,14 +44,9 @@ export function ChangeOwnPasswordDialog({ open, onOpenChange }: ChangeOwnPasswor
   const handleSubmit = useCallback(
     async (e: React.FormEvent) => {
       e.preventDefault();
-
-      if (newPassword !== confirmPassword) {
-        setMismatch(true);
-        return;
-      }
+      if (newPassword !== confirmPassword) { setMismatch(true); return; }
       setMismatch(false);
       setSubmitting(true);
-
       try {
         await apiFetch('/auth/change-password', {
           method: 'POST',
@@ -80,68 +74,46 @@ export function ChangeOwnPasswordDialog({ open, onOpenChange }: ChangeOwnPasswor
         <DialogHeader>
           <DialogTitle>{t('changePassword.title')}</DialogTitle>
         </DialogHeader>
-
         <form onSubmit={handleSubmit} className="grid gap-4">
           <div className="grid gap-2">
             <Label htmlFor="own-pw-current">{t('changePassword.current')}</Label>
-            <Input
+            <PasswordInput
               id="own-pw-current"
-              type="password"
               value={currentPassword}
               onChange={(e) => setCurrentPassword(e.target.value)}
               required
               autoComplete="current-password"
             />
           </div>
-
           <div className="grid gap-2">
             <Label htmlFor="own-pw-new">{t('changePassword.new')}</Label>
-            <Input
+            <PasswordInput
               id="own-pw-new"
-              type="password"
               value={newPassword}
-              onChange={(e) => {
-                setNewPassword(e.target.value);
-                setMismatch(false);
-              }}
+              onChange={(e) => { setNewPassword(e.target.value); setMismatch(false); }}
               required
               autoComplete="new-password"
             />
           </div>
-
           <div className="grid gap-2">
             <Label htmlFor="own-pw-confirm">{t('changePassword.confirm')}</Label>
-            <Input
+            <PasswordInput
               id="own-pw-confirm"
-              type="password"
               value={confirmPassword}
-              onChange={(e) => {
-                setConfirmPassword(e.target.value);
-                setMismatch(false);
-              }}
+              onChange={(e) => { setConfirmPassword(e.target.value); setMismatch(false); }}
               required
               autoComplete="new-password"
             />
             {mismatch ? (
-              <p className="text-sm text-destructive">
-                {t('changePassword.mismatch')}
-              </p>
+              <p className="text-sm text-destructive">{t('changePassword.mismatch')}</p>
             ) : null}
           </div>
-
           <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-              disabled={submitting}
-            >
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
               {tCommon('cancel')}
             </Button>
             <Button type="submit" disabled={submitting}>
-              {submitting ? (
-                <Loader2 className="size-4 animate-spin" />
-              ) : null}
+              {submitting ? <Loader2 className="size-4 animate-spin" /> : null}
               {tCommon('save')}
             </Button>
           </DialogFooter>
