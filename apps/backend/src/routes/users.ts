@@ -48,12 +48,17 @@ export const userRoutes: FastifyPluginAsync = async (server) => {
       const user = await AuthService.create(body.username, body.password, body.role);
       return reply.code(201).send(user);
     } catch (err: unknown) {
-      // Unique constraint violation on username
+      // Unique constraint violation on username (PostgreSQL error code 23505)
+      // Drizzle wraps PG errors — check .code on the error and its .cause
+      const pgCode =
+        (err as { code?: string }).code ??
+        (err as { cause?: { code?: string } }).cause?.code;
       if (
-        err instanceof Error &&
-        (err.message.includes('unique') ||
-          err.message.includes('duplicate') ||
-          err.message.includes('23505'))
+        pgCode === '23505' ||
+        (err instanceof Error &&
+          (err.message.includes('unique') ||
+            err.message.includes('duplicate') ||
+            err.message.includes('auth_users_username_unique')))
       ) {
         return reply.code(409).send({ error: 'Username already exists' });
       }
