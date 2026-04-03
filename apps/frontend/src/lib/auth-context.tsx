@@ -33,17 +33,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Check existing session on mount
+  // Check existing session on mount.
+  // Uses raw fetch instead of apiFetch to avoid the 401 → redirect loop:
+  // apiFetch redirects to /?expired on 401, which reloads the page,
+  // which calls checkSession again → 401 → redirect → infinite loop.
   useEffect(() => {
     let cancelled = false;
     async function checkSession() {
       try {
-        const data = await apiFetch<User>('/auth/me');
+        const res = await fetch(`${API_BASE}/auth/me`, {
+          credentials: 'include',
+        });
+        if (!res.ok) throw new Error('No session');
+        const data = (await res.json()) as User;
         if (!cancelled) {
           setUser(data);
         }
       } catch {
-        // 401 or network error — no session
         if (!cancelled) {
           setUser(null);
         }
