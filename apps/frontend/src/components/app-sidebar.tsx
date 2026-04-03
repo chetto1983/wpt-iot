@@ -75,7 +75,7 @@ export function AppSidebar() {
           isActive={isActive}
           tooltip={item.label}
           className={cn(
-            'h-9 transition-colors duration-100',
+            'h-10 rounded-lg transition-colors duration-100',
             isActive
               ? 'bg-white/[0.08] text-white font-medium'
               : 'text-white/50 hover:bg-white/[0.05] hover:text-white/80',
@@ -84,30 +84,30 @@ export function AppSidebar() {
         >
           <item.icon
             className={cn(
-              'size-[18px] shrink-0',
+              'size-5 shrink-0',
               isActive ? 'text-[#1ABC9C]' : 'text-white/40',
             )}
           />
-          <span>{item.label}</span>
+          <span className="text-sm">{item.label}</span>
         </SidebarMenuButton>
       </SidebarMenuItem>
     );
   };
 
   return (
-    <Sidebar collapsible="icon" className="border-r-0">
+    <Sidebar collapsible="icon" className="border-r border-white/[0.06]">
       {/* ── Brand ── */}
-      <SidebarHeader className="p-3">
+      <SidebarHeader className="px-4 py-4">
         <Link
           href="/dashboard"
-          className="flex h-9 items-center gap-2.5 rounded-md px-2 hover:bg-white/[0.04] transition-colors group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0"
+          className="flex h-10 items-center gap-3 group-data-[collapsible=icon]:justify-center"
         >
           <Image
             src="/logo.png"
             alt="WPT"
-            width={32}
-            height={15}
-            className="shrink-0"
+            width={40}
+            height={19}
+            className="shrink-0 brightness-0 invert"
           />
           <span className="text-xs font-medium tracking-wider uppercase text-white/40 group-data-[collapsible=icon]:hidden">
             Sistema IoT
@@ -115,14 +115,14 @@ export function AppSidebar() {
         </Link>
       </SidebarHeader>
 
-      <SidebarContent className="px-2">
+      <SidebarContent className="px-3">
         {/* Main */}
         <SidebarGroup>
-          <SidebarGroupLabel className="text-[10px] uppercase tracking-wider text-white/25 px-2 mb-1">
+          <SidebarGroupLabel className="mb-2 px-2 text-[11px] uppercase tracking-wider text-white/25 group-data-[collapsible=icon]:hidden">
             Menu
           </SidebarGroupLabel>
           <SidebarGroupContent>
-            <SidebarMenu className="gap-px">
+            <SidebarMenu className="gap-0.5">
               {navItems.map(renderNavItem)}
             </SidebarMenu>
           </SidebarGroupContent>
@@ -130,12 +130,12 @@ export function AppSidebar() {
 
         {/* Reports */}
         {isWptOrAdmin ? (
-          <SidebarGroup>
-            <SidebarGroupLabel className="text-[10px] uppercase tracking-wider text-white/25 px-2 mb-1">
+          <SidebarGroup className="mt-6">
+            <SidebarGroupLabel className="mb-2 px-2 text-[11px] uppercase tracking-wider text-white/25 group-data-[collapsible=icon]:hidden">
               {t('nav.reports')}
             </SidebarGroupLabel>
             <SidebarGroupContent>
-              <SidebarMenu className="gap-px">
+              <SidebarMenu className="gap-0.5">
                 {reportItems.map(renderNavItem)}
               </SidebarMenu>
             </SidebarGroupContent>
@@ -144,12 +144,12 @@ export function AppSidebar() {
 
         {/* Admin */}
         {isSuperAdmin ? (
-          <SidebarGroup>
-            <SidebarGroupLabel className="text-[10px] uppercase tracking-wider text-white/25 px-2 mb-1">
+          <SidebarGroup className="mt-6">
+            <SidebarGroupLabel className="mb-2 px-2 text-[11px] uppercase tracking-wider text-white/25 group-data-[collapsible=icon]:hidden">
               Admin
             </SidebarGroupLabel>
             <SidebarGroupContent>
-              <SidebarMenu className="gap-px">
+              <SidebarMenu className="gap-0.5">
                 {adminItems.map(renderNavItem)}
               </SidebarMenu>
             </SidebarGroupContent>
@@ -158,43 +158,40 @@ export function AppSidebar() {
       </SidebarContent>
 
       {/* ── Footer ── */}
-      <SidebarFooter className="p-2">
-        <SidebarMenu className="gap-px">
-          {/* Change password */}
+      <SidebarFooter className="px-3 pb-4">
+        <SidebarMenu className="gap-0.5">
           <SidebarMenuItem>
             <SidebarMenuButton
               tooltip={tAuth('changePassword.title')}
-              className="h-9 text-white/40 hover:bg-white/[0.05] hover:text-white/70"
+              className="h-10 text-white/40 hover:bg-white/[0.05] hover:text-white/70"
               onClick={() => setChangePasswordOpen(true)}
             >
-              <KeyRound className="size-[18px] shrink-0" />
-              <span>{tAuth('changePassword.title')}</span>
+              <KeyRound className="size-5 shrink-0" />
+              <span className="text-sm">{tAuth('changePassword.title')}</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
-
-          {/* Logout */}
           <SidebarMenuItem>
             <SidebarMenuButton
               tooltip={t('signOut')}
-              className="h-9 text-white/40 hover:bg-red-500/10 hover:text-red-400"
+              className="h-10 text-white/40 hover:bg-red-500/10 hover:text-red-400"
               onClick={logout}
             >
-              <LogOut className="size-[18px] shrink-0" />
-              <span>{t('signOut')}</span>
+              <LogOut className="size-5 shrink-0" />
+              <span className="text-sm">{t('signOut')}</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
 
-        {/* User — always at the very bottom */}
-        <div className="mt-1 flex h-10 items-center gap-2.5 rounded-md px-2 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#1ABC9C] text-xs font-bold text-white">
+        {/* User */}
+        <div className="mt-2 flex h-11 items-center gap-3 rounded-lg px-2 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#1ABC9C] text-sm font-bold text-white">
             {user.username.charAt(0).toUpperCase()}
           </div>
           <div className="min-w-0 group-data-[collapsible=icon]:hidden">
-            <div className="truncate text-xs font-medium text-white/70">
+            <div className="truncate text-sm font-medium text-white/80">
               {user.username}
             </div>
-            <div className="text-[10px] text-white/30">
+            <div className="text-[11px] text-white/30">
               {user.role === 'SUPER_ADMIN' ? 'Admin' : user.role}
             </div>
           </div>
