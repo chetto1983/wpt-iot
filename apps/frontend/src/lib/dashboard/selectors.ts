@@ -1,5 +1,5 @@
 import type { IMachineSnapshot } from '@wpt/types';
-import { TECHNICAL_GROUPS } from './fields.js';
+import { TECHNICAL_GROUPS } from './fields';
 
 export type DashboardConnectionState = 'waiting' | 'live' | 'reconnecting' | 'offline';
 
