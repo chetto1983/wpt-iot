@@ -23,9 +23,9 @@ export function GaugeCard({ label, value, unit, min, max, subArcs, className }: 
   const displayValue = value !== undefined ? value : min;
 
   return (
-    <Card className={`bg-[#383838] border-0 text-white rounded-xl shadow-lg shadow-black/20 min-h-[180px] xl:min-h-[220px] ${className ?? ''}`}>
+    <Card className={`border-0 rounded-xl shadow-lg shadow-black/20 min-h-[180px] xl:min-h-[220px] ${className ?? ''}`}>
       <CardHeader>
-        <p className="text-xs font-semibold text-white/40 uppercase tracking-wider">
+        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
           {label}
         </p>
       </CardHeader>

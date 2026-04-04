@@ -22,7 +22,7 @@ export function DashboardScreen() {
   }
 
   return (
-    <div className="min-h-full bg-gradient-to-b from-[#282828] via-[#282828] to-[#1e1e1e] p-6 xl:p-8 space-y-6">
+    <div className="min-h-full bg-gradient-to-b from-background to-background/80 p-6 xl:p-8 space-y-6">
       {/* Header Rail */}
       <div
         className="opacity-0 animate-[fadeSlideIn_200ms_ease-out_forwards]"
@@ -35,7 +35,7 @@ export function DashboardScreen() {
       </div>
 
       {connectionState === 'reconnecting' && (
-        <div className="rounded-lg border border-[#bfae82]/20 bg-[#bfae82]/10 px-4 py-3 text-sm text-[#bfae82]">
+        <div className="rounded-lg border border-wpt-gold/20 bg-wpt-gold/10 px-4 py-3 text-sm text-wpt-gold">
           {t('states.reconnectingBanner')}
         </div>
       )}
