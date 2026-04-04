@@ -13,6 +13,8 @@ import { healthRoute } from './routes/health.js';
 import { authRoutes } from './routes/auth.js';
 import { userRoutes } from './routes/users.js';
 import { avatarRoutes } from './routes/avatar.js';
+import { rfidRoutes } from './routes/rfid.js';
+import { jobRoutes } from './routes/jobs.js';
 import { wsRoute } from './ws/route.js';
 
 const isDev = process.env.NODE_ENV !== 'production';
@@ -92,6 +94,12 @@ export function buildServer(): ReturnType<typeof Fastify> {
 
   // 11. Avatar upload/delete routes (any authenticated user)
   server.register(avatarRoutes);
+
+  // 12. RFID routes (WPT + SUPER_ADMIN)
+  server.register(rfidRoutes);
+
+  // 13. Job routes (WPT + SUPER_ADMIN)
+  server.register(jobRoutes);
 
   return server;
 }
