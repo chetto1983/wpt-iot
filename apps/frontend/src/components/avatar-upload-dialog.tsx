@@ -77,6 +77,7 @@ export function AvatarUploadDialog({
   onSuccess,
 }: AvatarUploadDialogProps) {
   const tCommon = useTranslations('common');
+  const tAvatar = useTranslations('common.avatar');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [imageSrc, setImageSrc] = useState<string | null>(null);
@@ -132,7 +133,7 @@ export function AvatarUploadDialog({
           (body as Record<string, string>).error ?? `Upload failed: ${res.status}`,
         );
       }
-      toast.success(tCommon('save'));
+      toast.success(tAvatar('uploadSuccess'));
       onSuccess();
       onOpenChange(false);
     } catch (err) {
@@ -140,7 +141,7 @@ export function AvatarUploadDialog({
     } finally {
       setUploading(false);
     }
-  }, [imageSrc, croppedAreaPixels, userId, onSuccess, onOpenChange, tCommon]);
+  }, [imageSrc, croppedAreaPixels, userId, onSuccess, onOpenChange, tAvatar, tCommon]);
 
   const handleRemove = useCallback(async () => {
     setRemoving(true);
@@ -159,7 +160,7 @@ export function AvatarUploadDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Avatar</DialogTitle>
+          <DialogTitle>{tAvatar('title')}</DialogTitle>
         </DialogHeader>
 
         {/* Cropper area */}
@@ -180,7 +181,7 @@ export function AvatarUploadDialog({
             </div>
             {/* Zoom slider */}
             <div className="flex items-center gap-3 px-1">
-              <span className="text-xs text-muted-foreground">Zoom</span>
+              <span className="text-xs text-muted-foreground">{tAvatar('zoom')}</span>
               <input
                 type="range"
                 min={1}
@@ -201,7 +202,7 @@ export function AvatarUploadDialog({
               size="sm"
               onClick={() => fileInputRef.current?.click()}
             >
-              Choose photo
+              {tAvatar('choosePhoto')}
             </Button>
           </div>
         )}
@@ -228,7 +229,7 @@ export function AvatarUploadDialog({
               ) : (
                 <Trash2 className="size-4" />
               )}
-              Remove
+              {tAvatar('remove')}
             </Button>
           ) : null}
           <Button

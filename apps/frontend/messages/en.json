@@ -29,6 +29,15 @@
     },
     "theme": {
       "toggleLabel": "Toggle theme"
+    },
+    "avatar": {
+      "title": "Avatar",
+      "choosePhoto": "Choose photo",
+      "remove": "Remove",
+      "zoom": "Zoom",
+      "changeAvatar": "Change avatar",
+      "uploadSuccess": "Avatar updated",
+      "removeSuccess": "Avatar removed"
     }
   },
   "login": {

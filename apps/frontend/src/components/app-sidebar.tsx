@@ -196,7 +196,7 @@ export function AppSidebar() {
             type="button"
             className="group/avatar-btn relative shrink-0"
             onClick={() => setAvatarDialogOpen(true)}
-            title="Change avatar"
+            title={t('avatar.changeAvatar')}
           >
             <Avatar className="size-9">
               <AvatarImage
