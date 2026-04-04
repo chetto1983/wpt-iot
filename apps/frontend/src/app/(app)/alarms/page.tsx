@@ -197,7 +197,13 @@ function AlarmsContent({ locale }: { locale: string }) {
             }
           >
             <SelectTrigger className="w-[160px]">
-              <SelectValue />
+              <SelectValue>
+                {status === 'all'
+                  ? t('statusAll')
+                  : status === 'active'
+                    ? t('statusActive')
+                    : t('statusResolved')}
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">{t('statusAll')}</SelectItem>
