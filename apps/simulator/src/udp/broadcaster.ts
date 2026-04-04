@@ -3,6 +3,8 @@ import { getState, updateState } from '../state/simulatorState.js';
 import { buildMachineDataPacket, buildAlarmPacket, addNoise } from './packetBuilder.js';
 import { config } from '../config.js';
 import { SENSOR_RANGES } from '../state/defaults.js';
+import { cycleEngine } from '../state/cycleEngine.js';
+import { alarmEngine } from '../state/alarmEngine.js';
 import type { IMachineSnapshot } from '@wpt/types';
 
 let dataSocket: dgram.Socket | null = null;
@@ -43,6 +45,7 @@ export function startBroadcasting(): void {
 
   // Data broadcast (every DATA_INTERVAL_MS = 15000ms)
   dataInterval = setInterval(() => {
+    cycleEngine.tick();
     const state = getState();
     const noisyMachine = applyNoise(state.machine);
     const packet = buildMachineDataPacket(noisyMachine);
@@ -63,6 +66,7 @@ export function startBroadcasting(): void {
 
   // Alarm broadcast (every ALARM_INTERVAL_MS = 1000ms)
   alarmInterval = setInterval(() => {
+    alarmEngine.tick();
     const state = getState();
     const packet = buildAlarmPacket(state.alarms);
 
