@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useWsData } from '@/lib/ws-context';
@@ -21,20 +22,32 @@ function getPageTitleKey(path: string): string {
   return 'nav.dashboard';
 }
 
-function formatLastUpdate(date: Date | null): string {
-  if (!date) return '\u2014';
-  return date.toLocaleTimeString([], {
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-  });
+function useClock() {
+  const [now, setNow] = useState(new Date());
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(id);
+  }, []);
+  return now;
 }
 
 export function AppHeader() {
   const pathname = usePathname();
   const t = useTranslations('common');
-  const { connected, lastUpdate } = useWsData();
+  const { connected } = useWsData();
   const { user } = useAuth();
+  const now = useClock();
+
+  const timeStr = now.toLocaleTimeString([], {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  });
+  const dateStr = now.toLocaleDateString([], {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  });
 
   return (
     <header className="flex h-14 items-center gap-4 border-b border-border px-4">
@@ -61,8 +74,11 @@ export function AppHeader() {
           >
             {connected ? t('header.online') : t('header.offline')}
           </Badge>
+          <span className="text-xs text-muted-foreground tabular-nums">
+            {timeStr}
+          </span>
           <span className="text-xs text-muted-foreground">
-            {formatLastUpdate(lastUpdate)}
+            {dateStr}
           </span>
         </div>
 
