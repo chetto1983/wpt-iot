@@ -1,5 +1,6 @@
 'use client';
 
+import { memo } from 'react';
 import { useTranslations } from 'next-intl';
 import type { IMachineSnapshot } from '@wpt/types';
 import { MachineStatus } from '@wpt/types';
@@ -12,7 +13,7 @@ interface DashboardHeaderRailProps {
   machineData: Partial<IMachineSnapshot> | null;
 }
 
-export function DashboardHeaderRail({
+export const DashboardHeaderRail = memo(function DashboardHeaderRail({
   connectionState,
   machineData,
 }: DashboardHeaderRailProps) {
@@ -74,4 +75,4 @@ export function DashboardHeaderRail({
       </div>
     </div>
   );
-}
+});

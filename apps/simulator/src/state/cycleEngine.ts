@@ -55,6 +55,8 @@ const STAGE_PROFILES: IStageProfile[] = [
       thermoRightLower: 27, thermoRightMedium: 29, thermoRightUpper: 31,
       thermoLeftHighLower: 26, thermoLeftHighMedium: 28, thermoLeftHighUpper: 30,
       thermoRightHighLower: 25,
+      thermoLeftLowSel: 0, thermoLeftMedSel: 0, thermoLeftHighSel: 0,
+      thermoRightLowSel: 0, thermoRightMedSel: 0, thermoRightHighSel: 0,
       rmsCurrL1: 30, rmsCurrL2: 29.5, rmsCurrL3: 30.5, rmsCurrN: 0.8,
     },
   },
@@ -75,6 +77,8 @@ const STAGE_PROFILES: IStageProfile[] = [
       thermoRightLower: 44, thermoRightMedium: 47, thermoRightUpper: 51,
       thermoLeftHighLower: 42, thermoLeftHighMedium: 46, thermoLeftHighUpper: 50,
       thermoRightHighLower: 41,
+      thermoLeftLowSel: 1, thermoLeftMedSel: 0, thermoLeftHighSel: 0,
+      thermoRightLowSel: 1, thermoRightMedSel: 0, thermoRightHighSel: 0,
       rmsCurrL1: 132, rmsCurrL2: 130.2, rmsCurrL3: 133.5, rmsCurrN: 3.5,
     },
   },
@@ -95,6 +99,8 @@ const STAGE_PROFILES: IStageProfile[] = [
       thermoRightLower: 108, thermoRightMedium: 116, thermoRightUpper: 123,
       thermoLeftHighLower: 105, thermoLeftHighMedium: 112, thermoLeftHighUpper: 120,
       thermoRightHighLower: 103,
+      thermoLeftLowSel: 1, thermoLeftMedSel: 1, thermoLeftHighSel: 0,
+      thermoRightLowSel: 1, thermoRightMedSel: 1, thermoRightHighSel: 0,
       rmsCurrL1: 108, rmsCurrL2: 106.5, rmsCurrL3: 109.2, rmsCurrN: 2.8,
     },
   },
@@ -115,6 +121,8 @@ const STAGE_PROFILES: IStageProfile[] = [
       thermoRightLower: 160, thermoRightMedium: 166, thermoRightUpper: 173,
       thermoLeftHighLower: 158, thermoLeftHighMedium: 164, thermoLeftHighUpper: 170,
       thermoRightHighLower: 156,
+      thermoLeftLowSel: 1, thermoLeftMedSel: 1, thermoLeftHighSel: 1,
+      thermoRightLowSel: 1, thermoRightMedSel: 1, thermoRightHighSel: 1,
       rmsCurrL1: 90, rmsCurrL2: 88.7, rmsCurrL3: 91.2, rmsCurrN: 2.3,
     },
   },
@@ -135,6 +143,8 @@ const STAGE_PROFILES: IStageProfile[] = [
       thermoRightLower: 186, thermoRightMedium: 191, thermoRightUpper: 196,
       thermoLeftHighLower: 184, thermoLeftHighMedium: 189, thermoLeftHighUpper: 194,
       thermoRightHighLower: 182,
+      thermoLeftLowSel: 1, thermoLeftMedSel: 1, thermoLeftHighSel: 1,
+      thermoRightLowSel: 1, thermoRightMedSel: 1, thermoRightHighSel: 1,
       rmsCurrL1: 90, rmsCurrL2: 88.7, rmsCurrL3: 91.2, rmsCurrN: 2.3,
     },
   },
@@ -155,6 +165,8 @@ const STAGE_PROFILES: IStageProfile[] = [
       thermoRightLower: 182, thermoRightMedium: 186, thermoRightUpper: 190,
       thermoLeftHighLower: 180, thermoLeftHighMedium: 184, thermoLeftHighUpper: 188,
       thermoRightHighLower: 178,
+      thermoLeftLowSel: 1, thermoLeftMedSel: 1, thermoLeftHighSel: 1,
+      thermoRightLowSel: 1, thermoRightMedSel: 1, thermoRightHighSel: 1,
       rmsCurrL1: 72, rmsCurrL2: 70.8, rmsCurrL3: 73.1, rmsCurrN: 1.8,
     },
   },
@@ -175,6 +187,8 @@ const STAGE_PROFILES: IStageProfile[] = [
       thermoRightLower: 113, thermoRightMedium: 116, thermoRightUpper: 120,
       thermoLeftHighLower: 110, thermoLeftHighMedium: 114, thermoLeftHighUpper: 118,
       thermoRightHighLower: 108,
+      thermoLeftLowSel: 1, thermoLeftMedSel: 1, thermoLeftHighSel: 0,
+      thermoRightLowSel: 1, thermoRightMedSel: 1, thermoRightHighSel: 0,
       rmsCurrL1: 48, rmsCurrL2: 47.2, rmsCurrL3: 48.8, rmsCurrN: 1.2,
     },
   },
@@ -195,6 +209,8 @@ const STAGE_PROFILES: IStageProfile[] = [
       thermoRightLower: 73, thermoRightMedium: 76, thermoRightUpper: 80,
       thermoLeftHighLower: 70, thermoLeftHighMedium: 74, thermoLeftHighUpper: 78,
       thermoRightHighLower: 68,
+      thermoLeftLowSel: 1, thermoLeftMedSel: 0, thermoLeftHighSel: 0,
+      thermoRightLowSel: 1, thermoRightMedSel: 0, thermoRightHighSel: 0,
       rmsCurrL1: 36, rmsCurrL2: 35.4, rmsCurrL3: 36.6, rmsCurrN: 0.9,
     },
   },
@@ -215,6 +231,8 @@ const STAGE_PROFILES: IStageProfile[] = [
       thermoRightLower: 54, thermoRightMedium: 57, thermoRightUpper: 61,
       thermoLeftHighLower: 52, thermoLeftHighMedium: 55, thermoLeftHighUpper: 58,
       thermoRightHighLower: 50,
+      thermoLeftLowSel: 0, thermoLeftMedSel: 0, thermoLeftHighSel: 0,
+      thermoRightLowSel: 0, thermoRightMedSel: 0, thermoRightHighSel: 0,
       rmsCurrL1: 18, rmsCurrL2: 17.6, rmsCurrL3: 18.3, rmsCurrN: 0.5,
     },
   },
@@ -244,13 +262,24 @@ export class CycleEngine {
     const state = getState();
     const current = state.machine;
 
+    // BYTE selector fields are boolean (0/1) -- set directly, don't interpolate
+    const byteFields = new Set([
+      'thermoLeftLowSel', 'thermoLeftMedSel', 'thermoLeftHighSel',
+      'thermoRightLowSel', 'thermoRightMedSel', 'thermoRightHighSel',
+    ]);
+
     // Interpolate sensor values toward stage targets
     const interpolated: Partial<IMachineSnapshot> = {};
     for (const [key, targetVal] of Object.entries(profile.targets)) {
       const field = key as keyof IMachineSnapshot;
-      const currentVal = current[field] as number;
       const target = targetVal as number;
-      (interpolated as Record<string, number>)[key] = currentVal + (target - currentVal) * LERP_FACTOR;
+      if (byteFields.has(key)) {
+        // Boolean selectors: set directly, no interpolation
+        (interpolated as Record<string, number>)[key] = target;
+      } else {
+        const currentVal = current[field] as number;
+        (interpolated as Record<string, number>)[key] = currentVal + (target - currentVal) * LERP_FACTOR;
+      }
     }
 
     // Round INT fields, keep REAL fields as-is

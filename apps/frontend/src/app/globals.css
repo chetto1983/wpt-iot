@@ -79,14 +79,14 @@
     --chart-5: oklch(0.278 0 0);             /* #333333 - dark */
     --radius: 0.625rem;
 
-    /* Dark sidebar variables */
-    --sidebar: oklch(0.231 0 0);             /* #282828 - Dark sidebar bg */
-    --sidebar-foreground: oklch(0.97 0 0);   /* #F5F5F5 - Sidebar text */
+    /* Light sidebar variables */
+    --sidebar: oklch(0.985 0 0);             /* Near-white sidebar bg */
+    --sidebar-foreground: oklch(0.278 0 0);  /* #333333 - Sidebar text */
     --sidebar-primary: oklch(0.696 0.134 175.5); /* #1ABC9C - Active nav teal */
     --sidebar-primary-foreground: oklch(1 0 0);   /* #FFFFFF - Text on active */
-    --sidebar-accent: oklch(0.756 0.068 88.5);   /* #bfae82 - Gold indicator */
-    --sidebar-accent-foreground: oklch(1 0 0);    /* #FFFFFF - Text on gold */
-    --sidebar-border: oklch(0.3 0 0);        /* #383838 - Sidebar borders */
+    --sidebar-accent: oklch(0.95 0 0);       /* Light muted accent */
+    --sidebar-accent-foreground: oklch(0.278 0 0); /* Dark text on accent */
+    --sidebar-border: oklch(0.922 0 0);      /* #E5E5E5 - Light borders */
     --sidebar-ring: oklch(0.814 0.04 175.5); /* #a7cdc5 - Focus ring mint */
 }
 

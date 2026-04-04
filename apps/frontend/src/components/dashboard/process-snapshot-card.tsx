@@ -1,5 +1,6 @@
 'use client';
 
+import { memo } from 'react';
 import { useTranslations } from 'next-intl';
 import type { IMachineSnapshot } from '@wpt/types';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
@@ -11,7 +12,7 @@ interface ProcessSnapshotCardProps {
   machineData: Partial<IMachineSnapshot> | null;
 }
 
-export function ProcessSnapshotCard({ machineData }: ProcessSnapshotCardProps) {
+export const ProcessSnapshotCard = memo(function ProcessSnapshotCard({ machineData }: ProcessSnapshotCardProps) {
   const t = useTranslations('dashboard');
   const formatters = useDashboardFormatters();
 
@@ -44,4 +45,4 @@ export function ProcessSnapshotCard({ machineData }: ProcessSnapshotCardProps) {
       </CardContent>
     </Card>
   );
-}
+});

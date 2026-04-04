@@ -98,12 +98,6 @@ export function AppSidebar() {
     <Sidebar
       collapsible="icon"
       className="border-r border-border"
-      style={{
-        // Override shadcn sidebar-accent (gold #bfae82) for nav active state.
-        // We want translucent white, not gold, for active backgrounds.
-        '--sidebar-accent': 'rgba(255,255,255,0.08)',
-        '--sidebar-accent-foreground': '#ffffff',
-      } as React.CSSProperties}
     >
       {/* ── Brand ── */}
       <SidebarHeader className="px-4 py-4">
@@ -116,10 +110,10 @@ export function AppSidebar() {
             alt="WPT"
             width={40}
             height={19}
-            className="shrink-0 brightness-0 invert"
+            className="shrink-0 dark:brightness-0 dark:invert"
           />
           <span className="text-xs font-medium tracking-wider uppercase text-muted-foreground group-data-[collapsible=icon]:hidden">
-            Sistema IoT
+            {t('brandSubtitle')}
           </span>
         </Link>
       </SidebarHeader>

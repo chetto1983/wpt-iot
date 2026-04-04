@@ -1,5 +1,6 @@
 'use client';
 
+import { memo } from 'react';
 import { useTranslations } from 'next-intl';
 import type { IMachineSnapshot } from '@wpt/types';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
@@ -11,7 +12,7 @@ interface JobSnapshotCardProps {
   machineData: Partial<IMachineSnapshot> | null;
 }
 
-export function JobSnapshotCard({ machineData }: JobSnapshotCardProps) {
+export const JobSnapshotCard = memo(function JobSnapshotCard({ machineData }: JobSnapshotCardProps) {
   const t = useTranslations('dashboard');
   const formatters = useDashboardFormatters();
 
@@ -31,4 +32,4 @@ export function JobSnapshotCard({ machineData }: JobSnapshotCardProps) {
       </CardContent>
     </Card>
   );
-}
+});

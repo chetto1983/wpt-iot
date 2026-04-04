@@ -182,10 +182,10 @@ export function createDefaultMachineData(): IMachineSnapshot {
     completedCycles: 0,
     spareDint01: 0,
     // STRING fields
-    user: '',
-    supervisor: '',
-    orderNumber: '',
-    serialNumber: '',
+    user: 'ROSSI M.',
+    supervisor: 'BIANCHI L.',
+    orderNumber: 'ORD-2024-0847',
+    serialNumber: 'WPT-SH400-0023',
     spareString01: '',
     // REAL fields
     energyConsumption: 0,

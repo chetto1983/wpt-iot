@@ -1,5 +1,6 @@
 'use client';
 
+import { memo } from 'react';
 import dynamic from 'next/dynamic';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import type { IGaugeSubArc } from '@/lib/dashboard/fields';
@@ -19,7 +20,7 @@ interface GaugeCardProps {
   className?: string;
 }
 
-export function GaugeCard({ label, value, unit, min, max, subArcs, className }: GaugeCardProps) {
+export const GaugeCard = memo(function GaugeCard({ label, value, unit, min, max, subArcs, className }: GaugeCardProps) {
   const displayValue = value !== undefined ? value : min;
 
   return (
@@ -53,14 +54,7 @@ export function GaugeCard({ label, value, unit, min, max, subArcs, className }: 
             elastic: true,
           }}
           labels={{
-            valueLabel: {
-              formatTextValue: (val: number) => `${Math.round(val)} ${unit}`,
-              style: {
-                fontSize: '22px',
-                fill: '#F5F5F5',
-                textShadow: 'none',
-              },
-            },
+            valueLabel: { hide: true },
             tickLabels: {
               type: 'outer',
               defaultTickValueConfig: {
@@ -70,7 +64,10 @@ export function GaugeCard({ label, value, unit, min, max, subArcs, className }: 
           }}
           style={{ width: '100%', height: '130px' }}
         />
+        <p className="text-lg font-semibold text-foreground tabular-nums -mt-1">
+          {Math.round(displayValue)} <span className="text-sm font-normal text-muted-foreground">{unit}</span>
+        </p>
       </CardContent>
     </Card>
   );
-}
+});

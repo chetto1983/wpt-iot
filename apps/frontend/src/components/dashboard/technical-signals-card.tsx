@@ -1,5 +1,6 @@
 'use client';
 
+import { memo } from 'react';
 import { useTranslations } from 'next-intl';
 import type { IMachineSnapshot } from '@wpt/types';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
@@ -20,7 +21,7 @@ interface TechnicalSignalsCardProps {
   machineData: Partial<IMachineSnapshot> | null;
 }
 
-export function TechnicalSignalsCard({ machineData }: TechnicalSignalsCardProps) {
+export const TechnicalSignalsCard = memo(function TechnicalSignalsCard({ machineData }: TechnicalSignalsCardProps) {
   const t = useTranslations('dashboard');
 
   if (!hasTechnicalSignals(machineData)) {
@@ -74,4 +75,4 @@ export function TechnicalSignalsCard({ machineData }: TechnicalSignalsCardProps)
       </CardContent>
     </Card>
   );
-}
+});

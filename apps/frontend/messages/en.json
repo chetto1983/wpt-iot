@@ -21,6 +21,7 @@
       "alarms": "Alarms",
       "charts": "Charts"
     },
+    "brandSubtitle": "IoT System",
     "signOut": "Sign Out",
     "header": {
       "online": "Online",

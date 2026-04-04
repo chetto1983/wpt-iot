@@ -1,5 +1,6 @@
 'use client';
 
+import { memo } from 'react';
 import { useTranslations } from 'next-intl';
 import type { IActiveAlarm } from '@wpt/types';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
@@ -10,7 +11,7 @@ interface ActiveAlarmsPanelProps {
   alarms: IActiveAlarm[];
 }
 
-export function ActiveAlarmsPanel({ alarms }: ActiveAlarmsPanelProps) {
+export const ActiveAlarmsPanel = memo(function ActiveAlarmsPanel({ alarms }: ActiveAlarmsPanelProps) {
   const t = useTranslations('dashboard');
   const formatters = useDashboardFormatters();
 
@@ -57,4 +58,4 @@ export function ActiveAlarmsPanel({ alarms }: ActiveAlarmsPanelProps) {
       </CardContent>
     </Card>
   );
-}
+});
