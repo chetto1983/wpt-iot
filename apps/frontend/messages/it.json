@@ -38,6 +38,11 @@
       "changeAvatar": "Cambia avatar",
       "uploadSuccess": "Avatar aggiornato",
       "removeSuccess": "Avatar rimosso"
+    },
+    "plcBusy": "Operazione PLC in corso -- riprovare tra qualche secondo",
+    "validation": {
+      "asciiOnly": "Solo caratteri standard consentiti (A-Z, 0-9, spazi, punteggiatura)",
+      "maxLength": "Massimo {max} caratteri"
     }
   },
   "login": {
@@ -219,8 +224,98 @@
       "MANUAL": "Manuale"
     }
   },
-  "rfid": {},
-  "jobs": {},
+  "rfid": {
+    "title": "Utenti RFID",
+    "subtitle": "Gestione tag utenti PLC",
+    "columns": {
+      "tagId": "Tag ID",
+      "name": "Nome",
+      "group": "Gruppo",
+      "enabled": "Abilitato"
+    },
+    "groups": {
+      "OPERATOR": "Operatore",
+      "MAINTENANCE": "Manutentore",
+      "ADMIN": "Admin"
+    },
+    "actions": {
+      "readFromPlc": "Leggi da PLC",
+      "writeToPlc": "Scrivi su PLC",
+      "reading": "Lettura...",
+      "writing": "Scrittura..."
+    },
+    "status": {
+      "noData": "Nessun dato caricato",
+      "loaded": "Dati caricati -- Scrittura disponibile ({remaining} rimanenti)",
+      "expired": "Permesso di scrittura scaduto -- leggere di nuovo per riabilitare"
+    },
+    "confirm": {
+      "title": "Scrivere su PLC?",
+      "body": "Questo sovrascrivera' i dati utente RFID attualmente sul PLC.",
+      "cancel": "Annulla",
+      "confirm": "Scrivi su PLC"
+    },
+    "toast": {
+      "readSuccess": "Dati letti dal PLC con successo",
+      "writeSuccess": "Dati scritti sul PLC con successo",
+      "readError": "Lettura PLC fallita: {error}",
+      "writeError": "Scrittura PLC fallita: {error}",
+      "writeNotAllowed": "Leggere prima i dati dal PLC prima di scrivere"
+    }
+  },
+  "jobs": {
+    "title": "Gestione Commesse",
+    "subtitle": "Parametri commessa",
+    "identity": "Identita' Commessa",
+    "machineControl": "Controllo Macchina",
+    "fields": {
+      "supervisor": "Supervisore",
+      "orderNumber": "Numero Ordine",
+      "serialNumber": "Numero Seriale",
+      "remoteJobEnable": "Abilitazione Commessa Remota",
+      "maintenanceRequest": "Richiesta Manutenzione",
+      "remoteCycleSelection": "Selezione Ciclo Remoto",
+      "cycleType": "Tipo Ciclo"
+    },
+    "enums": {
+      "remoteJobEnable": {
+        "0": "Nessuna Richiesta",
+        "1": "Inserimento Nuovo Ciclo"
+      },
+      "maintenanceRequest": {
+        "0": "Nessuna Richiesta",
+        "1": "Richiesta Manutenzione"
+      },
+      "remoteCycleSelection": {
+        "0": "Nessuna Richiesta",
+        "1": "In Attesa Ciclo Remoto"
+      }
+    },
+    "actions": {
+      "readFromPlc": "Leggi da PLC",
+      "writeToPlc": "Scrivi su PLC",
+      "reading": "Lettura...",
+      "writing": "Scrittura..."
+    },
+    "status": {
+      "noData": "Nessun dato caricato",
+      "loaded": "Dati caricati -- Scrittura disponibile ({remaining} rimanenti)",
+      "expired": "Permesso di scrittura scaduto -- leggere di nuovo per riabilitare"
+    },
+    "confirm": {
+      "title": "Scrivere su PLC?",
+      "body": "Questo sovrascrivera' i parametri commessa attualmente sul PLC.",
+      "cancel": "Annulla",
+      "confirm": "Scrivi su PLC"
+    },
+    "toast": {
+      "readSuccess": "Dati letti dal PLC con successo",
+      "writeSuccess": "Dati scritti sul PLC con successo",
+      "readError": "Lettura PLC fallita: {error}",
+      "writeError": "Scrittura PLC fallita: {error}",
+      "writeNotAllowed": "Leggere prima i dati dal PLC prima di scrivere"
+    }
+  },
   "reports": {},
   "alarms": {},
   "charts": {}
