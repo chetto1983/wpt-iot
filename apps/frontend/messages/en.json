@@ -21,7 +21,14 @@
       "alarms": "Alarms",
       "charts": "Charts"
     },
-    "signOut": "Sign Out"
+    "signOut": "Sign Out",
+    "header": {
+      "online": "Online",
+      "offline": "Offline"
+    },
+    "theme": {
+      "toggleLabel": "Toggle theme"
+    }
   },
   "login": {
     "title": "WPT Sistema IoT",

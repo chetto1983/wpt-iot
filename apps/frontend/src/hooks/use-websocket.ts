@@ -18,12 +18,14 @@ export interface WsState {
   machineData: Partial<IMachineSnapshot> | null;
   alarms: IActiveAlarm[];
   connected: boolean;
+  lastUpdate: Date | null;
 }
 
 export function useWebSocket(enabled: boolean): WsState {
   const [machineData, setMachineData] = useState<Partial<IMachineSnapshot> | null>(null);
   const [alarms, setAlarms] = useState<IActiveAlarm[]>([]);
   const [connected, setConnected] = useState(false);
+  const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
 
   const wsRef = useRef<WebSocket | null>(null);
   const attemptRef = useRef(0);
@@ -111,6 +113,7 @@ export function useWebSocket(enabled: boolean): WsState {
           case WsMessageType.MACHINE_DATA:
             startTransition(() => {
               setMachineData(message.payload as Partial<IMachineSnapshot>);
+              setLastUpdate(new Date());
             });
             break;
           case WsMessageType.ALARM_UPDATE:
@@ -170,5 +173,5 @@ export function useWebSocket(enabled: boolean): WsState {
     };
   }, [enabled, connect]);
 
-  return { machineData, alarms, connected };
+  return { machineData, alarms, connected, lastUpdate };
 }

@@ -17,8 +17,9 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
       machineData: wsState.machineData,
       alarms: wsState.alarms,
       connected: wsState.connected,
+      lastUpdate: wsState.lastUpdate,
     }),
-    [wsState.machineData, wsState.alarms, wsState.connected],
+    [wsState.machineData, wsState.alarms, wsState.connected, wsState.lastUpdate],
   );
 
   return <WsContext.Provider value={value}>{children}</WsContext.Provider>;

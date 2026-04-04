@@ -21,7 +21,14 @@
       "alarms": "Allarmi",
       "charts": "Grafici"
     },
-    "signOut": "Esci"
+    "signOut": "Esci",
+    "header": {
+      "online": "Online",
+      "offline": "Offline"
+    },
+    "theme": {
+      "toggleLabel": "Cambia tema"
+    }
   },
   "login": {
     "title": "WPT Sistema IoT",
