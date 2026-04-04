@@ -38,15 +38,32 @@ BEGIN
   -- =========================================================================
   -- 1. Convert machine_snapshots to hypertable
   -- =========================================================================
-  -- by_range is the TimescaleDB 2.13+ dimension builder syntax.
-  -- migrate_data => true handles any existing rows.
-  -- if_not_exists => true makes it idempotent.
-  PERFORM create_hypertable(
-    'machine_snapshots',
-    by_range('timestamp'),
-    migrate_data => true,
-    if_not_exists => true
-  );
+  -- TimescaleDB requires the partitioning column (timestamp) to be part of
+  -- any unique/primary key. Drizzle creates "id serial PRIMARY KEY" which
+  -- conflicts. We drop the PK constraint before conversion — time-series
+  -- data uses timestamp as the natural ordering key, not a surrogate id.
+  IF NOT EXISTS (
+    SELECT 1 FROM timescaledb_information.hypertables
+    WHERE hypertable_name = 'machine_snapshots'
+  ) THEN
+    -- Drop the primary key constraint (name comes from Drizzle convention)
+    BEGIN
+      ALTER TABLE machine_snapshots DROP CONSTRAINT IF EXISTS machine_snapshots_pkey;
+      RAISE NOTICE 'Dropped primary key constraint for hypertable conversion.';
+    EXCEPTION
+      WHEN OTHERS THEN
+        RAISE NOTICE 'Primary key already removed or not found: %', SQLERRM;
+    END;
+
+    -- by_range is the TimescaleDB 2.13+ dimension builder syntax.
+    -- migrate_data => true handles any existing rows.
+    PERFORM create_hypertable(
+      'machine_snapshots',
+      by_range('timestamp'),
+      migrate_data => true,
+      if_not_exists => true
+    );
+  END IF;
 
   RAISE NOTICE 'Hypertable conversion complete (or already existed).';
 
@@ -54,7 +71,7 @@ BEGIN
   -- 2. Continuous aggregate: snapshots_5min (5-minute buckets)
   -- =========================================================================
   IF NOT EXISTS (
-    SELECT 1 FROM pg_matviews WHERE matviewname = 'snapshots_5min'
+    SELECT 1 FROM timescaledb_information.continuous_aggregates WHERE view_name = 'snapshots_5min'
   ) THEN
     EXECUTE $ca5$
       CREATE MATERIALIZED VIEW snapshots_5min
@@ -136,7 +153,7 @@ BEGIN
   -- 3. Continuous aggregate: snapshots_1h (1-hour buckets)
   -- =========================================================================
   IF NOT EXISTS (
-    SELECT 1 FROM pg_matviews WHERE matviewname = 'snapshots_1h'
+    SELECT 1 FROM timescaledb_information.continuous_aggregates WHERE view_name = 'snapshots_1h'
   ) THEN
     EXECUTE $ca1h$
       CREATE MATERIALIZED VIEW snapshots_1h

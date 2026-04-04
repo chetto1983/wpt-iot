@@ -46,6 +46,7 @@ services:
       SIM_DATA_PORT: 9090
       SIM_USERS_PORT: 9092
       CORS_ORIGIN: http://localhost:3001
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
     healthcheck:
       test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:3000/health"]
       interval: 10s

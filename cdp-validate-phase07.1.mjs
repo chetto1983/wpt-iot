@@ -94,7 +94,7 @@ async function main() {
       headless: false,
       args: ['--no-first-run', '--disable-extensions', '--window-size=1400,900'],
       defaultViewport: { width: 1400, height: 900 },
-      protocolTimeout: 120000,
+      protocolTimeout: 300000,
     });
 
     const page = await browser.newPage();
@@ -233,6 +233,7 @@ async function main() {
     // ---------------------------------------------------------------
     // 7. Navigate to /users in light mode
     // ---------------------------------------------------------------
+    await page.waitForSelector('a[href="/users"]', { timeout: 5000 });
     await page.click('a[href="/users"]');
     await page.waitForFunction(() => window.location.pathname === '/users', { timeout: 10000 });
     await page.waitForFunction(() => document.body.innerText.toLowerCase().includes('admin'), { timeout: 10000 });
