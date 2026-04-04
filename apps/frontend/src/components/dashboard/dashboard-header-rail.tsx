@@ -28,8 +28,8 @@ export function DashboardHeaderRail({
     <div className="flex flex-wrap items-start justify-between gap-4">
       {/* Title block */}
       <div>
-        <h1 className="text-xl font-semibold text-white">{t('title')}</h1>
-        <p className="text-sm text-white/60">{t('subtitle')}</p>
+        <h1 className="text-xl font-semibold text-foreground">{t('title')}</h1>
+        <p className="text-sm text-muted-foreground">{t('subtitle')}</p>
       </div>
 
       {/* Status cluster */}
@@ -38,8 +38,8 @@ export function DashboardHeaderRail({
         <Badge
           className={`text-xs px-2.5 py-0.5 rounded-full font-medium ${
             isLive
-              ? 'border-transparent bg-[#1ABC9C]/15 text-[#1ABC9C]'
-              : 'border-transparent bg-[#bfae82]/15 text-[#bfae82]'
+              ? 'border-transparent bg-wpt-teal/15 text-wpt-teal'
+              : 'border-transparent bg-wpt-gold/15 text-wpt-gold'
           }`}
         >
           {t(`connection.${connectionState}`)}
@@ -49,8 +49,8 @@ export function DashboardHeaderRail({
         <Badge
           className={`text-xs px-2.5 py-0.5 rounded-full font-medium ${
             isAlarmOrEmergency
-              ? 'border-transparent bg-[#dc3545]/15 text-[#dc3545]'
-              : 'border-transparent bg-[#1ABC9C]/15 text-[#1ABC9C]'
+              ? 'border-transparent bg-wpt-red/15 text-wpt-red'
+              : 'border-transparent bg-wpt-teal/15 text-wpt-teal'
           }`}
         >
           {fmt.statusLabel(statusValue)}
@@ -58,16 +58,16 @@ export function DashboardHeaderRail({
 
         {/* Cycle pill */}
         <span className="flex items-center gap-1.5">
-          <span className="text-xs text-white/40">{t('fields.selectedCycle')}</span>
-          <span className="text-sm text-white/80">
+          <span className="text-xs text-muted-foreground">{t('fields.selectedCycle')}</span>
+          <span className="text-sm text-foreground/80">
             {fmt.cycleLabel(machineData?.selectedCycle)}
           </span>
         </span>
 
         {/* Phase pill */}
         <span className="flex items-center gap-1.5">
-          <span className="text-xs text-white/40">{t('fields.currentPhase')}</span>
-          <span className="text-sm text-white/80">
+          <span className="text-xs text-muted-foreground">{t('fields.currentPhase')}</span>
+          <span className="text-sm text-foreground/80">
             {fmt.phaseLabel(machineData?.currentPhase)}
           </span>
         </span>

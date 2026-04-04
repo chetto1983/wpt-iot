@@ -29,9 +29,9 @@ export function ProcessSnapshotCard({ machineData }: ProcessSnapshotCardProps) {
   }
 
   return (
-    <Card className="bg-[#383838] border-0 text-white rounded-xl shadow-lg shadow-black/20">
+    <Card className="border-0 rounded-xl shadow-lg shadow-black/20">
       <CardHeader>
-        <h3 className="text-lg font-semibold text-white">{t('sections.process')}</h3>
+        <h3 className="text-xl font-semibold text-foreground">{t('sections.process')}</h3>
       </CardHeader>
       <CardContent>
         {PROCESS_FIELDS.map((field) => (

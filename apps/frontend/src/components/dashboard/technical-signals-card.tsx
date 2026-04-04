@@ -37,12 +37,12 @@ export function TechnicalSignalsCard({ machineData }: TechnicalSignalsCardProps)
   }
 
   return (
-    <Card className="bg-[#383838] border-0 text-white rounded-xl shadow-lg shadow-black/20">
+    <Card className="border-0 rounded-xl shadow-lg shadow-black/20">
       <CardHeader>
-        <p className="text-[11px] font-semibold text-[#bfae82]/60 uppercase tracking-wider">
+        <p className="text-[11px] font-semibold text-wpt-gold/60 uppercase tracking-wider">
           {t('sections.technical')}
         </p>
-        <h3 className="text-lg font-semibold text-white">{t('sections.technical')}</h3>
+        <h3 className="text-xl font-semibold text-foreground">{t('sections.technical')}</h3>
       </CardHeader>
       <CardContent>
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
@@ -54,15 +54,15 @@ export function TechnicalSignalsCard({ machineData }: TechnicalSignalsCardProps)
 
             return (
               <div key={group.groupKey}>
-                <h4 className="text-xs font-semibold text-white/40 uppercase tracking-wider mb-2">
+                <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
                   {t(`technical.groups.${group.groupKey}`)}
                 </h4>
                 {visibleFields.map((field) => (
                   <div key={field} className="flex justify-between items-center py-1">
-                    <span className="text-xs text-white/40">
+                    <span className="text-xs text-muted-foreground">
                       {t(`technical.fields.${field}`)}
                     </span>
-                    <span className="text-sm text-white/80">
+                    <span className="text-sm text-foreground/80">
                       {formatFieldValue(field)}
                     </span>
                   </div>
