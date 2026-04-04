@@ -42,7 +42,7 @@ export function ActiveAlarmsPanel({ alarms }: ActiveAlarmsPanelProps) {
                 className="flex items-center gap-3 py-3 px-2 border-b border-white/5 last:border-0 hover:bg-white/[0.03] transition-colors duration-100"
               >
                 <span className="text-xs font-mono text-[#dc3545] font-semibold min-w-[56px]">
-                  A{String(alarm.alarmIndex).padStart(3, '0')}
+                  A{String(alarm.alarmIndex + 1).padStart(4, '0')}
                 </span>
                 <span className="text-sm text-white/80 flex-1">
                   {formatters.alarmDescription(alarm)}

@@ -50,6 +50,10 @@ export function DashboardScreen() {
             key={gauge.key}
             label={t(`gauges.${gauge.tKey}`)}
             value={machineData?.[gauge.key] as number | undefined}
+            unit={gauge.unit}
+            min={gauge.min}
+            max={gauge.max}
+            subArcs={gauge.subArcs}
           />
         ))}
       </section>

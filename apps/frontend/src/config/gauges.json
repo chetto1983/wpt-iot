@@ -1,0 +1,54 @@
+[
+  {
+    "key": "garbageTemp",
+    "tKey": "garbageTemp",
+    "unit": "\u00b0C",
+    "min": -20,
+    "max": 200,
+    "subArcs": [
+      { "limit": 0, "color": "#5B8DEF" },
+      { "limit": 80, "color": "#1ABC9C" },
+      { "limit": 150, "color": "#bfae82" },
+      { "limit": 200, "color": "#dc3545" }
+    ]
+  },
+  {
+    "key": "chamberPressure",
+    "tKey": "chamberPressure",
+    "unit": "hPa",
+    "min": -100,
+    "max": 1800,
+    "subArcs": [
+      { "limit": 0, "color": "#5B8DEF" },
+      { "limit": 500, "color": "#1ABC9C" },
+      { "limit": 1200, "color": "#bfae82" },
+      { "limit": 1800, "color": "#dc3545" }
+    ]
+  },
+  {
+    "key": "mainMotorSpeed",
+    "tKey": "mainMotorSpeed",
+    "unit": "rpm",
+    "min": -3000,
+    "max": 3000,
+    "subArcs": [
+      { "limit": -1500, "color": "#dc3545" },
+      { "limit": 0, "color": "#bfae82" },
+      { "limit": 1500, "color": "#1ABC9C" },
+      { "limit": 3000, "color": "#8fd6b7" }
+    ]
+  },
+  {
+    "key": "vacuumPumpSpeed01",
+    "tKey": "vacuumPumpSpeed01",
+    "unit": "rpm",
+    "min": -3000,
+    "max": 3000,
+    "subArcs": [
+      { "limit": -1500, "color": "#dc3545" },
+      { "limit": 0, "color": "#bfae82" },
+      { "limit": 1500, "color": "#1ABC9C" },
+      { "limit": 3000, "color": "#8fd6b7" }
+    ]
+  }
+]

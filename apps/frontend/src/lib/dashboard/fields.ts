@@ -1,12 +1,24 @@
 import type { IMachineSnapshot } from '@wpt/types';
+import gaugeConfig from '@/config/gauges.json';
 
-/** Gauge card definitions: field key + translation key under dashboard.gauges.* */
-export const GAUGE_DEFS = [
-  { key: 'garbageTemp' as keyof IMachineSnapshot, tKey: 'garbageTemp' },
-  { key: 'chamberPressure' as keyof IMachineSnapshot, tKey: 'chamberPressure' },
-  { key: 'mainMotorSpeed' as keyof IMachineSnapshot, tKey: 'mainMotorSpeed' },
-  { key: 'vacuumPumpSpeed01' as keyof IMachineSnapshot, tKey: 'vacuumPumpSpeed01' },
-] as const;
+/** Gauge sub-arc definition from JSON config */
+export interface IGaugeSubArc {
+  limit: number;
+  color: string;
+}
+
+/** Gauge definition loaded from config/gauges.json */
+export interface IGaugeDef {
+  key: keyof IMachineSnapshot;
+  tKey: string;
+  unit: string;
+  min: number;
+  max: number;
+  subArcs: IGaugeSubArc[];
+}
+
+/** Gauge card definitions loaded from JSON config */
+export const GAUGE_DEFS: IGaugeDef[] = gaugeConfig as IGaugeDef[];
 
 /** Process Snapshot card fields */
 export const PROCESS_FIELDS = [
