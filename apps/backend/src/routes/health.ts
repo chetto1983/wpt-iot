@@ -10,7 +10,7 @@ import { sql } from 'drizzle-orm';
 export const healthRoute: FastifyPluginAsync = async (server) => {
   server.get('/health', async (_request, _reply) => {
     // Check DB connection
-    let dbOk = false;
+    let dbOk: boolean;
     try {
       await db.execute(sql`SELECT 1`);
       dbOk = true;

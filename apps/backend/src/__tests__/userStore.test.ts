@@ -100,9 +100,7 @@ describe('userStore', () => {
     const mockValuesUpsert = vi.fn().mockReturnValue({ onConflictDoUpdate: mockOnConflict });
     const mockValuesChange = vi.fn().mockResolvedValue(undefined);
 
-    let insertCallCount = 0;
     vi.mocked(db.insert).mockImplementation((table: unknown) => {
-      insertCallCount++;
       if (table === rfidUserChanges) {
         return { values: mockValuesChange } as never;
       }
