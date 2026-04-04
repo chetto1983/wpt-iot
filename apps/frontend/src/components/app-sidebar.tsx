@@ -59,8 +59,13 @@ export function AppSidebar() {
     { label: t('nav.jobs'), href: '/jobs', icon: Briefcase },
   ];
 
-  const reportItems: NavItem[] = [
+  // Reports link visible to ALL authenticated roles
+  const allRoleReportItems: NavItem[] = [
     { label: t('nav.reports'), href: '/reports', icon: FileText },
+  ];
+
+  // Alarms + Charts visible to WPT/SUPER_ADMIN only
+  const wptOnlyReportItems: NavItem[] = [
     { label: t('nav.alarms'), href: '/alarms', icon: AlertTriangle },
     { label: t('nav.charts'), href: '/charts', icon: BarChart3 },
   ];
@@ -136,19 +141,18 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {/* Reports */}
-        {isWptOrAdmin ? (
-          <SidebarGroup className="mt-6">
-            <SidebarGroupLabel className="mb-2 px-2 text-[11px] uppercase tracking-wider text-muted-foreground/60 group-data-[collapsible=icon]:hidden">
-              {t('nav.reports')}
-            </SidebarGroupLabel>
-            <SidebarGroupContent>
-              <SidebarMenu className="gap-0.5">
-                {reportItems.map(renderNavItem)}
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-        ) : null}
+        {/* Reports - always visible */}
+        <SidebarGroup className="mt-6">
+          <SidebarGroupLabel className="mb-2 px-2 text-[11px] uppercase tracking-wider text-muted-foreground/60 group-data-[collapsible=icon]:hidden">
+            {t('nav.reports')}
+          </SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu className="gap-0.5">
+              {allRoleReportItems.map(renderNavItem)}
+              {isWptOrAdmin ? wptOnlyReportItems.map(renderNavItem) : null}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
 
         {/* Admin */}
         {isSuperAdmin ? (
