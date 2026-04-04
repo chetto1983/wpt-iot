@@ -77,15 +77,15 @@ export function AppSidebar() {
           className={cn(
             'h-10 rounded-lg transition-colors duration-100',
             isActive
-              ? 'bg-white/[0.08] text-white font-medium'
-              : 'text-white/50 hover:bg-white/[0.05] hover:text-white/80',
+              ? 'bg-muted text-foreground font-medium'
+              : 'text-muted-foreground hover:bg-muted hover:text-foreground/80',
           )}
           render={<Link href={item.href} />}
         >
           <item.icon
             className={cn(
               '!size-5 shrink-0',
-              isActive ? 'text-[#1ABC9C]' : 'text-white/40',
+              isActive ? 'text-wpt-teal' : 'text-muted-foreground',
             )}
           />
           <span className="text-sm">{item.label}</span>
@@ -97,7 +97,7 @@ export function AppSidebar() {
   return (
     <Sidebar
       collapsible="icon"
-      className="border-r border-white/[0.06]"
+      className="border-r border-border"
       style={{
         // Override shadcn sidebar-accent (gold #bfae82) for nav active state.
         // We want translucent white, not gold, for active backgrounds.
@@ -118,7 +118,7 @@ export function AppSidebar() {
             height={19}
             className="shrink-0 brightness-0 invert"
           />
-          <span className="text-xs font-medium tracking-wider uppercase text-white/40 group-data-[collapsible=icon]:hidden">
+          <span className="text-xs font-medium tracking-wider uppercase text-muted-foreground group-data-[collapsible=icon]:hidden">
             Sistema IoT
           </span>
         </Link>
@@ -127,7 +127,7 @@ export function AppSidebar() {
       <SidebarContent className="px-3">
         {/* Main */}
         <SidebarGroup>
-          <SidebarGroupLabel className="mb-2 px-2 text-[11px] uppercase tracking-wider text-white/25 group-data-[collapsible=icon]:hidden">
+          <SidebarGroupLabel className="mb-2 px-2 text-[11px] uppercase tracking-wider text-muted-foreground/60 group-data-[collapsible=icon]:hidden">
             Menu
           </SidebarGroupLabel>
           <SidebarGroupContent>
@@ -140,7 +140,7 @@ export function AppSidebar() {
         {/* Reports */}
         {isWptOrAdmin ? (
           <SidebarGroup className="mt-6">
-            <SidebarGroupLabel className="mb-2 px-2 text-[11px] uppercase tracking-wider text-white/25 group-data-[collapsible=icon]:hidden">
+            <SidebarGroupLabel className="mb-2 px-2 text-[11px] uppercase tracking-wider text-muted-foreground/60 group-data-[collapsible=icon]:hidden">
               {t('nav.reports')}
             </SidebarGroupLabel>
             <SidebarGroupContent>
@@ -154,7 +154,7 @@ export function AppSidebar() {
         {/* Admin */}
         {isSuperAdmin ? (
           <SidebarGroup className="mt-6">
-            <SidebarGroupLabel className="mb-2 px-2 text-[11px] uppercase tracking-wider text-white/25 group-data-[collapsible=icon]:hidden">
+            <SidebarGroupLabel className="mb-2 px-2 text-[11px] uppercase tracking-wider text-muted-foreground/60 group-data-[collapsible=icon]:hidden">
               Admin
             </SidebarGroupLabel>
             <SidebarGroupContent>
@@ -172,7 +172,7 @@ export function AppSidebar() {
           <SidebarMenuItem>
             <SidebarMenuButton
               tooltip={tAuth('changePassword.title')}
-              className="h-10 text-white/40 hover:bg-white/[0.05] hover:text-white/70"
+              className="h-10 text-muted-foreground hover:bg-muted hover:text-foreground/70"
               onClick={() => setChangePasswordOpen(true)}
             >
               <KeyRound className="!size-5 shrink-0" />
@@ -182,7 +182,7 @@ export function AppSidebar() {
           <SidebarMenuItem>
             <SidebarMenuButton
               tooltip={t('signOut')}
-              className="h-10 text-white/40 hover:bg-red-500/10 hover:text-red-400"
+              className="h-10 text-muted-foreground hover:bg-red-500/10 hover:text-red-400"
               onClick={logout}
             >
               <LogOut className="!size-5 shrink-0" />
@@ -193,14 +193,14 @@ export function AppSidebar() {
 
         {/* User */}
         <div className="mt-2 flex h-11 items-center gap-3 rounded-lg px-2 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#1ABC9C] text-sm font-bold text-white">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-wpt-teal text-sm font-bold text-primary-foreground">
             {user.username.charAt(0).toUpperCase()}
           </div>
           <div className="min-w-0 group-data-[collapsible=icon]:hidden">
-            <div className="truncate text-sm font-medium text-white/80">
+            <div className="truncate text-sm font-medium text-foreground/80">
               {user.username}
             </div>
-            <div className="text-[11px] text-white/30">
+            <div className="text-[11px] text-muted-foreground/60">
               {user.role === 'SUPER_ADMIN' ? 'Admin' : user.role}
             </div>
           </div>

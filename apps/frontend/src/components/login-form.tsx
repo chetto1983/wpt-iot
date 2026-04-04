@@ -110,7 +110,7 @@ export function LoginForm() {
   // Show nothing while checking session (brief flash guard)
   if (loading) {
     return (
-      <div className="flex h-screen items-center justify-center bg-[#282828]">
+      <div className="flex h-screen items-center justify-center bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
@@ -122,7 +122,7 @@ export function LoginForm() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#282828] px-4">
+    <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <Card className="w-full max-w-sm">
         <CardHeader className="items-center space-y-3 pb-2">
           <Image
@@ -132,7 +132,7 @@ export function LoginForm() {
             height={120}
             priority
           />
-          <h1 className="text-lg font-semibold leading-tight">
+          <h1 className="text-xl font-semibold leading-tight">
             {t('subtitle')}
           </h1>
         </CardHeader>

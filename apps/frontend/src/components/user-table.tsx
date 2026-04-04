@@ -48,7 +48,7 @@ function roleBadgeVariant(role: string): 'default' | 'secondary' {
 function roleBadgeClassName(role: string): string {
   switch (role) {
     case 'WPT':
-      return 'bg-[#bfae82] text-white hover:bg-[#bfae82]/80';
+      return 'bg-wpt-gold text-white hover:bg-wpt-gold/80';
     case 'CLIENT':
       return 'bg-muted text-muted-foreground';
     default:
