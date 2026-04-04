@@ -36,22 +36,22 @@ export function DashboardHeaderRail({
       <div className="flex flex-wrap items-center gap-2">
         {/* Connection badge */}
         <Badge
-          className={
+          className={`text-xs px-2.5 py-0.5 rounded-full font-medium ${
             isLive
               ? 'border-transparent bg-[#1ABC9C]/15 text-[#1ABC9C]'
               : 'border-transparent bg-[#bfae82]/15 text-[#bfae82]'
-          }
+          }`}
         >
           {t(`connection.${connectionState}`)}
         </Badge>
 
         {/* Machine status badge */}
         <Badge
-          className={
+          className={`text-xs px-2.5 py-0.5 rounded-full font-medium ${
             isAlarmOrEmergency
               ? 'border-transparent bg-[#dc3545]/15 text-[#dc3545]'
               : 'border-transparent bg-[#1ABC9C]/15 text-[#1ABC9C]'
-          }
+          }`}
         >
           {fmt.statusLabel(statusValue)}
         </Badge>

@@ -16,7 +16,7 @@ export function JobSnapshotCard({ machineData }: JobSnapshotCardProps) {
   const formatters = useDashboardFormatters();
 
   return (
-    <Card className="bg-[#383838] border-0 text-white">
+    <Card className="bg-[#383838] border-0 text-white rounded-xl shadow-lg shadow-black/20">
       <CardHeader>
         <h3 className="text-lg font-semibold text-white">{t('sections.job')}</h3>
       </CardHeader>

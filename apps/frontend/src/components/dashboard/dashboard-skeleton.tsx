@@ -4,7 +4,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 
 export function DashboardSkeleton() {
   return (
-    <div className="min-h-full bg-[#282828] p-6 xl:p-8">
+    <div className="min-h-full bg-gradient-to-b from-[#282828] via-[#282828] to-[#1e1e1e] p-6 xl:p-8 space-y-6">
       {/* Header rail skeleton */}
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="space-y-2">
@@ -19,23 +19,23 @@ export function DashboardSkeleton() {
       </div>
 
       {/* Gauge grid skeleton */}
-      <div className="mt-6 grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
         {Array.from({ length: 4 }).map((_, i) => (
           <Skeleton
             key={i}
-            className="h-[180px] rounded-xl bg-[#383838] md:h-[220px]"
+            className="min-h-[180px] xl:min-h-[220px] rounded-xl shadow-lg shadow-black/20 bg-[#383838]"
           />
         ))}
       </div>
 
       {/* Detail cards skeleton */}
-      <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <Skeleton className="h-[200px] rounded-xl bg-[#383838]" />
-        <Skeleton className="h-[200px] rounded-xl bg-[#383838]" />
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <Skeleton className="h-[200px] rounded-xl shadow-lg shadow-black/20 bg-[#383838]" />
+        <Skeleton className="h-[200px] rounded-xl shadow-lg shadow-black/20 bg-[#383838]" />
       </div>
 
       {/* Alarm panel skeleton */}
-      <Skeleton className="mt-6 h-[160px] w-full rounded-xl bg-[#383838]" />
+      <Skeleton className="h-[160px] w-full rounded-xl shadow-lg shadow-black/20 bg-[#383838]" />
     </div>
   );
 }

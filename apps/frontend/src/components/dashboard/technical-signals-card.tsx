@@ -37,7 +37,7 @@ export function TechnicalSignalsCard({ machineData }: TechnicalSignalsCardProps)
   }
 
   return (
-    <Card className="bg-[#383838] border-0 text-white">
+    <Card className="bg-[#383838] border-0 text-white rounded-xl shadow-lg shadow-black/20">
       <CardHeader>
         <p className="text-[11px] font-semibold text-[#bfae82]/60 uppercase tracking-wider">
           {t('sections.technical')}

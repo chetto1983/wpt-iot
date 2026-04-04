@@ -15,7 +15,7 @@ export function GaugeCard({ label, value, className }: GaugeCardProps) {
   const data = [{ value: clampedValue, fill: '#1ABC9C' }];
 
   return (
-    <Card className={`bg-[#383838] border-0 text-white ${className ?? ''}`}>
+    <Card className={`bg-[#383838] border-0 text-white rounded-xl shadow-lg shadow-black/20 min-h-[180px] xl:min-h-[220px] ${className ?? ''}`}>
       <CardHeader>
         <p className="text-xs font-semibold text-white/40 uppercase tracking-wider">
           {label}
