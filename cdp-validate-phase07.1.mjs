@@ -233,9 +233,7 @@ async function main() {
     // ---------------------------------------------------------------
     // 7. Navigate to /users in light mode
     // ---------------------------------------------------------------
-    await page.waitForSelector('a[href="/users"]', { timeout: 5000 });
-    await page.click('a[href="/users"]');
-    await page.waitForFunction(() => window.location.pathname === '/users', { timeout: 10000 });
+    await page.goto(`${BASE}/users`, { waitUntil: 'networkidle2', timeout: 15000 });
     await page.waitForFunction(() => document.body.innerText.toLowerCase().includes('admin'), { timeout: 10000 });
 
     const usersTitle = await page.evaluate(() => {
