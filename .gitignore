@@ -8,4 +8,5 @@ dist/
 *.tsbuildinfo
 pnpm-debug.log*
 *.log
-.cdp*
+*cdp*
+
