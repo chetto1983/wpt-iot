@@ -29,5 +29,5 @@ COPY --from=builder /app/apps/backend/dist ./dist
 COPY --from=builder /app/packages/types/dist ./node_modules/@wpt/types/dist
 COPY --from=builder /app/packages/types/package.json ./node_modules/@wpt/types/
 
-EXPOSE 3001
+EXPOSE 3000
 CMD ["node", "dist/index.js"]

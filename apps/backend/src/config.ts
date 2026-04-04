@@ -2,7 +2,7 @@ import dotenv from 'dotenv';
 dotenv.config({ path: '../../.env' });
 
 export const config = {
-  port: Number(process.env.PORT ?? 3001),
+  port: Number(process.env.PORT ?? 3000),
   host: process.env.HOST ?? '0.0.0.0',
   pgHost: process.env.PG_HOST ?? 'localhost',
   pgPort: Number(process.env.PG_PORT ?? 5432),
@@ -21,5 +21,5 @@ export const config = {
   handshakeTimeoutMs: Number(process.env.HANDSHAKE_TIMEOUT_MS ?? 5000),
   sessionSecret: process.env.SESSION_SECRET ?? 'dev-only-session-secret-minimum-32-chars!!',
   adminPassword: process.env.ADMIN_PASSWORD ?? '',
-  corsOrigin: (process.env.CORS_ORIGIN ?? 'http://localhost:3000').split(','),
+  corsOrigin: (process.env.CORS_ORIGIN ?? 'http://localhost:3001').split(','),
 } as const;

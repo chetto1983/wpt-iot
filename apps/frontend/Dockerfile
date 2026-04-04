@@ -10,7 +10,7 @@ RUN pnpm install --frozen-lockfile --filter @wpt/frontend --filter @wpt/types
 
 FROM base AS builder
 WORKDIR /app
-ARG NEXT_PUBLIC_API_URL=http://localhost:3001
+ARG NEXT_PUBLIC_API_URL=http://localhost:3000
 ENV NEXT_OUTPUT=standalone
 ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
 COPY --from=deps /app ./
@@ -29,7 +29,7 @@ COPY --from=builder --chown=nextjs:nodejs /app/apps/frontend/public ./apps/front
 COPY --from=builder --chown=nextjs:nodejs /app/apps/frontend/.next/static ./apps/frontend/.next/static
 
 USER nextjs
-EXPOSE 3000
-ENV PORT=3000
+EXPOSE 3001
+ENV PORT=3001
 ENV HOSTNAME="0.0.0.0"
 CMD ["node", "apps/frontend/server.js"]
