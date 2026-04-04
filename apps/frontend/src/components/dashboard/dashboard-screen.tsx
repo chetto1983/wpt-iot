@@ -5,7 +5,6 @@ import { useWsData } from '@/lib/ws-context';
 import { GAUGE_DEFS } from '@/lib/dashboard/fields';
 import { getConnectionState } from '@/lib/dashboard/selectors';
 import { DashboardSkeleton } from './dashboard-skeleton';
-import { DashboardHeaderRail } from './dashboard-header-rail';
 import { GaugeCard } from './gauge-card';
 import { ProcessSnapshotCard } from './process-snapshot-card';
 import { JobSnapshotCard } from './job-snapshot-card';
@@ -23,17 +22,6 @@ export function DashboardScreen() {
 
   return (
     <div className="min-h-full bg-gradient-to-b from-background to-background/80 p-6 xl:p-8 space-y-6">
-      {/* Header Rail */}
-      <div
-        className="opacity-0 animate-[fadeSlideIn_200ms_ease-out_forwards]"
-        style={{ animationDelay: '0ms' }}
-      >
-        <DashboardHeaderRail
-          connectionState={connectionState}
-          machineData={machineData}
-        />
-      </div>
-
       {connectionState === 'reconnecting' && (
         <div className="rounded-lg border border-wpt-gold/20 bg-wpt-gold/10 px-4 py-3 text-sm text-wpt-gold">
           {t('states.reconnectingBanner')}
@@ -43,7 +31,7 @@ export function DashboardScreen() {
       {/* Gauge Grid */}
       <section
         className="opacity-0 animate-[fadeSlideIn_200ms_ease-out_forwards] grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4"
-        style={{ animationDelay: '60ms' }}
+        style={{ animationDelay: '0ms' }}
       >
         {GAUGE_DEFS.map((gauge) => (
           <GaugeCard
@@ -61,7 +49,7 @@ export function DashboardScreen() {
       {/* Detail Cards */}
       <section
         className="opacity-0 animate-[fadeSlideIn_200ms_ease-out_forwards] grid grid-cols-1 gap-6 lg:grid-cols-2"
-        style={{ animationDelay: '120ms' }}
+        style={{ animationDelay: '60ms' }}
       >
         <ProcessSnapshotCard machineData={machineData} />
         <JobSnapshotCard machineData={machineData} />
@@ -70,7 +58,7 @@ export function DashboardScreen() {
       {/* Technical Signals (WPT-only, presence-gated) */}
       <section
         className="opacity-0 animate-[fadeSlideIn_200ms_ease-out_forwards]"
-        style={{ animationDelay: '180ms' }}
+        style={{ animationDelay: '120ms' }}
       >
         <TechnicalSignalsCard machineData={machineData} />
       </section>
@@ -78,7 +66,7 @@ export function DashboardScreen() {
       {/* Active Alarms */}
       <section
         className="opacity-0 animate-[fadeSlideIn_200ms_ease-out_forwards]"
-        style={{ animationDelay: '240ms' }}
+        style={{ animationDelay: '180ms' }}
       >
         <ActiveAlarmsPanel alarms={alarms} />
       </section>

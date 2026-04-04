@@ -3,9 +3,10 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
-import { SidebarProvider, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar';
+import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
 import { AppSidebar } from '@/components/app-sidebar';
 import { WebSocketProvider } from '@/lib/ws-context';
+import { AppHeader } from '@/components/app-header';
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -34,9 +35,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <WebSocketProvider>
         <AppSidebar />
         <SidebarInset>
-          <header className="flex h-12 items-center border-b px-4">
-            <SidebarTrigger />
-          </header>
+          <AppHeader />
           <div className="flex-1 overflow-auto">
             {children}
           </div>
