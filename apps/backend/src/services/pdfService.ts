@@ -2,11 +2,12 @@ import { createRequire } from 'node:module';
 import path from 'node:path';
 
 // pdfmake is CJS-only; use createRequire for ESM interop
-const require = createRequire(import.meta.url);
-const pdfmake = require('pdfmake') as typeof import('pdfmake');
+const _require = createRequire(import.meta.url);
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+const pdfmake = _require('pdfmake') as typeof import('pdfmake');
 
 // Resolve font files from pdfmake's build directory (Docker-portable)
-const pdfmakePath = path.dirname(require.resolve('pdfmake/package.json'));
+const pdfmakePath = path.dirname(_require.resolve('pdfmake/package.json'));
 const fontsDir = path.join(pdfmakePath, 'build', 'fonts', 'Roboto');
 
 pdfmake.setFonts({
