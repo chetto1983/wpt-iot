@@ -88,7 +88,120 @@
       "errorSave": "Failed to save user. Try again or contact the administrator."
     }
   },
-  "dashboard": {},
+  "dashboard": {
+    "title": "Dashboard",
+    "subtitle": "Live machine overview",
+    "connection": {
+      "live": "Live data",
+      "reconnecting": "Reconnecting",
+      "waiting": "Waiting for first update"
+    },
+    "sections": {
+      "gauges": "Key indicators",
+      "process": "Process snapshot",
+      "job": "Job snapshot",
+      "technical": "Technical signals",
+      "alarms": "Active alarms"
+    },
+    "states": {
+      "notAvailable": "Not available",
+      "reconnectingBanner": "Connection lost. Showing the latest received values while reconnecting automatically."
+    },
+    "empty": {
+      "liveWaitingTitle": "Waiting for live data",
+      "liveWaitingBody": "The machine is connected, but the first websocket update has not arrived yet.",
+      "alarmsTitle": "No active alarms",
+      "alarmsBody": "The machine has no active alarms. Live monitoring continues automatically."
+    },
+    "error": {
+      "liveData": "Live data unavailable. The dashboard will reconnect automatically; if the problem persists, sign in again."
+    },
+    "gauges": {
+      "garbageTemp": "Garbage Temperature",
+      "chamberPressure": "Chamber Pressure",
+      "mainMotorSpeed": "Main Motor Speed",
+      "vacuumPumpSpeed01": "Vacuum Pump Speed"
+    },
+    "fields": {
+      "selectedCycle": "Selected Cycle",
+      "currentPhase": "Current Phase",
+      "machineStatus": "Machine Status",
+      "materialInputWeight": "Material Input Weight",
+      "completedCycles": "Completed Cycles",
+      "user": "User",
+      "supervisor": "Supervisor",
+      "orderNumber": "Order Number",
+      "serialNumber": "Serial Number"
+    },
+    "technical": {
+      "groups": {
+        "thermalZones": "Thermal Zones",
+        "driveAndVacuum": "Drive and Vacuum",
+        "electricalLoad": "Electrical Load",
+        "selectorBytes": "Selector Bytes",
+        "reservedSignal": "Reserved Signal"
+      },
+      "fields": {
+        "thermoLeftLower": "Thermo Left Lower",
+        "thermoLeftMedium": "Thermo Left Medium",
+        "thermoLeftUpper": "Thermo Left Upper",
+        "thermoRightLower": "Thermo Right Lower",
+        "thermoRightMedium": "Thermo Right Medium",
+        "thermoRightUpper": "Thermo Right Upper",
+        "thermoLeftHighLower": "Thermo Left High Lower",
+        "thermoLeftHighMedium": "Thermo Left High Medium",
+        "thermoLeftHighUpper": "Thermo Left High Upper",
+        "thermoRightHighLower": "Thermo Right High Lower",
+        "holdingTempSetpoint": "Holding Temp Setpoint",
+        "mainMotorTorque": "Main Motor Torque",
+        "vacuumPumpSpeed02": "Vacuum Pump Speed 02",
+        "rmsCurrL1": "RMS Current L1",
+        "rmsCurrL2": "RMS Current L2",
+        "rmsCurrL3": "RMS Current L3",
+        "rmsCurrN": "RMS Current N",
+        "thermoLeftLowSel": "Thermo Left Low Sel",
+        "thermoLeftMedSel": "Thermo Left Med Sel",
+        "thermoLeftHighSel": "Thermo Left High Sel",
+        "thermoRightLowSel": "Thermo Right Low Sel",
+        "thermoRightMedSel": "Thermo Right Med Sel",
+        "thermoRightHighSel": "Thermo Right High Sel",
+        "spareReal01": "Spare Real 01"
+      }
+    },
+    "cycleTypes": {
+      "NO_CYCLE": "No Cycle",
+      "DISCHARGE_ONLY": "Discharge Only",
+      "LOAD_ONLY": "Load Only",
+      "DRY_MIXED": "Dry Mixed",
+      "ORGANIC": "Organic",
+      "PAPER_CARDBOARD": "Paper/Cardboard",
+      "CANS": "Cans",
+      "HOSPITAL": "Hospital",
+      "GLASS": "Glass",
+      "PLASTIC": "Plastic",
+      "PAPER_CARDBOARD_END": "Paper/Cardboard End",
+      "CANS_END": "Cans End",
+      "PLASTIC_END": "Plastic End"
+    },
+    "machinePhases": {
+      "IDLE": "Idle",
+      "LOADING": "Loading",
+      "PROCESSING": "Processing",
+      "DRYING": "Drying",
+      "UNLOADING": "Unloading"
+    },
+    "machineStatuses": {
+      "OFF": "Off",
+      "STANDBY": "Standby",
+      "READY": "Ready",
+      "RUNNING": "Running",
+      "PAUSED": "Paused",
+      "ALARM": "Alarm",
+      "MAINTENANCE": "Maintenance",
+      "EMERGENCY": "Emergency",
+      "MANUAL": "Manual"
+    }
+  },
   "rfid": {},
   "jobs": {},
   "reports": {},

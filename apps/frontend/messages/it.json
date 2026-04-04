@@ -88,7 +88,120 @@
       "errorSave": "Impossibile salvare l'utente. Riprova o contatta l'amministratore."
     }
   },
-  "dashboard": {},
+  "dashboard": {
+    "title": "Cruscotto",
+    "subtitle": "Panoramica live macchina",
+    "connection": {
+      "live": "Dati live",
+      "reconnecting": "Riconnessione in corso",
+      "waiting": "In attesa del primo aggiornamento"
+    },
+    "sections": {
+      "gauges": "Indicatori principali",
+      "process": "Dati processo",
+      "job": "Dati commessa",
+      "technical": "Segnali tecnici",
+      "alarms": "Allarmi attivi"
+    },
+    "states": {
+      "notAvailable": "Non disponibile",
+      "reconnectingBanner": "Connessione persa. Mostro gli ultimi valori ricevuti mentre la riconnessione avviene automaticamente."
+    },
+    "empty": {
+      "liveWaitingTitle": "In attesa dei dati live",
+      "liveWaitingBody": "La macchina e connessa, ma il primo aggiornamento websocket non e ancora arrivato.",
+      "alarmsTitle": "Nessun allarme attivo",
+      "alarmsBody": "La macchina non ha allarmi attivi. Il monitoraggio live continua automaticamente."
+    },
+    "error": {
+      "liveData": "Dati live non disponibili. Il cruscotto tentera la riconnessione automatica; se il problema continua, accedi di nuovo."
+    },
+    "gauges": {
+      "garbageTemp": "Temperatura rifiuti",
+      "chamberPressure": "Pressione camera",
+      "mainMotorSpeed": "Velocita motore principale",
+      "vacuumPumpSpeed01": "Velocita pompa vuoto"
+    },
+    "fields": {
+      "selectedCycle": "Ciclo selezionato",
+      "currentPhase": "Fase corrente",
+      "machineStatus": "Stato macchina",
+      "materialInputWeight": "Peso materiale ingresso",
+      "completedCycles": "Cicli completati",
+      "user": "Utente",
+      "supervisor": "Responsabile",
+      "orderNumber": "Numero ordine",
+      "serialNumber": "Numero di serie"
+    },
+    "technical": {
+      "groups": {
+        "thermalZones": "Zone termiche",
+        "driveAndVacuum": "Motore e vuoto",
+        "electricalLoad": "Carico elettrico",
+        "selectorBytes": "Byte selettori",
+        "reservedSignal": "Segnale riservato"
+      },
+      "fields": {
+        "thermoLeftLower": "Termo sinistra basso",
+        "thermoLeftMedium": "Termo sinistra medio",
+        "thermoLeftUpper": "Termo sinistra alto",
+        "thermoRightLower": "Termo destra basso",
+        "thermoRightMedium": "Termo destra medio",
+        "thermoRightUpper": "Termo destra alto",
+        "thermoLeftHighLower": "Termo sinistra alto basso",
+        "thermoLeftHighMedium": "Termo sinistra alto medio",
+        "thermoLeftHighUpper": "Termo sinistra alto alto",
+        "thermoRightHighLower": "Termo destra alto basso",
+        "holdingTempSetpoint": "Setpoint temperatura mantenimento",
+        "mainMotorTorque": "Coppia motore principale",
+        "vacuumPumpSpeed02": "Velocita pompa vuoto 02",
+        "rmsCurrL1": "Corrente RMS L1",
+        "rmsCurrL2": "Corrente RMS L2",
+        "rmsCurrL3": "Corrente RMS L3",
+        "rmsCurrN": "Corrente RMS N",
+        "thermoLeftLowSel": "Sel termo sinistra basso",
+        "thermoLeftMedSel": "Sel termo sinistra medio",
+        "thermoLeftHighSel": "Sel termo sinistra alto",
+        "thermoRightLowSel": "Sel termo destra basso",
+        "thermoRightMedSel": "Sel termo destra medio",
+        "thermoRightHighSel": "Sel termo destra alto",
+        "spareReal01": "Riserva Real 01"
+      }
+    },
+    "cycleTypes": {
+      "NO_CYCLE": "Nessun ciclo",
+      "DISCHARGE_ONLY": "Solo scarico",
+      "LOAD_ONLY": "Solo carico",
+      "DRY_MIXED": "Secco misto",
+      "ORGANIC": "Organico",
+      "PAPER_CARDBOARD": "Carta/Cartone",
+      "CANS": "Lattine",
+      "HOSPITAL": "Ospedaliero",
+      "GLASS": "Vetro",
+      "PLASTIC": "Plastica",
+      "PAPER_CARDBOARD_END": "Fine carta/cartone",
+      "CANS_END": "Fine lattine",
+      "PLASTIC_END": "Fine plastica"
+    },
+    "machinePhases": {
+      "IDLE": "Inattivo",
+      "LOADING": "Caricamento",
+      "PROCESSING": "Lavorazione",
+      "DRYING": "Essiccazione",
+      "UNLOADING": "Scarico"
+    },
+    "machineStatuses": {
+      "OFF": "Spento",
+      "STANDBY": "Standby",
+      "READY": "Pronto",
+      "RUNNING": "In funzione",
+      "PAUSED": "In pausa",
+      "ALARM": "Allarme",
+      "MAINTENANCE": "Manutenzione",
+      "EMERGENCY": "Emergenza",
+      "MANUAL": "Manuale"
+    }
+  },
   "rfid": {},
   "jobs": {},
   "reports": {},
