@@ -19,6 +19,8 @@ import {
 
 import { useAuth } from '@/lib/auth-context';
 import { cn } from '@/lib/utils';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { AvatarUploadDialog } from '@/components/avatar-upload-dialog';
 import { ChangeOwnPasswordDialog } from '@/components/change-own-password-dialog';
 import {
   Sidebar,
@@ -39,12 +41,15 @@ interface NavItem {
   icon: React.ComponentType<{ className?: string }>;
 }
 
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || '';
+
 export function AppSidebar() {
   const t = useTranslations('common');
   const tAuth = useTranslations('auth');
-  const { user, logout } = useAuth();
+  const { user, logout, refreshUser } = useAuth();
   const pathname = usePathname();
   const [changePasswordOpen, setChangePasswordOpen] = useState(false);
+  const [avatarDialogOpen, setAvatarDialogOpen] = useState(false);
 
   if (!user) return null;
 
@@ -187,9 +192,22 @@ export function AppSidebar() {
 
         {/* User */}
         <div className="mt-2 flex h-11 items-center gap-3 rounded-lg px-2 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-wpt-teal text-sm font-bold text-primary-foreground">
-            {user.username.charAt(0).toUpperCase()}
-          </div>
+          <button
+            type="button"
+            className="group/avatar-btn relative shrink-0"
+            onClick={() => setAvatarDialogOpen(true)}
+            title="Change avatar"
+          >
+            <Avatar className="size-9">
+              <AvatarImage
+                src={user.avatar ? `${API_BASE}${user.avatar}` : '/logo.png'}
+                alt={user.username}
+              />
+              <AvatarFallback className="bg-wpt-teal text-sm font-bold text-primary-foreground">
+                {user.username.charAt(0).toUpperCase()}
+              </AvatarFallback>
+            </Avatar>
+          </button>
           <div className="min-w-0 group-data-[collapsible=icon]:hidden">
             <div className="truncate text-sm font-medium text-foreground/80">
               {user.username}
@@ -203,6 +221,13 @@ export function AppSidebar() {
         <ChangeOwnPasswordDialog
           open={changePasswordOpen}
           onOpenChange={setChangePasswordOpen}
+        />
+        <AvatarUploadDialog
+          open={avatarDialogOpen}
+          onOpenChange={setAvatarDialogOpen}
+          userId={user.id}
+          currentAvatar={user.avatar}
+          onSuccess={refreshUser}
         />
       </SidebarFooter>
     </Sidebar>

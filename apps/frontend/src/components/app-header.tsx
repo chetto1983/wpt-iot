@@ -7,9 +7,12 @@ import { useWsData } from '@/lib/ws-context';
 import { useAuth } from '@/lib/auth-context';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import { Badge } from '@/components/ui/badge';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { ModeToggle } from '@/components/mode-toggle';
 import { LanguageSelector } from '@/components/language-selector';
 import { cn } from '@/lib/utils';
+
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || '';
 
 function getPageTitleKey(path: string): string {
   if (path === '/dashboard') return 'nav.dashboard';
@@ -87,9 +90,15 @@ export function AppHeader() {
 
         {/* User avatar */}
         {user && (
-          <div className="flex size-8 items-center justify-center rounded-full bg-wpt-teal text-xs font-bold text-primary-foreground">
-            {user.username.charAt(0).toUpperCase()}
-          </div>
+          <Avatar className="size-8">
+            <AvatarImage
+              src={user.avatar ? `${API_BASE}${user.avatar}` : '/logo.png'}
+              alt={user.username}
+            />
+            <AvatarFallback className="bg-wpt-teal text-xs font-bold text-primary-foreground">
+              {user.username.charAt(0).toUpperCase()}
+            </AvatarFallback>
+          </Avatar>
         )}
       </div>
     </header>

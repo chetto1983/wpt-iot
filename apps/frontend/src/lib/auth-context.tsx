@@ -15,6 +15,7 @@ interface User {
   id: number;
   username: string;
   role: string;
+  avatar?: string | null;
   language: string;
 }
 
@@ -23,6 +24,7 @@ interface AuthContextValue {
   loading: boolean;
   login: (username: string, password: string, language: string) => Promise<void>;
   logout: () => Promise<void>;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -105,9 +107,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     window.location.href = '/';
   }, []);
 
+  const refreshUser = useCallback(async () => {
+    try {
+      const res = await fetch(`${API_BASE}/auth/me`, {
+        credentials: 'include',
+      });
+      if (!res.ok) return;
+      const data = (await res.json()) as User;
+      setUser(data);
+    } catch {
+      // Ignore — user state stays as-is
+    }
+  }, []);
+
   const value = useMemo<AuthContextValue>(
-    () => ({ user, loading, login, logout }),
-    [user, loading, login, logout],
+    () => ({ user, loading, login, logout, refreshUser }),
+    [user, loading, login, logout, refreshUser],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
