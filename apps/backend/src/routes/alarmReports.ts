@@ -135,9 +135,6 @@ function parseAlarmQuery(
 ): ParsedAlarmQuery {
   const from = new Date(query.from ?? '');
   const to = new Date(query.to ?? '');
-  if (!isNaN(to.getTime())) {
-    to.setHours(23, 59, 59, 999);
-  }
 
   const statusRaw = query.status as string | undefined;
   const status: 'all' | 'active' | 'resolved' =

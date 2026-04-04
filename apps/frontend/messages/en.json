@@ -320,6 +320,8 @@
     "title": "Machine Data Reports",
     "dateRangeLabel": "Date Range",
     "dateRangePlaceholder": "Select date range",
+    "fromTimeLabel": "From",
+    "toTimeLabel": "To",
     "cycleLabel": "Cycle Number",
     "cyclePlaceholder": "All cycles",
     "formatCsv": "CSV",
@@ -332,6 +334,7 @@
     "emptyHeading": "No snapshots in this range",
     "emptyBody": "No machine data exists for the selected date range. Try a different range.",
     "initialBody": "Select a date range to view report data.",
+    "columnTimestamp": "Date/Time",
     "errorToast": "Report generation failed: {error}",
     "successToast": "Report downloaded"
   },
@@ -360,7 +363,9 @@
     "successToast": "Alarm report downloaded",
     "unauthorized": "You do not have permission to access this page.",
     "dateRangeLabel": "Date Range",
-    "dateRangePlaceholder": "Select date range"
+    "dateRangePlaceholder": "Select date range",
+    "fromTimeLabel": "From",
+    "toTimeLabel": "To"
   },
   "charts": {}
 }

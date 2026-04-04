@@ -320,6 +320,8 @@
     "title": "Report Dati Macchina",
     "dateRangeLabel": "Intervallo Date",
     "dateRangePlaceholder": "Seleziona intervallo date",
+    "fromTimeLabel": "Da",
+    "toTimeLabel": "A",
     "cycleLabel": "Numero Ciclo",
     "cyclePlaceholder": "Tutti i cicli",
     "formatCsv": "CSV",
@@ -332,6 +334,7 @@
     "emptyHeading": "Nessun snapshot nell'intervallo",
     "emptyBody": "Nessun dato macchina nell'intervallo selezionato. Prova un intervallo diverso.",
     "initialBody": "Seleziona un intervallo date per visualizzare i dati.",
+    "columnTimestamp": "Data/Ora",
     "errorToast": "Generazione report fallita: {error}",
     "successToast": "Report scaricato"
   },
@@ -360,7 +363,9 @@
     "successToast": "Report allarmi scaricato",
     "unauthorized": "Non hai i permessi per accedere a questa pagina.",
     "dateRangeLabel": "Intervallo Date",
-    "dateRangePlaceholder": "Seleziona intervallo date"
+    "dateRangePlaceholder": "Seleziona intervallo date",
+    "fromTimeLabel": "Da",
+    "toTimeLabel": "A"
   },
   "charts": {}
 }

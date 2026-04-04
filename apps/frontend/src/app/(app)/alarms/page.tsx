@@ -48,12 +48,18 @@ interface IAlarmResponse {
   resolved: number;
 }
 
+function buildDateTimeISO(date: Date, time: string): string {
+  const [h, m] = time.split(':').map(Number);
+  const d = new Date(date);
+  d.setHours(h ?? 0, m ?? 0, 0, 0);
+  return d.toISOString();
+}
+
 export default function AlarmsPage() {
   const t = useTranslations('alarms');
   const { user } = useAuth();
   const locale = user?.language ?? 'it';
 
-  // CLIENT role gate (ALM-05)
   if (user?.role === 'CLIENT') {
     return (
       <div className="flex h-full items-center justify-center text-muted-foreground">
@@ -69,6 +75,8 @@ function AlarmsContent({ locale }: { locale: string }) {
   const t = useTranslations('alarms');
 
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
+  const [fromTime, setFromTime] = useState('00:00');
+  const [toTime, setToTime] = useState('23:59');
   const [status, setStatus] = useState<'all' | 'active' | 'resolved'>('all');
   const [exportFormat, setExportFormat] = useState<'csv' | 'pdf'>('csv');
   const [downloading, setDownloading] = useState(false);
@@ -76,7 +84,6 @@ function AlarmsContent({ locale }: { locale: string }) {
   const [events, setEvents] = useState<IAlarmEvent[]>([]);
   const [summary, setSummary] = useState({ total: 0, active: 0, resolved: 0 });
 
-  // Load alarm events when filters change
   useEffect(() => {
     if (!dateRange?.from || !dateRange?.to) {
       setEvents([]);
@@ -88,8 +95,8 @@ function AlarmsContent({ locale }: { locale: string }) {
     setLoading(true);
 
     const params = new URLSearchParams({
-      from: dateRange.from.toISOString(),
-      to: dateRange.to.toISOString(),
+      from: buildDateTimeISO(dateRange.from, fromTime),
+      to: buildDateTimeISO(dateRange.to, toTime),
       status,
       lang: locale,
     });
@@ -112,10 +119,8 @@ function AlarmsContent({ locale }: { locale: string }) {
         if (!cancelled) setLoading(false);
       });
 
-    return () => {
-      cancelled = true;
-    };
-  }, [dateRange, status, locale, t]);
+    return () => { cancelled = true; };
+  }, [dateRange, fromTime, toTime, status, locale, t]);
 
   const downloadAlarmReport = useCallback(async () => {
     if (!dateRange?.from || !dateRange?.to) return;
@@ -123,8 +128,8 @@ function AlarmsContent({ locale }: { locale: string }) {
     setDownloading(true);
     try {
       const params = new URLSearchParams({
-        from: dateRange.from.toISOString(),
-        to: dateRange.to.toISOString(),
+        from: buildDateTimeISO(dateRange.from, fromTime),
+        to: buildDateTimeISO(dateRange.to, toTime),
         status,
         lang: locale,
       });
@@ -156,7 +161,7 @@ function AlarmsContent({ locale }: { locale: string }) {
     } finally {
       setDownloading(false);
     }
-  }, [dateRange, status, exportFormat, locale, t]);
+  }, [dateRange, fromTime, toTime, status, exportFormat, locale, t]);
 
   const hasDateRange = Boolean(dateRange?.from && dateRange?.to);
 
@@ -164,10 +169,13 @@ function AlarmsContent({ locale }: { locale: string }) {
     <div className="space-y-4 p-6">
       <h1 className="text-xl font-semibold">{t('title')}</h1>
 
-      {/* Filter Bar — reuses ReportFilters, passes status filter as children */}
       <ReportFilters
         dateRange={dateRange}
         onDateRangeChange={setDateRange}
+        fromTime={fromTime}
+        toTime={toTime}
+        onFromTimeChange={setFromTime}
+        onToTimeChange={setToTime}
         format={exportFormat}
         onFormatChange={setExportFormat}
         onDownload={downloadAlarmReport}
@@ -178,6 +186,8 @@ function AlarmsContent({ locale }: { locale: string }) {
         translations={{
           dateRangeLabel: t('dateRangeLabel'),
           dateRangePlaceholder: t('dateRangePlaceholder'),
+          fromTimeLabel: t('fromTimeLabel'),
+          toTimeLabel: t('toTimeLabel'),
           cycleLabel: '',
           cyclePlaceholder: '',
           downloadCsv: t('downloadCsv'),
@@ -185,7 +195,6 @@ function AlarmsContent({ locale }: { locale: string }) {
           downloading: t('downloading'),
         }}
       >
-        {/* Status filter passed as children slot */}
         <div className="flex flex-col gap-1.5">
           <Label className="text-xs font-medium text-muted-foreground">
             {t('statusLabel')}
@@ -214,7 +223,6 @@ function AlarmsContent({ locale }: { locale: string }) {
         </div>
       </ReportFilters>
 
-      {/* Summary Badges */}
       {events.length > 0 && (
         <div className="flex items-center gap-3">
           <Badge variant="secondary">
@@ -229,7 +237,6 @@ function AlarmsContent({ locale }: { locale: string }) {
         </div>
       )}
 
-      {/* Alarm Table */}
       <Card>
         {loading ? (
           <CardContent className="p-4">
@@ -251,16 +258,12 @@ function AlarmsContent({ locale }: { locale: string }) {
               <>
                 <AlertTriangle className="mb-4 h-12 w-12 text-muted-foreground/40" />
                 <p className="text-sm font-medium">{t('emptyHeading')}</p>
-                <p className="text-sm text-muted-foreground">
-                  {t('emptyBody')}
-                </p>
+                <p className="text-sm text-muted-foreground">{t('emptyBody')}</p>
               </>
             ) : (
               <>
                 <CalendarDays className="mb-4 h-12 w-12 text-muted-foreground/40" />
-                <p className="text-sm text-muted-foreground">
-                  {t('initialBody')}
-                </p>
+                <p className="text-sm text-muted-foreground">{t('initialBody')}</p>
               </>
             )}
           </CardContent>
@@ -281,9 +284,7 @@ function AlarmsContent({ locale }: { locale: string }) {
                   <TableCell className="font-mono text-xs">
                     {event.alarmCode}
                   </TableCell>
-                  <TableCell className="text-sm">
-                    {event.description}
-                  </TableCell>
+                  <TableCell className="text-sm">{event.description}</TableCell>
                   <TableCell className="font-mono text-xs">
                     {event.activatedAt}
                   </TableCell>
@@ -293,9 +294,7 @@ function AlarmsContent({ locale }: { locale: string }) {
                         {t('activeBadge')}
                       </Badge>
                     ) : (
-                      <span className="font-mono text-xs">
-                        {event.resetAt}
-                      </span>
+                      <span className="font-mono text-xs">{event.resetAt}</span>
                     )}
                   </TableCell>
                   <TableCell className="text-sm">{event.duration}</TableCell>

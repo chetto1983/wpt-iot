@@ -14,35 +14,38 @@ type ExportFormat = 'csv' | 'pdf';
 interface ReportFiltersProps {
   dateRange: DateRange | undefined;
   onDateRangeChange: (range: DateRange | undefined) => void;
+  fromTime: string;
+  toTime: string;
+  onFromTimeChange: (val: string) => void;
+  onToTimeChange: (val: string) => void;
   format: ExportFormat;
   onFormatChange: (fmt: ExportFormat) => void;
   onDownload: () => void;
   downloading: boolean;
-  /** Show cycle number input (machine reports only) */
   showCycleFilter?: boolean;
   cycleNumber: string;
   onCycleNumberChange: (val: string) => void;
-  /** i18n translations */
   translations: {
     dateRangeLabel: string;
     dateRangePlaceholder: string;
+    fromTimeLabel: string;
+    toTimeLabel: string;
     cycleLabel: string;
     cyclePlaceholder: string;
     downloadCsv: string;
     downloadPdf: string;
     downloading: string;
   };
-  /** Optional slot for additional filter controls (e.g., alarm status Select).
-   *  Rendered between the date range picker and the format toggle.
-   *  Per CLAUDE.md: "Reusable components over copy-paste" -- this slot lets
-   *  the alarm page add its status filter without duplicating the entire
-   *  filter bar layout. */
   children?: React.ReactNode;
 }
 
 export function ReportFilters({
   dateRange,
   onDateRangeChange,
+  fromTime,
+  toTime,
+  onFromTimeChange,
+  onToTimeChange,
   format: exportFormat,
   onFormatChange,
   onDownload,
@@ -68,6 +71,30 @@ export function ReportFilters({
               value={dateRange}
               onChange={onDateRangeChange}
               placeholder={translations.dateRangePlaceholder}
+            />
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <Label className="text-xs font-medium text-muted-foreground">
+              {translations.fromTimeLabel}
+            </Label>
+            <Input
+              type="time"
+              className="w-[120px]"
+              value={fromTime}
+              onChange={(e) => onFromTimeChange(e.target.value)}
+            />
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <Label className="text-xs font-medium text-muted-foreground">
+              {translations.toTimeLabel}
+            </Label>
+            <Input
+              type="time"
+              className="w-[120px]"
+              value={toTime}
+              onChange={(e) => onToTimeChange(e.target.value)}
             />
           </div>
 

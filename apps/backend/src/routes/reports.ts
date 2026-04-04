@@ -12,6 +12,34 @@ import { getFieldLabel } from '../i18n/fieldLabels.js';
 export const reportRoutes: FastifyPluginAsync = async (server) => {
   server.addHook('preHandler', requireAuth);
 
+  /** GET /reports/machine — JSON preview (first 100 rows) */
+  server.get('/reports/machine', async (request, reply) => {
+    const query = request.query as Record<string, string>;
+    const { from, to, cycle, lang } = parseReportQuery(query, request);
+
+    if (!from || !to || isNaN(from.getTime()) || isNaN(to.getTime())) {
+      return reply.code(400).send({ error: 'Invalid date range' });
+    }
+
+    const role = request.session.role as UserRole;
+    const fields: readonly string[] =
+      role === UserRole.CLIENT ? CLIENT_VISIBLE_FIELDS : WPT_VISIBLE_FIELDS;
+    const allFields = ['timestamp', ...fields] as const;
+    const headers = allFields.map((f) => getFieldLabel(f, lang));
+
+    const rows = await ReportService.querySnapshots({ from, to, cycle });
+    const preview = rows.slice(0, 100).map((row) => {
+      const obj: Record<string, unknown> = {};
+      for (const f of allFields) {
+        const val = row[f];
+        obj[f] = val instanceof Date ? val.toISOString() : val;
+      }
+      return obj;
+    });
+
+    return { rows: preview, total: rows.length, fields: allFields, headers };
+  });
+
   /** GET /reports/machine/csv */
   server.get('/reports/machine/csv', async (request, reply) => {
     const query = request.query as Record<string, string>;
@@ -104,10 +132,6 @@ function parseReportQuery(
 ): ParsedReportQuery {
   const from = new Date(query.from ?? '');
   const to = new Date(query.to ?? '');
-  // Make 'to' inclusive: end of day
-  if (!isNaN(to.getTime())) {
-    to.setHours(23, 59, 59, 999);
-  }
 
   const cycleRaw = query.cycle ? parseInt(query.cycle, 10) : undefined;
   const cycle = cycleRaw !== undefined && !isNaN(cycleRaw) ? cycleRaw : undefined;
