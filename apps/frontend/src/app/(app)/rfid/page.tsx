@@ -46,6 +46,12 @@ interface RfidUserRowProps {
   t: ReturnType<typeof useTranslations>;
 }
 
+const GROUP_KEYS: Record<number, string> = {
+  [RfidUserGroup.OPERATOR]: 'OPERATOR',
+  [RfidUserGroup.MAINTENANCE]: 'MAINTENANCE',
+  [RfidUserGroup.ADMIN]: 'ADMIN',
+};
+
 const RfidUserRow = memo(function RfidUserRow({ user, onUpdate, t }: RfidUserRowProps) {
   return (
     <TableRow>
@@ -70,7 +76,9 @@ const RfidUserRow = memo(function RfidUserRow({ user, onUpdate, t }: RfidUserRow
           onValueChange={(v) => onUpdate(user.tagId, 'group', Number(v))}
         >
           <SelectTrigger className="h-8">
-            <SelectValue />
+            <SelectValue placeholder={t(`groups.${GROUP_KEYS[user.group] ?? 'OPERATOR'}`)}>
+              {t(`groups.${GROUP_KEYS[user.group] ?? 'OPERATOR'}`)}
+            </SelectValue>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="0">{t('groups.OPERATOR')}</SelectItem>

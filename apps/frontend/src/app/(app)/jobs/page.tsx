@@ -189,7 +189,7 @@ export default function JobsPage() {
               }
             >
               <SelectTrigger>
-                <SelectValue />
+                <SelectValue>{t(`enums.remoteJobEnable.${job.remoteJobEnable}`)}</SelectValue>
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="0">
@@ -214,7 +214,7 @@ export default function JobsPage() {
               }
             >
               <SelectTrigger>
-                <SelectValue />
+                <SelectValue>{t(`enums.maintenanceRequest.${job.maintenanceRequest}`)}</SelectValue>
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="0">
@@ -239,7 +239,7 @@ export default function JobsPage() {
               }
             >
               <SelectTrigger>
-                <SelectValue />
+                <SelectValue>{t(`enums.remoteCycleSelection.${job.remoteCycleSelection}`)}</SelectValue>
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="0">
@@ -264,7 +264,9 @@ export default function JobsPage() {
               }
             >
               <SelectTrigger>
-                <SelectValue />
+                <SelectValue>
+                  {tDashboard(`cycleTypes.${CycleType[job.cycleType] ?? 'NO_CYCLE'}`)}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {Object.entries(CycleType)
