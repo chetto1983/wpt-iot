@@ -81,9 +81,23 @@ export function getState(): ISimulatorState {
   return state;
 }
 
+/** Source of a state update — 'external' triggers onExternalUpdate callback */
+export type UpdateSource = 'internal' | 'external';
+
+/** Callback invoked when state is updated from an external source (REST API) */
+let onExternalUpdate: (() => void) | null = null;
+
+/** Register a callback for external state updates (e.g., to pause auto-cycle) */
+export function setOnExternalUpdate(cb: () => void): void {
+  onExternalUpdate = cb;
+}
+
 /** Deep merge a partial update into the current state */
-export function updateState(partial: DeepPartial<ISimulatorState>): void {
+export function updateState(partial: DeepPartial<ISimulatorState>, source?: UpdateSource): void {
   state = deepMerge(state, partial) as ISimulatorState;
+  if (source === 'external' && onExternalUpdate) {
+    onExternalUpdate();
+  }
 }
 
 /** Reset state to defaults */
