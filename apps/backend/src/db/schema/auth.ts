@@ -5,6 +5,7 @@ export const authUsers = pgTable('auth_users', {
   username: varchar('username', { length: 50 }).notNull().unique(),
   password: varchar('password', { length: 255 }).notNull(),
   role: varchar('role', { length: 20 }).notNull().default('CLIENT'),
+  avatar: varchar('avatar', { length: 255 }),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
 

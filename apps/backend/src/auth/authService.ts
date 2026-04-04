@@ -34,6 +34,7 @@ export class AuthService {
       id: user.id,
       username: user.username,
       role: user.role as IAuthUser['role'],
+      avatar: user.avatar ?? null,
       createdAt: user.createdAt,
     };
   }
@@ -43,32 +44,37 @@ export class AuthService {
    */
   static async getById(
     id: number,
-  ): Promise<{ id: number; username: string; role: string } | null> {
+  ): Promise<{ id: number; username: string; role: string; avatar: string | null } | null> {
     const rows = await db
       .select({
         id: authUsers.id,
         username: authUsers.username,
         role: authUsers.role,
+        avatar: authUsers.avatar,
       })
       .from(authUsers)
       .where(eq(authUsers.id, id));
-    return rows[0] ?? null;
+    const row = rows[0];
+    if (!row) return null;
+    return { ...row, avatar: row.avatar ?? null };
   }
 
   /**
    * List all users (without passwords).
    */
   static async list(): Promise<
-    Array<{ id: number; username: string; role: string; createdAt: Date }>
+    Array<{ id: number; username: string; role: string; avatar: string | null; createdAt: Date }>
   > {
-    return db
+    const rows = await db
       .select({
         id: authUsers.id,
         username: authUsers.username,
         role: authUsers.role,
+        avatar: authUsers.avatar,
         createdAt: authUsers.createdAt,
       })
       .from(authUsers);
+    return rows.map((r) => ({ ...r, avatar: r.avatar ?? null }));
   }
 
   /**
@@ -78,7 +84,7 @@ export class AuthService {
     username: string,
     password: string,
     role: string,
-  ): Promise<{ id: number; username: string; role: string; createdAt: Date }> {
+  ): Promise<{ id: number; username: string; role: string; avatar: string | null; createdAt: Date }> {
     const hash = await bcrypt.hash(password, SALT_ROUNDS);
     const rows = await db
       .insert(authUsers)
@@ -87,9 +93,11 @@ export class AuthService {
         id: authUsers.id,
         username: authUsers.username,
         role: authUsers.role,
+        avatar: authUsers.avatar,
         createdAt: authUsers.createdAt,
       });
-    return rows[0]!;
+    const row = rows[0]!;
+    return { ...row, avatar: row.avatar ?? null };
   }
 
   /**
@@ -98,7 +106,7 @@ export class AuthService {
   static async update(
     id: number,
     data: { username?: string; role?: string },
-  ): Promise<{ id: number; username: string; role: string; createdAt: Date } | null> {
+  ): Promise<{ id: number; username: string; role: string; avatar: string | null; createdAt: Date } | null> {
     const rows = await db
       .update(authUsers)
       .set(data)
@@ -107,9 +115,35 @@ export class AuthService {
         id: authUsers.id,
         username: authUsers.username,
         role: authUsers.role,
+        avatar: authUsers.avatar,
         createdAt: authUsers.createdAt,
       });
-    return rows[0] ?? null;
+    const row = rows[0];
+    if (!row) return null;
+    return { ...row, avatar: row.avatar ?? null };
+  }
+
+  /**
+   * Set or clear a user's avatar URL. Returns updated user or null if not found.
+   */
+  static async updateAvatar(
+    id: number,
+    avatarUrl: string | null,
+  ): Promise<{ id: number; username: string; role: string; avatar: string | null; createdAt: Date } | null> {
+    const rows = await db
+      .update(authUsers)
+      .set({ avatar: avatarUrl })
+      .where(eq(authUsers.id, id))
+      .returning({
+        id: authUsers.id,
+        username: authUsers.username,
+        role: authUsers.role,
+        avatar: authUsers.avatar,
+        createdAt: authUsers.createdAt,
+      });
+    const row = rows[0];
+    if (!row) return null;
+    return { ...row, avatar: row.avatar ?? null };
   }
 
   /**

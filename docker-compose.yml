@@ -47,6 +47,8 @@ services:
       SIM_USERS_PORT: 9092
       CORS_ORIGIN: http://localhost:3001
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+    volumes:
+      - uploads:/app/uploads
     healthcheck:
       test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:3000/health"]
       interval: 10s
@@ -104,4 +106,5 @@ services:
 
 volumes:
   pgdata:
+  uploads:
   simulator-data:

@@ -7,6 +7,7 @@ export interface IAuthUser {
   username: string;
   password: string;
   role: UserRole;
+  avatar?: string | null;
   createdAt: Date;
 }
 
@@ -23,6 +24,7 @@ export const AuthUserSchema = z.object({
   username: z.string().min(1),
   password: z.string().min(1),
   role: z.nativeEnum(UserRole),
+  avatar: z.string().nullable().optional(),
   createdAt: z.date(),
 });
 

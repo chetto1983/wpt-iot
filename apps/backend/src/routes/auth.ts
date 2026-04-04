@@ -35,6 +35,7 @@ export const authRoutes: FastifyPluginAsync = async (server) => {
       id: user.id,
       username: user.username,
       role: user.role,
+      avatar: user.avatar ?? null,
       language: request.session.language,
     };
   });
@@ -67,6 +68,7 @@ export const authRoutes: FastifyPluginAsync = async (server) => {
       id: user.id,
       username: user.username,
       role: user.role,
+      avatar: user.avatar ?? null,
       language: request.session.language ?? 'it',
     };
   });
