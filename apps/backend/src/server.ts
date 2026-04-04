@@ -15,6 +15,8 @@ import { userRoutes } from './routes/users.js';
 import { avatarRoutes } from './routes/avatar.js';
 import { rfidRoutes } from './routes/rfid.js';
 import { jobRoutes } from './routes/jobs.js';
+import { reportRoutes } from './routes/reports.js';
+import { alarmReportRoutes } from './routes/alarmReports.js';
 import { wsRoute } from './ws/route.js';
 
 const isDev = process.env.NODE_ENV !== 'production';
@@ -100,6 +102,12 @@ export function buildServer(): ReturnType<typeof Fastify> {
 
   // 13. Job routes (WPT + SUPER_ADMIN)
   server.register(jobRoutes);
+
+  // 14. Report routes (all authenticated)
+  server.register(reportRoutes);
+
+  // 15. Alarm report routes (WPT + SUPER_ADMIN)
+  server.register(alarmReportRoutes);
 
   return server;
 }

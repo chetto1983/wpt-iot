@@ -257,16 +257,23 @@ BEGIN
   RAISE NOTICE 'Refresh policy for snapshots_1h configured.';
 
   -- =========================================================================
-  -- 5. Retention policy: drop raw data older than 7 days
+  -- 5. Retention policy: drop raw data older than 30 days
   -- =========================================================================
-  -- Raw snapshots arrive every 15s. After 7 days the continuous aggregates
-  -- hold all the downsampled data needed for historical trends.
+  -- Extended from 7 days to support report date ranges up to 1 month
+  -- (disk cost ~250MB/month, acceptable for single-machine IoT).
+  -- Raw snapshots arrive every 15s. Continuous aggregates still hold
+  -- downsampled data for longer historical trends.
+  --
+  -- NOTE: For existing deployments with the 7-day policy already active,
+  -- if_not_exists => true will NOT replace it. Run manually:
+  --   SELECT remove_retention_policy('machine_snapshots', if_exists => true);
+  --   SELECT add_retention_policy('machine_snapshots', INTERVAL '30 days');
   PERFORM add_retention_policy('machine_snapshots',
-    INTERVAL '7 days',
+    INTERVAL '30 days',
     if_not_exists => true
   );
 
-  RAISE NOTICE 'Retention policy (7 days) configured.';
+  RAISE NOTICE 'Retention policy (30 days) configured.';
 
   -- =========================================================================
   -- 6. Compression policy: compress chunks older than 2 days
