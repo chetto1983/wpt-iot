@@ -92,7 +92,10 @@ export function useWebSocket(enabled: boolean): WsState {
 
     ws.onerror = () => {
       // Browser WebSocket error events do not expose the underlying cause.
-      // Log the failure so transport/auth issues do not disappear into retries.
+      // Skip logging when the socket was already detached by cleanup (React 18
+      // Strict Mode unmounts the effect immediately, closing the socket before
+      // it connects — this is harmless dev-only noise).
+      if (wsRef.current !== ws) return;
       console.error('[ws] connection error', { url: getWsUrl() });
     };
 
