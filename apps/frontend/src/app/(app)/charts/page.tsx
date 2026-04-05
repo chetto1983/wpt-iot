@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import type { DateRange } from 'react-day-picker';
 import {
   ResponsiveContainer,
@@ -11,10 +11,12 @@ import {
   CartesianGrid,
   Tooltip,
   Legend,
+  Brush,
+  ReferenceArea,
 } from 'recharts';
 import { format } from 'date-fns';
 import { useTranslations } from 'next-intl';
-import { TrendingUp, CalendarDays, Loader2 } from 'lucide-react';
+import { TrendingUp, CalendarDays, Loader2, Maximize2, Minimize2, RotateCcw } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { useAuth } from '@/lib/auth-context';
@@ -71,6 +73,52 @@ export default function ChartsPage() {
   const [selectedFields, setSelectedFields] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [chartData, setChartData] = useState<IChartResponse | null>(null);
+  const [fullscreen, setFullscreen] = useState(false);
+
+  // Zoom state (Grafana-style click+drag to zoom)
+  const [zoomLeft, setZoomLeft] = useState<number | null>(null);
+  const [zoomRight, setZoomRight] = useState<number | null>(null);
+  const [xDomain, setXDomain] = useState<[number, number] | null>(null);
+
+  // Escape key exits fullscreen
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && fullscreen) setFullscreen(false);
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [fullscreen]);
+
+  const resetZoom = useCallback(() => {
+    setXDomain(null);
+    setZoomLeft(null);
+    setZoomRight(null);
+  }, []);
+
+  const handleMouseDown = useCallback(
+    (e: { activeLabel?: string | number }) => {
+      if (e?.activeLabel != null) setZoomLeft(Number(e.activeLabel));
+    },
+    [],
+  );
+
+  const handleMouseMove = useCallback(
+    (e: { activeLabel?: string | number }) => {
+      if (zoomLeft != null && e?.activeLabel != null)
+        setZoomRight(Number(e.activeLabel));
+    },
+    [zoomLeft],
+  );
+
+  const handleMouseUp = useCallback(() => {
+    if (zoomLeft != null && zoomRight != null && zoomLeft !== zoomRight) {
+      const left = Math.min(zoomLeft, zoomRight);
+      const right = Math.max(zoomLeft, zoomRight);
+      setXDomain([left, right]);
+    }
+    setZoomLeft(null);
+    setZoomRight(null);
+  }, [zoomLeft, zoomRight]);
 
   const fieldLabels = useMemo(() => {
     const fields = getChartableFields(role);
@@ -169,29 +217,70 @@ export default function ChartsPage() {
       />
 
       {/* Chart Area Card */}
-      <Card>
+      <Card
+        className={
+          fullscreen
+            ? 'fixed inset-0 z-50 flex flex-col overflow-auto rounded-none border-0 bg-background'
+            : ''
+        }
+      >
         {loading ? (
           <CardContent className="p-4">
             <Skeleton className="h-[300px] w-full sm:h-[400px]" />
           </CardContent>
         ) : chartData && chartData.points.length > 0 ? (
           <>
-            <div className="flex items-center justify-end px-4 pt-3">
-              <Badge variant="secondary" className="text-xs">
-                {t('resolution', {
-                  resolution:
-                    chartData.resolution === 'raw'
-                      ? '15s'
-                      : chartData.resolution,
-                })}
-              </Badge>
+            <div className="flex items-center justify-between px-4 pt-3">
+              <div className="flex items-center gap-2">
+                <Badge variant="secondary" className="text-xs">
+                  {t('resolution', {
+                    resolution:
+                      chartData.resolution === 'raw'
+                        ? '15s'
+                        : chartData.resolution,
+                  })}
+                </Badge>
+                {xDomain && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={resetZoom}
+                    className="h-6 gap-1 px-2 text-xs"
+                  >
+                    <RotateCcw className="h-3 w-3" />
+                    {t('resetZoom')}
+                  </Button>
+                )}
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setFullscreen((f) => !f)}
+                className="h-7 w-7"
+                title={fullscreen ? t('exitFullscreen') : t('fullscreen')}
+              >
+                {fullscreen ? (
+                  <Minimize2 className="h-4 w-4" />
+                ) : (
+                  <Maximize2 className="h-4 w-4" />
+                )}
+              </Button>
             </div>
-            <CardContent className="p-4">
-              <div className="h-[300px] sm:h-[400px]">
+            <CardContent className="flex-1 p-4">
+              <div
+                className={
+                  fullscreen
+                    ? 'h-[calc(100vh-80px)]'
+                    : 'h-[300px] sm:h-[400px]'
+                }
+              >
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart
                     data={chartData.points}
                     margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+                    onMouseDown={handleMouseDown}
+                    onMouseMove={handleMouseMove}
+                    onMouseUp={handleMouseUp}
                   >
                     <CartesianGrid
                       strokeDasharray="3 3"
@@ -200,7 +289,7 @@ export default function ChartsPage() {
                     <XAxis
                       dataKey="timestamp"
                       type="number"
-                      domain={['dataMin', 'dataMax']}
+                      domain={xDomain ?? ['dataMin', 'dataMax']}
                       tickFormatter={(v: number) =>
                         formatTick(v, chartData.resolution)
                       }
@@ -208,16 +297,23 @@ export default function ChartsPage() {
                         fill: 'var(--color-muted-foreground)',
                         fontSize: 12,
                       }}
+                      allowDataOverflow={!!xDomain}
                     />
                     <YAxis
                       tick={{
                         fill: 'var(--color-muted-foreground)',
                         fontSize: 12,
                       }}
+                      domain={xDomain ? ['auto', 'auto'] : undefined}
                     />
                     <Tooltip
                       labelFormatter={(v) =>
                         formatTick(v as number, chartData.resolution)
+                      }
+                      formatter={(value) =>
+                        typeof value === 'number'
+                          ? String(Math.round(value * 100) / 100)
+                          : String(value ?? '')
                       }
                       contentStyle={{
                         backgroundColor: 'var(--color-card)',
@@ -238,6 +334,23 @@ export default function ChartsPage() {
                         name={getFieldLabel(field, locale)}
                       />
                     ))}
+                    {zoomLeft != null && zoomRight != null && (
+                      <ReferenceArea
+                        x1={zoomLeft}
+                        x2={zoomRight}
+                        strokeOpacity={0.3}
+                        fill="var(--color-primary)"
+                        fillOpacity={0.1}
+                      />
+                    )}
+                    <Brush
+                      dataKey="timestamp"
+                      height={30}
+                      stroke="var(--color-primary)"
+                      tickFormatter={(v: number) =>
+                        formatTick(v, chartData.resolution)
+                      }
+                    />
                   </LineChart>
                 </ResponsiveContainer>
               </div>

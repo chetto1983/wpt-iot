@@ -70,6 +70,28 @@ const SNAKE_TO_CAMEL: Record<string, string> = Object.fromEntries(
   Object.entries(CAMEL_TO_SNAKE).map(([k, v]) => [v, k]),
 );
 
+/**
+ * Columns available in the snapshots_5min / snapshots_1h continuous aggregates.
+ * Fields NOT in this set only exist in the raw machine_snapshots table.
+ * Must stay in sync with docker/init-timescaledb.sql.
+ */
+const AGGREGATE_VIEW_COLUMNS = new Set<string>([
+  'thermo_left_lower', 'thermo_left_medium', 'thermo_left_upper',
+  'thermo_right_lower', 'thermo_right_medium', 'thermo_right_upper',
+  'thermo_left_high_lower', 'thermo_left_high_medium', 'thermo_left_high_upper',
+  'thermo_right_high_lower',
+  'garbage_temp', 'holding_temp_setpoint', 'chamber_pressure',
+  'main_motor_speed', 'main_motor_torque', 'main_motor_current',
+  'vacuum_pump_speed_01', 'vacuum_pump_speed_02',
+  'material_input_weight', 'material_output_weight',
+  'energy_consumption', 'rms_curr_l1', 'rms_curr_l2', 'rms_curr_l3', 'rms_curr_n',
+  'water_consumption',
+  'selected_cycle', 'current_phase', 'machine_status', 'completed_cycles',
+  'user', 'supervisor', 'order_number', 'serial_number',
+  'thermo_left_low_sel', 'thermo_left_med_sel', 'thermo_left_high_sel',
+  'thermo_right_low_sel', 'thermo_right_med_sel', 'thermo_right_high_sel',
+]);
+
 // ---------------------------------------------------------------------------
 // ChartService — static-only class (per project convention)
 // ---------------------------------------------------------------------------
@@ -146,10 +168,11 @@ export class ChartService {
   ): Promise<IChartResponse> {
     const viewName = resolution === '5min' ? 'snapshots_5min' : 'snapshots_1h';
 
-    // Map requested camelCase fields to snake_case column names
+    // Map requested camelCase fields to snake_case column names,
+    // filtering out any that don't exist in the aggregate view.
     const snakeColumns = filter.fields
       .map((f) => CAMEL_TO_SNAKE[f])
-      .filter((col): col is string => col !== undefined);
+      .filter((col): col is string => col !== undefined && AGGREGATE_VIEW_COLUMNS.has(col));
 
     if (snakeColumns.length === 0) {
       return { resolution, points: [] };
@@ -176,7 +199,12 @@ export class ChartService {
       for (const snakeCol of snakeColumns) {
         const camelKey = SNAKE_TO_CAMEL[snakeCol];
         if (camelKey && row[snakeCol] !== null && row[snakeCol] !== undefined) {
-          point[camelKey] = row[snakeCol] as number | string;
+          // PostgreSQL numeric/double comes as string — parse and round to 2dp
+          const raw = row[snakeCol];
+          const num = typeof raw === 'string' ? parseFloat(raw) : (raw as number);
+          point[camelKey] = Number.isFinite(num)
+            ? Math.round(num * 100) / 100
+            : (raw as number | string);
         }
       }
       return point;

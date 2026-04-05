@@ -386,6 +386,9 @@
     "emptyHeading": "Nessun dato in questo intervallo",
     "emptyBody": "Nessun dato macchina trovato per l'intervallo selezionato. Prova un intervallo diverso.",
     "errorToast": "Generazione grafico fallita: {error}",
+    "fullscreen": "Schermo intero",
+    "exitFullscreen": "Esci da schermo intero",
+    "resetZoom": "Reimposta zoom",
     "categories": {
       "temperatures": "Temperature",
       "pressures": "Pressioni",

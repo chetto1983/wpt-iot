@@ -386,6 +386,9 @@
     "emptyHeading": "No data in this range",
     "emptyBody": "No machine data exists for the selected date range. Try a different range.",
     "errorToast": "Chart generation failed: {error}",
+    "fullscreen": "Fullscreen",
+    "exitFullscreen": "Exit fullscreen",
+    "resetZoom": "Reset zoom",
     "categories": {
       "temperatures": "Temperatures",
       "pressures": "Pressures",

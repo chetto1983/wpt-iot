@@ -2,8 +2,14 @@
 
 import { useMemo } from 'react';
 import { useTranslations } from 'next-intl';
+import { ChevronRight } from 'lucide-react';
 import { CLIENT_VISIBLE_FIELDS, WPT_VISIBLE_FIELDS } from '@wpt/types';
 import { Checkbox } from '@/components/ui/checkbox';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
 
@@ -108,37 +114,52 @@ export function FieldSelector({
       <CardContent className="p-4">
         <h2 className="text-sm font-semibold mb-3">{t('selectFields')}</h2>
 
-        {categories.map(({ key, fields }) => (
-          <div key={key} className="mb-4 last:mb-0">
-            <h3 className="text-xs font-semibold text-muted-foreground mb-2">
-              {t(`categories.${key}`)}
-            </h3>
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
-              {fields.map((field) => {
-                const isSelected = selected.includes(field);
-                const isDisabled = atMax && !isSelected;
-                return (
-                  <div key={field} className="flex items-center gap-2">
-                    <Checkbox
-                      id={`field-${field}`}
-                      checked={isSelected}
-                      onCheckedChange={(checked: boolean) =>
-                        handleToggle(field, checked)
-                      }
-                      disabled={isDisabled}
-                    />
-                    <Label
-                      htmlFor={`field-${field}`}
-                      className={`text-sm font-normal ${isDisabled ? 'opacity-50' : ''}`}
-                    >
-                      {fieldLabels[field] ?? field}
-                    </Label>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        ))}
+        {categories.map(({ key, fields }) => {
+          const selectedInGroup = fields.filter((f) =>
+            selected.includes(f),
+          ).length;
+          return (
+            <Collapsible key={key} defaultOpen className="mb-2 last:mb-0">
+              <CollapsibleTrigger className="flex w-full items-center gap-1.5 py-1.5 group cursor-pointer">
+                <ChevronRight className="size-3.5 text-muted-foreground transition-transform duration-200 group-data-[panel-open]:rotate-90" />
+                <span className="text-xs font-semibold text-muted-foreground">
+                  {t(`categories.${key}`)}
+                </span>
+                {selectedInGroup > 0 && (
+                  <span className="ml-auto text-[10px] font-medium text-primary bg-primary/10 px-1.5 py-0.5 rounded-full">
+                    {selectedInGroup}
+                  </span>
+                )}
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 pb-2 pt-1">
+                  {fields.map((field) => {
+                    const isSelected = selected.includes(field);
+                    const isDisabled = atMax && !isSelected;
+                    return (
+                      <div key={field} className="flex items-center gap-2">
+                        <Checkbox
+                          id={`field-${field}`}
+                          checked={isSelected}
+                          onCheckedChange={(checked: boolean) =>
+                            handleToggle(field, checked)
+                          }
+                          disabled={isDisabled}
+                        />
+                        <Label
+                          htmlFor={`field-${field}`}
+                          className={`text-sm font-normal ${isDisabled ? 'opacity-50' : ''}`}
+                        >
+                          {fieldLabels[field] ?? field}
+                        </Label>
+                      </div>
+                    );
+                  })}
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
+          );
+        })}
 
         <p className="text-xs text-muted-foreground mt-3">
           {selected.length === 0
