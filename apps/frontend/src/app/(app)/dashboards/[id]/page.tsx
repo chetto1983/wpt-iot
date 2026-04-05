@@ -27,6 +27,16 @@ import { DashboardPanel } from '@/components/dashboard/dashboard-panel';
 import { DashboardToolbar } from '@/components/dashboard/dashboard-toolbar';
 import { PanelEditorDialog } from '@/components/dashboard/panel-editor-dialog';
 import { PanelChart } from '@/components/dashboard/panel-chart';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 import 'react-grid-layout/css/styles.css';
 
@@ -67,6 +77,9 @@ export default function SingleDashboardPage() {
 
   // Fullscreen panel tracking
   const [fullscreenPanel, setFullscreenPanel] = useState<string | null>(null);
+
+  // Panel delete confirmation
+  const [deletePanelId, setDeletePanelId] = useState<number | null>(null);
 
   // Date range state with time inputs
   const [dateRange, setDateRange] = useState<DateRange | undefined>(() => {
@@ -257,7 +270,9 @@ export default function SingleDashboardPage() {
   );
 
   const handleDeletePanel = useCallback(
-    async (panel: IPanel) => {
+    async (panelId: number) => {
+      const panel = panels.find((p) => p.id === panelId);
+      if (!panel) return;
       try {
         await apiFetch(`/panels/${String(panel.id)}`, { method: 'DELETE' });
         setPanels((prev) => prev.filter((p) => p.id !== panel.id));
@@ -267,7 +282,7 @@ export default function SingleDashboardPage() {
         toast.error((err as Error).message);
       }
     },
-    [],
+    [panels],
   );
 
   if (loading || !mounted) {
@@ -282,7 +297,7 @@ export default function SingleDashboardPage() {
   if (!dashboard) {
     return (
       <div className="flex min-h-[400px] items-center justify-center p-6">
-        <p className="text-sm text-muted-foreground">Dashboard not found</p>
+        <p className="text-sm text-muted-foreground">{t('notFound')}</p>
       </div>
     );
   }
@@ -334,7 +349,7 @@ export default function SingleDashboardPage() {
                   editMode={editMode}
                   fullscreen={fullscreenPanel === panel.panelKey}
                   onEdit={() => handleEditPanel(panel)}
-                  onDelete={() => void handleDeletePanel(panel)}
+                  onDelete={() => setDeletePanelId(panel.id)}
                   onMaximize={() =>
                     setFullscreenPanel((prev) =>
                       prev === panel.panelKey ? null : panel.panelKey,
@@ -368,6 +383,32 @@ export default function SingleDashboardPage() {
         panel={editingPanel}
         onSave={handleEditorSave}
       />
+
+      <AlertDialog
+        open={deletePanelId !== null}
+        onOpenChange={(open) => { if (!open) setDeletePanelId(null); }}
+      >
+        <AlertDialogContent className="sm:max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('deletePanel.title')}</AlertDialogTitle>
+            <AlertDialogDescription>{t('deletePanel.description')}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('deletePanel.cancel')}</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                if (deletePanelId !== null) {
+                  void handleDeletePanel(deletePanelId);
+                }
+                setDeletePanelId(null);
+              }}
+            >
+              {t('deletePanel.confirm')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

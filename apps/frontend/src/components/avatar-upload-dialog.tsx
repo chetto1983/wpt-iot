@@ -16,6 +16,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || '';
 
@@ -78,6 +88,7 @@ export function AvatarUploadDialog({
 }: AvatarUploadDialogProps) {
   const tCommon = useTranslations('common');
   const tAvatar = useTranslations('common.avatar');
+  const tUsers = useTranslations('users');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [imageSrc, setImageSrc] = useState<string | null>(null);
@@ -86,6 +97,7 @@ export function AvatarUploadDialog({
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null);
   const [uploading, setUploading] = useState(false);
   const [removing, setRemoving] = useState(false);
+  const [showRemoveConfirm, setShowRemoveConfirm] = useState(false);
 
   // Reset state when dialog opens/closes
   useEffect(() => {
@@ -96,6 +108,7 @@ export function AvatarUploadDialog({
       setCroppedAreaPixels(null);
       setUploading(false);
       setRemoving(false);
+      setShowRemoveConfirm(false);
     }
   }, [open]);
 
@@ -221,7 +234,7 @@ export function AvatarUploadDialog({
               type="button"
               variant="outline"
               className="text-destructive hover:bg-destructive/10"
-              onClick={handleRemove}
+              onClick={() => setShowRemoveConfirm(true)}
               disabled={uploading || removing}
             >
               {removing ? (
@@ -252,6 +265,27 @@ export function AvatarUploadDialog({
           ) : null}
         </DialogFooter>
       </DialogContent>
+
+      <AlertDialog open={showRemoveConfirm} onOpenChange={setShowRemoveConfirm}>
+        <AlertDialogContent className="sm:max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle>{tUsers('removeAvatar.title')}</AlertDialogTitle>
+            <AlertDialogDescription>{tUsers('removeAvatar.description')}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{tUsers('removeAvatar.cancel')}</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                setShowRemoveConfirm(false);
+                void handleRemove();
+              }}
+            >
+              {tUsers('removeAvatar.confirm')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   );
 }
