@@ -23,15 +23,15 @@ interface ReportFiltersProps {
   onDownload: () => void;
   downloading: boolean;
   showCycleFilter?: boolean;
-  cycleNumber: string;
-  onCycleNumberChange: (val: string) => void;
+  cycleNumber?: string;
+  onCycleNumberChange?: (val: string) => void;
   translations: {
     dateRangeLabel: string;
     dateRangePlaceholder: string;
     fromTimeLabel: string;
     toTimeLabel: string;
-    cycleLabel: string;
-    cyclePlaceholder: string;
+    cycleLabel?: string;
+    cyclePlaceholder?: string;
     downloadCsv: string;
     downloadPdf: string;
     downloading: string;
@@ -98,7 +98,7 @@ export function ReportFilters({
             />
           </div>
 
-          {showCycleFilter && (
+          {showCycleFilter && onCycleNumberChange && (
             <div className="flex flex-col gap-1.5">
               <Label className="text-xs font-medium text-muted-foreground">
                 {translations.cycleLabel}
@@ -106,7 +106,7 @@ export function ReportFilters({
               <Input
                 type="number"
                 className="w-[140px]"
-                value={cycleNumber}
+                value={cycleNumber ?? ''}
                 onChange={(e) => onCycleNumberChange(e.target.value)}
                 placeholder={translations.cyclePlaceholder}
               />

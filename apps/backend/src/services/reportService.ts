@@ -2,6 +2,7 @@ import { and, gte, lte, eq, isNull, isNotNull, asc, desc } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import { machineSnapshots } from '../db/schema/machine.js';
 import { alarmEvents } from '../db/schema/alarms.js';
+import { formatEnumValue } from '../i18n/enumLabels.js';
 
 // ---------------------------------------------------------------------------
 // Interfaces
@@ -99,6 +100,7 @@ export class ReportService {
     rows: Record<string, unknown>[],
     fields: readonly string[],
     headers: string[],
+    locale: 'it' | 'en' = 'it',
   ): string {
     const lines: string[] = [];
 
@@ -111,7 +113,7 @@ export class ReportService {
         const val = row[field];
         if (val === null || val === undefined) return '';
         if (val instanceof Date) return val.toISOString();
-        return escapeCSV(String(val));
+        return escapeCSV(formatEnumValue(field, val, locale));
       });
       lines.push(values.join(','));
     }

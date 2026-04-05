@@ -1,5 +1,6 @@
 import { createRequire } from 'node:module';
 import path from 'node:path';
+import { formatEnumValue } from '../i18n/enumLabels.js';
 
 // pdfmake is CJS-only; use createRequire for ESM interop
 const _require = createRequire(import.meta.url);
@@ -33,6 +34,7 @@ export class PdfService {
     fields: readonly string[],
     headers: string[],
     title: string,
+    locale: 'it' | 'en' = 'it',
   ): Promise<Buffer> {
     // Build table body: header row + data rows
     const headerRow = headers.map((h) => ({
@@ -46,7 +48,7 @@ export class PdfService {
         const val = row[field];
         if (val === null || val === undefined) return '';
         if (val instanceof Date) return val.toISOString();
-        return String(val);
+        return formatEnumValue(field, val, locale);
       }),
     );
 

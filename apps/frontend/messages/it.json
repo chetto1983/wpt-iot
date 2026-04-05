@@ -322,8 +322,6 @@
     "dateRangePlaceholder": "Seleziona intervallo date",
     "fromTimeLabel": "Da",
     "toTimeLabel": "A",
-    "cycleLabel": "Numero Ciclo",
-    "cyclePlaceholder": "Tutti i cicli",
     "formatCsv": "CSV",
     "formatPdf": "PDF",
     "downloadCsv": "Scarica CSV",

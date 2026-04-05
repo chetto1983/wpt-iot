@@ -4,6 +4,7 @@ import { requireAuth } from '../auth/authHooks.js';
 import { ReportService } from '../services/reportService.js';
 import { PdfService } from '../services/pdfService.js';
 import { getFieldLabel } from '../i18n/fieldLabels.js';
+import { formatEnumValue } from '../i18n/enumLabels.js';
 
 /**
  * Machine data report endpoints (CSV + PDF).
@@ -32,7 +33,11 @@ export const reportRoutes: FastifyPluginAsync = async (server) => {
       const obj: Record<string, unknown> = {};
       for (const f of allFields) {
         const val = row[f];
-        obj[f] = val instanceof Date ? val.toISOString() : val;
+        if (val instanceof Date) {
+          obj[f] = val.toISOString();
+        } else {
+          obj[f] = formatEnumValue(f, val, lang);
+        }
       }
       return obj;
     });
@@ -67,7 +72,7 @@ export const reportRoutes: FastifyPluginAsync = async (server) => {
         .send({ error: 'No data found for the specified range' });
     }
 
-    const csv = ReportService.toCSV(rows, allFields, headers);
+    const csv = ReportService.toCSV(rows, allFields, headers, lang);
     const filename = `machine-report-${formatDateForFile(from)}-${formatDateForFile(to)}.csv`;
 
     return reply
@@ -105,7 +110,7 @@ export const reportRoutes: FastifyPluginAsync = async (server) => {
 
     const title =
       lang === 'it' ? 'Report Dati Macchina' : 'Machine Data Report';
-    const pdf = await PdfService.generatePdf(rows, allFields, headers, title);
+    const pdf = await PdfService.generatePdf(rows, allFields, headers, title, lang);
     const filename = `machine-report-${formatDateForFile(from)}-${formatDateForFile(to)}.pdf`;
 
     return reply

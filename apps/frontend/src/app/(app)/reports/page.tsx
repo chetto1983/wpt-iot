@@ -24,17 +24,6 @@ import { ReportFilters } from '@/components/report-filters';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || '';
 
-// Key columns for preview (subset — full export has 43)
-const PREVIEW_FIELDS = [
-  'timestamp',
-  'garbageTemp',
-  'chamberPressure',
-  'mainMotorSpeed',
-  'completedCycles',
-  'machineStatus',
-  'user',
-] as const;
-
 interface IMachinePreview {
   rows: Record<string, unknown>[];
   total: number;
@@ -57,7 +46,6 @@ export default function ReportsPage() {
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [fromTime, setFromTime] = useState('00:00');
   const [toTime, setToTime] = useState('23:59');
-  const [cycleNumber, setCycleNumber] = useState('');
   const [exportFormat, setExportFormat] = useState<'csv' | 'pdf'>('csv');
   const [downloading, setDownloading] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -78,7 +66,6 @@ export default function ReportsPage() {
       to: buildDateTimeISO(dateRange.to, toTime),
       lang: locale,
     });
-    if (cycleNumber.trim()) params.set('cycle', cycleNumber.trim());
 
     apiFetch<IMachinePreview>(`/reports/machine?${params.toString()}`)
       .then((data) => {
@@ -95,7 +82,7 @@ export default function ReportsPage() {
       });
 
     return () => { cancelled = true; };
-  }, [dateRange, fromTime, toTime, cycleNumber, locale, t]);
+  }, [dateRange, fromTime, toTime, locale, t]);
 
   const downloadReport = useCallback(async () => {
     if (!dateRange?.from || !dateRange?.to) return;
@@ -107,7 +94,6 @@ export default function ReportsPage() {
         to: buildDateTimeISO(dateRange.to, toTime),
         lang: locale,
       });
-      if (cycleNumber.trim()) params.set('cycle', cycleNumber.trim());
 
       const res = await fetch(
         `${API_BASE}/reports/machine/${exportFormat}?${params.toString()}`,
@@ -136,7 +122,7 @@ export default function ReportsPage() {
     } finally {
       setDownloading(false);
     }
-  }, [dateRange, fromTime, toTime, cycleNumber, exportFormat, locale, t]);
+  }, [dateRange, fromTime, toTime, exportFormat, locale, t]);
 
   const hasDateRange = Boolean(dateRange?.from && dateRange?.to);
 
@@ -161,16 +147,11 @@ export default function ReportsPage() {
         onFormatChange={setExportFormat}
         onDownload={downloadReport}
         downloading={downloading}
-        showCycleFilter
-        cycleNumber={cycleNumber}
-        onCycleNumberChange={setCycleNumber}
         translations={{
           dateRangeLabel: t('dateRangeLabel'),
           dateRangePlaceholder: t('dateRangePlaceholder'),
           fromTimeLabel: t('fromTimeLabel'),
           toTimeLabel: t('toTimeLabel'),
-          cycleLabel: t('cycleLabel'),
-          cyclePlaceholder: t('cyclePlaceholder'),
           downloadCsv: t('downloadCsv'),
           downloadPdf: t('downloadPdf'),
           downloading: t('downloading'),
@@ -208,7 +189,7 @@ export default function ReportsPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    {PREVIEW_FIELDS.map((f) => (
+                    {preview.fields.map((f) => (
                       <TableHead key={f}>
                         {headerMap.get(f) ?? f}
                       </TableHead>
@@ -218,7 +199,7 @@ export default function ReportsPage() {
                 <TableBody>
                   {preview.rows.map((row, i) => (
                     <TableRow key={i} className="hover:bg-muted/50">
-                      {PREVIEW_FIELDS.map((f) => (
+                      {preview.fields.map((f) => (
                         <TableCell
                           key={f}
                           className={
