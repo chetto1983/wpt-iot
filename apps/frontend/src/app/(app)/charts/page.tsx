@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useMemo, useEffect } from 'react';
+import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import type { DateRange } from 'react-day-picker';
 import {
   ResponsiveContainer,
@@ -16,6 +16,7 @@ import {
 } from 'recharts';
 import { format } from 'date-fns';
 import { useTranslations } from 'next-intl';
+import { useQueryStates, parseAsString } from 'nuqs';
 import { TrendingUp, CalendarDays, Loader2, Maximize2, Minimize2, RotateCcw } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -67,13 +68,39 @@ export default function ChartsPage() {
   const locale = (user?.language ?? 'it') as 'it' | 'en';
   const role = user?.role ?? 'CLIENT';
 
-  const [dateRange, setDateRange] = useState<DateRange | undefined>();
-  const [fromTime, setFromTime] = useState('00:00');
-  const [toTime, setToTime] = useState('23:59');
+  const [filters, setFilters] = useQueryStates({
+    from: parseAsString,
+    to: parseAsString,
+    fromTime: parseAsString.withDefault('00:00'),
+    toTime: parseAsString.withDefault('23:59'),
+  });
+
+  const dateRange: DateRange | undefined = filters.from && filters.to
+    ? { from: new Date(filters.from), to: new Date(filters.to) }
+    : undefined;
+
+  const setDateRange = useCallback((range: DateRange | undefined) => {
+    void setFilters({
+      from: range?.from ? range.from.toISOString().split('T')[0] : null,
+      to: range?.to ? range.to.toISOString().split('T')[0] : null,
+    });
+  }, [setFilters]);
+
+  const setFromTime = useCallback((v: string) => { void setFilters({ fromTime: v }); }, [setFilters]);
+  const setToTime = useCallback((v: string) => { void setFilters({ toTime: v }); }, [setFilters]);
+
   const [selectedFields, setSelectedFields] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [chartData, setChartData] = useState<IChartResponse | null>(null);
   const [fullscreen, setFullscreen] = useState(false);
+
+  // AbortController ref for cancelling in-flight chart requests
+  const abortRef = useRef<AbortController | null>(null);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => { abortRef.current?.abort(); };
+  }, []);
 
   // Zoom state (Grafana-style click+drag to zoom)
   const [zoomLeft, setZoomLeft] = useState<number | null>(null);
@@ -132,26 +159,35 @@ export default function ChartsPage() {
   const generateChart = useCallback(async () => {
     if (!dateRange?.from || !dateRange?.to || selectedFields.length === 0) return;
 
+    // Abort any previous in-flight request
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+
     setLoading(true);
     setChartData(null);
 
     try {
       const params = new URLSearchParams({
-        from: buildDateTimeISO(dateRange.from, fromTime),
-        to: buildDateTimeISO(dateRange.to, toTime),
+        from: buildDateTimeISO(dateRange.from, filters.fromTime),
+        to: buildDateTimeISO(dateRange.to, filters.toTime),
         fields: selectedFields.join(','),
       });
 
       const data = await apiFetch<IChartResponse>(
         `/charts/data?${params.toString()}`,
+        { signal: controller.signal },
       );
-      setChartData(data);
-    } catch (err) {
+      if (!controller.signal.aborted) {
+        setChartData(data);
+      }
+    } catch (err: unknown) {
+      if (err instanceof Error && err.name === 'AbortError') return;
       toast.error(t('errorToast', { error: (err as Error).message }));
     } finally {
-      setLoading(false);
+      if (!controller.signal.aborted) setLoading(false);
     }
-  }, [dateRange, fromTime, toTime, selectedFields, t]);
+  }, [dateRange, filters.fromTime, filters.toTime, selectedFields, t]);
 
   const canGenerate =
     Boolean(dateRange?.from && dateRange?.to) &&
@@ -177,7 +213,7 @@ export default function ChartsPage() {
             <Label className="text-xs">{t('fromTimeLabel')}</Label>
             <Input
               type="time"
-              value={fromTime}
+              value={filters.fromTime}
               onChange={(e) => setFromTime(e.target.value)}
               className="w-[120px]"
             />
@@ -186,7 +222,7 @@ export default function ChartsPage() {
             <Label className="text-xs">{t('toTimeLabel')}</Label>
             <Input
               type="time"
-              value={toTime}
+              value={filters.toTime}
               onChange={(e) => setToTime(e.target.value)}
               className="w-[120px]"
             />

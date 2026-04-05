@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import type { DateRange } from 'react-day-picker';
 import { format as formatDate } from 'date-fns';
 import { useTranslations } from 'next-intl';
+import { useQueryStates, parseAsString, parseAsStringEnum } from 'nuqs';
 import { AlertTriangle, CalendarDays } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -74,10 +75,29 @@ export default function AlarmsPage() {
 function AlarmsContent({ locale }: { locale: string }) {
   const t = useTranslations('alarms');
 
-  const [dateRange, setDateRange] = useState<DateRange | undefined>();
-  const [fromTime, setFromTime] = useState('00:00');
-  const [toTime, setToTime] = useState('23:59');
-  const [status, setStatus] = useState<'all' | 'active' | 'resolved'>('all');
+  const [filters, setFilters] = useQueryStates({
+    from: parseAsString,
+    to: parseAsString,
+    fromTime: parseAsString.withDefault('00:00'),
+    toTime: parseAsString.withDefault('23:59'),
+    status: parseAsStringEnum(['all', 'active', 'resolved'] as const).withDefault('all'),
+  });
+
+  const dateRange: DateRange | undefined = filters.from && filters.to
+    ? { from: new Date(filters.from), to: new Date(filters.to) }
+    : undefined;
+
+  const setDateRange = useCallback((range: DateRange | undefined) => {
+    void setFilters({
+      from: range?.from ? range.from.toISOString().split('T')[0] : null,
+      to: range?.to ? range.to.toISOString().split('T')[0] : null,
+    });
+  }, [setFilters]);
+
+  const setFromTime = useCallback((v: string) => { void setFilters({ fromTime: v }); }, [setFilters]);
+  const setToTime = useCallback((v: string) => { void setFilters({ toTime: v }); }, [setFilters]);
+  const setStatus = useCallback((v: 'all' | 'active' | 'resolved') => { void setFilters({ status: v }); }, [setFilters]);
+
   const [exportFormat, setExportFormat] = useState<'csv' | 'pdf'>('csv');
   const [downloading, setDownloading] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -91,36 +111,37 @@ function AlarmsContent({ locale }: { locale: string }) {
       return;
     }
 
-    let cancelled = false;
+    const controller = new AbortController();
     setLoading(true);
 
     const params = new URLSearchParams({
-      from: buildDateTimeISO(dateRange.from, fromTime),
-      to: buildDateTimeISO(dateRange.to, toTime),
-      status,
+      from: buildDateTimeISO(dateRange.from, filters.fromTime),
+      to: buildDateTimeISO(dateRange.to, filters.toTime),
+      status: filters.status,
       lang: locale,
     });
 
-    apiFetch<IAlarmResponse>(`/reports/alarms?${params.toString()}`)
+    apiFetch<IAlarmResponse>(`/reports/alarms?${params.toString()}`, { signal: controller.signal })
       .then((data) => {
-        if (cancelled) return;
-        setEvents(data.events);
-        setSummary({
-          total: data.total,
-          active: data.active,
-          resolved: data.resolved,
-        });
+        if (!controller.signal.aborted) {
+          setEvents(data.events);
+          setSummary({
+            total: data.total,
+            active: data.active,
+            resolved: data.resolved,
+          });
+        }
       })
-      .catch((err) => {
-        if (cancelled) return;
+      .catch((err: unknown) => {
+        if (err instanceof Error && err.name === 'AbortError') return;
         toast.error(t('errorToast', { error: (err as Error).message }));
       })
       .finally(() => {
-        if (!cancelled) setLoading(false);
+        if (!controller.signal.aborted) setLoading(false);
       });
 
-    return () => { cancelled = true; };
-  }, [dateRange, fromTime, toTime, status, locale, t]);
+    return () => controller.abort();
+  }, [dateRange?.from, dateRange?.to, filters.fromTime, filters.toTime, filters.status, locale, t]);
 
   const downloadAlarmReport = useCallback(async () => {
     if (!dateRange?.from || !dateRange?.to) return;
@@ -128,9 +149,9 @@ function AlarmsContent({ locale }: { locale: string }) {
     setDownloading(true);
     try {
       const params = new URLSearchParams({
-        from: buildDateTimeISO(dateRange.from, fromTime),
-        to: buildDateTimeISO(dateRange.to, toTime),
-        status,
+        from: buildDateTimeISO(dateRange.from, filters.fromTime),
+        to: buildDateTimeISO(dateRange.to, filters.toTime),
+        status: filters.status,
         lang: locale,
       });
 
@@ -161,7 +182,7 @@ function AlarmsContent({ locale }: { locale: string }) {
     } finally {
       setDownloading(false);
     }
-  }, [dateRange, fromTime, toTime, status, exportFormat, locale, t]);
+  }, [dateRange, filters.fromTime, filters.toTime, filters.status, exportFormat, locale, t]);
 
   const hasDateRange = Boolean(dateRange?.from && dateRange?.to);
 
@@ -172,8 +193,8 @@ function AlarmsContent({ locale }: { locale: string }) {
       <ReportFilters
         dateRange={dateRange}
         onDateRangeChange={setDateRange}
-        fromTime={fromTime}
-        toTime={toTime}
+        fromTime={filters.fromTime}
+        toTime={filters.toTime}
         onFromTimeChange={setFromTime}
         onToTimeChange={setToTime}
         format={exportFormat}
@@ -201,16 +222,16 @@ function AlarmsContent({ locale }: { locale: string }) {
             {t('statusLabel')}
           </Label>
           <Select
-            value={status}
+            value={filters.status}
             onValueChange={(v) =>
               setStatus(v as 'all' | 'active' | 'resolved')
             }
           >
             <SelectTrigger className="w-[160px]">
               <SelectValue>
-                {status === 'all'
+                {filters.status === 'all'
                   ? t('statusAll')
-                  : status === 'active'
+                  : filters.status === 'active'
                     ? t('statusActive')
                     : t('statusResolved')}
               </SelectValue>
@@ -238,7 +259,7 @@ function AlarmsContent({ locale }: { locale: string }) {
         </div>
       )}
 
-      <Card>
+      <Card className="min-h-[400px]">
         {loading ? (
           <CardContent className="p-4">
             <div className="space-y-3">
