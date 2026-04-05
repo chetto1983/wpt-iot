@@ -4,6 +4,7 @@ import { UserRole, MqttRole } from '@wpt/types';
 import { requireRole } from '../auth/authHooks.js';
 import { MqttConfigService } from '../mqtt/configService.js';
 import { DynSecClient } from '../mqtt/dynSecClient.js';
+import { getEvents } from '../mqtt/activityLog.js';
 
 const createUserSchema = z.object({
   username: z.string().min(3).max(50),
@@ -201,5 +202,15 @@ export const mqttRoutes: FastifyPluginAsync = async (server) => {
       return { success: true, message: 'Broker connection active' };
     }
     return reply.code(503).send({ success: false, message: 'Broker not connected' });
+  });
+
+  // ── Activity log route ──────────────────────────────────────────
+
+  /**
+   * GET /api/mqtt/log
+   * Returns recent MQTT activity events (ring buffer, last 100).
+   */
+  server.get('/api/mqtt/log', async (_request, _reply) => {
+    return getEvents();
   });
 };

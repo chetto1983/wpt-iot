@@ -9,6 +9,7 @@ import { getAlarmDescription } from '../i18n/alarmDescriptions.js';
 import { getActiveAlarmIndices } from '../persistence/alarmStore.js';
 import { config } from '../config.js';
 import { MqttConfigService } from './configService.js';
+import { pushEvent } from './activityLog.js';
 
 // Module-level state
 let mqttClient: MqttClient | null = null;
@@ -53,11 +54,14 @@ async function safePublish(
 ): Promise<void> {
   if (!mqttClient) return;
   try {
-    await mqttClient.publishAsync(topicPath, JSON.stringify(payload), {
+    const payloadStr = JSON.stringify(payload);
+    await mqttClient.publishAsync(topicPath, payloadStr, {
       qos: opts.qos ?? 0,
       retain: opts.retain ?? false,
     });
+    pushEvent('publish', `Published to ${topicPath} (${String(payloadStr.length)} bytes)`);
   } catch (err) {
+    pushEvent('error', `Publish failed on ${topicPath}: ${(err as Error).message}`);
     logger?.error(
       { name: 'MqttPublisher', topic: topicPath, err: (err as Error).message },
       'MQTT publish failed',

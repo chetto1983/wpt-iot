@@ -2,6 +2,7 @@ import fp from 'fastify-plugin';
 import mqtt from 'mqtt';
 import { config } from '../config.js';
 import { mqttTopic, MQTT_TOPIC_SUFFIXES } from '@wpt/types';
+import { pushEvent } from './activityLog.js';
 import './types.js';
 
 import type { FastifyInstance } from 'fastify';
@@ -74,6 +75,20 @@ async function mqttPlugin(fastify: FastifyInstance): Promise<void> {
   );
 
   fastify.decorate('mqtt', client);
+
+  // Log initial connection to activity ring buffer
+  pushEvent('connect', `Connected to ${config.mqttHost}:${String(config.mqttPort)}`);
+
+  // Wire activity log to client events
+  client.on('connect', () => {
+    pushEvent('connect', `Connected to ${config.mqttHost}:${String(config.mqttPort)}`);
+  });
+  client.on('close', () => {
+    pushEvent('disconnect', `Disconnected from ${config.mqttHost}:${String(config.mqttPort)}`);
+  });
+  client.on('error', (err) => {
+    pushEvent('error', `MQTT error: ${err.message}`);
+  });
 
   // Graceful shutdown: publish offline status then disconnect
   fastify.addHook('onClose', async () => {
