@@ -1,0 +1,42 @@
+# Production override: pull pre-built images from GHCR instead of building locally.
+# Usage: docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+#
+# Requires:
+#   1. GHCR auth: docker login ghcr.io -u USERNAME --password-stdin < PAT
+#   2. Production .env file with overrides (see .env.example)
+#   3. avahi-daemon configured on host (see scripts/setup-onlogic.sh)
+
+services:
+  backend:
+    image: ghcr.io/dvdmarchetto/wpt-backend:latest
+    pull_policy: always
+    network_mode: host
+    ports: []
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+
+  frontend:
+    image: ghcr.io/dvdmarchetto/wpt-frontend:latest
+    pull_policy: always
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+
+  watchtower:
+    image: nickfedor/watchtower:1.14.2
+    container_name: watchtower
+    restart: unless-stopped
+    environment:
+      WATCHTOWER_POLL_INTERVAL: 300
+      WATCHTOWER_CLEANUP: "true"
+      WATCHTOWER_LABEL_ENABLE: "true"
+      WATCHTOWER_LOG_LEVEL: info
+      DOCKER_CONFIG: /config
+      TZ: Europe/Rome
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /etc/watchtower/config/:/config/
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
