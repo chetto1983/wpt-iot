@@ -20,7 +20,8 @@
       "reports": "Reports",
       "alarms": "Alarms",
       "charts": "Charts",
-      "dashboards": "Dashboards"
+      "dashboards": "Dashboards",
+      "mqtt": "MQTT Gateway"
     },
     "brandSubtitle": "IoT System",
     "signOut": "Sign Out",
@@ -455,5 +456,52 @@
     "fullscreen": "Maximize",
     "exitFullscreen": "Exit Fullscreen",
     "resolution": "Resolution: {resolution}"
+  },
+  "mqtt": {
+    "title": "MQTT Gateway",
+    "status": {
+      "title": "Broker Status",
+      "connected": "Connected",
+      "disconnected": "Disconnected",
+      "enabled": "Gateway Enabled",
+      "disabled": "Gateway Disabled",
+      "brokerHost": "Broker Host",
+      "brokerPort": "Broker Port",
+      "clientId": "Client ID",
+      "testConnection": "Test Connection",
+      "testSuccess": "Connection active",
+      "testFailed": "Connection failed"
+    },
+    "config": {
+      "title": "Configuration",
+      "enabled": "Enable MQTT Gateway",
+      "siteId": "Site ID",
+      "machineId": "Machine ID",
+      "publishStreams": "Publish Streams",
+      "publishMachine": "Machine Data (15s snapshots)",
+      "publishAlarms": "Alarm Events",
+      "publishRfid": "RFID User Data",
+      "publishJobs": "Job Parameters",
+      "save": "Save Configuration",
+      "saved": "Configuration saved"
+    },
+    "users": {
+      "title": "MQTT Users",
+      "username": "Username",
+      "password": "Password",
+      "role": "Role",
+      "textName": "Display Name",
+      "roleReader": "Reader (subscribe only)",
+      "roleOperator": "Operator (read + commands)",
+      "roleAdmin": "Admin (full access)",
+      "create": "Create User",
+      "created": "User created",
+      "delete": "Delete User",
+      "deleted": "User deleted",
+      "deleteConfirm": "Delete MQTT user \"{username}\"?",
+      "deleteDescription": "This will remove the user's access to the MQTT broker. This action cannot be undone.",
+      "noUsers": "No MQTT users configured",
+      "systemAccount": "System"
+    }
   }
 }

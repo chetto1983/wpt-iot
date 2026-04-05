@@ -20,7 +20,8 @@
       "reports": "Report",
       "alarms": "Allarmi",
       "charts": "Grafici",
-      "dashboards": "Dashboard"
+      "dashboards": "Dashboard",
+      "mqtt": "Gateway MQTT"
     },
     "brandSubtitle": "Sistema IoT",
     "signOut": "Esci",
@@ -455,5 +456,52 @@
     "fullscreen": "Massimizza",
     "exitFullscreen": "Esci da Schermo Intero",
     "resolution": "Risoluzione: {resolution}"
+  },
+  "mqtt": {
+    "title": "Gateway MQTT",
+    "status": {
+      "title": "Stato Broker",
+      "connected": "Connesso",
+      "disconnected": "Disconnesso",
+      "enabled": "Gateway Abilitato",
+      "disabled": "Gateway Disabilitato",
+      "brokerHost": "Host Broker",
+      "brokerPort": "Porta Broker",
+      "clientId": "ID Client",
+      "testConnection": "Test Connessione",
+      "testSuccess": "Connessione attiva",
+      "testFailed": "Connessione fallita"
+    },
+    "config": {
+      "title": "Configurazione",
+      "enabled": "Abilita Gateway MQTT",
+      "siteId": "ID Sito",
+      "machineId": "ID Macchina",
+      "publishStreams": "Stream di Pubblicazione",
+      "publishMachine": "Dati Macchina (snapshot 15s)",
+      "publishAlarms": "Eventi Allarme",
+      "publishRfid": "Dati Utenti RFID",
+      "publishJobs": "Parametri Commessa",
+      "save": "Salva Configurazione",
+      "saved": "Configurazione salvata"
+    },
+    "users": {
+      "title": "Utenti MQTT",
+      "username": "Nome Utente",
+      "password": "Password",
+      "role": "Ruolo",
+      "textName": "Nome Visualizzato",
+      "roleReader": "Lettore (solo sottoscrizione)",
+      "roleOperator": "Operatore (lettura + comandi)",
+      "roleAdmin": "Admin (accesso completo)",
+      "create": "Crea Utente",
+      "created": "Utente creato",
+      "delete": "Elimina Utente",
+      "deleted": "Utente eliminato",
+      "deleteConfirm": "Eliminare l'utente MQTT \"{username}\"?",
+      "deleteDescription": "Questo rimuovera' l'accesso dell'utente al broker MQTT. Questa azione non puo' essere annullata.",
+      "noUsers": "Nessun utente MQTT configurato",
+      "systemAccount": "Sistema"
+    }
   }
 }
