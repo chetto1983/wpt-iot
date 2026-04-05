@@ -15,7 +15,6 @@ import { startJobStore } from '../persistence/jobStore.js';
  * 3. Start persistence subscribers (machine + alarm stores)
  * 4. Start machine and alarm listeners
  * 5. Initialize handshake FSMs and reset channels (Pitfall 5: crash recovery)
- * 6. Register graceful shutdown handlers
  */
 export async function startUdpPipeline(log: FastifyBaseLogger): Promise<void> {
   // 1. Create and bind sockets (UDP-09)
@@ -52,9 +51,6 @@ export async function startUdpPipeline(log: FastifyBaseLogger): Promise<void> {
     log.warn({ name: 'UdpPipeline', err: (err as Error).message }, 'Failed to reset handshake channels (simulator may not be running)');
   }
 
-  // 6. Register graceful shutdown (UDP-09)
-  setupGracefulShutdown(log);
-
   log.info({ name: 'UdpPipeline' }, 'UDP pipeline fully started');
 }
 
@@ -62,14 +58,4 @@ export async function startUdpPipeline(log: FastifyBaseLogger): Promise<void> {
 export function stopUdpPipeline(log: FastifyBaseLogger): void {
   closeSockets();
   log.info({ name: 'UdpPipeline' }, 'UDP pipeline stopped');
-}
-
-function setupGracefulShutdown(log: FastifyBaseLogger): void {
-  const shutdown = (): void => {
-    log.info({ name: 'Shutdown' }, 'Closing UDP sockets');
-    closeSockets();
-    process.exit(0);
-  };
-  process.on('SIGTERM', shutdown);
-  process.on('SIGINT', shutdown);
 }

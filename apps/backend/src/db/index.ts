@@ -3,7 +3,7 @@ import { Pool } from 'pg';
 import { config } from '../config.js';
 import * as schema from './schema/index.js';
 
-const pool = new Pool({
+export const pool = new Pool({
   host: config.pgHost,
   port: config.pgPort,
   database: config.pgDb,
