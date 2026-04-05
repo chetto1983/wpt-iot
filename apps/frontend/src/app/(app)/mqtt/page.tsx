@@ -8,6 +8,7 @@ import {
   Wifi,
   WifiOff,
   Plus,
+  Pencil,
   Trash2,
   RefreshCw,
   Loader2,
@@ -61,6 +62,8 @@ interface MqttConfig {
   publishAlarms: boolean;
   publishRfid: boolean;
   publishJobs: boolean;
+  useTls: boolean;
+  caCert: string | null;
   updatedAt: string;
 }
 
@@ -86,6 +89,7 @@ export default function MqttPage() {
   const [config, setConfig] = useState<MqttConfig | null>(null);
   const [users, setUsers] = useState<MqttUser[]>([]);
   const [userDialogOpen, setUserDialogOpen] = useState(false);
+  const [editTarget, setEditTarget] = useState<MqttUser | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [testing, setTesting] = useState(false);
@@ -282,7 +286,10 @@ export default function MqttPage() {
               <CardTitle>{t('users.title')}</CardTitle>
               <Button
                 size="sm"
-                onClick={() => setUserDialogOpen(true)}
+                onClick={() => {
+                  setEditTarget(null);
+                  setUserDialogOpen(true);
+                }}
               >
                 <Plus className="mr-1 size-4" />
                 {t('users.create')}
@@ -330,13 +337,25 @@ export default function MqttPage() {
                           </TableCell>
                           <TableCell>
                             {!isSystem ? (
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => setDeleteTarget(u.username)}
-                              >
-                                <Trash2 className="size-4 text-red-500" />
-                              </Button>
+                              <div className="flex items-center gap-1">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => {
+                                    setEditTarget(u);
+                                    setUserDialogOpen(true);
+                                  }}
+                                >
+                                  <Pencil className="size-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => setDeleteTarget(u.username)}
+                                >
+                                  <Trash2 className="size-4 text-red-500" />
+                                </Button>
+                              </div>
                             ) : null}
                           </TableCell>
                         </TableRow>
@@ -353,8 +372,12 @@ export default function MqttPage() {
       {/* Dialogs */}
       <MqttUserDialog
         open={userDialogOpen}
-        onOpenChange={setUserDialogOpen}
-        onCreated={() => void loadUsers()}
+        onOpenChange={(open) => {
+          setUserDialogOpen(open);
+          if (!open) setEditTarget(null);
+        }}
+        onSaved={() => void loadUsers()}
+        editUser={editTarget}
       />
 
       {/* Delete Confirmation */}

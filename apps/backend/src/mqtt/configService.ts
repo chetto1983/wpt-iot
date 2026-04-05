@@ -28,8 +28,18 @@ export class MqttConfigService {
         publish_alarms BOOLEAN NOT NULL DEFAULT true,
         publish_rfid BOOLEAN NOT NULL DEFAULT false,
         publish_jobs BOOLEAN NOT NULL DEFAULT false,
+        use_tls BOOLEAN NOT NULL DEFAULT false,
+        ca_cert VARCHAR(10000),
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       )
+    `);
+
+    // Migration: add TLS columns to existing tables that lack them
+    await db.execute(sql`
+      ALTER TABLE mqtt_config ADD COLUMN IF NOT EXISTS use_tls BOOLEAN NOT NULL DEFAULT false
+    `);
+    await db.execute(sql`
+      ALTER TABLE mqtt_config ADD COLUMN IF NOT EXISTS ca_cert VARCHAR(10000)
     `);
 
     const existing = await db.execute(
@@ -40,10 +50,12 @@ export class MqttConfigService {
       await db.execute(sql`
         INSERT INTO mqtt_config (
           id, enabled, broker_host, broker_port, site_id, machine_id,
-          publish_machine, publish_alarms, publish_rfid, publish_jobs
+          publish_machine, publish_alarms, publish_rfid, publish_jobs,
+          use_tls, ca_cert
         ) VALUES (
           1, false, 'localhost', 1883, 'site-01', 'wpt40-001',
-          true, true, false, false
+          true, true, false, false,
+          false, NULL
         )
       `);
     }

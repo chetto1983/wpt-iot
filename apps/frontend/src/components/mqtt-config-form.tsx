@@ -25,6 +25,8 @@ interface MqttConfig {
   publishAlarms: boolean;
   publishRfid: boolean;
   publishJobs: boolean;
+  useTls: boolean;
+  caCert: string | null;
 }
 
 interface MqttConfigFormProps {
@@ -42,6 +44,8 @@ export function MqttConfigForm({ config, onSaved }: MqttConfigFormProps) {
   const [publishAlarms, setPublishAlarms] = useState(config.publishAlarms);
   const [publishRfid, setPublishRfid] = useState(config.publishRfid);
   const [publishJobs, setPublishJobs] = useState(config.publishJobs);
+  const [useTls, setUseTls] = useState(config.useTls);
+  const [caCert, setCaCert] = useState(config.caCert ?? '');
   const [saving, setSaving] = useState(false);
 
   const handleSave = useCallback(async () => {
@@ -57,6 +61,8 @@ export function MqttConfigForm({ config, onSaved }: MqttConfigFormProps) {
           publishAlarms,
           publishRfid,
           publishJobs,
+          useTls,
+          caCert: caCert || null,
         }),
       });
       toast.success(t('config.saved'));
@@ -67,7 +73,7 @@ export function MqttConfigForm({ config, onSaved }: MqttConfigFormProps) {
     } finally {
       setSaving(false);
     }
-  }, [enabled, siteId, machineId, publishMachine, publishAlarms, publishRfid, publishJobs, onSaved, t]);
+  }, [enabled, siteId, machineId, publishMachine, publishAlarms, publishRfid, publishJobs, useTls, caCert, onSaved, t]);
 
   return (
     <Card>
@@ -152,6 +158,39 @@ export function MqttConfigForm({ config, onSaved }: MqttConfigFormProps) {
               onCheckedChange={setPublishJobs}
             />
           </div>
+        </div>
+
+        {/* Security / TLS */}
+        <div className="grid gap-4">
+          <Label className="text-sm font-medium">{t('config.securityTitle')}</Label>
+
+          <div className="flex items-center justify-between">
+            <Label htmlFor="mqtt-use-tls" className="font-normal">
+              {t('config.useTls')}
+            </Label>
+            <Switch
+              id="mqtt-use-tls"
+              checked={useTls}
+              onCheckedChange={setUseTls}
+            />
+          </div>
+
+          {useTls ? (
+            <div className="grid gap-2">
+              <Label htmlFor="mqtt-ca-cert">{t('config.caCert')}</Label>
+              <textarea
+                id="mqtt-ca-cert"
+                value={caCert}
+                onChange={(e) => setCaCert(e.target.value)}
+                rows={4}
+                className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                placeholder="-----BEGIN CERTIFICATE-----"
+              />
+              <p className="text-xs text-muted-foreground">
+                {t('config.caCertHelp')}
+              </p>
+            </div>
+          ) : null}
         </div>
 
         {/* Save */}

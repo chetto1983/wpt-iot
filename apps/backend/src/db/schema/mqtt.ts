@@ -12,5 +12,7 @@ export const mqttConfig = pgTable('mqtt_config', {
   publishAlarms: boolean('publish_alarms').default(true).notNull(),
   publishRfid: boolean('publish_rfid').default(false).notNull(),
   publishJobs: boolean('publish_jobs').default(false).notNull(),
+  useTls: boolean('use_tls').default(false).notNull(),
+  caCert: varchar('ca_cert', { length: 10000 }),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 });

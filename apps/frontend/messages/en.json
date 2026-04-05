@@ -483,7 +483,11 @@
       "publishRfid": "RFID User Data",
       "publishJobs": "Job Parameters",
       "save": "Save Configuration",
-      "saved": "Configuration saved"
+      "saved": "Configuration saved",
+      "securityTitle": "Security",
+      "useTls": "Use TLS (mqtts://)",
+      "caCert": "CA Certificate (PEM)",
+      "caCertHelp": "Required for self-signed certificates. Leave empty for public CAs."
     },
     "users": {
       "title": "MQTT Users",
@@ -496,6 +500,11 @@
       "roleAdmin": "Admin (full access)",
       "create": "Create User",
       "created": "User created",
+      "edit": "Edit User",
+      "save": "Save",
+      "updated": "User updated",
+      "passwordOptional": "Leave blank to keep current",
+      "passwordMinLength": "Password must be at least 8 characters",
       "delete": "Delete User",
       "deleted": "User deleted",
       "deleteConfirm": "Delete MQTT user \"{username}\"?",

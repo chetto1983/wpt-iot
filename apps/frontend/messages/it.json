@@ -483,7 +483,11 @@
       "publishRfid": "Dati Utenti RFID",
       "publishJobs": "Parametri Commessa",
       "save": "Salva Configurazione",
-      "saved": "Configurazione salvata"
+      "saved": "Configurazione salvata",
+      "securityTitle": "Sicurezza",
+      "useTls": "Usa TLS (mqtts://)",
+      "caCert": "Certificato CA (PEM)",
+      "caCertHelp": "Necessario per certificati auto-firmati. Lascia vuoto per CA pubbliche."
     },
     "users": {
       "title": "Utenti MQTT",
@@ -496,6 +500,11 @@
       "roleAdmin": "Admin (accesso completo)",
       "create": "Crea Utente",
       "created": "Utente creato",
+      "edit": "Modifica Utente",
+      "save": "Salva",
+      "updated": "Utente aggiornato",
+      "passwordOptional": "Lascia vuoto per mantenere l'attuale",
+      "passwordMinLength": "La password deve avere almeno 8 caratteri",
       "delete": "Elimina Utente",
       "deleted": "Utente eliminato",
       "deleteConfirm": "Eliminare l'utente MQTT \"{username}\"?",
