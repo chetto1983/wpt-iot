@@ -22,6 +22,8 @@ RUN pnpm --filter @wpt/backend deploy /deploy --prod --legacy
 FROM node:22-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
+LABEL org.opencontainers.image.source=https://github.com/dvdmarchetto/Wpt
+LABEL org.opencontainers.image.description="WPT IoT Backend — Fastify 5 + Drizzle + UDP pipeline"
 COPY --from=builder /deploy/node_modules ./node_modules
 COPY --from=builder /deploy/package.json ./
 COPY --from=builder /app/apps/backend/dist ./dist

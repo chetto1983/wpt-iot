@@ -15,6 +15,12 @@ services:
       interval: 5s
       timeout: 3s
       retries: 5
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   backend:
     build:
@@ -30,7 +36,7 @@ services:
       db:
         condition: service_healthy
     environment:
-      PG_HOST: db
+      PG_HOST: ${PG_HOST:-db}
       PG_PORT: 5432
       PG_DB: wpt
       PG_USERNAME: wpt
@@ -41,12 +47,13 @@ services:
       UDP_PORT_ALARMS: 9091
       UDP_PORT_USERS: 9092
       UDP_PORT_ACK: 9093
-      SIM_HOST: simulator
+      SIM_HOST: ${SIM_HOST:-simulator}
       SIM_ACK_PORT: 9093
       SIM_DATA_PORT: 9090
       SIM_USERS_PORT: 9092
-      CORS_ORIGIN: http://localhost:3001
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3001}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+      SESSION_SECRET: ${SESSION_SECRET:-dev-only-session-secret-minimum-32-chars!!}
     volumes:
       - uploads:/app/uploads
     healthcheck:
@@ -55,6 +62,13 @@ services:
       timeout: 3s
       retries: 5
       start_period: 15s
+    restart: unless-stopped
+    stop_grace_period: 15s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   frontend:
     build:
@@ -76,6 +90,11 @@ services:
       retries: 5
       start_period: 10s
     restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   simulator:
     build:
@@ -110,6 +129,11 @@ services:
       timeout: 3s
       retries: 3
     restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
 volumes:
   pgdata:
