@@ -11,17 +11,30 @@ import {
 import type { Layout } from 'react-grid-layout';
 import { LayoutGrid } from 'lucide-react';
 import { toast } from 'sonner';
-import type { IDashboard, IPanel, ILayoutItem } from '@wpt/types';
+import type {
+  IDashboard,
+  IPanel,
+  ILayoutItem,
+  IBatchChartRequest,
+  IBatchChartResponse,
+  ChartType,
+  IPanelConfig,
+} from '@wpt/types';
 import { apiFetch } from '@/lib/api';
+import { useAuth } from '@/lib/auth-context';
 import { DashboardPanel } from '@/components/dashboard/dashboard-panel';
 import { DashboardToolbar } from '@/components/dashboard/dashboard-toolbar';
+import { PanelEditorDialog } from '@/components/dashboard/panel-editor-dialog';
+import { PanelChart } from '@/components/dashboard/panel-chart';
 
 import 'react-grid-layout/css/styles.css';
 
 export default function SingleDashboardPage() {
   const t = useTranslations('dashboards');
   const params = useParams();
-  const dashboardId = params.id as string;
+  const id = params.id as string;
+  const { user } = useAuth();
+  const locale = (user?.language ?? 'it') as 'it' | 'en';
 
   const [dashboard, setDashboard] = useState<IDashboard | null>(null);
   const [panels, setPanels] = useState<IPanel[]>([]);
@@ -30,56 +43,124 @@ export default function SingleDashboardPage() {
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
 
+  // Panel data from batch endpoint
+  const [panelData, setPanelData] = useState<
+    Record<string, { points: Array<Record<string, number | string>> }>
+  >({});
+  const [resolution, setResolution] = useState<'raw' | '5min' | '1h'>('raw');
+  const [dataLoading, setDataLoading] = useState(false);
+
+  // Panel editor dialog
+  const [editorOpen, setEditorOpen] = useState(false);
+  const [editingPanel, setEditingPanel] = useState<IPanel | null>(null);
+
+  // dataVersion counter for re-fetching after panel CRUD
+  const [dataVersion, setDataVersion] = useState(0);
+
+  // Default time range: last 6 hours
+  const [timeRange] = useState<{ from: string; to: string }>(() => {
+    const now = new Date();
+    const sixHoursAgo = new Date(now.getTime() - 6 * 60 * 60 * 1000);
+    return { from: sixHoursAgo.toISOString(), to: now.toISOString() };
+  });
+
   const { width, containerRef, mounted } = useContainerWidth({
     initialWidth: 1200,
   });
 
-  // Fetch dashboard + panels on mount
+  // Load chart data for panels
+  const loadPanelData = useCallback(
+    async (panelList: IPanel[]) => {
+      const panelsWithFields = panelList.filter(
+        (p) => p.config.fields.length > 0,
+      );
+      if (panelsWithFields.length === 0) {
+        setPanelData({});
+        return;
+      }
+
+      setDataLoading(true);
+      try {
+        const body: IBatchChartRequest = {
+          from: timeRange.from,
+          to: timeRange.to,
+          queries: panelsWithFields.map((p) => ({
+            id: p.panelKey,
+            fields: p.config.fields,
+          })),
+        };
+        const result = await apiFetch<IBatchChartResponse>('/charts/batch', {
+          method: 'POST',
+          body: JSON.stringify(body),
+        });
+        setPanelData(result.results);
+        setResolution(result.resolution);
+      } catch (err) {
+        toast.error((err as Error).message);
+      } finally {
+        setDataLoading(false);
+      }
+    },
+    [timeRange],
+  );
+
+  // Effect 1: Initial fetch -- runs once on mount
+  // Fetches dashboard + panels, then DIRECTLY calls loadPanelData with fetched panels
   useEffect(() => {
     let cancelled = false;
-    async function load() {
+    async function fetchDashboard() {
       try {
-        const data = await apiFetch<{ dashboard: IDashboard; panels: IPanel[] }>(
-          `/dashboards/${dashboardId}`,
-        );
+        const result = await apiFetch<{
+          dashboard: IDashboard;
+          panels: IPanel[];
+        }>(`/dashboards/${id}`);
         if (cancelled) return;
-        setDashboard(data.dashboard);
-        setPanels(data.panels);
-        setLayout(data.dashboard.layout);
+        setDashboard(result.dashboard);
+        setPanels(result.panels);
+        setLayout(result.dashboard.layout);
+        // Directly call loadPanelData with the fetched panels
+        // Do NOT wait for state update -- panels state won't be available yet
+        await loadPanelData(result.panels);
       } catch (err) {
         if (!cancelled) toast.error((err as Error).message);
       } finally {
         if (!cancelled) setLoading(false);
       }
     }
-    void load();
+    void fetchDashboard();
     return () => {
       cancelled = true;
     };
-  }, [dashboardId]);
+  }, [id, loadPanelData]);
 
-  const handleLayoutChange = useCallback(
-    (currentLayout: Layout) => {
-      setLayout(
-        currentLayout.map((item) => ({
-          i: item.i,
-          x: item.x,
-          y: item.y,
-          w: item.w,
-          h: item.h,
-          minW: item.minW,
-          minH: item.minH,
-        })),
-      );
-    },
-    [],
-  );
+  // Effect 2: Re-fetch on demand after panel edits
+  // Skips initial render (dataVersion=0) -- Effect 1 handles that
+  useEffect(() => {
+    if (dataVersion === 0) return;
+    if (panels.length > 0) {
+      void loadPanelData(panels);
+    }
+  }, [dataVersion]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleLayoutChange = useCallback((currentLayout: Layout) => {
+    setLayout(
+      currentLayout.map((item) => ({
+        i: item.i,
+        x: item.x,
+        y: item.y,
+        w: item.w,
+        h: item.h,
+        minW: item.minW,
+        minH: item.minH,
+      })),
+    );
+  }, []);
 
   const handleSave = useCallback(async () => {
     if (!dashboard) return;
     setSaving(true);
     try {
-      await apiFetch(`/dashboards/${dashboardId}`, {
+      await apiFetch(`/dashboards/${id}`, {
         method: 'PUT',
         body: JSON.stringify({ layout }),
       });
@@ -89,40 +170,73 @@ export default function SingleDashboardPage() {
     } finally {
       setSaving(false);
     }
-  }, [dashboard, dashboardId, layout, t]);
+  }, [dashboard, id, layout, t]);
 
-  const handleAddPanel = useCallback(async () => {
-    if (!dashboard) return;
-    const panelKey = `panel-${Date.now()}`;
-    try {
-      const newPanel = await apiFetch<IPanel>(
-        `/dashboards/${dashboardId}/panels`,
-        {
-          method: 'POST',
-          body: JSON.stringify({
-            panelKey,
-            title: 'New Panel',
-            chartType: 'line',
-            config: { fields: [], showLegend: true, showGrid: true },
-          }),
-        },
-      );
-      setPanels((prev) => [...prev, newPanel]);
-      setLayout((prev) => [
-        ...prev,
-        { i: panelKey, x: 0, y: Infinity, w: 12, h: 8, minW: 4, minH: 4 },
-      ]);
-    } catch (err) {
-      toast.error((err as Error).message);
-    }
-  }, [dashboard, dashboardId]);
+  // Add Panel: open editor in create mode
+  const handleAddPanel = useCallback(() => {
+    setEditingPanel(null);
+    setEditorOpen(true);
+  }, []);
+
+  // Edit Panel: open editor pre-filled
+  const handleEditPanel = useCallback((panel: IPanel) => {
+    setEditingPanel(panel);
+    setEditorOpen(true);
+  }, []);
+
+  // Panel editor save handler
+  const handleEditorSave = useCallback(
+    async (data: {
+      title: string;
+      chartType: ChartType;
+      config: IPanelConfig;
+    }) => {
+      try {
+        if (editingPanel) {
+          // Update existing panel
+          const updated = await apiFetch<IPanel>(
+            `/panels/${String(editingPanel.id)}`,
+            {
+              method: 'PUT',
+              body: JSON.stringify(data),
+            },
+          );
+          setPanels((prev) =>
+            prev.map((p) => (p.id === updated.id ? updated : p)),
+          );
+        } else {
+          // Create new panel
+          const panelKey = 'panel-' + Date.now();
+          const newPanel = await apiFetch<IPanel>(
+            `/dashboards/${id}/panels`,
+            {
+              method: 'POST',
+              body: JSON.stringify({ panelKey, ...data }),
+            },
+          );
+          setPanels((prev) => [...prev, newPanel]);
+          setLayout((prev) => [
+            ...prev,
+            { i: panelKey, x: 0, y: Infinity, w: 12, h: 8, minW: 4, minH: 4 },
+          ]);
+        }
+        setEditorOpen(false);
+        setEditingPanel(null);
+        setDataVersion((v) => v + 1);
+      } catch (err) {
+        toast.error((err as Error).message);
+      }
+    },
+    [editingPanel, id],
+  );
 
   const handleDeletePanel = useCallback(
-    async (panelId: number, panelKey: string) => {
+    async (panel: IPanel) => {
       try {
-        await apiFetch(`/panels/${String(panelId)}`, { method: 'DELETE' });
-        setPanels((prev) => prev.filter((p) => p.id !== panelId));
-        setLayout((prev) => prev.filter((item) => item.i !== panelKey));
+        await apiFetch(`/panels/${String(panel.id)}`, { method: 'DELETE' });
+        setPanels((prev) => prev.filter((p) => p.id !== panel.id));
+        setLayout((prev) => prev.filter((item) => item.i !== panel.panelKey));
+        setDataVersion((v) => v + 1);
       } catch (err) {
         toast.error((err as Error).message);
       }
@@ -184,23 +298,39 @@ export default function SingleDashboardPage() {
                 <DashboardPanel
                   title={panel.title}
                   editMode={editMode}
-                  onEdit={() => {
-                    /* Plan 03: panel editor */
-                  }}
-                  onDelete={() => void handleDeletePanel(panel.id, panel.panelKey)}
+                  onEdit={() => handleEditPanel(panel)}
+                  onDelete={() => void handleDeletePanel(panel)}
                   onMaximize={() => {
-                    /* Plan 05: maximize */
+                    /* Plan 05 will add fullscreen */
                   }}
                 >
-                  <div className="flex h-full items-center justify-center text-xs text-muted-foreground">
-                    {t('panelPlaceholder')}
-                  </div>
+                  {panel.config.fields.length === 0 ? (
+                    <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+                      {t('panelPlaceholder')}
+                    </div>
+                  ) : (
+                    <PanelChart
+                      chartType={panel.chartType}
+                      config={panel.config}
+                      data={panelData[panel.panelKey]?.points ?? []}
+                      resolution={resolution}
+                      locale={locale}
+                      loading={dataLoading}
+                    />
+                  )}
                 </DashboardPanel>
               </div>
             ))}
           </ResponsiveGridLayout>
         )}
       </div>
+
+      <PanelEditorDialog
+        open={editorOpen}
+        onOpenChange={setEditorOpen}
+        panel={editingPanel}
+        onSave={handleEditorSave}
+      />
     </div>
   );
 }
