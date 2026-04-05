@@ -19,6 +19,7 @@ import { reportRoutes } from './routes/reports.js';
 import { alarmReportRoutes } from './routes/alarmReports.js';
 import { chartRoutes } from './routes/charts.js';
 import { dashboardRoutes } from './routes/dashboards.js';
+import mqttPlugin from './mqtt/plugin.js';
 import { wsRoute } from './ws/route.js';
 
 const isDev = process.env.NODE_ENV !== 'production';
@@ -116,6 +117,9 @@ export function buildServer(): ReturnType<typeof Fastify> {
 
   // 17. Dashboard routes (all authenticated)
   server.register(dashboardRoutes);
+
+  // 18. MQTT broker connection
+  server.register(mqttPlugin);
 
   return server;
 }
