@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
+import type { DateRange } from 'react-day-picker';
 import {
   ResponsiveGridLayout,
   useContainerWidth,
@@ -28,6 +29,13 @@ import { PanelEditorDialog } from '@/components/dashboard/panel-editor-dialog';
 import { PanelChart } from '@/components/dashboard/panel-chart';
 
 import 'react-grid-layout/css/styles.css';
+
+function buildISO(date: Date, time: string): string {
+  const [h, m] = time.split(':').map(Number);
+  const d = new Date(date);
+  d.setHours(h ?? 0, m ?? 0, 0, 0);
+  return d.toISOString();
+}
 
 export default function SingleDashboardPage() {
   const t = useTranslations('dashboards');
@@ -57,12 +65,17 @@ export default function SingleDashboardPage() {
   // dataVersion counter for re-fetching after panel CRUD
   const [dataVersion, setDataVersion] = useState(0);
 
-  // Default time range: last 6 hours
-  const [timeRange] = useState<{ from: string; to: string }>(() => {
+  // Fullscreen panel tracking
+  const [fullscreenPanel, setFullscreenPanel] = useState<string | null>(null);
+
+  // Date range state with time inputs
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(() => {
     const now = new Date();
     const sixHoursAgo = new Date(now.getTime() - 6 * 60 * 60 * 1000);
-    return { from: sixHoursAgo.toISOString(), to: now.toISOString() };
+    return { from: sixHoursAgo, to: now };
   });
+  const [fromTime, setFromTime] = useState('00:00');
+  const [toTime, setToTime] = useState('23:59');
 
   const { width, containerRef, mounted } = useContainerWidth({
     initialWidth: 1200,
@@ -79,11 +92,18 @@ export default function SingleDashboardPage() {
         return;
       }
 
+      if (!dateRange?.from) return;
+
       setDataLoading(true);
       try {
+        const fromISO = buildISO(dateRange.from, fromTime);
+        const toISO = dateRange.to
+          ? buildISO(dateRange.to, toTime)
+          : buildISO(dateRange.from, toTime);
+
         const body: IBatchChartRequest = {
-          from: timeRange.from,
-          to: timeRange.to,
+          from: fromISO,
+          to: toISO,
           queries: panelsWithFields.map((p) => ({
             id: p.panelKey,
             fields: p.config.fields,
@@ -101,7 +121,7 @@ export default function SingleDashboardPage() {
         setDataLoading(false);
       }
     },
-    [timeRange],
+    [dateRange, fromTime, toTime],
   );
 
   // Effect 1: Initial fetch -- runs once on mount
@@ -141,6 +161,12 @@ export default function SingleDashboardPage() {
       void loadPanelData(panels);
     }
   }, [dataVersion]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleReload = useCallback(() => {
+    if (panels.length > 0) {
+      void loadPanelData(panels);
+    }
+  }, [panels, loadPanelData]);
 
   const handleLayoutChange = useCallback((currentLayout: Layout) => {
     setLayout(
@@ -270,6 +296,14 @@ export default function SingleDashboardPage() {
         onAddPanel={handleAddPanel}
         onSave={handleSave}
         saving={saving}
+        dateRange={dateRange}
+        onDateRangeChange={setDateRange}
+        fromTime={fromTime}
+        toTime={toTime}
+        onFromTimeChange={setFromTime}
+        onToTimeChange={setToTime}
+        onReload={handleReload}
+        loading={dataLoading}
       />
 
       <div ref={containerRef}>
@@ -298,11 +332,14 @@ export default function SingleDashboardPage() {
                 <DashboardPanel
                   title={panel.title}
                   editMode={editMode}
+                  fullscreen={fullscreenPanel === panel.panelKey}
                   onEdit={() => handleEditPanel(panel)}
                   onDelete={() => void handleDeletePanel(panel)}
-                  onMaximize={() => {
-                    /* Plan 05 will add fullscreen */
-                  }}
+                  onMaximize={() =>
+                    setFullscreenPanel((prev) =>
+                      prev === panel.panelKey ? null : panel.panelKey,
+                    )
+                  }
                 >
                   {panel.config.fields.length === 0 ? (
                     <div className="flex h-full items-center justify-center text-sm text-muted-foreground">

@@ -446,6 +446,14 @@
     "unlockLayout": "Sblocca per modificare",
     "emptyDashboard": "Questa dashboard non ha ancora pannelli",
     "emptyDashboardHint": "Clicca 'Aggiungi Pannello' per iniziare",
-    "panelPlaceholder": "Configura questo pannello"
+    "panelPlaceholder": "Configura questo pannello",
+    "dateRangeLabel": "Intervallo Temporale",
+    "dateRangePlaceholder": "Seleziona intervallo",
+    "fromTimeLabel": "Da",
+    "toTimeLabel": "A",
+    "reload": "Aggiorna Dati",
+    "fullscreen": "Massimizza",
+    "exitFullscreen": "Esci da Schermo Intero",
+    "resolution": "Risoluzione: {resolution}"
   }
 }

@@ -1,13 +1,15 @@
 'use client';
 
+import { useEffect } from 'react';
 import type { ReactNode } from 'react';
-import { Settings, Maximize2, X } from 'lucide-react';
+import { Settings, Maximize2, Minimize2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 
 interface DashboardPanelProps {
   title: string;
   editMode: boolean;
+  fullscreen: boolean;
   onEdit: () => void;
   onDelete: () => void;
   onMaximize: () => void;
@@ -17,13 +19,30 @@ interface DashboardPanelProps {
 export function DashboardPanel({
   title,
   editMode,
+  fullscreen,
   onEdit,
   onDelete,
   onMaximize,
   children,
 }: DashboardPanelProps) {
+  // Escape key exits fullscreen
+  useEffect(() => {
+    if (!fullscreen) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onMaximize();
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [fullscreen, onMaximize]);
+
   return (
-    <Card className="flex h-full flex-col overflow-hidden">
+    <Card
+      className={
+        fullscreen
+          ? 'fixed inset-0 z-50 flex flex-col overflow-auto rounded-none border-0 bg-background'
+          : 'flex h-full flex-col overflow-hidden'
+      }
+    >
       <div className="flex items-center justify-between border-b px-3 py-2">
         <div className="drag-handle cursor-move flex-1 truncate">
           <h3 className="text-sm font-medium truncate">{title}</h3>
@@ -43,9 +62,13 @@ export function DashboardPanel({
             size="icon"
             className="h-6 w-6"
             onClick={onMaximize}
-            title="Maximize"
+            title={fullscreen ? 'Exit fullscreen' : 'Maximize'}
           >
-            <Maximize2 className="h-3.5 w-3.5" />
+            {fullscreen ? (
+              <Minimize2 className="h-3.5 w-3.5" />
+            ) : (
+              <Maximize2 className="h-3.5 w-3.5" />
+            )}
           </Button>
           {editMode && (
             <Button

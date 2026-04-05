@@ -446,6 +446,14 @@
     "unlockLayout": "Unlock for editing",
     "emptyDashboard": "This dashboard has no panels yet",
     "emptyDashboardHint": "Click 'Add Panel' to get started",
-    "panelPlaceholder": "Configure this panel"
+    "panelPlaceholder": "Configure this panel",
+    "dateRangeLabel": "Time Range",
+    "dateRangePlaceholder": "Select date range",
+    "fromTimeLabel": "From",
+    "toTimeLabel": "To",
+    "reload": "Reload Data",
+    "fullscreen": "Maximize",
+    "exitFullscreen": "Exit Fullscreen",
+    "resolution": "Resolution: {resolution}"
   }
 }
