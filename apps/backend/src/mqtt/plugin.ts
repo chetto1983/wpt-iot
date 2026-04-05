@@ -25,24 +25,34 @@ async function mqttPlugin(fastify: FastifyInstance): Promise<void> {
     ...MQTT_TOPIC_SUFFIXES.CONNECTION.split('/'),
   );
 
-  const client = await mqtt.connectAsync({
-    host: config.mqttHost,
-    port: config.mqttPort,
-    protocol: 'mqtt' as const,
-    protocolVersion: 5,
-    clientId: `wpt-backend-${process.pid}`,
-    username: config.mqttUsername,
-    password: config.mqttPassword,
-    clean: true,
-    reconnectPeriod: 5000,
-    will: {
-      topic: connectionTopic,
-      payload: Buffer.from(JSON.stringify({ online: false, timestamp: new Date().toISOString() })),
-      qos: 1,
-      retain: true,
-      properties: { willDelayInterval: 30 },
-    },
-  });
+  let client: mqtt.MqttClient;
+  try {
+    client = await mqtt.connectAsync({
+      host: config.mqttHost,
+      port: config.mqttPort,
+      protocol: 'mqtt' as const,
+      protocolVersion: 5,
+      clientId: `wpt-backend-${process.pid}`,
+      username: config.mqttUsername,
+      password: config.mqttPassword,
+      clean: true,
+      reconnectPeriod: 5000,
+      connectTimeout: 10000,
+      will: {
+        topic: connectionTopic,
+        payload: Buffer.from(JSON.stringify({ online: false, timestamp: new Date().toISOString() })),
+        qos: 1,
+        retain: true,
+        properties: { willDelayInterval: 30 },
+      },
+    });
+  } catch (err) {
+    fastify.log.error(
+      { name: 'MQTT', broker: `${config.mqttHost}:${config.mqttPort}`, err },
+      'Failed to connect to MQTT broker — continuing without MQTT',
+    );
+    return;
+  }
 
   // Publish online status after successful connection
   await client.publishAsync(

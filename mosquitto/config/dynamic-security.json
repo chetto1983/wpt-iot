@@ -3,7 +3,7 @@
     {
       "username": "wpt-backend",
       "textName": "WPT Backend Service",
-      "password": "wpt_mqtt_dev_password",
+      "encoded_password": "$7$1000$IW0Ai+RLmmwvp3RQfe7gSxqmWdMgsw8+zXM91D76P6v92RWWkWTpm82hkfJAnz9a4St7PlGTF2mlQNNsG2aPug==$ML6RF2s8I7KnMSbhym90xO36tj/bo9CfBe3Pi8g9Ki9NeB6032PEx/5dre8jB/pv85Ad5O6hBCQaRQ2hkhgPlA==",
       "roles": [
         { "rolename": "backend-admin", "priority": -1 }
       ]
@@ -17,9 +17,9 @@
         { "acltype": "publishClientReceive", "topic": "wpt/#", "priority": -1, "allow": true },
         { "acltype": "subscribeLiteral", "topic": "wpt/#", "priority": -1, "allow": true },
         { "acltype": "subscribePattern", "topic": "wpt/#", "priority": -1, "allow": true },
-        { "acltype": "publishClientSend", "topic": "$CONTROL/dynamic-security/v1", "priority": -1, "allow": true },
-        { "acltype": "publishClientReceive", "topic": "$CONTROL/dynamic-security/v1/response", "priority": -1, "allow": true },
-        { "acltype": "subscribeLiteral", "topic": "$CONTROL/dynamic-security/v1/response", "priority": -1, "allow": true },
+        { "acltype": "publishClientSend", "topic": "$CONTROL/dynamic-security/#", "priority": -1, "allow": true },
+        { "acltype": "publishClientReceive", "topic": "$CONTROL/dynamic-security/#", "priority": -1, "allow": true },
+        { "acltype": "subscribePattern", "topic": "$CONTROL/dynamic-security/#", "priority": -1, "allow": true },
         { "acltype": "subscribePattern", "topic": "$SYS/#", "priority": -1, "allow": true },
         { "acltype": "publishClientReceive", "topic": "$SYS/#", "priority": -1, "allow": true }
       ]

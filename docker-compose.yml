@@ -33,11 +33,11 @@ services:
       - mosquitto_data:/mosquitto/data
       - mosquitto_log:/mosquitto/log
     healthcheck:
-      test: ["CMD", "mosquitto_sub", "-t", "$$SYS/broker/uptime", "-C", "1", "-i", "healthcheck", "-W", "3"]
-      interval: 30s
-      timeout: 10s
+      test: ["CMD-SHELL", "pidof mosquitto || exit 1"]
+      interval: 10s
+      timeout: 3s
       retries: 3
-      start_period: 10s
+      start_period: 5s
     restart: unless-stopped
     logging:
       driver: json-file
@@ -58,8 +58,10 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      mosquitto:
+        condition: service_healthy
     environment:
-      PG_HOST: ${PG_HOST:-db}
+      PG_HOST: db
       PG_PORT: 5432
       PG_DB: wpt
       PG_USERNAME: wpt
@@ -77,7 +79,7 @@ services:
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3001}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
       SESSION_SECRET: ${SESSION_SECRET:-dev-only-session-secret-minimum-32-chars!!}
-      MQTT_HOST: ${MQTT_HOST:-localhost}
+      MQTT_HOST: ${MQTT_HOST:-mosquitto}
       MQTT_PORT: ${MQTT_PORT:-1883}
       MQTT_USERNAME: ${MQTT_USERNAME:-wpt-backend}
       MQTT_PASSWORD: ${MQTT_PASSWORD:-wpt_mqtt_dev_password}
