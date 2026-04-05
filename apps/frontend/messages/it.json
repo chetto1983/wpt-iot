@@ -222,6 +222,34 @@
       "COOLING": "Raffreddamento",
       "FINAL_DRYING": "Essiccazione Finale",
       "DISCHARGE": "Scarico"
+    },
+    "editor": {
+      "createTitle": "Aggiungi Pannello",
+      "editTitle": "Modifica Pannello",
+      "tabGeneral": "Generale",
+      "tabData": "Dati",
+      "tabDisplay": "Visualizzazione",
+      "panelTitle": "Titolo Pannello",
+      "panelTitlePlaceholder": "Panoramica Temperature",
+      "chartType": "Tipo Grafico",
+      "chartTypes": {
+        "line": "Linea",
+        "bar": "Barre",
+        "area": "Area",
+        "pie": "Torta"
+      },
+      "fields": "Campi Dati",
+      "fieldsHint": "Seleziona fino a 8 campi da visualizzare",
+      "showLegend": "Mostra Legenda",
+      "showGrid": "Mostra Griglia",
+      "stacked": "Impilato",
+      "stackedHint": "Impila barre/aree una sopra l'altra",
+      "yAxisAuto": "Range Y Automatico",
+      "yAxisMin": "Y Min",
+      "yAxisMax": "Y Max",
+      "save": "Salva Pannello",
+      "cancel": "Annulla",
+      "noFieldsSelected": "Seleziona almeno un campo"
     }
   },
   "rfid": {

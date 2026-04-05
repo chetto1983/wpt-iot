@@ -222,6 +222,34 @@
       "COOLING": "Cooling",
       "FINAL_DRYING": "Final Drying",
       "DISCHARGE": "Discharge"
+    },
+    "editor": {
+      "createTitle": "Add Panel",
+      "editTitle": "Edit Panel",
+      "tabGeneral": "General",
+      "tabData": "Data",
+      "tabDisplay": "Display",
+      "panelTitle": "Panel Title",
+      "panelTitlePlaceholder": "Temperature Overview",
+      "chartType": "Chart Type",
+      "chartTypes": {
+        "line": "Line",
+        "bar": "Bar",
+        "area": "Area",
+        "pie": "Pie"
+      },
+      "fields": "Data Fields",
+      "fieldsHint": "Select up to 8 fields to display",
+      "showLegend": "Show Legend",
+      "showGrid": "Show Grid Lines",
+      "stacked": "Stacked",
+      "stackedHint": "Stack bars/areas on top of each other",
+      "yAxisAuto": "Auto Y-Axis Range",
+      "yAxisMin": "Y-Axis Min",
+      "yAxisMax": "Y-Axis Max",
+      "save": "Save Panel",
+      "cancel": "Cancel",
+      "noFieldsSelected": "Select at least one field"
     }
   },
   "rfid": {
