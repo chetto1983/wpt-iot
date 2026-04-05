@@ -12,6 +12,16 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 export default function DashboardsListPage() {
   const t = useTranslations('dashboards');
@@ -20,6 +30,7 @@ export default function DashboardsListPage() {
   const [loading, setLoading] = useState(true);
   const [createName, setCreateName] = useState('');
   const [creating, setCreating] = useState(false);
+  const [deleteId, setDeleteId] = useState<number | null>(null);
 
   const fetchDashboards = useCallback(async () => {
     try {
@@ -60,17 +71,16 @@ export default function DashboardsListPage() {
   );
 
   const handleDelete = useCallback(
-    async (id: number) => {
-      if (!window.confirm(t('confirmDelete'))) return;
-
+    async (dashId: number) => {
       try {
-        await apiFetch(`/dashboards/${String(id)}`, { method: 'DELETE' });
-        setDashboards((prev) => prev.filter((d) => d.id !== id));
+        await apiFetch(`/dashboards/${String(dashId)}`, { method: 'DELETE' });
+        setDashboards((prev) => prev.filter((d) => d.id !== dashId));
+        setDeleteId(null);
       } catch (err) {
         toast.error((err as Error).message);
       }
     },
-    [t],
+    [],
   );
 
   if (loading) {
@@ -162,7 +172,7 @@ export default function DashboardsListPage() {
                     size="sm"
                     variant="ghost"
                     className="text-destructive hover:text-destructive"
-                    onClick={() => void handleDelete(dashboard.id)}
+                    onClick={() => setDeleteId(dashboard.id)}
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>
@@ -172,6 +182,24 @@ export default function DashboardsListPage() {
           ))}
         </div>
       )}
+
+      <AlertDialog open={deleteId !== null} onOpenChange={(open) => { if (!open) setDeleteId(null); }}>
+        <AlertDialogContent className="sm:max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('deleteDashboard.title')}</AlertDialogTitle>
+            <AlertDialogDescription>{t('deleteDashboard.description')}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('deleteDashboard.cancel')}</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => { if (deleteId !== null) void handleDelete(deleteId); }}
+            >
+              {t('deleteDashboard.confirm')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

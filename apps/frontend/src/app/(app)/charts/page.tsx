@@ -23,6 +23,7 @@ import { toast } from 'sonner';
 import { useAuth } from '@/lib/auth-context';
 import { apiFetch } from '@/lib/api';
 import { getFieldLabel } from '@/lib/field-labels';
+import { CHART_COLORS } from '@/lib/chart-colors';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -31,17 +32,6 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { DateRangePicker } from '@/components/date-range-picker';
 import { FieldSelector, getChartableFields } from '@/components/field-selector';
-
-const CHART_COLORS = [
-  'var(--color-chart-1)',
-  'var(--color-chart-2)',
-  'var(--color-chart-3)',
-  '#3498db',
-  '#9b59b6',
-  '#f39c12',
-  '#2ecc71',
-  '#e67e22',
-];
 
 interface IChartResponse {
   resolution: 'raw' | '5min' | '1h';
