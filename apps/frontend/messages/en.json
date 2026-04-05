@@ -367,5 +367,30 @@
     "fromTimeLabel": "From",
     "toTimeLabel": "To"
   },
-  "charts": {}
+  "charts": {
+    "title": "Charts",
+    "dateRangeLabel": "Date Range",
+    "dateRangePlaceholder": "Select date range",
+    "fromTimeLabel": "From",
+    "toTimeLabel": "To",
+    "generateChart": "Generate Chart",
+    "loading": "Loading...",
+    "selectFields": "Select Fields",
+    "fieldCount": "{count} of 8 fields selected",
+    "fieldCountMax": "8 of 8 fields selected (maximum)",
+    "fieldCountNone": "Select up to 8 fields",
+    "resolution": "Resolution: {resolution}",
+    "initialBody": "Select a date range and fields to generate a chart.",
+    "emptyHeading": "No data in this range",
+    "emptyBody": "No machine data exists for the selected date range. Try a different range.",
+    "errorToast": "Chart generation failed: {error}",
+    "categories": {
+      "temperatures": "Temperatures",
+      "pressures": "Pressures",
+      "motors": "Motors & Pumps",
+      "electrical": "Electrical",
+      "weights": "Weights & Consumption",
+      "timers": "Timers & Counters"
+    }
+  }
 }

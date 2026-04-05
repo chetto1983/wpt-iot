@@ -367,5 +367,30 @@
     "fromTimeLabel": "Da",
     "toTimeLabel": "A"
   },
-  "charts": {}
+  "charts": {
+    "title": "Grafici",
+    "dateRangeLabel": "Intervallo Date",
+    "dateRangePlaceholder": "Seleziona intervallo",
+    "fromTimeLabel": "Da",
+    "toTimeLabel": "A",
+    "generateChart": "Genera Grafico",
+    "loading": "Caricamento...",
+    "selectFields": "Seleziona Campi",
+    "fieldCount": "{count} di 8 campi selezionati",
+    "fieldCountMax": "8 di 8 campi selezionati (massimo)",
+    "fieldCountNone": "Seleziona fino a 8 campi",
+    "resolution": "Risoluzione: {resolution}",
+    "initialBody": "Seleziona un intervallo e dei campi per generare un grafico.",
+    "emptyHeading": "Nessun dato in questo intervallo",
+    "emptyBody": "Nessun dato macchina trovato per l'intervallo selezionato. Prova un intervallo diverso.",
+    "errorToast": "Generazione grafico fallita: {error}",
+    "categories": {
+      "temperatures": "Temperature",
+      "pressures": "Pressioni",
+      "motors": "Motori e Pompe",
+      "electrical": "Elettrico",
+      "weights": "Pesi e Consumi",
+      "timers": "Timer e Contatori"
+    }
+  }
 }
