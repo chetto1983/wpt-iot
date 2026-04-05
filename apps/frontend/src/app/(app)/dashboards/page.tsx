@@ -3,18 +3,23 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
+import { format } from 'date-fns';
 import { LayoutGrid, Plus, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import type { IDashboard } from '@wpt/types';
 import { apiFetch } from '@/lib/api';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export default function DashboardsListPage() {
   const t = useTranslations('dashboards');
   const router = useRouter();
   const [dashboards, setDashboards] = useState<IDashboard[]>([]);
   const [loading, setLoading] = useState(true);
+  const [createName, setCreateName] = useState('');
+  const [creating, setCreating] = useState(false);
 
   const fetchDashboards = useCallback(async () => {
     try {
@@ -31,20 +36,28 @@ export default function DashboardsListPage() {
     void fetchDashboards();
   }, [fetchDashboards]);
 
-  const handleCreate = useCallback(async () => {
-    const name = window.prompt(t('nameLabel'), t('namePlaceholder'));
-    if (!name?.trim()) return;
+  const handleCreate = useCallback(
+    async (e: React.FormEvent) => {
+      e.preventDefault();
+      const name = createName.trim();
+      if (!name) return;
 
-    try {
-      const created = await apiFetch<IDashboard>('/dashboards', {
-        method: 'POST',
-        body: JSON.stringify({ name: name.trim() }),
-      });
-      router.push(`/dashboards/${String(created.id)}`);
-    } catch (err) {
-      toast.error((err as Error).message);
-    }
-  }, [t, router]);
+      setCreating(true);
+      try {
+        const created = await apiFetch<IDashboard>('/dashboards', {
+          method: 'POST',
+          body: JSON.stringify({ name }),
+        });
+        setCreateName('');
+        router.push(`/dashboards/${String(created.id)}`);
+      } catch (err) {
+        toast.error((err as Error).message);
+      } finally {
+        setCreating(false);
+      }
+    },
+    [createName, router],
+  );
 
   const handleDelete = useCallback(
     async (id: number) => {
@@ -63,20 +76,47 @@ export default function DashboardsListPage() {
   if (loading) {
     return (
       <div className="space-y-6 p-6">
-        <h1 className="text-xl font-semibold">{t('title')}</h1>
-        <p className="text-sm text-muted-foreground">{t('noDashboardsHint')}</p>
+        <div className="flex items-center justify-between">
+          <h1 className="text-xl font-semibold">{t('title')}</h1>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {[1, 2, 3].map((i) => (
+            <Card key={i}>
+              <CardContent className="space-y-3 p-4">
+                <Skeleton className="h-5 w-3/4" />
+                <Skeleton className="h-4 w-1/2" />
+                <div className="flex gap-2">
+                  <Skeleton className="h-8 flex-1" />
+                  <Skeleton className="h-8 w-8" />
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
       </div>
     );
   }
 
   return (
     <div className="space-y-6 p-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-4">
         <h1 className="text-xl font-semibold">{t('title')}</h1>
-        <Button size="sm" onClick={handleCreate}>
-          <Plus className="mr-1.5 h-4 w-4" />
-          {t('createNew')}
-        </Button>
+        <form onSubmit={handleCreate} className="flex items-center gap-2">
+          <Input
+            value={createName}
+            onChange={(e) => setCreateName(e.target.value)}
+            placeholder={t('namePlaceholder')}
+            className="w-48"
+          />
+          <Button
+            type="submit"
+            size="sm"
+            disabled={!createName.trim() || creating}
+          >
+            <Plus className="mr-1.5 h-4 w-4" />
+            {t('createNew')}
+          </Button>
+        </form>
       </div>
 
       {dashboards.length === 0 ? (
@@ -98,7 +138,7 @@ export default function DashboardsListPage() {
                   <div className="min-w-0">
                     <h3 className="truncate font-medium">{dashboard.name}</h3>
                     <p className="text-xs text-muted-foreground">
-                      {new Date(dashboard.createdAt).toLocaleDateString()}
+                      {format(new Date(dashboard.createdAt), 'dd/MM/yyyy HH:mm')}
                     </p>
                   </div>
                   {dashboard.isDefault && (
