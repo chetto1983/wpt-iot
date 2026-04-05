@@ -121,7 +121,15 @@ export const mqttRoutes: FastifyPluginAsync = async (server) => {
     }
 
     const { username, password, role, textName } = result.data;
-    await dynSecClient.createClient(username, password, role, textName);
+    try {
+      await dynSecClient.createClient(username, password, role, textName);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Unknown error';
+      if (msg.includes('already exists') || msg.includes('Client already exists')) {
+        return reply.code(409).send({ error: 'MQTT user already exists' });
+      }
+      throw err;
+    }
     return reply.code(201).send({ username, role });
   });
 
@@ -167,7 +175,15 @@ export const mqttRoutes: FastifyPluginAsync = async (server) => {
         return reply.code(400).send({ error: 'Cannot delete system account' });
       }
 
-      await dynSecClient.deleteClient(request.params.username);
+      try {
+        await dynSecClient.deleteClient(request.params.username);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'Unknown error';
+        if (msg.includes('not found') || msg.includes('Client not found')) {
+          return reply.code(404).send({ error: 'MQTT user not found' });
+        }
+        throw err;
+      }
       return reply.code(204).send();
     },
   );

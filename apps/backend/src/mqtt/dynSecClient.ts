@@ -72,7 +72,7 @@ export class DynSecClient {
    */
   async listClients(): Promise<IMqttUser[]> {
     const response = await this.sendCommand([
-      { command: 'listClients' },
+      { command: 'listClients', verbose: true },
     ]);
 
     const firstResponse = response.responses?.[0];
