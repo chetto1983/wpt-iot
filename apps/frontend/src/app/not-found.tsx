@@ -1,7 +1,6 @@
 import { getTranslations } from 'next-intl/server';
 import Image from 'next/image';
 import Link from 'next/link';
-import { buttonVariants } from '@/components/ui/button';
 
 export default async function NotFound() {
   const t = await getTranslations('notFound');
@@ -19,7 +18,10 @@ export default async function NotFound() {
         <p className="text-2xl font-semibold text-muted-foreground/30 mb-2">404</p>
         <h1 className="text-xl font-semibold text-foreground mb-2">{t('title')}</h1>
         <p className="text-sm text-muted-foreground mb-6">{t('description')}</p>
-        <Link href="/dashboard" className={buttonVariants({ variant: 'default' })}>
+        <Link
+          href="/dashboard"
+          className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-xs hover:bg-primary/90"
+        >
           {t('goToDashboard')}
         </Link>
       </div>
