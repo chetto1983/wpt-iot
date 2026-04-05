@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { NextIntlClientProvider } from 'next-intl';
 import { getLocale, getMessages } from 'next-intl/server';
+import { NuqsAdapter } from 'nuqs/adapters/next/app';
 import { Inter } from 'next/font/google';
 import { AuthProvider } from '@/lib/auth-context';
 import { ThemeProvider } from '@/components/theme-provider';
@@ -33,7 +34,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         >
           <NextIntlClientProvider messages={messages}>
             <AuthProvider>
-              {children}
+              <NuqsAdapter>
+                {children}
+              </NuqsAdapter>
               <Toaster />
             </AuthProvider>
           </NextIntlClientProvider>

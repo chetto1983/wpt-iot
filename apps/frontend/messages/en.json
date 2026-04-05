@@ -27,7 +27,8 @@
     "signOut": "Sign Out",
     "header": {
       "online": "Online",
-      "offline": "Offline"
+      "offline": "Offline",
+      "disconnected": "Connection lost. Attempting to reconnect..."
     },
     "theme": {
       "toggleLabel": "Toggle theme"
@@ -41,6 +42,8 @@
       "uploadSuccess": "Avatar updated",
       "removeSuccess": "Avatar removed"
     },
+    "sessionExpired": "Your session has expired. Please log in again.",
+    "togglePassword": "Toggle password visibility",
     "plcBusy": "PLC operation in progress -- try again in a few seconds",
     "validation": {
       "asciiOnly": "Only standard characters allowed (A-Z, 0-9, spaces, punctuation)",
@@ -70,6 +73,19 @@
       "mismatch": "Passwords do not match.",
       "success": "Password changed successfully."
     }
+  },
+  "error": {
+    "title": "Something went wrong",
+    "description": "An unexpected error occurred. Please try again.",
+    "retry": "Try Again",
+    "globalTitle": "Application Error",
+    "globalDescription": "A critical error occurred. Please reload the page.",
+    "reload": "Reload Page"
+  },
+  "notFound": {
+    "title": "Page not found",
+    "description": "The page you are looking for does not exist or has been moved.",
+    "goToDashboard": "Go to Dashboard"
   },
   "users": {
     "heading": "User Management",
@@ -110,6 +126,12 @@
       "errorUsernameTaken": "A user with this username already exists.",
       "errorDeleteSelf": "You cannot delete your own account.",
       "errorSave": "Failed to save user. Try again or contact the administrator."
+    },
+    "removeAvatar": {
+      "title": "Remove Photo",
+      "description": "Your profile photo will be removed and the default logo will be used instead.",
+      "cancel": "Keep Photo",
+      "confirm": "Remove Photo"
     }
   },
   "dashboard": {
@@ -137,6 +159,8 @@
       "alarmsTitle": "No active alarms",
       "alarmsBody": "The machine has no active alarms. Live monitoring continues automatically."
     },
+    "staleData": "Last update: {seconds}s ago",
+    "noData": "---",
     "error": {
       "liveData": "Live data unavailable. The dashboard will reconnect automatically; if the problem persists, sign in again."
     },
@@ -348,6 +372,9 @@
       "readError": "PLC read failed: {error}",
       "writeError": "PLC write failed: {error}",
       "writeNotAllowed": "Read data from the PLC first before writing"
+    },
+    "tooltip": {
+      "readFirst": "Read from PLC first"
     }
   },
   "reports": {
@@ -368,7 +395,10 @@
     "initialBody": "Select a date range to view report data.",
     "columnTimestamp": "Date/Time",
     "errorToast": "Report generation failed: {error}",
-    "successToast": "Report downloaded"
+    "successToast": "Report downloaded",
+    "tooltip": {
+      "selectDateRange": "Select a date range first"
+    }
   },
   "alarms": {
     "title": "Alarm History",
@@ -455,7 +485,21 @@
     "reload": "Reload Data",
     "fullscreen": "Maximize",
     "exitFullscreen": "Exit Fullscreen",
-    "resolution": "Resolution: {resolution}"
+    "resolution": "Resolution: {resolution}",
+    "notFound": "Dashboard not found",
+    "panelError": "This panel failed to load",
+    "retryPanel": "Retry Panel",
+    "deletePanel": {
+      "title": "Delete Panel",
+      "description": "This panel will be permanently removed from your dashboard. This action cannot be undone.",
+      "cancel": "Keep Panel",
+      "confirm": "Delete Panel"
+    },
+    "panel": {
+      "ariaDelete": "Delete panel",
+      "ariaMaximize": "Maximize panel",
+      "ariaSettings": "Panel settings"
+    }
   },
   "mqtt": {
     "title": "MQTT Gateway",

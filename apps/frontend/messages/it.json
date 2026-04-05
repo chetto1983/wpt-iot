@@ -27,7 +27,8 @@
     "signOut": "Esci",
     "header": {
       "online": "Online",
-      "offline": "Offline"
+      "offline": "Offline",
+      "disconnected": "Connessione persa. Riconnessione in corso..."
     },
     "theme": {
       "toggleLabel": "Cambia tema"
@@ -41,6 +42,8 @@
       "uploadSuccess": "Avatar aggiornato",
       "removeSuccess": "Avatar rimosso"
     },
+    "sessionExpired": "La sessione e' scaduta. Effettua nuovamente l'accesso.",
+    "togglePassword": "Mostra/nascondi password",
     "plcBusy": "Operazione PLC in corso -- riprovare tra qualche secondo",
     "validation": {
       "asciiOnly": "Solo caratteri standard consentiti (A-Z, 0-9, spazi, punteggiatura)",
@@ -70,6 +73,19 @@
       "mismatch": "Le password non corrispondono.",
       "success": "Password cambiata con successo."
     }
+  },
+  "error": {
+    "title": "Qualcosa e' andato storto",
+    "description": "Si e' verificato un errore imprevisto. Riprova.",
+    "retry": "Riprova",
+    "globalTitle": "Errore Applicazione",
+    "globalDescription": "Si e' verificato un errore critico. Ricaricare la pagina.",
+    "reload": "Ricarica Pagina"
+  },
+  "notFound": {
+    "title": "Pagina non trovata",
+    "description": "La pagina che stai cercando non esiste o e' stata spostata.",
+    "goToDashboard": "Vai alla Dashboard"
   },
   "users": {
     "heading": "Gestione Utenti",
@@ -110,6 +126,12 @@
       "errorUsernameTaken": "Un utente con questo nome utente esiste gia'.",
       "errorDeleteSelf": "Non puoi eliminare il tuo account.",
       "errorSave": "Impossibile salvare l'utente. Riprova o contatta l'amministratore."
+    },
+    "removeAvatar": {
+      "title": "Rimuovi Foto",
+      "description": "La tua foto profilo verra' rimossa e al suo posto verra' usato il logo predefinito.",
+      "cancel": "Mantieni Foto",
+      "confirm": "Rimuovi Foto"
     }
   },
   "dashboard": {
@@ -137,6 +159,8 @@
       "alarmsTitle": "Nessun allarme attivo",
       "alarmsBody": "La macchina non ha allarmi attivi. Il monitoraggio live continua automaticamente."
     },
+    "staleData": "Ultimo aggiornamento: {seconds}s fa",
+    "noData": "---",
     "error": {
       "liveData": "Dati live non disponibili. Il cruscotto tentera la riconnessione automatica; se il problema continua, accedi di nuovo."
     },
@@ -348,6 +372,9 @@
       "readError": "Lettura PLC fallita: {error}",
       "writeError": "Scrittura PLC fallita: {error}",
       "writeNotAllowed": "Leggere prima i dati dal PLC prima di scrivere"
+    },
+    "tooltip": {
+      "readFirst": "Prima leggi dal PLC"
     }
   },
   "reports": {
@@ -368,7 +395,10 @@
     "initialBody": "Seleziona un intervallo date per visualizzare i dati.",
     "columnTimestamp": "Data/Ora",
     "errorToast": "Generazione report fallita: {error}",
-    "successToast": "Report scaricato"
+    "successToast": "Report scaricato",
+    "tooltip": {
+      "selectDateRange": "Seleziona prima un intervallo di date"
+    }
   },
   "alarms": {
     "title": "Storico Allarmi",
@@ -455,7 +485,21 @@
     "reload": "Aggiorna Dati",
     "fullscreen": "Massimizza",
     "exitFullscreen": "Esci da Schermo Intero",
-    "resolution": "Risoluzione: {resolution}"
+    "resolution": "Risoluzione: {resolution}",
+    "notFound": "Dashboard non trovata",
+    "panelError": "Impossibile caricare questo pannello",
+    "retryPanel": "Riprova Pannello",
+    "deletePanel": {
+      "title": "Elimina Pannello",
+      "description": "Questo pannello verra' rimosso definitivamente dalla tua dashboard. Questa azione non puo' essere annullata.",
+      "cancel": "Mantieni Pannello",
+      "confirm": "Elimina Pannello"
+    },
+    "panel": {
+      "ariaDelete": "Elimina pannello",
+      "ariaMaximize": "Massimizza pannello",
+      "ariaSettings": "Impostazioni pannello"
+    }
   },
   "mqtt": {
     "title": "Gateway MQTT",
