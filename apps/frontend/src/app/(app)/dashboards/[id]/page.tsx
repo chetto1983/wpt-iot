@@ -47,6 +47,14 @@ function enforceMinLayout(items: ILayoutItem[]): ILayoutItem[] {
   }));
 }
 
+const MemoPanel = React.memo(DashboardPanel);
+
+const WIDGET_CARDS = [
+  { type: 'line' as ChartType, icon: LineChart },
+  { type: 'bar' as ChartType, icon: BarChart3 },
+  { type: 'area' as ChartType, icon: AreaChart },
+  { type: 'pie' as ChartType, icon: PieChart },
+] as const;
 
 export default function SingleDashboardPage() {
   const t = useTranslations('dashboards');
@@ -80,13 +88,9 @@ export default function SingleDashboardPage() {
   const [fullscreenPanel, setFullscreenPanel] = useState<string | null>(null);
 
   // Undo-toast delete tracking
-  const [pendingDelete, setPendingDelete] = useState<{
-    panelId: number;
-    panelKey: string;
-    timer: ReturnType<typeof setTimeout>;
-  } | null>(null);
-
-  // Empty state pre-configuration for panel editor
+  const [pendingDelete, setPendingDelete] = useState<
+    { panelId: number; panelKey: string; timer: ReturnType<typeof setTimeout> } | null
+  >(null);
   const [defaultChartType, setDefaultChartType] = useState<ChartType | null>(null);
 
   // Time range state synced to URL via nuqs
@@ -107,32 +111,21 @@ export default function SingleDashboardPage() {
     void setDateFilters({ from: f.toISOString(), to: tDate.toISOString() });
     setDataVersion((v) => v + 1);
   }, [setDateFilters]);
-
   const handlePresetChange = useCallback((preset: string | null) => {
     void setDateFilters({ preset: preset ?? null });
   }, [setDateFilters]);
-
   const handleRefreshIntervalChange = useCallback((ms: number) => {
     void setDateFilters({ refresh: ms });
   }, [setDateFilters]);
 
-  const { width, containerRef, mounted } = useContainerWidth({
-    initialWidth: 1200,
-  });
+  const { width, containerRef, mounted } = useContainerWidth({ initialWidth: 1200 });
 
-  // AbortController ref for cancelling in-flight panel data requests
   const abortRef = useRef<AbortController | null>(null);
-
-  // Refs for stable fetchPanelData (avoids putting from/to in callback deps)
   const fromRef = useRef(rangeFrom);
   const toRef = useRef(rangeTo);
   useEffect(() => { fromRef.current = rangeFrom; }, [rangeFrom]);
   useEffect(() => { toRef.current = rangeTo; }, [rangeTo]);
-
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => { abortRef.current?.abort(); };
-  }, []);
+  useEffect(() => () => { abortRef.current?.abort(); }, []);
 
   // Stable fetch function -- reads from/to from refs
   const fetchPanelData = useCallback(
@@ -221,12 +214,7 @@ export default function SingleDashboardPage() {
     return () => clearInterval(timer);
   }, [refreshInterval, panels, fetchPanelData]);
 
-  // Clean up pending delete on unmount
-  useEffect(() => {
-    return () => {
-      if (pendingDelete) clearTimeout(pendingDelete.timer);
-    };
-  }, [pendingDelete]);
+  useEffect(() => () => { if (pendingDelete) clearTimeout(pendingDelete.timer); }, [pendingDelete]);
 
   const handleLayoutChange = useCallback((currentLayout: Layout) => {
     setLayout(
@@ -258,7 +246,6 @@ export default function SingleDashboardPage() {
     }
   }, [dashboard, id, layout, t]);
 
-  // Auto-save on edit mode toggle
   const handleEditModeChange = useCallback((newMode: boolean) => {
     if (editMode && !newMode) {
       void handleSave();
@@ -266,19 +253,9 @@ export default function SingleDashboardPage() {
     setEditMode(newMode);
   }, [editMode, handleSave]);
 
-  // Add Panel: open editor in create mode
-  const handleAddPanel = useCallback(() => {
-    setEditingPanel(null);
-    setEditorOpen(true);
-  }, []);
+  const handleAddPanel = useCallback(() => { setEditingPanel(null); setEditorOpen(true); }, []);
+  const handleEditPanel = useCallback((panel: IPanel) => { setEditingPanel(panel); setEditorOpen(true); }, []);
 
-  // Edit Panel: open editor pre-filled
-  const handleEditPanel = useCallback((panel: IPanel) => {
-    setEditingPanel(panel);
-    setEditorOpen(true);
-  }, []);
-
-  // Panel editor save handler
   const handleEditorSave = useCallback(
     async (data: {
       title: string;
@@ -387,8 +364,6 @@ export default function SingleDashboardPage() {
     );
   }
 
-  const MemoPanel = React.memo(DashboardPanel);
-
   return (
     <div className="space-y-4 p-6">
       <DashboardToolbar
@@ -415,12 +390,7 @@ export default function SingleDashboardPage() {
             <h2 className="mb-2 text-lg font-semibold">{t('emptyState.title')}</h2>
             <p className="mb-8 text-sm text-muted-foreground">{t('emptyState.subtitle')}</p>
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-              {([
-                { type: 'line' as ChartType, icon: LineChart, label: t('emptyState.line'), desc: t('emptyState.lineDesc') },
-                { type: 'bar' as ChartType, icon: BarChart3, label: t('emptyState.bar'), desc: t('emptyState.barDesc') },
-                { type: 'area' as ChartType, icon: AreaChart, label: t('emptyState.area'), desc: t('emptyState.areaDesc') },
-                { type: 'pie' as ChartType, icon: PieChart, label: t('emptyState.pie'), desc: t('emptyState.pieDesc') },
-              ]).map((item) => (
+              {WIDGET_CARDS.map((item) => (
                 <button
                   key={item.type}
                   type="button"
@@ -432,8 +402,8 @@ export default function SingleDashboardPage() {
                   className="flex flex-col items-center gap-2 rounded-xl border bg-card p-6 text-card-foreground shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground"
                 >
                   <item.icon className="h-8 w-8 text-wpt-teal" />
-                  <span className="text-sm font-medium">{item.label}</span>
-                  <span className="text-xs text-muted-foreground">{item.desc}</span>
+                  <span className="text-sm font-medium">{t(`emptyState.${item.type}`)}</span>
+                  <span className="text-xs text-muted-foreground">{t(`emptyState.${item.type}Desc`)}</span>
                 </button>
               ))}
             </div>
