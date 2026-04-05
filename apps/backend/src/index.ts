@@ -5,6 +5,7 @@ import { seedDefaultAdmin } from './auth/seed.js';
 import { startUdpPipeline, stopUdpPipeline } from './udp/index.js';
 import { initBroadcaster, shutdownBroadcaster } from './ws/broadcaster.js';
 import { initMqttPublisher, shutdownMqttPublisher } from './mqtt/publisher.js';
+import { initCommandHandler, shutdownCommandHandler } from './mqtt/commandHandler.js';
 import { pool } from './db/index.js';
 
 function setupGracefulShutdown(server: ReturnType<typeof buildServer>): void {
@@ -25,9 +26,10 @@ function setupGracefulShutdown(server: ReturnType<typeof buildServer>): void {
       shutdownBroadcaster();
       server.log.info({ name: 'Shutdown' }, 'WebSocket broadcaster stopped');
 
-      // 3. Shut down MQTT publisher
+      // 3. Shut down MQTT publisher and command handler
       shutdownMqttPublisher();
-      server.log.info({ name: 'Shutdown' }, 'MQTT publisher stopped');
+      shutdownCommandHandler();
+      server.log.info({ name: 'Shutdown' }, 'MQTT publisher and command handler stopped');
 
       // 4. Stop UDP pipeline (close sockets)
       stopUdpPipeline(server.log);
@@ -70,6 +72,9 @@ async function main(): Promise<void> {
     // Initialize MQTT publisher (subscribes to dataHub, publishes to MQTT topics)
     if (server.mqtt) {
       await initMqttPublisher(server.mqtt, server.log);
+
+      // Initialize MQTT command handler (subscribes to cmd/+/req, queues PLC writes)
+      await initCommandHandler(server.mqtt, server.log);
     }
 
     // Register graceful shutdown (must have server reference)
