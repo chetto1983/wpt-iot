@@ -18,6 +18,7 @@ import { jobRoutes } from './routes/jobs.js';
 import { reportRoutes } from './routes/reports.js';
 import { alarmReportRoutes } from './routes/alarmReports.js';
 import { chartRoutes } from './routes/charts.js';
+import { dashboardRoutes } from './routes/dashboards.js';
 import { wsRoute } from './ws/route.js';
 
 const isDev = process.env.NODE_ENV !== 'production';
@@ -112,6 +113,9 @@ export function buildServer(): ReturnType<typeof Fastify> {
 
   // 16. Chart data routes (all authenticated)
   server.register(chartRoutes);
+
+  // 17. Dashboard routes (all authenticated)
+  server.register(dashboardRoutes);
 
   return server;
 }
