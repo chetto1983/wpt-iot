@@ -49,6 +49,8 @@ export interface IMqttConfig {
   publishAlarms: boolean;
   publishRfid: boolean;
   publishJobs: boolean;
+  useTls: boolean;
+  caCert: string | null;
   updatedAt: Date;
 }
 
@@ -62,6 +64,8 @@ export const MqttConfigSchema = z.object({
   publishAlarms: z.boolean(),
   publishRfid: z.boolean(),
   publishJobs: z.boolean(),
+  useTls: z.boolean(),
+  caCert: z.string().max(10000).nullable(),
 });
 
 /** Command request payload published by external MQTT clients */

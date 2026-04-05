@@ -67,6 +67,8 @@ export const mqttRoutes: FastifyPluginAsync = async (server) => {
       publishAlarms: z.boolean().optional(),
       publishRfid: z.boolean().optional(),
       publishJobs: z.boolean().optional(),
+      useTls: z.boolean().optional(),
+      caCert: z.string().max(10000).nullable().optional(),
     }).safeParse(request.body);
 
     if (!result.success) {

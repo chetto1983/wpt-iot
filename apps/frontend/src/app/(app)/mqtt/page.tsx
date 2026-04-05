@@ -62,6 +62,8 @@ interface MqttConfig {
   publishAlarms: boolean;
   publishRfid: boolean;
   publishJobs: boolean;
+  useTls: boolean;
+  caCert: string | null;
   updatedAt: string;
 }
 

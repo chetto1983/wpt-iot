@@ -25,13 +25,25 @@ async function mqttPlugin(fastify: FastifyInstance): Promise<void> {
     ...MQTT_TOPIC_SUFFIXES.CONNECTION.split('/'),
   );
 
+  // TLS configuration
+  const useTls = config.mqttUseTls;
+  const tlsOptions: Record<string, unknown> = {};
+
+  if (useTls) {
+    tlsOptions.rejectUnauthorized = true;
+    if (config.mqttCaCert) {
+      tlsOptions.ca = [Buffer.from(config.mqttCaCert)];
+    }
+  }
+
   let client: mqtt.MqttClient;
   try {
     client = await mqtt.connectAsync({
       host: config.mqttHost,
       port: config.mqttPort,
-      protocol: 'mqtt' as const,
+      protocol: (useTls ? 'mqtts' : 'mqtt') as 'mqtt' | 'mqtts',
       protocolVersion: 5,
+      ...tlsOptions,
       clientId: `wpt-backend-${process.pid}`,
       username: config.mqttUsername,
       password: config.mqttPassword,

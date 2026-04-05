@@ -31,4 +31,6 @@ export const config = {
   mqttEnabled: (process.env.MQTT_ENABLED ?? 'true') === 'true',
   mqttSiteId: process.env.MQTT_SITE_ID ?? 'site-01',
   mqttMachineId: process.env.MQTT_MACHINE_ID ?? 'wpt40-001',
+  mqttUseTls: (process.env.MQTT_USE_TLS ?? 'false') === 'true',
+  mqttCaCert: process.env.MQTT_CA_CERT ?? '',
 } as const;
