@@ -34,10 +34,15 @@ const MQTT_ROLES = [
 interface MqttUserDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onCreated: () => void;
+  onSaved: () => void;
+  editUser?: {
+    username: string;
+    textName?: string;
+    roles: string[];
+  } | null;
 }
 
-export function MqttUserDialog({ open, onOpenChange, onCreated }: MqttUserDialogProps) {
+export function MqttUserDialog({ open, onOpenChange, onSaved, editUser }: MqttUserDialogProps) {
   const t = useTranslations('mqtt');
   const tCommon = useTranslations('common');
 
@@ -47,33 +52,64 @@ export function MqttUserDialog({ open, onOpenChange, onCreated }: MqttUserDialog
   const [textName, setTextName] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
+  const isEditMode = !!editUser;
+
   // Reset form when dialog opens
   useEffect(() => {
     if (open) {
-      setUsername('');
-      setPassword('');
-      setRole('mqtt-reader');
-      setTextName('');
+      if (editUser) {
+        setUsername(editUser.username);
+        setPassword('');
+        setTextName(editUser.textName ?? '');
+        const mqttRole = editUser.roles.find((r) => r.startsWith('mqtt-'));
+        setRole(mqttRole ?? 'mqtt-reader');
+      } else {
+        setUsername('');
+        setPassword('');
+        setRole('mqtt-reader');
+        setTextName('');
+      }
     }
-  }, [open]);
+  }, [open, editUser]);
 
   const handleSubmit = useCallback(
     async (e: React.FormEvent) => {
       e.preventDefault();
+
+      // In edit mode, validate password only if provided
+      if (isEditMode && password.length > 0 && password.length < 8) {
+        toast.error(t('users.passwordMinLength'));
+        return;
+      }
+
       setSubmitting(true);
 
       try {
-        await apiFetch('/api/mqtt/users', {
-          method: 'POST',
-          body: JSON.stringify({
-            username,
-            password,
-            role,
-            textName: textName || undefined,
-          }),
-        });
-        toast.success(t('users.created'));
-        onCreated();
+        if (isEditMode && editUser) {
+          // Edit mode: PUT
+          await apiFetch(`/api/mqtt/users/${encodeURIComponent(editUser.username)}`, {
+            method: 'PUT',
+            body: JSON.stringify({
+              password: password || undefined,
+              role,
+              textName: textName || undefined,
+            }),
+          });
+          toast.success(t('users.updated'));
+        } else {
+          // Create mode: POST
+          await apiFetch('/api/mqtt/users', {
+            method: 'POST',
+            body: JSON.stringify({
+              username,
+              password,
+              role,
+              textName: textName || undefined,
+            }),
+          });
+          toast.success(t('users.created'));
+        }
+        onSaved();
         onOpenChange(false);
       } catch (err) {
         const msg = err instanceof Error ? err.message : tCommon('error');
@@ -82,14 +118,14 @@ export function MqttUserDialog({ open, onOpenChange, onCreated }: MqttUserDialog
         setSubmitting(false);
       }
     },
-    [username, password, role, textName, onCreated, onOpenChange, t, tCommon],
+    [username, password, role, textName, isEditMode, editUser, onSaved, onOpenChange, t, tCommon],
   );
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>{t('users.create')}</DialogTitle>
+          <DialogTitle>{isEditMode ? t('users.edit') : t('users.create')}</DialogTitle>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="grid gap-4">
@@ -103,6 +139,7 @@ export function MqttUserDialog({ open, onOpenChange, onCreated }: MqttUserDialog
               minLength={3}
               maxLength={50}
               autoComplete="off"
+              disabled={isEditMode}
             />
           </div>
 
@@ -112,11 +149,14 @@ export function MqttUserDialog({ open, onOpenChange, onCreated }: MqttUserDialog
               id="mqtt-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              required
-              minLength={8}
+              required={!isEditMode}
+              minLength={isEditMode ? undefined : 8}
               maxLength={100}
               autoComplete="new-password"
             />
+            {isEditMode ? (
+              <p className="text-xs text-muted-foreground">{t('users.passwordOptional')}</p>
+            ) : null}
           </div>
 
           <div className="grid gap-2">
@@ -156,7 +196,7 @@ export function MqttUserDialog({ open, onOpenChange, onCreated }: MqttUserDialog
             </Button>
             <Button type="submit" disabled={submitting}>
               {submitting ? <Loader2 className="mr-2 size-4 animate-spin" /> : null}
-              {t('users.create')}
+              {isEditMode ? t('users.save') : t('users.create')}
             </Button>
           </DialogFooter>
         </form>
