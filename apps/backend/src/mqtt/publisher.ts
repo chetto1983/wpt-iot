@@ -8,10 +8,37 @@ import { latestState } from '../cache/latestState.js';
 import { getAlarmDescription } from '../i18n/alarmDescriptions.js';
 import { getActiveAlarmIndices } from '../persistence/alarmStore.js';
 import { config } from '../config.js';
+import { MqttConfigService } from './configService.js';
 
 // Module-level state
 let mqttClient: MqttClient | null = null;
 let logger: FastifyBaseLogger | null = null;
+
+/** Cached config to avoid DB query on every publish (refreshed every 30s) */
+let cachedConfig: { publishMachine: boolean; publishAlarms: boolean; publishRfid: boolean; publishJobs: boolean } | null = null;
+let configCacheExpiry = 0;
+const CONFIG_CACHE_TTL_MS = 30_000; // 30 seconds
+
+async function getPublishFlags(): Promise<{ publishMachine: boolean; publishAlarms: boolean; publishRfid: boolean; publishJobs: boolean }> {
+  const now = Date.now();
+  if (cachedConfig && now < configCacheExpiry) {
+    return cachedConfig;
+  }
+  try {
+    const cfg = await MqttConfigService.getConfig();
+    cachedConfig = {
+      publishMachine: cfg.publishMachine,
+      publishAlarms: cfg.publishAlarms,
+      publishRfid: cfg.publishRfid,
+      publishJobs: cfg.publishJobs,
+    };
+    configCacheExpiry = now + CONFIG_CACHE_TTL_MS;
+    return cachedConfig;
+  } catch (err) {
+    logger?.error({ name: 'MqttPublisher', err: (err as Error).message }, 'Failed to read publish config, using defaults (all enabled)');
+    return { publishMachine: true, publishAlarms: true, publishRfid: true, publishJobs: true };
+  }
+}
 
 /** Build a full topic path for this site/machine */
 function topic(...segments: string[]): string {
@@ -41,43 +68,51 @@ async function safePublish(
 /** Publish full machine snapshot to dt/snapshot (qos 0, retained) */
 function publishMachineData(snapshot: IMachineSnapshot, timestamp: Date): void {
   if (!mqttClient) return;
-  void safePublish(
-    topic(...MQTT_TOPIC_SUFFIXES.SNAPSHOT.split('/')),
-    { ...snapshot, ts: timestamp.toISOString() },
-    { qos: 0, retain: true },
-  );
+  void (async () => {
+    const flags = await getPublishFlags();
+    if (!flags.publishMachine) return;
+    await safePublish(
+      topic(...MQTT_TOPIC_SUFFIXES.SNAPSHOT.split('/')),
+      { ...snapshot, ts: timestamp.toISOString() },
+      { qos: 0, retain: true },
+    );
+  })();
 }
 
 /** Publish alarm transitions and updated active alarm list */
 function publishAlarmChange(transitions: IAlarmTransition[]): void {
   if (!mqttClient) return;
+  void (async () => {
+    const flags = await getPublishFlags();
+    if (!flags.publishAlarms) return;
 
-  // Publish individual activation/reset events
-  for (const t of transitions) {
-    const desc = {
-      alarmIndex: t.alarmIndex,
-      descriptionIt: getAlarmDescription(t.alarmIndex, 'it'),
-      descriptionEn: getAlarmDescription(t.alarmIndex, 'en'),
-      timestamp: t.timestamp.toISOString(),
-    };
+    // Publish individual activation/reset events
+    for (const t of transitions) {
+      const desc = {
+        alarmIndex: t.alarmIndex,
+        descriptionIt: getAlarmDescription(t.alarmIndex, 'it'),
+        descriptionEn: getAlarmDescription(t.alarmIndex, 'en'),
+        timestamp: t.timestamp.toISOString(),
+      };
 
-    if (t.active) {
-      void safePublish(
-        topic(...MQTT_TOPIC_SUFFIXES.ALARMS_ACTIVATE.split('/')),
-        desc,
-        { qos: 1, retain: false },
-      );
-    } else {
-      void safePublish(
-        topic(...MQTT_TOPIC_SUFFIXES.ALARMS_RESET.split('/')),
-        desc,
-        { qos: 1, retain: false },
-      );
+      if (t.active) {
+        await safePublish(
+          topic(...MQTT_TOPIC_SUFFIXES.ALARMS_ACTIVATE.split('/')),
+          desc,
+          { qos: 1, retain: false },
+        );
+      } else {
+        await safePublish(
+          topic(...MQTT_TOPIC_SUFFIXES.ALARMS_RESET.split('/')),
+          desc,
+          { qos: 1, retain: false },
+        );
+      }
     }
-  }
 
-  // Publish updated active alarm list (retained)
-  void publishActiveAlarmList();
+    // Publish updated active alarm list (retained)
+    await publishActiveAlarmList();
+  })();
 }
 
 /** Query active alarms from persistence and publish retained list */
@@ -110,21 +145,29 @@ async function publishActiveAlarmList(): Promise<void> {
 /** Publish RFID user list (retained) */
 function publishUserData(users: IRfidUser[]): void {
   if (!mqttClient) return;
-  void safePublish(
-    topic(...MQTT_TOPIC_SUFFIXES.RFID_USERS.split('/')),
-    users,
-    { qos: 1, retain: true },
-  );
+  void (async () => {
+    const flags = await getPublishFlags();
+    if (!flags.publishRfid) return;
+    await safePublish(
+      topic(...MQTT_TOPIC_SUFFIXES.RFID_USERS.split('/')),
+      users,
+      { qos: 1, retain: true },
+    );
+  })();
 }
 
 /** Publish current job data (retained) */
 function publishJobData(job: IJobData): void {
   if (!mqttClient) return;
-  void safePublish(
-    topic(...MQTT_TOPIC_SUFFIXES.JOBS_CURRENT.split('/')),
-    job,
-    { qos: 1, retain: true },
-  );
+  void (async () => {
+    const flags = await getPublishFlags();
+    if (!flags.publishJobs) return;
+    await safePublish(
+      topic(...MQTT_TOPIC_SUFFIXES.JOBS_CURRENT.split('/')),
+      job,
+      { qos: 1, retain: true },
+    );
+  })();
 }
 
 /**
@@ -164,4 +207,6 @@ export async function initMqttPublisher(client: MqttClient, log: FastifyBaseLogg
 export function shutdownMqttPublisher(): void {
   mqttClient = null;
   logger = null;
+  cachedConfig = null;
+  configCacheExpiry = 0;
 }
