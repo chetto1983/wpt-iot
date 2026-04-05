@@ -1,5 +1,5 @@
 {
-	"changeIndex":	17,
+	"changeIndex":	30,
 	"defaultACLAccess":	{
 		"publishClientSend":	false,
 		"publishClientReceive":	false,
@@ -7,13 +7,6 @@
 		"unsubscribe":	true
 	},
 	"clients":	[{
-			"username":	"pippo",
-			"textname":	"pippo",
-			"roles":	[{
-					"rolename":	"mqtt-admin"
-				}],
-			"encoded_password":	"$7$1000$CgYOBWvHYc06aU5/CdIHPrIohct5wRTBOi5fv1R9Hjrb4SDAi3ij99IwTF5RbryAfA76jsRxZSlIt1yCWmaxUA==$7CRRdB3waUp7uaz7Gb+aSbpO608HoiDa9mQHSsWfwWkNc3ymnDpZRh9r5144Z1B9vE2XkIa3JwAeCnTFU8H9Qg=="
-		}, {
 			"username":	"wpt-backend",
 			"textname":	"WPT Backend Service",
 			"roles":	[{
@@ -85,6 +78,11 @@
 					"priority":	-1,
 					"allow":	true
 				}, {
+					"acltype":	"publishClientReceive",
+					"topic":	"#",
+					"priority":	-1,
+					"allow":	true
+				}, {
 					"acltype":	"subscribeLiteral",
 					"topic":	"wpt/#",
 					"priority":	-1,
@@ -96,11 +94,6 @@
 					"allow":	true
 				}, {
 					"acltype":	"subscribePattern",
-					"topic":	"#",
-					"priority":	-1,
-					"allow":	true
-				}, {
-					"acltype":	"publishClientReceive",
 					"topic":	"#",
 					"priority":	-1,
 					"allow":	true

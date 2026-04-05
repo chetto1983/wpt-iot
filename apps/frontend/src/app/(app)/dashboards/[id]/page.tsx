@@ -41,6 +41,20 @@ import {
 
 import 'react-grid-layout/css/styles.css';
 
+const MIN_W = 4;
+const MIN_H = 4;
+
+/** Ensure layout items have sane minimums — DB may contain corrupted w:1/h:1 values */
+function enforceMinLayout(items: ILayoutItem[]): ILayoutItem[] {
+  return items.map((item) => ({
+    ...item,
+    w: Math.max(item.w, MIN_W),
+    h: Math.max(item.h, MIN_H),
+    minW: MIN_W,
+    minH: MIN_H,
+  }));
+}
+
 function buildISO(date: Date, time: string): string {
   const [h, m] = time.split(':').map(Number);
   const d = new Date(date);
@@ -193,7 +207,7 @@ export default function SingleDashboardPage() {
         if (controller.signal.aborted) return;
         setDashboard(result.dashboard);
         setPanels(result.panels);
-        setLayout(result.dashboard.layout);
+        setLayout(enforceMinLayout(result.dashboard.layout));
         // Directly call loadPanelData with the fetched panels
         // Do NOT wait for state update -- panels state won't be available yet
         await loadPanelData(result.panels);
@@ -229,10 +243,10 @@ export default function SingleDashboardPage() {
         i: item.i,
         x: item.x,
         y: item.y,
-        w: item.w,
-        h: item.h,
-        minW: item.minW,
-        minH: item.minH,
+        w: Math.max(item.w, MIN_W),
+        h: Math.max(item.h, MIN_H),
+        minW: MIN_W,
+        minH: MIN_H,
       })),
     );
   }, []);
