@@ -32,6 +32,12 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 
 const emptyJob: IJobData = {
   supervisor: '',
@@ -42,6 +48,38 @@ const emptyJob: IJobData = {
   remoteCycleSelection: RemoteCycleSelection.NO_REQUEST,
   cycleType: CycleType.NO_CYCLE,
 };
+
+/**
+ * Wraps a disabled form control with a tooltip explaining why it's disabled.
+ * Uses render prop on TooltipTrigger so the span receives hover events
+ * even when the inner control is disabled.
+ */
+function DisabledTooltip({
+  disabled,
+  tooltip,
+  children,
+}: {
+  disabled: boolean;
+  tooltip: string;
+  children: React.ReactNode;
+}) {
+  if (!disabled) return <>{children}</>;
+
+  return (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger
+          render={<span tabIndex={0} className="inline-block w-full cursor-not-allowed" />}
+        >
+          {children}
+        </TooltipTrigger>
+        <TooltipContent>
+          <p>{tooltip}</p>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+}
 
 export default function JobsPage() {
   const { user } = useAuth();
@@ -135,6 +173,9 @@ export default function JobsPage() {
     setJob(prev => ({ ...prev, [field]: sanitized }));
   };
 
+  const disabled = !hasRead;
+  const readFirstTooltip = t('tooltip.readFirst');
+
   return (
     <div className="space-y-6 p-6">
       <PlcStatusBar
@@ -160,36 +201,42 @@ export default function JobsPage() {
         <CardContent className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="supervisor">{t('fields.supervisor')}</Label>
-            <Input
-              id="supervisor"
-              value={job.supervisor}
-              onChange={e => updateTextField('supervisor', e.target.value)}
-              maxLength={20}
-              placeholder="---"
-              disabled={!hasRead}
-            />
+            <DisabledTooltip disabled={disabled} tooltip={readFirstTooltip}>
+              <Input
+                id="supervisor"
+                value={job.supervisor}
+                onChange={e => updateTextField('supervisor', e.target.value)}
+                maxLength={20}
+                placeholder="---"
+                disabled={disabled}
+              />
+            </DisabledTooltip>
           </div>
           <div className="space-y-2">
             <Label htmlFor="orderNumber">{t('fields.orderNumber')}</Label>
-            <Input
-              id="orderNumber"
-              value={job.orderNumber}
-              onChange={e => updateTextField('orderNumber', e.target.value)}
-              maxLength={20}
-              placeholder="---"
-              disabled={!hasRead}
-            />
+            <DisabledTooltip disabled={disabled} tooltip={readFirstTooltip}>
+              <Input
+                id="orderNumber"
+                value={job.orderNumber}
+                onChange={e => updateTextField('orderNumber', e.target.value)}
+                maxLength={20}
+                placeholder="---"
+                disabled={disabled}
+              />
+            </DisabledTooltip>
           </div>
           <div className="space-y-2">
             <Label htmlFor="serialNumber">{t('fields.serialNumber')}</Label>
-            <Input
-              id="serialNumber"
-              value={job.serialNumber}
-              onChange={e => updateTextField('serialNumber', e.target.value)}
-              maxLength={20}
-              placeholder="---"
-              disabled={!hasRead}
-            />
+            <DisabledTooltip disabled={disabled} tooltip={readFirstTooltip}>
+              <Input
+                id="serialNumber"
+                value={job.serialNumber}
+                onChange={e => updateTextField('serialNumber', e.target.value)}
+                maxLength={20}
+                placeholder="---"
+                disabled={disabled}
+              />
+            </DisabledTooltip>
           </div>
         </CardContent>
       </Card>
@@ -202,109 +249,117 @@ export default function JobsPage() {
         <CardContent className="space-y-4">
           <div className="space-y-2">
             <Label>{t('fields.remoteJobEnable')}</Label>
-            <Select
-              value={String(job.remoteJobEnable)}
-              onValueChange={v =>
-                setJob(prev => ({
-                  ...prev,
-                  remoteJobEnable: Number(v) as RemoteJobEnable,
-                }))
-              }
-              disabled={!hasRead}
-            >
-              <SelectTrigger>
-                <SelectValue>{t(`enums.remoteJobEnable.${job.remoteJobEnable}`)}</SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="0">
-                  {t('enums.remoteJobEnable.0')}
-                </SelectItem>
-                <SelectItem value="1">
-                  {t('enums.remoteJobEnable.1')}
-                </SelectItem>
-              </SelectContent>
-            </Select>
+            <DisabledTooltip disabled={disabled} tooltip={readFirstTooltip}>
+              <Select
+                value={String(job.remoteJobEnable)}
+                onValueChange={v =>
+                  setJob(prev => ({
+                    ...prev,
+                    remoteJobEnable: Number(v) as RemoteJobEnable,
+                  }))
+                }
+                disabled={disabled}
+              >
+                <SelectTrigger>
+                  <SelectValue>{t(`enums.remoteJobEnable.${job.remoteJobEnable}`)}</SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="0">
+                    {t('enums.remoteJobEnable.0')}
+                  </SelectItem>
+                  <SelectItem value="1">
+                    {t('enums.remoteJobEnable.1')}
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </DisabledTooltip>
           </div>
 
           <div className="space-y-2">
             <Label>{t('fields.maintenanceRequest')}</Label>
-            <Select
-              value={String(job.maintenanceRequest)}
-              onValueChange={v =>
-                setJob(prev => ({
-                  ...prev,
-                  maintenanceRequest: Number(v) as MaintenanceRequest,
-                }))
-              }
-              disabled={!hasRead}
-            >
-              <SelectTrigger>
-                <SelectValue>{t(`enums.maintenanceRequest.${job.maintenanceRequest}`)}</SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="0">
-                  {t('enums.maintenanceRequest.0')}
-                </SelectItem>
-                <SelectItem value="1">
-                  {t('enums.maintenanceRequest.1')}
-                </SelectItem>
-              </SelectContent>
-            </Select>
+            <DisabledTooltip disabled={disabled} tooltip={readFirstTooltip}>
+              <Select
+                value={String(job.maintenanceRequest)}
+                onValueChange={v =>
+                  setJob(prev => ({
+                    ...prev,
+                    maintenanceRequest: Number(v) as MaintenanceRequest,
+                  }))
+                }
+                disabled={disabled}
+              >
+                <SelectTrigger>
+                  <SelectValue>{t(`enums.maintenanceRequest.${job.maintenanceRequest}`)}</SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="0">
+                    {t('enums.maintenanceRequest.0')}
+                  </SelectItem>
+                  <SelectItem value="1">
+                    {t('enums.maintenanceRequest.1')}
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </DisabledTooltip>
           </div>
 
           <div className="space-y-2">
             <Label>{t('fields.remoteCycleSelection')}</Label>
-            <Select
-              value={String(job.remoteCycleSelection)}
-              onValueChange={v =>
-                setJob(prev => ({
-                  ...prev,
-                  remoteCycleSelection: Number(v) as RemoteCycleSelection,
-                }))
-              }
-              disabled={!hasRead}
-            >
-              <SelectTrigger>
-                <SelectValue>{t(`enums.remoteCycleSelection.${job.remoteCycleSelection}`)}</SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="0">
-                  {t('enums.remoteCycleSelection.0')}
-                </SelectItem>
-                <SelectItem value="1">
-                  {t('enums.remoteCycleSelection.1')}
-                </SelectItem>
-              </SelectContent>
-            </Select>
+            <DisabledTooltip disabled={disabled} tooltip={readFirstTooltip}>
+              <Select
+                value={String(job.remoteCycleSelection)}
+                onValueChange={v =>
+                  setJob(prev => ({
+                    ...prev,
+                    remoteCycleSelection: Number(v) as RemoteCycleSelection,
+                  }))
+                }
+                disabled={disabled}
+              >
+                <SelectTrigger>
+                  <SelectValue>{t(`enums.remoteCycleSelection.${job.remoteCycleSelection}`)}</SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="0">
+                    {t('enums.remoteCycleSelection.0')}
+                  </SelectItem>
+                  <SelectItem value="1">
+                    {t('enums.remoteCycleSelection.1')}
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </DisabledTooltip>
           </div>
 
           <div className="space-y-2">
             <Label>{t('fields.cycleType')}</Label>
-            <Select
-              value={String(job.cycleType)}
-              onValueChange={v =>
-                setJob(prev => ({
-                  ...prev,
-                  cycleType: Number(v) as CycleType,
-                }))
-              }
-              disabled={!hasRead}
-            >
-              <SelectTrigger>
-                <SelectValue>
-                  {tDashboard(`cycleTypes.${CycleType[job.cycleType] ?? 'NO_CYCLE'}`)}
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                {Object.entries(CycleType)
-                  .filter(([key]) => isNaN(Number(key)))
-                  .map(([key, value]) => (
-                    <SelectItem key={value} value={String(value)}>
-                      {tDashboard(`cycleTypes.${key}`)}
-                    </SelectItem>
-                  ))}
-              </SelectContent>
-            </Select>
+            <DisabledTooltip disabled={disabled} tooltip={readFirstTooltip}>
+              <Select
+                value={String(job.cycleType)}
+                onValueChange={v =>
+                  setJob(prev => ({
+                    ...prev,
+                    cycleType: Number(v) as CycleType,
+                  }))
+                }
+                disabled={disabled}
+              >
+                <SelectTrigger>
+                  <SelectValue>
+                    {tDashboard(`cycleTypes.${CycleType[job.cycleType] ?? 'NO_CYCLE'}`)}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.entries(CycleType)
+                    .filter(([key]) => isNaN(Number(key)))
+                    .map(([key, value]) => (
+                      <SelectItem key={value} value={String(value)}>
+                        {tDashboard(`cycleTypes.${key}`)}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+            </DisabledTooltip>
           </div>
         </CardContent>
       </Card>
@@ -315,14 +370,16 @@ export default function JobsPage() {
           {isReading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
           {isReading ? t('actions.reading') : t('actions.readFromPlc')}
         </Button>
-        <Button
-          variant={lock.canWrite ? 'default' : 'outline'}
-          onClick={handleWriteClick}
-          disabled={!lock.canWrite || isReading || isWriting}
-        >
-          {isWriting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          {isWriting ? t('actions.writing') : t('actions.writeToPlc')}
-        </Button>
+        <DisabledTooltip disabled={!lock.canWrite && hasRead} tooltip={readFirstTooltip}>
+          <Button
+            variant={lock.canWrite ? 'default' : 'outline'}
+            onClick={handleWriteClick}
+            disabled={!lock.canWrite || isReading || isWriting}
+          >
+            {isWriting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {isWriting ? t('actions.writing') : t('actions.writeToPlc')}
+          </Button>
+        </DisabledTooltip>
       </div>
 
       <PlcWriteConfirm

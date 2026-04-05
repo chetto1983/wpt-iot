@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import type { DateRange } from 'react-day-picker';
+import { useQueryStates, parseAsString } from 'nuqs';
 import {
   ResponsiveGridLayout,
   useContainerWidth,
@@ -47,6 +48,16 @@ function buildISO(date: Date, time: string): string {
   return d.toISOString();
 }
 
+/** Compute default "from" as 6 hours ago, date-only string */
+function defaultFrom(): string {
+  const d = new Date(Date.now() - 6 * 60 * 60 * 1000);
+  return d.toISOString().split('T')[0]!;
+}
+
+function defaultTo(): string {
+  return new Date().toISOString().split('T')[0]!;
+}
+
 export default function SingleDashboardPage() {
   const t = useTranslations('dashboards');
   const params = useParams();
@@ -81,18 +92,41 @@ export default function SingleDashboardPage() {
   // Panel delete confirmation
   const [deletePanelId, setDeletePanelId] = useState<number | null>(null);
 
-  // Date range state with time inputs
-  const [dateRange, setDateRange] = useState<DateRange | undefined>(() => {
-    const now = new Date();
-    const sixHoursAgo = new Date(now.getTime() - 6 * 60 * 60 * 1000);
-    return { from: sixHoursAgo, to: now };
+  // Date range state synced to URL via nuqs
+  const [dateFilters, setDateFilters] = useQueryStates({
+    from: parseAsString.withDefault(defaultFrom()),
+    to: parseAsString.withDefault(defaultTo()),
+    fromTime: parseAsString.withDefault('00:00'),
+    toTime: parseAsString.withDefault('23:59'),
   });
-  const [fromTime, setFromTime] = useState('00:00');
-  const [toTime, setToTime] = useState('23:59');
+
+  const dateRange: DateRange | undefined = dateFilters.from && dateFilters.to
+    ? { from: new Date(dateFilters.from), to: new Date(dateFilters.to) }
+    : undefined;
+
+  const setDateRange = useCallback((range: DateRange | undefined) => {
+    void setDateFilters({
+      from: range?.from ? range.from.toISOString().split('T')[0] : null,
+      to: range?.to ? range.to.toISOString().split('T')[0] : null,
+    });
+  }, [setDateFilters]);
+
+  const fromTime = dateFilters.fromTime;
+  const toTime = dateFilters.toTime;
+  const setFromTime = useCallback((v: string) => { void setDateFilters({ fromTime: v }); }, [setDateFilters]);
+  const setToTime = useCallback((v: string) => { void setDateFilters({ toTime: v }); }, [setDateFilters]);
 
   const { width, containerRef, mounted } = useContainerWidth({
     initialWidth: 1200,
   });
+
+  // AbortController ref for cancelling in-flight panel data requests
+  const abortRef = useRef<AbortController | null>(null);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => { abortRef.current?.abort(); };
+  }, []);
 
   // Load chart data for panels
   const loadPanelData = useCallback(
@@ -106,6 +140,11 @@ export default function SingleDashboardPage() {
       }
 
       if (!dateRange?.from) return;
+
+      // Abort previous request
+      abortRef.current?.abort();
+      const controller = new AbortController();
+      abortRef.current = controller;
 
       setDataLoading(true);
       try {
@@ -125,13 +164,17 @@ export default function SingleDashboardPage() {
         const result = await apiFetch<IBatchChartResponse>('/charts/batch', {
           method: 'POST',
           body: JSON.stringify(body),
+          signal: controller.signal,
         });
-        setPanelData(result.results);
-        setResolution(result.resolution);
-      } catch (err) {
+        if (!controller.signal.aborted) {
+          setPanelData(result.results);
+          setResolution(result.resolution);
+        }
+      } catch (err: unknown) {
+        if (err instanceof Error && err.name === 'AbortError') return;
         toast.error((err as Error).message);
       } finally {
-        setDataLoading(false);
+        if (!controller.signal.aborted) setDataLoading(false);
       }
     },
     [dateRange, fromTime, toTime],
@@ -140,30 +183,29 @@ export default function SingleDashboardPage() {
   // Effect 1: Initial fetch -- runs once on mount
   // Fetches dashboard + panels, then DIRECTLY calls loadPanelData with fetched panels
   useEffect(() => {
-    let cancelled = false;
+    const controller = new AbortController();
     async function fetchDashboard() {
       try {
         const result = await apiFetch<{
           dashboard: IDashboard;
           panels: IPanel[];
-        }>(`/dashboards/${id}`);
-        if (cancelled) return;
+        }>(`/dashboards/${id}`, { signal: controller.signal });
+        if (controller.signal.aborted) return;
         setDashboard(result.dashboard);
         setPanels(result.panels);
         setLayout(result.dashboard.layout);
         // Directly call loadPanelData with the fetched panels
         // Do NOT wait for state update -- panels state won't be available yet
         await loadPanelData(result.panels);
-      } catch (err) {
-        if (!cancelled) toast.error((err as Error).message);
+      } catch (err: unknown) {
+        if (err instanceof Error && err.name === 'AbortError') return;
+        toast.error((err as Error).message);
       } finally {
-        if (!cancelled) setLoading(false);
+        if (!controller.signal.aborted) setLoading(false);
       }
     }
     void fetchDashboard();
-    return () => {
-      cancelled = true;
-    };
+    return () => controller.abort();
   }, [id, loadPanelData]);
 
   // Effect 2: Re-fetch on demand after panel edits

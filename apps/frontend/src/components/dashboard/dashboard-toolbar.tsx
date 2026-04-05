@@ -47,7 +47,7 @@ export function DashboardToolbar({
     <div className="flex flex-wrap items-center justify-between gap-3">
       <h1 className="text-xl font-semibold">{dashboardName}</h1>
 
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
         <div className="space-y-0.5">
           <Label className="text-[10px] text-muted-foreground">{t('dateRangeLabel')}</Label>
           <DateRangePicker
