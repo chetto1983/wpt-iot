@@ -374,21 +374,111 @@ async function main() {
     }
 
     // ═══════════════════════════════════════════════════
-    // 11. USERS MANAGEMENT PAGE (SUPER_ADMIN only)
+    // 11. MQTT ADMIN PAGE (SUPER_ADMIN only)
     // ═══════════════════════════════════════════════════
-    section('11. USERS MANAGEMENT PAGE');
+    section('11. MQTT ADMIN PAGE');
+
+    await page.goto(`${BASE}/mqtt`, { waitUntil: 'networkidle0', timeout: 15000 });
+    await sleep(2000);
+    await shot(page, '11-mqtt-page');
+
+    const mqttText = await page.evaluate(() => document.body.textContent);
+    check('MQTT page loads', mqttText.includes('MQTT') || page.url().includes('/mqtt'));
+
+    // Broker status card
+    const hasConnBadge = mqttText.includes('Connect') || mqttText.includes('Connesso') ||
+      mqttText.includes('Disconnect') || mqttText.includes('Disconnesso');
+    check('MQTT shows broker connection status', hasConnBadge);
+
+    // Config form — site ID / machine ID inputs or broker host in status
+    const hasConfigFields = await page.evaluate(() => {
+      const text = document.body.textContent || '';
+      // Broker host shown in status card as text, config has siteId/machineId inputs
+      const hasHostInfo = text.includes('mosquitto') || text.includes('1883') || text.includes('Host Broker');
+      const inputs = Array.from(document.querySelectorAll('input'));
+      const hasSiteInput = inputs.some(i => i.value && (i.value.includes('site-') || i.value.includes('wpt')));
+      return hasHostInfo || hasSiteInput;
+    });
+    check('MQTT config shows broker info and site/machine fields', hasConfigFields);
+
+    // Publish toggle switches
+    const toggleCount = await page.evaluate(() => {
+      const switches = document.querySelectorAll('button[role="switch"], [data-slot="switch-thumb"]');
+      return switches.length;
+    });
+    check('MQTT config has toggle switches', toggleCount >= 4, `found ${toggleCount}`);
+
+    // TLS section
+    const hasTlsSection = mqttText.includes('TLS') || mqttText.includes('SSL') || mqttText.includes('tls');
+    check('MQTT config has TLS/SSL section', hasTlsSection);
+
+    // User management table (headers may be in IT: "Nome Utente", "Ruolo")
+    const hasUserTable = await page.evaluate(() => {
+      const headers = Array.from(document.querySelectorAll('th'));
+      return headers.some(h =>
+        /Username|Nome Utente|Ruolo|Role/i.test(h.textContent)
+      );
+    });
+    check('MQTT has user management table', hasUserTable);
+
+    // Create user button
+    const hasCreateBtn = await page.evaluate(() => {
+      const btns = Array.from(document.querySelectorAll('button'));
+      return btns.some(b => b.textContent.includes('Create') || b.textContent.includes('Crea') || b.textContent.includes('+'));
+    });
+    check('MQTT has create user button', hasCreateBtn);
+
+    // Activity log card
+    const hasActivityLog = mqttText.includes('Activity') || mqttText.includes('Log') ||
+      mqttText.includes('Attività') || mqttText.includes('log');
+    check('MQTT has activity log section', hasActivityLog);
+
+    // Activity log has entries (connect/publish events from backend startup)
+    const logEntryCount = await page.evaluate(() => {
+      // Look for log entries — typically timestamped items in a scrollable container
+      const items = document.querySelectorAll('[class*="log"] li, [class*="activity"] li, [class*="scroll"] > div > div');
+      // Also check for badge elements that indicate event types
+      const badges = Array.from(document.querySelectorAll('[class*="badge"], span')).filter(b =>
+        /connect|publish|disconnect|subscribe/i.test(b.textContent)
+      );
+      return Math.max(items.length, badges.length);
+    });
+    check('Activity log has entries', logEntryCount > 0, `found ${logEntryCount}`);
+    await shot(page, '11b-mqtt-activity-log');
+
+    // MQTT API checks — use page cookies for auth
+    const pageCookies = await page.cookies();
+    const sessionCookieVal = pageCookies.find(c => c.name === 'sessionId')?.value || '';
+    const mqttApiCookie = `sessionId=${sessionCookieVal}`;
+
+    const mqttStatusRes = await fetch(`${BACKEND}/api/mqtt/status`, { headers: { Cookie: mqttApiCookie } });
+    if (mqttStatusRes.ok) {
+      const mqttStatus = await mqttStatusRes.json();
+      check('MQTT broker connected (API)', mqttStatus.connected === true);
+    }
+
+    const mqttLogRes = await fetch(`${BACKEND}/api/mqtt/log`, { headers: { Cookie: mqttApiCookie } });
+    if (mqttLogRes.ok) {
+      const mqttLog = await mqttLogRes.json();
+      check('MQTT activity log API returns events', Array.isArray(mqttLog) && mqttLog.length > 0, `${mqttLog.length} events`);
+    }
+
+    // ═══════════════════════════════════════════════════
+    // 12. USERS MANAGEMENT PAGE (SUPER_ADMIN only)
+    // ═══════════════════════════════════════════════════
+    section('12. USERS MANAGEMENT PAGE');
 
     await page.goto(`${BASE}/users`, { waitUntil: 'networkidle0', timeout: 15000 });
     await sleep(1000);
-    await shot(page, '11-users-page');
+    await shot(page, '12-users-page');
 
     const usersTitle = await page.$eval('h1', el => el.textContent).catch(() => '');
     check('Users management page loads (admin)', usersTitle.length > 0, usersTitle);
 
     // ═══════════════════════════════════════════════════
-    // 12. CLIENT ROLE RESTRICTIONS
+    // 13. CLIENT ROLE RESTRICTIONS
     // ═══════════════════════════════════════════════════
-    section('12. CLIENT ROLE RESTRICTIONS');
+    section('13. CLIENT ROLE RESTRICTIONS');
 
     // Logout first — use correct backend URL
     await fetch(`${BACKEND}/auth/logout`, {
@@ -441,7 +531,7 @@ async function main() {
     // ═══════════════════════════════════════════════════
     // 13. BACKEND API ENDPOINT CHECKS
     // ═══════════════════════════════════════════════════
-    section('13. BACKEND API ENDPOINTS');
+    section('14. BACKEND API ENDPOINTS');
 
     // Login to get session for API calls
     const apiLoginRes = await fetch(`${BACKEND}/auth/login`, {
@@ -485,7 +575,7 @@ async function main() {
     // ═══════════════════════════════════════════════════
     // 14. SIMULATOR SENDING DATA
     // ═══════════════════════════════════════════════════
-    section('14. SIMULATOR DATA FLOW');
+    section('15. SIMULATOR DATA FLOW');
 
     const simStatusRes = await fetch(`${SIM}/health`);
     const simStatus = await simStatusRes.json();
