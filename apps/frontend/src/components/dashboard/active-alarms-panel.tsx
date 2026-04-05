@@ -36,23 +36,28 @@ export const ActiveAlarmsPanel = memo(function ActiveAlarmsPanel({ alarms }: Act
             <p className="text-xs text-muted-foreground/60 mt-1">{t('empty.alarmsBody')}</p>
           </div>
         ) : (
-          <div className="max-h-[320px] overflow-y-auto space-y-1">
-            {sorted.map((alarm) => (
-              <div
-                key={`${alarm.wordIndex}-${alarm.bitIndex}`}
-                className="flex items-center gap-3 py-3 px-2 border-b border-border last:border-0 hover:bg-muted/50 transition-colors duration-100"
-              >
-                <span className="text-xs font-mono text-wpt-red font-semibold min-w-[56px]">
-                  A{String(alarm.alarmIndex + 1).padStart(4, '0')}
-                </span>
-                <span className="text-sm text-foreground/80 flex-1">
-                  {formatters.alarmDescription(alarm)}
-                </span>
-                <span className="text-xs text-muted-foreground/60 shrink-0">
-                  {new Date(alarm.activatedAt).toLocaleTimeString()}
-                </span>
-              </div>
-            ))}
+          <div className="relative">
+            <div className="max-h-[320px] overflow-y-auto space-y-1">
+              {sorted.map((alarm) => (
+                <div
+                  key={`${alarm.wordIndex}-${alarm.bitIndex}`}
+                  className="flex items-center gap-3 py-3 px-2 border-b border-border last:border-0 hover:bg-muted/50 transition-colors duration-100"
+                >
+                  <span className="text-xs font-mono text-wpt-red font-semibold min-w-[56px]">
+                    A{String(alarm.alarmIndex + 1).padStart(4, '0')}
+                  </span>
+                  <span className="text-sm text-foreground/80 flex-1">
+                    {formatters.alarmDescription(alarm)}
+                  </span>
+                  <span className="text-xs text-muted-foreground/60 shrink-0">
+                    {new Date(alarm.activatedAt).toLocaleTimeString()}
+                  </span>
+                </div>
+              ))}
+            </div>
+            {alarms.length > 3 && (
+              <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-card to-transparent" />
+            )}
           </div>
         )}
       </CardContent>

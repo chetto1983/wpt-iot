@@ -34,6 +34,9 @@ export function DashboardSkeleton() {
         <Skeleton className="h-[200px] rounded-xl shadow-lg shadow-black/20 bg-muted" />
       </div>
 
+      {/* Technical signals card skeleton */}
+      <Skeleton className="h-[200px] rounded-xl shadow-lg shadow-black/20 bg-muted" />
+
       {/* Alarm panel skeleton */}
       <Skeleton className="h-[160px] w-full rounded-xl shadow-lg shadow-black/20 bg-muted" />
     </div>

@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useWsData } from '@/lib/ws-context';
 import { useAuth } from '@/lib/auth-context';
+import { Wifi, WifiOff } from 'lucide-react';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -37,7 +38,8 @@ function useClock() {
 export function AppHeader() {
   const pathname = usePathname();
   const t = useTranslations('common');
-  const { connected } = useWsData();
+  const tDash = useTranslations('dashboard');
+  const { connected, lastUpdate } = useWsData();
   const { user } = useAuth();
   const now = useClock();
 
@@ -69,14 +71,24 @@ export function AppHeader() {
         <div className="flex items-center gap-2">
           <Badge
             className={cn(
-              'text-xs px-2 py-0.5 rounded-full font-medium',
+              'text-xs px-2 py-0.5 rounded-full font-medium flex items-center gap-1',
               connected
                 ? 'border-transparent bg-wpt-teal/15 text-wpt-teal'
                 : 'border-transparent bg-wpt-gold/15 text-wpt-gold',
             )}
           >
+            {connected ? <Wifi className="size-3" /> : <WifiOff className="size-3" />}
             {connected ? t('header.online') : t('header.offline')}
           </Badge>
+          {!connected && lastUpdate && (() => {
+            const ageSeconds = Math.round((now.getTime() - lastUpdate.getTime()) / 1000);
+            const isStale = ageSeconds > 30;
+            return (
+              <span className={cn('text-xs tabular-nums', isStale ? 'text-wpt-gold' : 'text-muted-foreground')}>
+                {tDash('staleData', { seconds: ageSeconds })}
+              </span>
+            );
+          })()}
           <span className="text-xs text-muted-foreground tabular-nums">
             {timeStr}
           </span>

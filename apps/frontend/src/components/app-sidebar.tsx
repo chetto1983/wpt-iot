@@ -16,6 +16,7 @@ import {
   BarChart3,
   Radio,
   LogOut,
+  Loader2,
   KeyRound,
 } from 'lucide-react';
 
@@ -52,6 +53,7 @@ export function AppSidebar() {
   const pathname = usePathname();
   const [changePasswordOpen, setChangePasswordOpen] = useState(false);
   const [avatarDialogOpen, setAvatarDialogOpen] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
 
   if (!user) return null;
 
@@ -190,9 +192,13 @@ export function AppSidebar() {
             <SidebarMenuButton
               tooltip={t('signOut')}
               className="h-10 text-muted-foreground hover:bg-red-500/10 hover:text-red-400"
-              onClick={logout}
+              disabled={loggingOut}
+              onClick={async () => {
+                setLoggingOut(true);
+                await logout();
+              }}
             >
-              <LogOut className="!size-5 shrink-0" />
+              {loggingOut ? <Loader2 className="!size-5 shrink-0 animate-spin" /> : <LogOut className="!size-5 shrink-0" />}
               <span className="text-sm">{t('signOut')}</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
