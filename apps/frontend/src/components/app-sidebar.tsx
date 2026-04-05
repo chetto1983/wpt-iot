@@ -7,6 +7,7 @@ import { usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import {
   LayoutDashboard,
+  LayoutGrid,
   Users,
   UserCog,
   Briefcase,
@@ -57,6 +58,7 @@ export function AppSidebar() {
     { label: t('nav.dashboard'), href: '/dashboard', icon: LayoutDashboard },
     { label: t('nav.rfid'), href: '/rfid', icon: Users },
     { label: t('nav.jobs'), href: '/jobs', icon: Briefcase },
+    { label: t('nav.dashboards'), href: '/dashboards', icon: LayoutGrid },
   ];
 
   // Reports link visible to ALL authenticated roles

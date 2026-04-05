@@ -19,7 +19,8 @@
       "jobs": "Jobs",
       "reports": "Reports",
       "alarms": "Alarms",
-      "charts": "Charts"
+      "charts": "Charts",
+      "dashboards": "Dashboards"
     },
     "brandSubtitle": "IoT System",
     "signOut": "Sign Out",
@@ -425,5 +426,26 @@
       "weights": "Weights & Consumption",
       "timers": "Timers & Counters"
     }
+  },
+  "dashboards": {
+    "title": "Custom Dashboards",
+    "createNew": "New Dashboard",
+    "nameLabel": "Dashboard Name",
+    "namePlaceholder": "My Dashboard",
+    "noDashboards": "No custom dashboards yet",
+    "noDashboardsHint": "Create your first dashboard to start monitoring",
+    "open": "Open",
+    "delete": "Delete",
+    "confirmDelete": "Delete this dashboard? This cannot be undone.",
+    "addPanel": "Add Panel",
+    "save": "Save",
+    "saving": "Saving...",
+    "editing": "Editing",
+    "locked": "Locked",
+    "lockLayout": "Lock layout",
+    "unlockLayout": "Unlock for editing",
+    "emptyDashboard": "This dashboard has no panels yet",
+    "emptyDashboardHint": "Click 'Add Panel' to get started",
+    "panelPlaceholder": "Configure this panel"
   }
 }
