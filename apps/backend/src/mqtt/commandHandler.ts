@@ -1,11 +1,28 @@
 import type { MqttClient, IPublishPacket } from 'mqtt';
 import type { FastifyBaseLogger } from 'fastify';
 import type { IMqttCommandResponse } from '@wpt/types';
-import { MqttCommandRequestSchema, JobDataSchema, RfidUserSchema, mqttTopic } from '@wpt/types';
-import { writeJob, writeUsers } from '../udp/handshakeFsm.js';
+import { MqttCommandRequestSchema, JobDataSchema, RfidUserSchema, mqttTopic, RemoteCycleSelection, CycleType } from '@wpt/types';
+import { readJob, writeJob, writeUsers } from '../udp/handshakeFsm.js';
 import { getSockets } from '../udp/sockets.js';
 import { config } from '../config.js';
 import { CommandQueue } from './commandQueue.js';
+import { z } from 'zod/v4';
+
+/** Cycle command payload: remoteCycleSelection and/or cycleType */
+const CycleCommandSchema = z.object({
+  remoteCycleSelection: z.enum(RemoteCycleSelection).optional(),
+  cycleType: z.enum(CycleType).optional(),
+}).check(
+  (ctx) => {
+    if (ctx.value.remoteCycleSelection === undefined && ctx.value.cycleType === undefined) {
+      ctx.issues.push({
+        code: 'custom',
+        message: 'At least one of remoteCycleSelection or cycleType must be provided',
+        input: ctx.value,
+      });
+    }
+  },
+);
 
 // Module-level state
 let client: MqttClient | null = null;
@@ -161,7 +178,46 @@ async function routeCommand(
     }
 
     case 'cycle': {
-      response = errorResponse(requestId, 'Cycle commands not yet implemented');
+      const cycleValidation = CycleCommandSchema.safeParse(commandPayload);
+      if (!cycleValidation.success) {
+        response = errorResponse(requestId, `Invalid cycle data: ${cycleValidation.error.message}`);
+        break;
+      }
+      const cycleParams = cycleValidation.data;
+
+      response = await commandQueue.enqueue(requestId, async () => {
+        const start = Date.now();
+        const sockets = getSockets();
+
+        // Read current job data from PLC to preserve non-cycle fields
+        let currentJob;
+        try {
+          currentJob = await readJob(sockets.ackSocket, sockets.dataSocket, log!);
+        } catch (readErr) {
+          return {
+            requestId,
+            status: 'error' as const,
+            message: `Failed to read current job data: ${(readErr as Error).message}`,
+            timestamp: new Date().toISOString(),
+          };
+        }
+
+        // Overlay cycle-specific fields onto current job data
+        const compositeJob = {
+          ...currentJob,
+          ...(cycleParams.remoteCycleSelection !== undefined && { remoteCycleSelection: cycleParams.remoteCycleSelection }),
+          ...(cycleParams.cycleType !== undefined && { cycleType: cycleParams.cycleType }),
+        };
+
+        // Write composite job back to PLC
+        await writeJob(sockets.ackSocket, sockets.dataSocket, compositeJob, log!);
+        return {
+          requestId,
+          status: 'success' as const,
+          timestamp: new Date().toISOString(),
+          handshakeDurationMs: Date.now() - start,
+        };
+      });
       break;
     }
 
