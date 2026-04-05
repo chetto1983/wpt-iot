@@ -6,6 +6,7 @@ import { startUdpPipeline, stopUdpPipeline } from './udp/index.js';
 import { initBroadcaster, shutdownBroadcaster } from './ws/broadcaster.js';
 import { initMqttPublisher, shutdownMqttPublisher } from './mqtt/publisher.js';
 import { initCommandHandler, shutdownCommandHandler } from './mqtt/commandHandler.js';
+import { MqttConfigService } from './mqtt/configService.js';
 import { pool } from './db/index.js';
 
 function setupGracefulShutdown(server: ReturnType<typeof buildServer>): void {
@@ -62,6 +63,9 @@ async function main(): Promise<void> {
 
     // Seed default admin account if auth_users table is empty
     await seedDefaultAdmin(server.log);
+
+    // Ensure MQTT config table exists with default row
+    await MqttConfigService.ensureTable();
 
     // Start UDP pipeline after server is listening
     await startUdpPipeline(server.log);

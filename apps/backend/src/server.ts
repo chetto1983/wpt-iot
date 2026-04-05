@@ -19,6 +19,7 @@ import { reportRoutes } from './routes/reports.js';
 import { alarmReportRoutes } from './routes/alarmReports.js';
 import { chartRoutes } from './routes/charts.js';
 import { dashboardRoutes } from './routes/dashboards.js';
+import { mqttRoutes } from './routes/mqtt.js';
 import mqttPlugin from './mqtt/plugin.js';
 import { wsRoute } from './ws/route.js';
 
@@ -120,6 +121,9 @@ export function buildServer(): ReturnType<typeof Fastify> {
 
   // 18. MQTT broker connection
   server.register(mqttPlugin);
+
+  // 19. MQTT admin routes (Super Admin only)
+  server.register(mqttRoutes);
 
   return server;
 }
