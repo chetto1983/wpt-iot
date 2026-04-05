@@ -14,6 +14,7 @@ import {
   FileText,
   AlertTriangle,
   BarChart3,
+  Radio,
   LogOut,
   KeyRound,
 } from 'lucide-react';
@@ -74,6 +75,7 @@ export function AppSidebar() {
 
   const adminItems: NavItem[] = [
     { label: t('nav.users'), href: '/users', icon: UserCog },
+    { label: t('nav.mqtt'), href: '/mqtt', icon: Radio },
   ];
 
   const isWptOrAdmin = user.role === 'SUPER_ADMIN' || user.role === 'WPT';
