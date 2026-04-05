@@ -4,6 +4,7 @@ import { loadAlarmDescriptions } from './i18n/alarmDescriptions.js';
 import { seedDefaultAdmin } from './auth/seed.js';
 import { startUdpPipeline, stopUdpPipeline } from './udp/index.js';
 import { initBroadcaster, shutdownBroadcaster } from './ws/broadcaster.js';
+import { initMqttPublisher, shutdownMqttPublisher } from './mqtt/publisher.js';
 import { pool } from './db/index.js';
 
 function setupGracefulShutdown(server: ReturnType<typeof buildServer>): void {
@@ -24,10 +25,14 @@ function setupGracefulShutdown(server: ReturnType<typeof buildServer>): void {
       shutdownBroadcaster();
       server.log.info({ name: 'Shutdown' }, 'WebSocket broadcaster stopped');
 
-      // 3. Stop UDP pipeline (close sockets)
+      // 3. Shut down MQTT publisher
+      shutdownMqttPublisher();
+      server.log.info({ name: 'Shutdown' }, 'MQTT publisher stopped');
+
+      // 4. Stop UDP pipeline (close sockets)
       stopUdpPipeline(server.log);
 
-      // 4. Close database connection pool
+      // 5. Close database connection pool
       await pool.end();
       server.log.info({ name: 'Shutdown' }, 'Database pool closed');
 
@@ -61,6 +66,11 @@ async function main(): Promise<void> {
 
     // Initialize WebSocket broadcaster (subscribes to dataHub, seeds active alarms)
     await initBroadcaster(server.log);
+
+    // Initialize MQTT publisher (subscribes to dataHub, publishes to MQTT topics)
+    if (server.mqtt) {
+      await initMqttPublisher(server.mqtt, server.log);
+    }
 
     // Register graceful shutdown (must have server reference)
     setupGracefulShutdown(server);
