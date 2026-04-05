@@ -114,6 +114,12 @@ export function FieldSelector({
       <CardContent className="p-4">
         <h2 className="text-sm font-semibold mb-3">{t('selectFields')}</h2>
 
+        {atMax && (
+          <p className="text-xs text-wpt-gold px-3 py-1.5 mb-2 rounded-md bg-wpt-gold/10 sticky top-0 z-10">
+            {t('fieldCountMax')}
+          </p>
+        )}
+
         {categories.map(({ key, fields }) => {
           const selectedInGroup = fields.filter((f) =>
             selected.includes(f),

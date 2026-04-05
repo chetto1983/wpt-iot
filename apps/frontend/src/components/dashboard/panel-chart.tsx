@@ -19,9 +19,13 @@ import {
   Legend,
 } from 'recharts';
 import { format } from 'date-fns';
+import { ErrorBoundary } from 'react-error-boundary';
+import { useTranslations } from 'next-intl';
+import { AlertCircle } from 'lucide-react';
 import type { ChartType, IPanelConfig } from '@wpt/types';
 import { getFieldLabel } from '@/lib/field-labels';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Button } from '@/components/ui/button';
 
 const CHART_COLORS = [
   'var(--color-chart-1)',
@@ -33,6 +37,19 @@ const CHART_COLORS = [
   '#2ecc71',
   '#e67e22',
 ];
+
+function PanelErrorFallback({ resetErrorBoundary }: { resetErrorBoundary: () => void }) {
+  const t = useTranslations('dashboards');
+  return (
+    <div className="flex h-full flex-col items-center justify-center gap-2 p-4">
+      <AlertCircle className="size-6 text-destructive" />
+      <p className="text-sm text-destructive">{t('panelError')}</p>
+      <Button variant="outline" size="sm" onClick={resetErrorBoundary}>
+        {t('retryPanel')}
+      </Button>
+    </div>
+  );
+}
 
 function formatTick(epochMs: number, resolution: string): string {
   const d = new Date(epochMs);
@@ -59,35 +76,35 @@ export function PanelChart({
   loading,
 }: PanelChartProps) {
   if (loading) {
-    return <Skeleton className="h-full w-full" />;
+    return <Skeleton className="h-full w-full min-h-[200px]" />;
   }
 
   if (data.length === 0) {
     return (
-      <div className="flex h-full w-full items-center justify-center">
+      <div className="flex h-full w-full items-center justify-center min-h-[200px]">
         <p className="text-sm text-muted-foreground">No data</p>
       </div>
     );
   }
 
-  if (chartType === 'pie') {
-    return (
-      <PieChartRenderer
-        config={config}
-        data={data}
-        locale={locale}
-      />
-    );
-  }
-
   return (
-    <TimeSeriesRenderer
-      chartType={chartType}
-      config={config}
-      data={data}
-      resolution={resolution}
-      locale={locale}
-    />
+    <ErrorBoundary FallbackComponent={PanelErrorFallback}>
+      {chartType === 'pie' ? (
+        <PieChartRenderer
+          config={config}
+          data={data}
+          locale={locale}
+        />
+      ) : (
+        <TimeSeriesRenderer
+          chartType={chartType}
+          config={config}
+          data={data}
+          resolution={resolution}
+          locale={locale}
+        />
+      )}
+    </ErrorBoundary>
   );
 }
 

@@ -193,6 +193,7 @@ function AlarmsContent({ locale }: { locale: string }) {
           downloadCsv: t('downloadCsv'),
           downloadPdf: t('downloadPdf'),
           downloading: t('downloading'),
+          disabledTooltip: t('tooltip.selectDateRange'),
         }}
       >
         <div className="flex flex-col gap-1.5">

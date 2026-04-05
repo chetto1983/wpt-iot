@@ -427,7 +427,10 @@
     "dateRangeLabel": "Intervallo Date",
     "dateRangePlaceholder": "Seleziona intervallo date",
     "fromTimeLabel": "Da",
-    "toTimeLabel": "A"
+    "toTimeLabel": "A",
+    "tooltip": {
+      "selectDateRange": "Seleziona prima un intervallo di date"
+    }
   },
   "charts": {
     "title": "Grafici",

@@ -155,6 +155,7 @@ export default function ReportsPage() {
           downloadCsv: t('downloadCsv'),
           downloadPdf: t('downloadPdf'),
           downloading: t('downloading'),
+          disabledTooltip: t('tooltip.selectDateRange'),
         }}
       />
 

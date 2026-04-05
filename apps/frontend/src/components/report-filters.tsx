@@ -8,6 +8,12 @@ import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { DateRangePicker } from '@/components/date-range-picker';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 
 type ExportFormat = 'csv' | 'pdf';
 
@@ -35,6 +41,7 @@ interface ReportFiltersProps {
     downloadCsv: string;
     downloadPdf: string;
     downloading: string;
+    disabledTooltip?: string;
   };
   children?: React.ReactNode;
 }
@@ -133,25 +140,49 @@ export function ReportFilters({
           >
             PDF
           </Button>
-          <Button
-            variant="default"
-            disabled={!canDownload}
-            onClick={onDownload}
-          >
-            {downloading ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                {translations.downloading}
-              </>
-            ) : (
-              <>
-                <Download className="mr-2 h-4 w-4" />
-                {exportFormat === 'csv'
-                  ? translations.downloadCsv
-                  : translations.downloadPdf}
-              </>
-            )}
-          </Button>
+          {!canDownload && translations.disabledTooltip ? (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger
+                  render={<span tabIndex={0} className="inline-flex" />}
+                >
+                  <Button
+                    variant="default"
+                    disabled
+                    onClick={onDownload}
+                  >
+                    <Download className="mr-2 h-4 w-4" />
+                    {exportFormat === 'csv'
+                      ? translations.downloadCsv
+                      : translations.downloadPdf}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>{translations.disabledTooltip}</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          ) : (
+            <Button
+              variant="default"
+              disabled={!canDownload}
+              onClick={onDownload}
+            >
+              {downloading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  {translations.downloading}
+                </>
+              ) : (
+                <>
+                  <Download className="mr-2 h-4 w-4" />
+                  {exportFormat === 'csv'
+                    ? translations.downloadCsv
+                    : translations.downloadPdf}
+                </>
+              )}
+            </Button>
+          )}
         </div>
       </div>
     </Card>

@@ -427,7 +427,10 @@
     "dateRangeLabel": "Date Range",
     "dateRangePlaceholder": "Select date range",
     "fromTimeLabel": "From",
-    "toTimeLabel": "To"
+    "toTimeLabel": "To",
+    "tooltip": {
+      "selectDateRange": "Select a date range first"
+    }
   },
   "charts": {
     "title": "Charts",
