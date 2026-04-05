@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import React, { useMemo } from 'react';
 import {
   ResponsiveContainer,
   LineChart,
@@ -23,20 +23,10 @@ import { ErrorBoundary } from 'react-error-boundary';
 import { useTranslations } from 'next-intl';
 import { AlertCircle } from 'lucide-react';
 import type { ChartType, IPanelConfig } from '@wpt/types';
+import { CHART_COLORS } from '@/lib/chart-colors';
 import { getFieldLabel } from '@/lib/field-labels';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
-
-const CHART_COLORS = [
-  'var(--color-chart-1)',
-  'var(--color-chart-2)',
-  'var(--color-chart-3)',
-  '#3498db',
-  '#9b59b6',
-  '#f39c12',
-  '#2ecc71',
-  '#e67e22',
-];
 
 function PanelErrorFallback({ resetErrorBoundary }: { resetErrorBoundary: () => void }) {
   const t = useTranslations('dashboards');
@@ -67,7 +57,7 @@ interface PanelChartProps {
   loading?: boolean;
 }
 
-export function PanelChart({
+export const PanelChart = React.memo(function PanelChart({
   chartType,
   config,
   data,
@@ -106,7 +96,7 @@ export function PanelChart({
       )}
     </ErrorBoundary>
   );
-}
+});
 
 /* ----- Pie Chart (aggregated averages) ----- */
 

@@ -3,9 +3,17 @@
 import { useEffect } from 'react';
 import type { ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
-import { Settings, Maximize2, Minimize2, X } from 'lucide-react';
+import { MoreVertical, Settings, Maximize2, Minimize2, Trash2 } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 interface DashboardPanelProps {
   title: string;
@@ -54,47 +62,59 @@ export function DashboardPanel({
         className={
           fullscreen
             ? 'fixed inset-0 z-50 flex flex-col overflow-auto rounded-none border-0 bg-background'
-            : 'flex h-full flex-col overflow-hidden'
+            : 'group/panel flex h-full flex-col overflow-hidden'
         }
       >
         <div className="flex items-center justify-between border-b px-3 py-2">
           <div className="drag-handle cursor-move flex-1 truncate">
             <h3 className="text-sm font-medium truncate">{title}</h3>
           </div>
-          <div className="flex items-center gap-1">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-6 w-6 min-h-11 min-w-11"
-              onClick={onEdit}
-              aria-label={t('panel.ariaSettings')}
-            >
-              <Settings className="h-3.5 w-3.5" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-6 w-6 min-h-11 min-w-11"
-              onClick={onMaximize}
-              aria-label={t('panel.ariaMaximize')}
-            >
-              {fullscreen ? (
-                <Minimize2 className="h-3.5 w-3.5" />
-              ) : (
-                <Maximize2 className="h-3.5 w-3.5" />
-              )}
-            </Button>
-            {editMode && (
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-6 w-6 min-h-11 min-w-11 text-destructive hover:text-destructive"
-                onClick={onDelete}
-                aria-label={t('panel.ariaDelete')}
+          {/* Controls: opacity-0 on hover in view mode, always visible in edit mode */}
+          <div className={cn(
+            'flex items-center gap-1 transition-opacity duration-150',
+            editMode ? 'opacity-100' : 'opacity-0 group-hover/panel:opacity-100'
+          )}>
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                render={
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7"
+                    aria-label={t('panelActions.settings')}
+                  />
+                }
               >
-                <X className="h-3.5 w-3.5" />
-              </Button>
-            )}
+                <MoreVertical className="h-4 w-4" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={onEdit}>
+                  <Settings className="mr-2 h-4 w-4" />
+                  {t('panelActions.settings')}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={onMaximize}>
+                  {fullscreen ? (
+                    <>
+                      <Minimize2 className="mr-2 h-4 w-4" />
+                      {t('panelActions.restore')}
+                    </>
+                  ) : (
+                    <>
+                      <Maximize2 className="mr-2 h-4 w-4" />
+                      {t('panelActions.maximize')}
+                    </>
+                  )}
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={onDelete}
+                  variant="destructive"
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  {t('panelActions.delete')}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
         <CardContent className="flex-1 p-2 overflow-hidden">
