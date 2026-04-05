@@ -104,9 +104,9 @@ describe('scenarios', () => {
   });
 
   describe('SCENARIOS.normal', () => {
-    it('sets machineStatus=RUNNING (3) and selectedCycle=DRY_MIXED (3)', () => {
+    it('sets machineStatus=EVAPORATION (3) and selectedCycle=DRY_MIXED (3)', () => {
       const scenario = SCENARIOS['normal']!;
-      expect(scenario.machine.machineStatus).toBe(MachineStatus.RUNNING);
+      expect(scenario.machine.machineStatus).toBe(MachineStatus.EVAPORATION);
       expect(scenario.machine.selectedCycle).toBe(CycleType.DRY_MIXED);
     });
 
@@ -117,9 +117,9 @@ describe('scenarios', () => {
   });
 
   describe('SCENARIOS.alarmStorm', () => {
-    it('sets machineStatus=ALARM (5) and has alarm bits set', () => {
+    it('sets machineStatus=LOADING (0) with IN_ALARM phase and has alarm bits set', () => {
       const scenario = SCENARIOS['alarmStorm']!;
-      expect(scenario.machine.machineStatus).toBe(MachineStatus.ALARM);
+      expect(scenario.machine.machineStatus).toBe(MachineStatus.LOADING);
       expect(scenario.alarms.words[0]).not.toBe(0);
     });
 
@@ -132,17 +132,17 @@ describe('scenarios', () => {
   });
 
   describe('SCENARIOS.maintenance', () => {
-    it('sets machineStatus=MAINTENANCE (6) and selectedCycle=NO_CYCLE (0)', () => {
+    it('sets machineStatus=LOADING (0) with MANUAL phase and selectedCycle=NO_CYCLE (0)', () => {
       const scenario = SCENARIOS['maintenance']!;
-      expect(scenario.machine.machineStatus).toBe(MachineStatus.MAINTENANCE);
+      expect(scenario.machine.machineStatus).toBe(MachineStatus.LOADING);
       expect(scenario.machine.selectedCycle).toBe(CycleType.NO_CYCLE);
     });
   });
 
   describe('SCENARIOS.idle', () => {
-    it('sets machineStatus=STANDBY (1) and sensor values near zero/ambient', () => {
+    it('sets machineStatus=LOADING (0) with STANDBY phase and sensor values near zero/ambient', () => {
       const scenario = SCENARIOS['idle']!;
-      expect(scenario.machine.machineStatus).toBe(MachineStatus.STANDBY);
+      expect(scenario.machine.machineStatus).toBe(MachineStatus.LOADING);
       expect(scenario.machine.garbageTemp).toBe(22);
       expect(scenario.machine.chamberPressure).toBe(10);
       expect(scenario.machine.mainMotorSpeed).toBe(0);
@@ -154,7 +154,7 @@ describe('scenarios', () => {
     it('updates simulatorState.machine and alarms coherently for normal', () => {
       applyScenario('normal');
       const state = getState();
-      expect(state.machine.machineStatus).toBe(MachineStatus.RUNNING);
+      expect(state.machine.machineStatus).toBe(MachineStatus.EVAPORATION);
       expect(state.machine.selectedCycle).toBe(CycleType.DRY_MIXED);
       expect(state.machine.garbageTemp).toBe(180);
       expect(state.alarms.words.every(w => w === 0)).toBe(true);
@@ -163,7 +163,7 @@ describe('scenarios', () => {
     it('updates alarms for alarmStorm scenario', () => {
       applyScenario('alarmStorm');
       const state = getState();
-      expect(state.machine.machineStatus).toBe(MachineStatus.ALARM);
+      expect(state.machine.machineStatus).toBe(MachineStatus.LOADING);
       expect(state.alarms.words[0]).toBe(0x0303);
     });
   });

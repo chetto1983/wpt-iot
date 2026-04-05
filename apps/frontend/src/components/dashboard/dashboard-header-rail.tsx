@@ -3,7 +3,7 @@
 import { memo } from 'react';
 import { useTranslations } from 'next-intl';
 import type { IMachineSnapshot } from '@wpt/types';
-import { MachineStatus } from '@wpt/types';
+import { MachinePhase } from '@wpt/types';
 import { Badge } from '@/components/ui/badge';
 import { useDashboardFormatters } from '@/lib/dashboard/formatters';
 import type { DashboardConnectionState } from '@/lib/dashboard/selectors';
@@ -22,8 +22,8 @@ export const DashboardHeaderRail = memo(function DashboardHeaderRail({
 
   const isLive = connectionState === 'live';
   const statusValue = machineData?.machineStatus;
-  const isAlarmOrEmergency =
-    statusValue === MachineStatus.ALARM || statusValue === MachineStatus.EMERGENCY;
+  const phaseValue = machineData?.currentPhase;
+  const isAlarmOrEmergency = phaseValue === MachinePhase.IN_ALARM;
 
   return (
     <div className="flex flex-wrap items-start justify-between gap-4">

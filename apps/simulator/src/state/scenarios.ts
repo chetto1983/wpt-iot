@@ -17,8 +17,8 @@ export const SCENARIOS: Record<string, IScenarioPreset> = {
     name: 'Normal Operation',
     machine: {
       selectedCycle: CycleType.DRY_MIXED,
-      machineStatus: MachineStatus.RUNNING,
-      currentPhase: MachinePhase.PROCESSING,
+      machineStatus: MachineStatus.EVAPORATION,
+      currentPhase: MachinePhase.AUTOMATIC_STARTED,
       garbageTemp: 180,
       holdingTempSetpoint: 190,
       chamberPressure: 500,
@@ -63,8 +63,8 @@ export const SCENARIOS: Record<string, IScenarioPreset> = {
     name: 'Alarm Storm',
     machine: {
       selectedCycle: CycleType.DRY_MIXED,
-      machineStatus: MachineStatus.ALARM,
-      currentPhase: MachinePhase.PROCESSING,
+      machineStatus: MachineStatus.LOADING,
+      currentPhase: MachinePhase.IN_ALARM,
       garbageTemp: 220,
       chamberPressure: 1500,
       mainMotorSpeed: 0,
@@ -97,8 +97,8 @@ export const SCENARIOS: Record<string, IScenarioPreset> = {
     name: 'Maintenance Mode',
     machine: {
       selectedCycle: CycleType.NO_CYCLE,
-      machineStatus: MachineStatus.MAINTENANCE,
-      currentPhase: MachinePhase.IDLE,
+      machineStatus: MachineStatus.LOADING,
+      currentPhase: MachinePhase.MANUAL,
       garbageTemp: 22,
       holdingTempSetpoint: 0,
       chamberPressure: 0,
@@ -141,8 +141,8 @@ export const SCENARIOS: Record<string, IScenarioPreset> = {
     name: 'Idle / Standby',
     machine: {
       selectedCycle: CycleType.NO_CYCLE,
-      machineStatus: MachineStatus.STANDBY,
-      currentPhase: MachinePhase.IDLE,
+      machineStatus: MachineStatus.LOADING,
+      currentPhase: MachinePhase.STANDBY,
       garbageTemp: 22,
       holdingTempSetpoint: 0,
       chamberPressure: 10,

@@ -120,7 +120,7 @@ describe('REST API', () => {
   });
 
   describe('Scenario integration', () => {
-    it('GET /api/state after applying alarmStorm shows machineStatus=5', async () => {
+    it('GET /api/state after applying alarmStorm shows currentPhase=4 (IN_ALARM)', async () => {
       await app.inject({
         method: 'POST',
         url: '/api/scenario',
@@ -129,7 +129,8 @@ describe('REST API', () => {
       const res = await app.inject({ method: 'GET', url: '/api/state' });
       expect(res.statusCode).toBe(200);
       const body = res.json();
-      expect(body.machine.machineStatus).toBe(5); // ALARM
+      expect(body.machine.machineStatus).toBe(0); // LOADING (frozen sub-stage)
+      expect(body.machine.currentPhase).toBe(4); // IN_ALARM
     });
   });
 });

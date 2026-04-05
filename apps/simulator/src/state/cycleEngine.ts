@@ -41,7 +41,7 @@ const STAGE_PROFILES: IStageProfile[] = [
   {
     name: 'LOADING',
     durationTicks: 4,  // 60s
-    currentPhase: MachinePhase.LOADING,
+    currentPhase: MachinePhase.AUTOMATIC_STARTED,
     targets: {
       garbageTemp: 30,
       chamberPressure: 20,
@@ -63,7 +63,7 @@ const STAGE_PROFILES: IStageProfile[] = [
   {
     name: 'SHREDDING',
     durationTicks: 6,  // 90s
-    currentPhase: MachinePhase.PROCESSING,
+    currentPhase: MachinePhase.AUTOMATIC_STARTED,
     targets: {
       garbageTemp: 50,
       chamberPressure: 50,
@@ -85,7 +85,7 @@ const STAGE_PROFILES: IStageProfile[] = [
   {
     name: 'HEATING',
     durationTicks: 8,  // 120s
-    currentPhase: MachinePhase.PROCESSING,
+    currentPhase: MachinePhase.AUTOMATIC_STARTED,
     targets: {
       garbageTemp: 120,
       chamberPressure: 200,
@@ -107,7 +107,7 @@ const STAGE_PROFILES: IStageProfile[] = [
   {
     name: 'EVAPORATION',
     durationTicks: 10, // 150s
-    currentPhase: MachinePhase.PROCESSING,
+    currentPhase: MachinePhase.AUTOMATIC_STARTED,
     targets: {
       garbageTemp: 170,
       chamberPressure: 800,
@@ -129,7 +129,7 @@ const STAGE_PROFILES: IStageProfile[] = [
   {
     name: 'OVERHEATING',
     durationTicks: 4,  // 60s
-    currentPhase: MachinePhase.PROCESSING,
+    currentPhase: MachinePhase.AUTOMATIC_STARTED,
     targets: {
       garbageTemp: 195,
       chamberPressure: 600,
@@ -151,7 +151,7 @@ const STAGE_PROFILES: IStageProfile[] = [
   {
     name: 'HOLDING',
     durationTicks: 6,  // 90s
-    currentPhase: MachinePhase.DRYING,
+    currentPhase: MachinePhase.AUTOMATIC_STARTED,
     targets: {
       garbageTemp: 190,
       chamberPressure: 500,
@@ -173,7 +173,7 @@ const STAGE_PROFILES: IStageProfile[] = [
   {
     name: 'COOLING',
     durationTicks: 8,  // 120s
-    currentPhase: MachinePhase.DRYING,
+    currentPhase: MachinePhase.AUTOMATIC_STARTED,
     targets: {
       garbageTemp: 120,
       chamberPressure: 300,
@@ -195,7 +195,7 @@ const STAGE_PROFILES: IStageProfile[] = [
   {
     name: 'FINAL_DRYING',
     durationTicks: 6,  // 90s
-    currentPhase: MachinePhase.DRYING,
+    currentPhase: MachinePhase.AUTOMATIC_STARTED,
     targets: {
       garbageTemp: 80,
       chamberPressure: 100,
@@ -217,7 +217,7 @@ const STAGE_PROFILES: IStageProfile[] = [
   {
     name: 'DISCHARGE',
     durationTicks: 3,  // 45s
-    currentPhase: MachinePhase.UNLOADING,
+    currentPhase: MachinePhase.AUTOMATIC_STARTED,
     targets: {
       garbageTemp: 60,
       chamberPressure: 20,

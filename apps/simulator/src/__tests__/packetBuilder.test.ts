@@ -59,7 +59,7 @@ describe('machine data packet', () => {
   });
 
   it('writes machineStatus (S1_I_DATO_61, INT) at offset 120', () => {
-    data.machineStatus = MachineStatus.RUNNING;
+    data.machineStatus = MachineStatus.EVAPORATION;
     const buf = buildMachineDataPacket(data);
     expect(buf.readInt16BE(120)).toBe(3);
   });
