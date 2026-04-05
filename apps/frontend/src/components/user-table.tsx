@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Loader2, MoreHorizontal, Pencil, Trash2, KeyRound, UserPlus } from 'lucide-react';
+import { toast } from 'sonner';
 
 import { useAuth } from '@/lib/auth-context';
 import { apiFetch } from '@/lib/api';
@@ -74,8 +75,8 @@ export function UserTable() {
     try {
       const data = await apiFetch<UserRow[]>('/users');
       setUsers(data);
-    } catch {
-      // Error handled by apiFetch (401 redirect)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : tCommon('error'));
     } finally {
       setLoading(false);
     }

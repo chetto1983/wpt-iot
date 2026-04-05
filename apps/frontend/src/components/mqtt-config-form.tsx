@@ -36,6 +36,7 @@ interface MqttConfigFormProps {
 
 export function MqttConfigForm({ config, onSaved }: MqttConfigFormProps) {
   const t = useTranslations('mqtt');
+  const tCommon = useTranslations('common');
 
   const [enabled, setEnabled] = useState(config.enabled);
   const [siteId, setSiteId] = useState(config.siteId);
@@ -68,12 +69,12 @@ export function MqttConfigForm({ config, onSaved }: MqttConfigFormProps) {
       toast.success(t('config.saved'));
       onSaved();
     } catch (err) {
-      const msg = err instanceof Error ? err.message : t('config.saved');
+      const msg = err instanceof Error ? err.message : tCommon('error');
       toast.error(msg);
     } finally {
       setSaving(false);
     }
-  }, [enabled, siteId, machineId, publishMachine, publishAlarms, publishRfid, publishJobs, useTls, caCert, onSaved, t]);
+  }, [enabled, siteId, machineId, publishMachine, publishAlarms, publishRfid, publishJobs, useTls, caCert, onSaved, t, tCommon]);
 
   return (
     <Card>
@@ -93,7 +94,7 @@ export function MqttConfigForm({ config, onSaved }: MqttConfigFormProps) {
 
         {/* Site ID */}
         <div className="grid gap-2">
-          <Label htmlFor="mqtt-site-id">{t('config.siteId')}</Label>
+          <Label htmlFor="mqtt-site-id">{t('config.siteId')} <span className="text-destructive">*</span></Label>
           <Input
             id="mqtt-site-id"
             value={siteId}
@@ -103,7 +104,7 @@ export function MqttConfigForm({ config, onSaved }: MqttConfigFormProps) {
 
         {/* Machine ID */}
         <div className="grid gap-2">
-          <Label htmlFor="mqtt-machine-id">{t('config.machineId')}</Label>
+          <Label htmlFor="mqtt-machine-id">{t('config.machineId')} <span className="text-destructive">*</span></Label>
           <Input
             id="mqtt-machine-id"
             value={machineId}

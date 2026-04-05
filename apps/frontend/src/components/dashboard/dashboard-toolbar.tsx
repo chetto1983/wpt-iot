@@ -57,8 +57,9 @@ export function DashboardToolbar({
           />
         </div>
         <div className="space-y-0.5">
-          <Label className="text-[10px] text-muted-foreground">{t('fromTimeLabel')}</Label>
+          <Label htmlFor="dashboard-from-time" className="text-[10px] text-muted-foreground">{t('fromTimeLabel')}</Label>
           <Input
+            id="dashboard-from-time"
             type="time"
             value={fromTime}
             onChange={(e) => onFromTimeChange(e.target.value)}
@@ -66,8 +67,9 @@ export function DashboardToolbar({
           />
         </div>
         <div className="space-y-0.5">
-          <Label className="text-[10px] text-muted-foreground">{t('toTimeLabel')}</Label>
+          <Label htmlFor="dashboard-to-time" className="text-[10px] text-muted-foreground">{t('toTimeLabel')}</Label>
           <Input
+            id="dashboard-to-time"
             type="time"
             value={toTime}
             onChange={(e) => onToTimeChange(e.target.value)}

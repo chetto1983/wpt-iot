@@ -55,12 +55,8 @@ export function ChangeOwnPasswordDialog({ open, onOpenChange }: ChangeOwnPasswor
         toast.success(t('changePassword.success'));
         onOpenChange(false);
       } catch (err) {
-        const msg = err instanceof Error ? err.message : '';
-        if (msg.includes('incorrect') || msg.includes('wrong') || msg.includes('invalid')) {
-          toast.error(msg);
-        } else {
-          toast.error(tCommon('error'));
-        }
+        const msg = err instanceof Error ? err.message : tCommon('error');
+        toast.error(msg);
       } finally {
         setSubmitting(false);
       }
