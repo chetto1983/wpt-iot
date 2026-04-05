@@ -13,6 +13,7 @@
       "CLIENT": "Client"
     },
     "nav": {
+      "home": "Home",
       "dashboard": "Dashboard",
       "users": "Users",
       "rfid": "RFID Users",
@@ -135,7 +136,7 @@
     }
   },
   "dashboard": {
-    "title": "Dashboard",
+    "title": "Home",
     "subtitle": "Live machine overview",
     "connection": {
       "live": "Live data",
@@ -502,6 +503,48 @@
       "ariaDelete": "Delete panel",
       "ariaMaximize": "Maximize panel",
       "ariaSettings": "Panel settings"
+    },
+    "timeRange": {
+      "last15min": "Last 15 minutes",
+      "last1h": "Last 1 hour",
+      "last6h": "Last 6 hours",
+      "last12h": "Last 12 hours",
+      "last24h": "Last 24 hours",
+      "todaySoFar": "Today so far",
+      "last7d": "Last 7 days",
+      "last30d": "Last 30 days",
+      "custom": "Custom range",
+      "from": "From",
+      "to": "To",
+      "apply": "Apply"
+    },
+    "autoRefresh": "Auto-refresh",
+    "lastUpdated": "Updated {time}",
+    "panelActions": {
+      "settings": "Settings",
+      "maximize": "Maximize",
+      "restore": "Restore",
+      "delete": "Delete"
+    },
+    "undoDelete": "Panel deleted",
+    "undoAction": "Undo",
+    "emptyState": {
+      "title": "Build your dashboard",
+      "subtitle": "Choose a chart type to add your first panel",
+      "line": "Line Chart",
+      "lineDesc": "Time-series trends",
+      "bar": "Bar Chart",
+      "barDesc": "Compare values",
+      "area": "Area Chart",
+      "areaDesc": "Filled trends",
+      "pie": "Pie Chart",
+      "pieDesc": "Distribution"
+    },
+    "deleteDashboard": {
+      "title": "Delete Dashboard",
+      "description": "This dashboard and all its panels will be permanently removed. This action cannot be undone.",
+      "cancel": "Cancel",
+      "confirm": "Delete"
     }
   },
   "mqtt": {

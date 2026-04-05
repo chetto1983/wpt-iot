@@ -13,6 +13,7 @@
       "CLIENT": "Client"
     },
     "nav": {
+      "home": "Home",
       "dashboard": "Cruscotto",
       "users": "Utenti",
       "rfid": "Utenti RFID",
@@ -135,7 +136,7 @@
     }
   },
   "dashboard": {
-    "title": "Cruscotto",
+    "title": "Home",
     "subtitle": "Panoramica live macchina",
     "connection": {
       "live": "Dati live",
@@ -502,6 +503,48 @@
       "ariaDelete": "Elimina pannello",
       "ariaMaximize": "Massimizza pannello",
       "ariaSettings": "Impostazioni pannello"
+    },
+    "timeRange": {
+      "last15min": "Ultimi 15 minuti",
+      "last1h": "Ultima ora",
+      "last6h": "Ultime 6 ore",
+      "last12h": "Ultime 12 ore",
+      "last24h": "Ultime 24 ore",
+      "todaySoFar": "Oggi finora",
+      "last7d": "Ultimi 7 giorni",
+      "last30d": "Ultimi 30 giorni",
+      "custom": "Intervallo personalizzato",
+      "from": "Da",
+      "to": "A",
+      "apply": "Applica"
+    },
+    "autoRefresh": "Aggiornamento automatico",
+    "lastUpdated": "Aggiornato {time}",
+    "panelActions": {
+      "settings": "Impostazioni",
+      "maximize": "Ingrandisci",
+      "restore": "Ripristina",
+      "delete": "Elimina"
+    },
+    "undoDelete": "Pannello eliminato",
+    "undoAction": "Annulla",
+    "emptyState": {
+      "title": "Costruisci la tua dashboard",
+      "subtitle": "Scegli un tipo di grafico per aggiungere il primo pannello",
+      "line": "Grafico Linea",
+      "lineDesc": "Trend temporali",
+      "bar": "Grafico Barre",
+      "barDesc": "Confronta valori",
+      "area": "Grafico Area",
+      "areaDesc": "Trend con riempimento",
+      "pie": "Grafico Torta",
+      "pieDesc": "Distribuzione"
+    },
+    "deleteDashboard": {
+      "title": "Elimina Dashboard",
+      "description": "Questa dashboard e tutti i suoi pannelli verranno eliminati permanentemente. Questa azione non puo essere annullata.",
+      "cancel": "Annulla",
+      "confirm": "Elimina"
     }
   },
   "mqtt": {
