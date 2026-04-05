@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
-import { Loader2 } from 'lucide-react';
+import { Loader2, ArrowDownToLine } from 'lucide-react';
 import type { IJobData } from '@wpt/types';
 import {
   CycleType,
@@ -51,6 +51,7 @@ export default function JobsPage() {
   const tCommon = useTranslations('common');
 
   const [job, setJob] = useState<IJobData>(emptyJob);
+  const [hasRead, setHasRead] = useState(false);
   const [isReading, setIsReading] = useState(false);
   const [isWriting, setIsWriting] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -73,6 +74,7 @@ export default function JobsPage() {
       });
       setJob(data.job);
       lock.markReadSuccess();
+      setHasRead(true);
       toast.success(t('toast.readSuccess'));
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -132,6 +134,25 @@ export default function JobsPage() {
         namespace="jobs"
       />
 
+      {!hasRead && (
+        <div className="rounded-lg border border-blue-500/30 bg-blue-500/10 p-6 text-center">
+          <ArrowDownToLine className="mx-auto mb-3 h-10 w-10 text-blue-500" />
+          <h2 className="text-lg font-semibold">{t('readFirst.title')}</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {t('readFirst.subtitle')}
+          </p>
+          <Button
+            size="lg"
+            className="mt-4"
+            onClick={handleRead}
+            disabled={isReading}
+          >
+            {isReading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {isReading ? t('actions.reading') : t('actions.readFromPlc')}
+          </Button>
+        </div>
+      )}
+
       {/* Card 1: Job Identity */}
       <Card>
         <CardHeader>
@@ -146,6 +167,7 @@ export default function JobsPage() {
               onChange={e => updateTextField('supervisor', e.target.value)}
               maxLength={20}
               placeholder="---"
+              disabled={!hasRead}
             />
           </div>
           <div className="space-y-2">
@@ -156,6 +178,7 @@ export default function JobsPage() {
               onChange={e => updateTextField('orderNumber', e.target.value)}
               maxLength={20}
               placeholder="---"
+              disabled={!hasRead}
             />
           </div>
           <div className="space-y-2">
@@ -166,6 +189,7 @@ export default function JobsPage() {
               onChange={e => updateTextField('serialNumber', e.target.value)}
               maxLength={20}
               placeholder="---"
+              disabled={!hasRead}
             />
           </div>
         </CardContent>
@@ -187,6 +211,7 @@ export default function JobsPage() {
                   remoteJobEnable: Number(v) as RemoteJobEnable,
                 }))
               }
+              disabled={!hasRead}
             >
               <SelectTrigger>
                 <SelectValue>{t(`enums.remoteJobEnable.${job.remoteJobEnable}`)}</SelectValue>
@@ -212,6 +237,7 @@ export default function JobsPage() {
                   maintenanceRequest: Number(v) as MaintenanceRequest,
                 }))
               }
+              disabled={!hasRead}
             >
               <SelectTrigger>
                 <SelectValue>{t(`enums.maintenanceRequest.${job.maintenanceRequest}`)}</SelectValue>
@@ -237,6 +263,7 @@ export default function JobsPage() {
                   remoteCycleSelection: Number(v) as RemoteCycleSelection,
                 }))
               }
+              disabled={!hasRead}
             >
               <SelectTrigger>
                 <SelectValue>{t(`enums.remoteCycleSelection.${job.remoteCycleSelection}`)}</SelectValue>
@@ -262,6 +289,7 @@ export default function JobsPage() {
                   cycleType: Number(v) as CycleType,
                 }))
               }
+              disabled={!hasRead}
             >
               <SelectTrigger>
                 <SelectValue>
@@ -282,21 +310,23 @@ export default function JobsPage() {
         </CardContent>
       </Card>
 
-      {/* Button row */}
-      <div className="flex justify-end gap-4">
-        <Button onClick={handleRead} disabled={isReading || isWriting}>
-          {isReading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          {isReading ? t('actions.reading') : t('actions.readFromPlc')}
-        </Button>
-        <Button
-          variant={lock.canWrite ? 'default' : 'outline'}
-          onClick={handleWriteClick}
-          disabled={!lock.canWrite || isReading || isWriting}
-        >
-          {isWriting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          {isWriting ? t('actions.writing') : t('actions.writeToPlc')}
-        </Button>
-      </div>
+      {/* Button row — visible only after first read */}
+      {hasRead && (
+        <div className="flex justify-end gap-4">
+          <Button onClick={handleRead} disabled={isReading || isWriting}>
+            {isReading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {isReading ? t('actions.reading') : t('actions.readFromPlc')}
+          </Button>
+          <Button
+            variant={lock.canWrite ? 'default' : 'outline'}
+            onClick={handleWriteClick}
+            disabled={!lock.canWrite || isReading || isWriting}
+          >
+            {isWriting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {isWriting ? t('actions.writing') : t('actions.writeToPlc')}
+          </Button>
+        </div>
+      )}
 
       <PlcWriteConfirm
         open={confirmOpen}

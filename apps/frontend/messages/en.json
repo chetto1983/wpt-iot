@@ -277,6 +277,10 @@
       "remoteCycleSelection": "Remote Cycle Selection",
       "cycleType": "Cycle Type"
     },
+    "readFirst": {
+      "title": "Read data from PLC",
+      "subtitle": "Load current job parameters from the PLC before making changes"
+    },
     "enums": {
       "remoteJobEnable": {
         "0": "No Request",

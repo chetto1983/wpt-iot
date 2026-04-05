@@ -277,6 +277,10 @@
       "remoteCycleSelection": "Selezione Ciclo Remoto",
       "cycleType": "Tipo Ciclo"
     },
+    "readFirst": {
+      "title": "Leggi dati dal PLC",
+      "subtitle": "Carica i parametri commessa attuali dal PLC prima di apportare modifiche"
+    },
     "enums": {
       "remoteJobEnable": {
         "0": "Nessuna Richiesta",
