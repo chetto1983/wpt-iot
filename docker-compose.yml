@@ -22,6 +22,29 @@ services:
         max-size: "10m"
         max-file: "3"
 
+  mosquitto:
+    image: eclipse-mosquitto:2
+    container_name: mosquitto
+    ports:
+      - "1883:1883"
+      - "9001:9001"
+    volumes:
+      - ./mosquitto/config:/mosquitto/config
+      - mosquitto_data:/mosquitto/data
+      - mosquitto_log:/mosquitto/log
+    healthcheck:
+      test: ["CMD", "mosquitto_sub", "-t", "$$SYS/broker/uptime", "-C", "1", "-i", "healthcheck", "-W", "3"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
   backend:
     build:
       context: .
@@ -54,6 +77,13 @@ services:
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3001}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
       SESSION_SECRET: ${SESSION_SECRET:-dev-only-session-secret-minimum-32-chars!!}
+      MQTT_HOST: ${MQTT_HOST:-localhost}
+      MQTT_PORT: ${MQTT_PORT:-1883}
+      MQTT_USERNAME: ${MQTT_USERNAME:-wpt-backend}
+      MQTT_PASSWORD: ${MQTT_PASSWORD:-wpt_mqtt_dev_password}
+      MQTT_ENABLED: ${MQTT_ENABLED:-true}
+      MQTT_SITE_ID: ${MQTT_SITE_ID:-site-01}
+      MQTT_MACHINE_ID: ${MQTT_MACHINE_ID:-wpt40-001}
     volumes:
       - uploads:/app/uploads
     healthcheck:
@@ -138,4 +168,6 @@ services:
 volumes:
   pgdata:
   uploads:
+  mosquitto_data:
+  mosquitto_log:
   simulator-data:

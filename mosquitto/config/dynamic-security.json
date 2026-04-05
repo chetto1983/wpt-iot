@@ -1,0 +1,68 @@
+{
+  "clients": [
+    {
+      "username": "wpt-backend",
+      "textName": "WPT Backend Service",
+      "password": "wpt_mqtt_dev_password",
+      "roles": [
+        { "rolename": "backend-admin", "priority": -1 }
+      ]
+    }
+  ],
+  "roles": [
+    {
+      "rolename": "backend-admin",
+      "acls": [
+        { "acltype": "publishClientSend", "topic": "wpt/#", "priority": -1, "allow": true },
+        { "acltype": "publishClientReceive", "topic": "wpt/#", "priority": -1, "allow": true },
+        { "acltype": "subscribeLiteral", "topic": "wpt/#", "priority": -1, "allow": true },
+        { "acltype": "subscribePattern", "topic": "wpt/#", "priority": -1, "allow": true },
+        { "acltype": "publishClientSend", "topic": "$CONTROL/dynamic-security/v1", "priority": -1, "allow": true },
+        { "acltype": "publishClientReceive", "topic": "$CONTROL/dynamic-security/v1/response", "priority": -1, "allow": true },
+        { "acltype": "subscribeLiteral", "topic": "$CONTROL/dynamic-security/v1/response", "priority": -1, "allow": true },
+        { "acltype": "subscribePattern", "topic": "$SYS/#", "priority": -1, "allow": true },
+        { "acltype": "publishClientReceive", "topic": "$SYS/#", "priority": -1, "allow": true }
+      ]
+    },
+    {
+      "rolename": "mqtt-reader",
+      "acls": [
+        { "acltype": "subscribePattern", "topic": "wpt/+/+/dt/#", "priority": -1, "allow": true },
+        { "acltype": "publishClientReceive", "topic": "wpt/+/+/dt/#", "priority": -1, "allow": true },
+        { "acltype": "subscribePattern", "topic": "wpt/+/+/evt/#", "priority": -1, "allow": true },
+        { "acltype": "publishClientReceive", "topic": "wpt/+/+/evt/#", "priority": -1, "allow": true },
+        { "acltype": "subscribePattern", "topic": "wpt/+/+/state/#", "priority": -1, "allow": true },
+        { "acltype": "publishClientReceive", "topic": "wpt/+/+/state/#", "priority": -1, "allow": true }
+      ]
+    },
+    {
+      "rolename": "mqtt-operator",
+      "acls": [
+        { "acltype": "subscribePattern", "topic": "wpt/+/+/dt/#", "priority": -1, "allow": true },
+        { "acltype": "publishClientReceive", "topic": "wpt/+/+/dt/#", "priority": -1, "allow": true },
+        { "acltype": "subscribePattern", "topic": "wpt/+/+/evt/#", "priority": -1, "allow": true },
+        { "acltype": "publishClientReceive", "topic": "wpt/+/+/evt/#", "priority": -1, "allow": true },
+        { "acltype": "subscribePattern", "topic": "wpt/+/+/state/#", "priority": -1, "allow": true },
+        { "acltype": "publishClientReceive", "topic": "wpt/+/+/state/#", "priority": -1, "allow": true },
+        { "acltype": "publishClientSend", "topic": "wpt/+/+/cmd/+/req", "priority": -1, "allow": true },
+        { "acltype": "subscribePattern", "topic": "wpt/+/+/cmd/+/res/#", "priority": -1, "allow": true },
+        { "acltype": "publishClientReceive", "topic": "wpt/+/+/cmd/+/res/#", "priority": -1, "allow": true }
+      ]
+    },
+    {
+      "rolename": "mqtt-admin",
+      "acls": [
+        { "acltype": "publishClientSend", "topic": "wpt/#", "priority": -1, "allow": true },
+        { "acltype": "publishClientReceive", "topic": "wpt/#", "priority": -1, "allow": true },
+        { "acltype": "subscribePattern", "topic": "wpt/#", "priority": -1, "allow": true },
+        { "acltype": "subscribeLiteral", "topic": "wpt/#", "priority": -1, "allow": true }
+      ]
+    }
+  ],
+  "defaultACLAccess": {
+    "publishClientSend": false,
+    "publishClientReceive": false,
+    "subscribe": false,
+    "unsubscribe": true
+  }
+}
