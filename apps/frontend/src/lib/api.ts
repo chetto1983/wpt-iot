@@ -6,7 +6,7 @@ const API_BASE = process.env.NEXT_PUBLIC_API_URL || (() => {
 
 export async function apiFetch<T>(
   path: string,
-  options: RequestInit = {},
+  options: RequestInit & { signal?: AbortSignal } = {},
 ): Promise<T> {
   const headers: Record<string, string> = { ...options.headers as Record<string, string> };
   // Only set Content-Type for requests with a body (POST/PUT/PATCH/DELETE).
@@ -18,9 +18,21 @@ export async function apiFetch<T>(
     ...options,
     credentials: 'include',
     headers,
+    signal: options.signal,
   });
   if (res.status === 401) {
-    window.location.href = '/?expired=true';
+    // Preserve current URL for post-login redirect
+    const returnUrl = encodeURIComponent(window.location.pathname + window.location.search);
+    // Dynamic import to avoid circular deps -- toast fires before redirect
+    const { toast } = await import('sonner');
+    toast.warning(
+      // Fallback English -- i18n not available in this utility module
+      'Your session has expired. Please log in again.',
+    );
+    // Delay redirect to let user see the toast
+    setTimeout(() => {
+      window.location.href = `/?expired=true&returnUrl=${returnUrl}`;
+    }, 1500);
     throw new Error('Session expired');
   }
   if (!res.ok) {

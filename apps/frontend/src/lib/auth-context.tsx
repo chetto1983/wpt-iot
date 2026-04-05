@@ -91,8 +91,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Set NEXT_LOCALE cookie for next-intl SSR
       document.cookie = `NEXT_LOCALE=${language};path=/;max-age=31536000`;
 
+      // Read returnUrl from current URL params for post-expiry redirect
+      const params = new URLSearchParams(window.location.search);
+      const returnUrl = params.get('returnUrl') || '/dashboard';
       // Full page navigation to pick up the new locale server-side
-      window.location.href = '/dashboard';
+      window.location.href = returnUrl;
     },
     [],
   );

@@ -1,6 +1,7 @@
 'use client';
 
 import { startTransition, useCallback, useEffect, useRef, useState } from 'react';
+import { toast } from 'sonner';
 import { WsMessageType } from '@wpt/types';
 import type { IActiveAlarm, IMachineSnapshot, IWsMessage } from '@wpt/types';
 
@@ -30,6 +31,7 @@ export function useWebSocket(enabled: boolean): WsState {
   const wsRef = useRef<WebSocket | null>(null);
   const attemptRef = useRef(0);
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const prevConnectedRef = useRef(false);
   const enabledRef = useRef(enabled);
   enabledRef.current = enabled;
 
@@ -52,6 +54,7 @@ export function useWebSocket(enabled: boolean): WsState {
     ws.onopen = () => {
       attemptRef.current = 0;
       setConnected(true);
+      prevConnectedRef.current = true;
     };
 
     ws.onclose = (event) => {
@@ -60,8 +63,19 @@ export function useWebSocket(enabled: boolean): WsState {
         wsRef.current = null;
       }
 
+      // Show disconnect toast only on true->false transition (not initial mount)
+      if (prevConnectedRef.current === true && event.code !== 1000 && event.code !== 4401) {
+        toast.warning('Connection lost. Attempting to reconnect...', { duration: 5000 });
+      }
+      prevConnectedRef.current = false;
+
       if (event.code === 4401) {
-        window.location.href = '/?expired=true';
+        // Preserve current URL for post-login redirect
+        const returnUrl = encodeURIComponent(window.location.pathname + window.location.search);
+        toast.warning('Your session has expired. Please log in again.');
+        setTimeout(() => {
+          window.location.href = `/?expired=true&returnUrl=${returnUrl}`;
+        }, 1500);
         return;
       }
 

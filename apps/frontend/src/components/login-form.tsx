@@ -42,10 +42,12 @@ export function LoginForm() {
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  // If already logged in, redirect to dashboard
+  // If already logged in, redirect to returnUrl or dashboard
   useEffect(() => {
     if (!loading && user) {
-      router.push('/dashboard');
+      const params = new URLSearchParams(window.location.search);
+      const returnUrl = params.get('returnUrl') || '/dashboard';
+      router.push(returnUrl);
     }
   }, [user, loading, router]);
 
