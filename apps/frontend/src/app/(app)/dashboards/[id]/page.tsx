@@ -3,8 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import type { DateRange } from 'react-day-picker';
-import { useQueryStates, parseAsString } from 'nuqs';
+import { useQueryStates, parseAsString, parseAsInteger } from 'nuqs';
 import {
   ResponsiveGridLayout,
   useContainerWidth,
@@ -55,22 +54,6 @@ function enforceMinLayout(items: ILayoutItem[]): ILayoutItem[] {
   }));
 }
 
-function buildISO(date: Date, time: string): string {
-  const [h, m] = time.split(':').map(Number);
-  const d = new Date(date);
-  d.setHours(h ?? 0, m ?? 0, 0, 0);
-  return d.toISOString();
-}
-
-/** Compute default "from" as 6 hours ago, date-only string */
-function defaultFrom(): string {
-  const d = new Date(Date.now() - 6 * 60 * 60 * 1000);
-  return d.toISOString().split('T')[0]!;
-}
-
-function defaultTo(): string {
-  return new Date().toISOString().split('T')[0]!;
-}
 
 export default function SingleDashboardPage() {
   const t = useTranslations('dashboards');
@@ -106,29 +89,31 @@ export default function SingleDashboardPage() {
   // Panel delete confirmation
   const [deletePanelId, setDeletePanelId] = useState<number | null>(null);
 
-  // Date range state synced to URL via nuqs
+  // Time range state synced to URL via nuqs
   const [dateFilters, setDateFilters] = useQueryStates({
-    from: parseAsString.withDefault(defaultFrom()),
-    to: parseAsString.withDefault(defaultTo()),
-    fromTime: parseAsString.withDefault('00:00'),
-    toTime: parseAsString.withDefault('23:59'),
+    from: parseAsString.withDefault(new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString()),
+    to: parseAsString.withDefault(new Date().toISOString()),
+    preset: parseAsString.withDefault('last6h'),
+    refresh: parseAsInteger.withDefault(15000),
   });
 
-  const dateRange: DateRange | undefined = dateFilters.from && dateFilters.to
-    ? { from: new Date(dateFilters.from), to: new Date(dateFilters.to) }
-    : undefined;
+  const rangeFrom = new Date(dateFilters.from);
+  const rangeTo = new Date(dateFilters.to);
+  const activePreset = dateFilters.preset;
+  const refreshInterval = dateFilters.refresh;
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
-  const setDateRange = useCallback((range: DateRange | undefined) => {
-    void setDateFilters({
-      from: range?.from ? range.from.toISOString().split('T')[0] : null,
-      to: range?.to ? range.to.toISOString().split('T')[0] : null,
-    });
+  const handleRangeChange = useCallback((f: Date, t: Date) => {
+    void setDateFilters({ from: f.toISOString(), to: t.toISOString() });
   }, [setDateFilters]);
 
-  const fromTime = dateFilters.fromTime;
-  const toTime = dateFilters.toTime;
-  const setFromTime = useCallback((v: string) => { void setDateFilters({ fromTime: v }); }, [setDateFilters]);
-  const setToTime = useCallback((v: string) => { void setDateFilters({ toTime: v }); }, [setDateFilters]);
+  const handlePresetChange = useCallback((preset: string | null) => {
+    void setDateFilters({ preset: preset ?? null });
+  }, [setDateFilters]);
+
+  const handleRefreshIntervalChange = useCallback((ms: number) => {
+    void setDateFilters({ refresh: ms });
+  }, [setDateFilters]);
 
   const { width, containerRef, mounted } = useContainerWidth({
     initialWidth: 1200,
@@ -153,8 +138,6 @@ export default function SingleDashboardPage() {
         return;
       }
 
-      if (!dateRange?.from) return;
-
       // Abort previous request
       abortRef.current?.abort();
       const controller = new AbortController();
@@ -162,14 +145,9 @@ export default function SingleDashboardPage() {
 
       setDataLoading(true);
       try {
-        const fromISO = buildISO(dateRange.from, fromTime);
-        const toISO = dateRange.to
-          ? buildISO(dateRange.to, toTime)
-          : buildISO(dateRange.from, toTime);
-
         const body: IBatchChartRequest = {
-          from: fromISO,
-          to: toISO,
+          from: rangeFrom.toISOString(),
+          to: rangeTo.toISOString(),
           queries: panelsWithFields.map((p) => ({
             id: p.panelKey,
             fields: p.config.fields,
@@ -183,6 +161,7 @@ export default function SingleDashboardPage() {
         if (!controller.signal.aborted) {
           setPanelData(result.results);
           setResolution(result.resolution);
+          setLastUpdated(new Date());
         }
       } catch (err: unknown) {
         if (err instanceof Error && err.name === 'AbortError') return;
@@ -191,7 +170,7 @@ export default function SingleDashboardPage() {
         if (!controller.signal.aborted) setDataLoading(false);
       }
     },
-    [dateRange, fromTime, toTime],
+    [rangeFrom, rangeTo],
   );
 
   // Effect 1: Initial fetch -- runs once on mount
@@ -230,12 +209,6 @@ export default function SingleDashboardPage() {
       void loadPanelData(panels);
     }
   }, [dataVersion]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const handleReload = useCallback(() => {
-    if (panels.length > 0) {
-      void loadPanelData(panels);
-    }
-  }, [panels, loadPanelData]);
 
   const handleLayoutChange = useCallback((currentLayout: Layout) => {
     setLayout(
@@ -367,14 +340,15 @@ export default function SingleDashboardPage() {
         onAddPanel={handleAddPanel}
         onSave={handleSave}
         saving={saving}
-        dateRange={dateRange}
-        onDateRangeChange={setDateRange}
-        fromTime={fromTime}
-        toTime={toTime}
-        onFromTimeChange={setFromTime}
-        onToTimeChange={setToTime}
-        onReload={handleReload}
-        loading={dataLoading}
+        from={rangeFrom}
+        to={rangeTo}
+        onRangeChange={handleRangeChange}
+        activePreset={activePreset}
+        onPresetChange={handlePresetChange}
+        refreshInterval={refreshInterval}
+        onRefreshIntervalChange={handleRefreshIntervalChange}
+        lastUpdated={lastUpdated}
+        dataLoading={dataLoading}
       />
 
       <div ref={containerRef}>
