@@ -1,0 +1,103 @@
+import { z } from 'zod/v4';
+
+/** MQTT role names matching Dynamic Security Plugin roles */
+export enum MqttRole {
+  READER = 'mqtt-reader',
+  OPERATOR = 'mqtt-operator',
+  ADMIN = 'mqtt-admin',
+}
+
+/** Build topic path from components */
+export function mqttTopic(siteId: string, machineId: string, ...segments: string[]): string {
+  return ['wpt', siteId, machineId, ...segments].join('/');
+}
+
+/** Topic suffix constants (appended after wpt/{site}/{machine}/) */
+export const MQTT_TOPIC_SUFFIXES = {
+  // Data/Telemetry (outbound, retained)
+  SNAPSHOT: 'dt/snapshot',
+  GAUGES: 'dt/gauges',
+  RFID_USERS: 'dt/rfid/users',
+  JOBS_CURRENT: 'dt/jobs/current',
+
+  // Events (outbound)
+  ALARMS_ACTIVE: 'evt/alarms/active',
+  ALARMS_ACTIVATE: 'evt/alarms/activate',
+  ALARMS_RESET: 'evt/alarms/reset',
+
+  // Commands (inbound)
+  CMD_JOB_REQ: 'cmd/job/req',
+  CMD_JOB_RES: 'cmd/job/res',
+  CMD_RFID_REQ: 'cmd/rfid/req',
+  CMD_RFID_RES: 'cmd/rfid/res',
+  CMD_CYCLE_REQ: 'cmd/cycle/req',
+  CMD_CYCLE_RES: 'cmd/cycle/res',
+
+  // State (retained, LWT)
+  CONNECTION: 'state/connection',
+} as const;
+
+/** MQTT gateway configuration stored in database */
+export interface IMqttConfig {
+  id: number;
+  enabled: boolean;
+  brokerHost: string;
+  brokerPort: number;
+  siteId: string;
+  machineId: string;
+  publishMachine: boolean;
+  publishAlarms: boolean;
+  publishRfid: boolean;
+  publishJobs: boolean;
+  updatedAt: Date;
+}
+
+export const MqttConfigSchema = z.object({
+  enabled: z.boolean(),
+  brokerHost: z.string().min(1).max(255),
+  brokerPort: z.int().min(1).max(65535),
+  siteId: z.string().min(1).max(100),
+  machineId: z.string().min(1).max(100),
+  publishMachine: z.boolean(),
+  publishAlarms: z.boolean(),
+  publishRfid: z.boolean(),
+  publishJobs: z.boolean(),
+});
+
+/** Command request payload published by external MQTT clients */
+export interface IMqttCommandRequest {
+  requestId: string;
+  payload: Record<string, unknown>;
+}
+
+export const MqttCommandRequestSchema = z.object({
+  requestId: z.string().min(1).max(64),
+  payload: z.record(z.string(), z.unknown()),
+});
+
+/** Command response published by the gateway */
+export interface IMqttCommandResponse {
+  requestId: string;
+  status: 'success' | 'error' | 'timeout' | 'rejected';
+  message?: string;
+  timestamp: string;
+  handshakeDurationMs?: number;
+}
+
+/** MQTT user managed by Dynamic Security Plugin */
+export interface IMqttUser {
+  username: string;
+  textName?: string;
+  roles: MqttRole[];
+  disabled?: boolean;
+}
+
+/** Broker status from $SYS topics */
+export interface IMqttBrokerStatus {
+  connected: boolean;
+  uptime: string;
+  clientsConnected: number;
+  messagesReceived: number;
+  messagesSent: number;
+  version: string;
+}

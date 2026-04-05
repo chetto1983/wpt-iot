@@ -22,4 +22,13 @@ export const config = {
   sessionSecret: process.env.SESSION_SECRET ?? 'dev-only-session-secret-minimum-32-chars!!',
   adminPassword: process.env.ADMIN_PASSWORD ?? '',
   corsOrigin: (process.env.CORS_ORIGIN ?? 'http://localhost:3001').split(','),
+
+  // MQTT Gateway
+  mqttHost: process.env.MQTT_HOST ?? 'localhost',
+  mqttPort: Number(process.env.MQTT_PORT ?? 1883),
+  mqttUsername: process.env.MQTT_USERNAME ?? 'wpt-backend',
+  mqttPassword: process.env.MQTT_PASSWORD ?? 'wpt_mqtt_dev_password',
+  mqttEnabled: (process.env.MQTT_ENABLED ?? 'true') === 'true',
+  mqttSiteId: process.env.MQTT_SITE_ID ?? 'site-01',
+  mqttMachineId: process.env.MQTT_MACHINE_ID ?? 'wpt40-001',
 } as const;
