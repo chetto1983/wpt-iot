@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useQueryStates, parseAsString, parseAsInteger } from 'nuqs';
@@ -9,8 +9,9 @@ import {
   useContainerWidth,
   verticalCompactor,
 } from 'react-grid-layout';
+import { GridBackground } from 'react-grid-layout/extras';
 import type { Layout } from 'react-grid-layout';
-import { LayoutGrid } from 'lucide-react';
+import { LineChart, BarChart3, PieChart, AreaChart } from 'lucide-react';
 import { toast } from 'sonner';
 import type {
   IDashboard,
@@ -23,20 +24,12 @@ import type {
 } from '@wpt/types';
 import { apiFetch } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
+import { PANEL_SIZE_DEFAULTS } from '@/lib/chart-colors';
+import { cn } from '@/lib/utils';
 import { DashboardPanel } from '@/components/dashboard/dashboard-panel';
 import { DashboardToolbar } from '@/components/dashboard/dashboard-toolbar';
 import { PanelEditorDialog } from '@/components/dashboard/panel-editor-dialog';
 import { PanelChart } from '@/components/dashboard/panel-chart';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
 
 import 'react-grid-layout/css/styles.css';
 
@@ -86,8 +79,15 @@ export default function SingleDashboardPage() {
   // Fullscreen panel tracking
   const [fullscreenPanel, setFullscreenPanel] = useState<string | null>(null);
 
-  // Panel delete confirmation
-  const [deletePanelId, setDeletePanelId] = useState<number | null>(null);
+  // Undo-toast delete tracking
+  const [pendingDelete, setPendingDelete] = useState<{
+    panelId: number;
+    panelKey: string;
+    timer: ReturnType<typeof setTimeout>;
+  } | null>(null);
+
+  // Empty state pre-configuration for panel editor
+  const [defaultChartType, setDefaultChartType] = useState<ChartType | null>(null);
 
   // Time range state synced to URL via nuqs
   const [dateFilters, setDateFilters] = useQueryStates({
@@ -103,8 +103,9 @@ export default function SingleDashboardPage() {
   const refreshInterval = dateFilters.refresh;
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
-  const handleRangeChange = useCallback((f: Date, t: Date) => {
-    void setDateFilters({ from: f.toISOString(), to: t.toISOString() });
+  const handleRangeChange = useCallback((f: Date, tDate: Date) => {
+    void setDateFilters({ from: f.toISOString(), to: tDate.toISOString() });
+    setDataVersion((v) => v + 1);
   }, [setDateFilters]);
 
   const handlePresetChange = useCallback((preset: string | null) => {
@@ -122,13 +123,19 @@ export default function SingleDashboardPage() {
   // AbortController ref for cancelling in-flight panel data requests
   const abortRef = useRef<AbortController | null>(null);
 
+  // Refs for stable fetchPanelData (avoids putting from/to in callback deps)
+  const fromRef = useRef(rangeFrom);
+  const toRef = useRef(rangeTo);
+  useEffect(() => { fromRef.current = rangeFrom; }, [rangeFrom]);
+  useEffect(() => { toRef.current = rangeTo; }, [rangeTo]);
+
   // Cleanup on unmount
   useEffect(() => {
     return () => { abortRef.current?.abort(); };
   }, []);
 
-  // Load chart data for panels
-  const loadPanelData = useCallback(
+  // Stable fetch function -- reads from/to from refs
+  const fetchPanelData = useCallback(
     async (panelList: IPanel[]) => {
       const panelsWithFields = panelList.filter(
         (p) => p.config.fields.length > 0,
@@ -146,8 +153,8 @@ export default function SingleDashboardPage() {
       setDataLoading(true);
       try {
         const body: IBatchChartRequest = {
-          from: rangeFrom.toISOString(),
-          to: rangeTo.toISOString(),
+          from: fromRef.current.toISOString(),
+          to: toRef.current.toISOString(),
           queries: panelsWithFields.map((p) => ({
             id: p.panelKey,
             fields: p.config.fields,
@@ -170,45 +177,56 @@ export default function SingleDashboardPage() {
         if (!controller.signal.aborted) setDataLoading(false);
       }
     },
-    [rangeFrom, rangeTo],
+    [], // stable -- reads from refs
   );
 
-  // Effect 1: Initial fetch -- runs once on mount
-  // Fetches dashboard + panels, then DIRECTLY calls loadPanelData with fetched panels
+  // Effect 1: Initial fetch -- runs once on mount/id change
   useEffect(() => {
-    const controller = new AbortController();
+    let cancelled = false;
     async function fetchDashboard() {
       try {
         const result = await apiFetch<{
           dashboard: IDashboard;
           panels: IPanel[];
-        }>(`/dashboards/${id}`, { signal: controller.signal });
-        if (controller.signal.aborted) return;
+        }>(`/dashboards/${id}`);
+        if (cancelled) return;
         setDashboard(result.dashboard);
         setPanels(result.panels);
         setLayout(enforceMinLayout(result.dashboard.layout));
-        // Directly call loadPanelData with the fetched panels
-        // Do NOT wait for state update -- panels state won't be available yet
-        await loadPanelData(result.panels);
-      } catch (err: unknown) {
-        if (err instanceof Error && err.name === 'AbortError') return;
-        toast.error((err as Error).message);
+        await fetchPanelData(result.panels);
+      } catch (err) {
+        if (!cancelled) toast.error((err as Error).message);
       } finally {
-        if (!controller.signal.aborted) setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     }
     void fetchDashboard();
-    return () => controller.abort();
-  }, [id, loadPanelData]);
+    return () => { cancelled = true; };
+  }, [id, fetchPanelData]);
 
-  // Effect 2: Re-fetch on demand after panel edits
-  // Skips initial render (dataVersion=0) -- Effect 1 handles that
+  // Effect 2: Re-fetch on range change or panel edits
   useEffect(() => {
-    if (dataVersion === 0) return;
+    if (dataVersion === 0) return; // Skip initial render, Effect 1 handles that
     if (panels.length > 0) {
-      void loadPanelData(panels);
+      void fetchPanelData(panels);
     }
-  }, [dataVersion]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [dataVersion, rangeFrom, rangeTo, fetchPanelData, panels]);
+
+  // Effect 3: Auto-refresh interval
+  useEffect(() => {
+    if (refreshInterval === 0 || panels.length === 0) return;
+    const timer = setInterval(() => {
+      void fetchPanelData(panels);
+    }, refreshInterval);
+    return () => clearInterval(timer);
+  }, [refreshInterval, panels, fetchPanelData]);
+
+  // Clean up pending delete on unmount
+  useEffect(() => {
+    return () => {
+      if (pendingDelete) clearTimeout(pendingDelete.timer);
+    };
+  }, [pendingDelete]);
 
   const handleLayoutChange = useCallback((currentLayout: Layout) => {
     setLayout(
@@ -239,6 +257,14 @@ export default function SingleDashboardPage() {
       setSaving(false);
     }
   }, [dashboard, id, layout, t]);
+
+  // Auto-save on edit mode toggle
+  const handleEditModeChange = useCallback((newMode: boolean) => {
+    if (editMode && !newMode) {
+      void handleSave();
+    }
+    setEditMode(newMode);
+  }, [editMode, handleSave]);
 
   // Add Panel: open editor in create mode
   const handleAddPanel = useCallback(() => {
@@ -273,7 +299,7 @@ export default function SingleDashboardPage() {
             prev.map((p) => (p.id === updated.id ? updated : p)),
           );
         } else {
-          // Create new panel
+          // Create new panel with per-chart-type default sizing
           const panelKey = 'panel-' + Date.now();
           const newPanel = await apiFetch<IPanel>(
             `/dashboards/${id}/panels`,
@@ -283,13 +309,15 @@ export default function SingleDashboardPage() {
             },
           );
           setPanels((prev) => [...prev, newPanel]);
+          const defaults = PANEL_SIZE_DEFAULTS[data.chartType];
           setLayout((prev) => [
             ...prev,
-            { i: panelKey, x: 0, y: Infinity, w: 12, h: 8, minW: 4, minH: 4 },
+            { i: panelKey, x: 0, y: Infinity, w: defaults.w, h: defaults.h, minW: defaults.minW, minH: defaults.minH },
           ]);
         }
         setEditorOpen(false);
         setEditingPanel(null);
+        setDefaultChartType(null);
         setDataVersion((v) => v + 1);
       } catch (err) {
         toast.error((err as Error).message);
@@ -299,19 +327,47 @@ export default function SingleDashboardPage() {
   );
 
   const handleDeletePanel = useCallback(
-    async (panelId: number) => {
+    (panelId: number) => {
       const panel = panels.find((p) => p.id === panelId);
       if (!panel) return;
-      try {
-        await apiFetch(`/panels/${String(panel.id)}`, { method: 'DELETE' });
-        setPanels((prev) => prev.filter((p) => p.id !== panel.id));
-        setLayout((prev) => prev.filter((item) => item.i !== panel.panelKey));
-        setDataVersion((v) => v + 1);
-      } catch (err) {
-        toast.error((err as Error).message);
-      }
+
+      // Immediately hide the panel from UI
+      setPanels((prev) => prev.filter((p) => p.id !== panelId));
+      setLayout((prev) => prev.filter((item) => item.i !== panel.panelKey));
+
+      // Set up undo timer -- actual delete after 5 seconds
+      const timer = setTimeout(async () => {
+        try {
+          await apiFetch(`/panels/${String(panelId)}`, { method: 'DELETE' });
+          setDataVersion((v) => v + 1);
+        } catch (err) {
+          toast.error((err as Error).message);
+          // Re-add panel on failure
+          setPanels((prev) => [...prev, panel]);
+        }
+        setPendingDelete(null);
+      }, 5000);
+
+      setPendingDelete({ panelId, panelKey: panel.panelKey, timer });
+
+      toast(t('undoDelete'), {
+        action: {
+          label: t('undoAction'),
+          onClick: () => {
+            clearTimeout(timer);
+            // Restore panel
+            setPanels((prev) => [...prev, panel]);
+            setLayout((prev) => [
+              ...prev,
+              { i: panel.panelKey, x: 0, y: Infinity, w: 12, h: 8 },
+            ]);
+            setPendingDelete(null);
+          },
+        },
+        duration: 5000,
+      });
     },
-    [panels],
+    [panels, t],
   );
 
   if (loading || !mounted) {
@@ -331,12 +387,14 @@ export default function SingleDashboardPage() {
     );
   }
 
+  const MemoPanel = React.memo(DashboardPanel);
+
   return (
     <div className="space-y-4 p-6">
       <DashboardToolbar
         dashboardName={dashboard.name}
         editMode={editMode}
-        onEditModeChange={setEditMode}
+        onEditModeChange={handleEditModeChange}
         onAddPanel={handleAddPanel}
         onSave={handleSave}
         saving={saving}
@@ -353,92 +411,105 @@ export default function SingleDashboardPage() {
 
       <div ref={containerRef}>
         {panels.length === 0 ? (
-          <div className="flex min-h-[400px] flex-col items-center justify-center rounded-lg border border-dashed">
-            <LayoutGrid className="mb-4 h-12 w-12 text-muted-foreground/40" />
-            <p className="text-sm font-medium">{t('emptyDashboard')}</p>
-            <p className="text-sm text-muted-foreground">
-              {t('emptyDashboardHint')}
-            </p>
+          <div className="flex min-h-[400px] flex-col items-center justify-center rounded-lg border border-dashed p-8">
+            <h2 className="mb-2 text-lg font-semibold">{t('emptyState.title')}</h2>
+            <p className="mb-8 text-sm text-muted-foreground">{t('emptyState.subtitle')}</p>
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+              {([
+                { type: 'line' as ChartType, icon: LineChart, label: t('emptyState.line'), desc: t('emptyState.lineDesc') },
+                { type: 'bar' as ChartType, icon: BarChart3, label: t('emptyState.bar'), desc: t('emptyState.barDesc') },
+                { type: 'area' as ChartType, icon: AreaChart, label: t('emptyState.area'), desc: t('emptyState.areaDesc') },
+                { type: 'pie' as ChartType, icon: PieChart, label: t('emptyState.pie'), desc: t('emptyState.pieDesc') },
+              ]).map((item) => (
+                <button
+                  key={item.type}
+                  type="button"
+                  onClick={() => {
+                    setDefaultChartType(item.type);
+                    setEditingPanel(null);
+                    setEditorOpen(true);
+                  }}
+                  className="flex flex-col items-center gap-2 rounded-xl border bg-card p-6 text-card-foreground shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground"
+                >
+                  <item.icon className="h-8 w-8 text-wpt-teal" />
+                  <span className="text-sm font-medium">{item.label}</span>
+                  <span className="text-xs text-muted-foreground">{item.desc}</span>
+                </button>
+              ))}
+            </div>
           </div>
         ) : (
-          <ResponsiveGridLayout
-            width={width}
-            breakpoints={{ lg: 1200, md: 996, sm: 768, xs: 480 }}
-            cols={{ lg: 24, md: 12, sm: 6, xs: 2 }}
-            rowHeight={30}
-            layouts={{ lg: layout }}
-            onLayoutChange={handleLayoutChange}
-            compactor={verticalCompactor}
-            dragConfig={{ enabled: editMode, handle: '.drag-handle' }}
-            resizeConfig={{ enabled: editMode }}
-          >
-            {panels.map((panel) => (
-              <div key={panel.panelKey}>
-                <DashboardPanel
-                  title={panel.title}
-                  editMode={editMode}
-                  fullscreen={fullscreenPanel === panel.panelKey}
-                  onEdit={() => handleEditPanel(panel)}
-                  onDelete={() => setDeletePanelId(panel.id)}
-                  onMaximize={() =>
-                    setFullscreenPanel((prev) =>
-                      prev === panel.panelKey ? null : panel.panelKey,
-                    )
-                  }
-                >
-                  {panel.config.fields.length === 0 ? (
-                    <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-                      {t('panelPlaceholder')}
-                    </div>
-                  ) : (
-                    <PanelChart
-                      chartType={panel.chartType}
-                      config={panel.config}
-                      data={panelData[panel.panelKey]?.points ?? []}
-                      resolution={resolution}
-                      locale={locale}
-                      loading={dataLoading}
-                    />
-                  )}
-                </DashboardPanel>
-              </div>
-            ))}
-          </ResponsiveGridLayout>
+          <div className={cn('relative rounded-lg transition-all duration-200', editMode && 'ring-1 ring-border/50 p-2')}>
+            {editMode && (
+              <GridBackground
+                width={width}
+                cols={24}
+                rowHeight={30}
+                margin={[10, 10]}
+                rows={20}
+                color="hsl(var(--muted-foreground) / 0.08)"
+                borderRadius={4}
+                className="absolute inset-0 pointer-events-none"
+              />
+            )}
+            <ResponsiveGridLayout
+              width={width}
+              breakpoints={{ lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 }}
+              cols={{ lg: 24, md: 12, sm: 6, xs: 2, xxs: 1 }}
+              rowHeight={30}
+              layouts={{ lg: layout }}
+              onLayoutChange={handleLayoutChange}
+              compactor={verticalCompactor}
+              dragConfig={{ enabled: editMode, handle: '.drag-handle' }}
+              resizeConfig={{ enabled: editMode }}
+              className={cn(!editMode && '[&_.drag-handle]:cursor-default')}
+            >
+              {panels.map((panel) => (
+                <div key={panel.panelKey}>
+                  <MemoPanel
+                    title={panel.title}
+                    editMode={editMode}
+                    fullscreen={fullscreenPanel === panel.panelKey}
+                    onEdit={() => handleEditPanel(panel)}
+                    onDelete={() => handleDeletePanel(panel.id)}
+                    onMaximize={() =>
+                      setFullscreenPanel((prev) =>
+                        prev === panel.panelKey ? null : panel.panelKey,
+                      )
+                    }
+                  >
+                    {panel.config.fields.length === 0 ? (
+                      <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+                        {t('panelPlaceholder')}
+                      </div>
+                    ) : (
+                      <PanelChart
+                        chartType={panel.chartType}
+                        config={panel.config}
+                        data={panelData[panel.panelKey]?.points ?? []}
+                        resolution={resolution}
+                        locale={locale}
+                        loading={dataLoading}
+                      />
+                    )}
+                  </MemoPanel>
+                </div>
+              ))}
+            </ResponsiveGridLayout>
+          </div>
         )}
       </div>
 
       <PanelEditorDialog
         open={editorOpen}
-        onOpenChange={setEditorOpen}
+        onOpenChange={(open) => {
+          setEditorOpen(open);
+          if (!open) setDefaultChartType(null);
+        }}
         panel={editingPanel}
         onSave={handleEditorSave}
+        defaultChartType={defaultChartType}
       />
-
-      <AlertDialog
-        open={deletePanelId !== null}
-        onOpenChange={(open) => { if (!open) setDeletePanelId(null); }}
-      >
-        <AlertDialogContent className="sm:max-w-md">
-          <AlertDialogHeader>
-            <AlertDialogTitle>{t('deletePanel.title')}</AlertDialogTitle>
-            <AlertDialogDescription>{t('deletePanel.description')}</AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>{t('deletePanel.cancel')}</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              onClick={() => {
-                if (deletePanelId !== null) {
-                  void handleDeletePanel(deletePanelId);
-                }
-                setDeletePanelId(null);
-              }}
-            >
-              {t('deletePanel.confirm')}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 }

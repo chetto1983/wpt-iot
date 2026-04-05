@@ -37,6 +37,8 @@ interface PanelEditorDialogProps {
     chartType: ChartType;
     config: IPanelConfig;
   }) => void;
+  /** Pre-selects chart type when creating a new panel from empty state widget picker */
+  defaultChartType?: ChartType | null;
 }
 
 export function PanelEditorDialog({
@@ -44,6 +46,7 @@ export function PanelEditorDialog({
   onOpenChange,
   panel,
   onSave,
+  defaultChartType,
 }: PanelEditorDialogProps) {
   const t = useTranslations('dashboard');
   const { user } = useAuth();
@@ -64,7 +67,7 @@ export function PanelEditorDialog({
   // Reset state when panel changes
   useEffect(() => {
     setTitle(panel?.title ?? '');
-    setChartType(panel?.chartType ?? 'line');
+    setChartType(panel?.chartType ?? defaultChartType ?? 'line');
     setFields(panel?.config.fields ?? []);
     setShowLegend(panel?.config.showLegend ?? true);
     setShowGrid(panel?.config.showGrid ?? true);
@@ -80,7 +83,7 @@ export function PanelEditorDialog({
         ? String(panel.config.yAxisRange.max)
         : '',
     );
-  }, [panel]);
+  }, [panel, defaultChartType]);
 
   const fieldLabels = useMemo(() => {
     const chartable = getChartableFields(role);
