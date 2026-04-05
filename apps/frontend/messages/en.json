@@ -534,7 +534,9 @@
       "securityTitle": "Security",
       "useTls": "Use TLS (mqtts://)",
       "caCert": "CA Certificate (PEM)",
-      "caCertHelp": "Required for self-signed certificates. Leave empty for public CAs."
+      "caCertHelp": "Required for self-signed certificates. Leave empty for public CAs.",
+      "brokerHost": "Broker Host",
+      "brokerPort": "Broker Port"
     },
     "users": {
       "title": "MQTT Users",

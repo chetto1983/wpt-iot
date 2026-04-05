@@ -19,6 +19,8 @@ import {
 
 interface MqttConfig {
   enabled: boolean;
+  brokerHost: string;
+  brokerPort: number;
   siteId: string;
   machineId: string;
   publishMachine: boolean;
@@ -39,6 +41,8 @@ export function MqttConfigForm({ config, onSaved }: MqttConfigFormProps) {
   const tCommon = useTranslations('common');
 
   const [enabled, setEnabled] = useState(config.enabled);
+  const [brokerHost, setBrokerHost] = useState(config.brokerHost);
+  const [brokerPort, setBrokerPort] = useState(config.brokerPort);
   const [siteId, setSiteId] = useState(config.siteId);
   const [machineId, setMachineId] = useState(config.machineId);
   const [publishMachine, setPublishMachine] = useState(config.publishMachine);
@@ -56,6 +60,8 @@ export function MqttConfigForm({ config, onSaved }: MqttConfigFormProps) {
         method: 'PUT',
         body: JSON.stringify({
           enabled,
+          brokerHost,
+          brokerPort,
           siteId,
           machineId,
           publishMachine,
@@ -74,7 +80,7 @@ export function MqttConfigForm({ config, onSaved }: MqttConfigFormProps) {
     } finally {
       setSaving(false);
     }
-  }, [enabled, siteId, machineId, publishMachine, publishAlarms, publishRfid, publishJobs, useTls, caCert, onSaved, t, tCommon]);
+  }, [enabled, brokerHost, brokerPort, siteId, machineId, publishMachine, publishAlarms, publishRfid, publishJobs, useTls, caCert, onSaved, t, tCommon]);
 
   return (
     <Card>
@@ -92,9 +98,33 @@ export function MqttConfigForm({ config, onSaved }: MqttConfigFormProps) {
           />
         </div>
 
+        {/* Broker Host + Port */}
+        <div className="grid grid-cols-3 gap-3">
+          <div className="col-span-2 grid gap-2">
+            <Label htmlFor="mqtt-broker-host">{t('config.brokerHost')}</Label>
+            <Input
+              id="mqtt-broker-host"
+              value={brokerHost}
+              onChange={(e) => setBrokerHost(e.target.value)}
+              placeholder="mosquitto"
+            />
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="mqtt-broker-port">{t('config.brokerPort')}</Label>
+            <Input
+              id="mqtt-broker-port"
+              type="number"
+              value={brokerPort}
+              onChange={(e) => setBrokerPort(Number(e.target.value))}
+              min={1}
+              max={65535}
+            />
+          </div>
+        </div>
+
         {/* Site ID */}
         <div className="grid gap-2">
-          <Label htmlFor="mqtt-site-id">{t('config.siteId')} <span className="text-destructive">*</span></Label>
+          <Label htmlFor="mqtt-site-id">{t('config.siteId')}</Label>
           <Input
             id="mqtt-site-id"
             value={siteId}
@@ -104,7 +134,7 @@ export function MqttConfigForm({ config, onSaved }: MqttConfigFormProps) {
 
         {/* Machine ID */}
         <div className="grid gap-2">
-          <Label htmlFor="mqtt-machine-id">{t('config.machineId')} <span className="text-destructive">*</span></Label>
+          <Label htmlFor="mqtt-machine-id">{t('config.machineId')}</Label>
           <Input
             id="mqtt-machine-id"
             value={machineId}
