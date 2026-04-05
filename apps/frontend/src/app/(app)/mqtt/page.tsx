@@ -74,6 +74,20 @@ interface MqttUser {
   disabled?: boolean;
 }
 
+interface MqttLogEvent {
+  timestamp: string;
+  type: 'connect' | 'disconnect' | 'publish' | 'subscribe' | 'error';
+  detail: string;
+}
+
+const EVENT_BADGE_VARIANT: Record<string, 'default' | 'secondary' | 'outline' | 'destructive'> = {
+  connect: 'default',
+  disconnect: 'secondary',
+  publish: 'outline',
+  subscribe: 'default',
+  error: 'destructive',
+};
+
 const ROLE_BADGE_VARIANT: Record<string, 'secondary' | 'outline' | 'destructive'> = {
   'mqtt-reader': 'secondary',
   'mqtt-operator': 'outline',
@@ -94,6 +108,7 @@ export default function MqttPage() {
   const [deleting, setDeleting] = useState(false);
   const [testing, setTesting] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [logEvents, setLogEvents] = useState<MqttLogEvent[]>([]);
 
   // Guard: SUPER_ADMIN only
   useEffect(() => {
@@ -129,13 +144,30 @@ export default function MqttPage() {
     }
   }, []);
 
+  const loadLog = useCallback(async () => {
+    try {
+      const data = await apiFetch<MqttLogEvent[]>('/api/mqtt/log');
+      setLogEvents(data);
+    } catch {
+      // log unavailable
+    }
+  }, []);
+
   useEffect(() => {
     if (user?.role === 'SUPER_ADMIN') {
       void loadStatus();
       void loadConfig();
       void loadUsers();
+      void loadLog();
     }
-  }, [user, loadStatus, loadConfig, loadUsers]);
+  }, [user, loadStatus, loadConfig, loadUsers, loadLog]);
+
+  // Auto-refresh activity log every 5 seconds
+  useEffect(() => {
+    if (user?.role !== 'SUPER_ADMIN') return;
+    const interval = setInterval(() => { void loadLog(); }, 5000);
+    return () => clearInterval(interval);
+  }, [user, loadLog]);
 
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -368,6 +400,54 @@ export default function MqttPage() {
           </Card>
         </div>
       </div>
+
+      {/* Activity Log — full width below the 2-column grid */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle>{t('activityLog.title')}</CardTitle>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => void loadLog()}
+          >
+            <RefreshCw className="size-4" />
+          </Button>
+        </CardHeader>
+        <CardContent>
+          {logEvents.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              {t('activityLog.empty')}
+            </p>
+          ) : (
+            <div className="max-h-80 space-y-2 overflow-y-auto">
+              {[...logEvents].reverse().map((event, i) => {
+                const time = event.timestamp.slice(11, 19);
+                return (
+                  <div key={i} className="flex items-center gap-2">
+                    <span className="shrink-0 text-xs text-muted-foreground">
+                      {time}
+                    </span>
+                    <Badge
+                      variant={
+                        EVENT_BADGE_VARIANT[event.type] ?? 'secondary'
+                      }
+                      className="shrink-0"
+                    >
+                      {t(`activityLog.${event.type}`)}
+                    </Badge>
+                    <span
+                      className="truncate text-sm"
+                      title={event.detail}
+                    >
+                      {event.detail}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Dialogs */}
       <MqttUserDialog

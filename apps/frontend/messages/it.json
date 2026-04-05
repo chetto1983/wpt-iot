@@ -555,6 +555,15 @@
       "deleteDescription": "Questo rimuovera' l'accesso dell'utente al broker MQTT. Questa azione non puo' essere annullata.",
       "noUsers": "Nessun utente MQTT configurato",
       "systemAccount": "Sistema"
+    },
+    "activityLog": {
+      "title": "Log Attivita'",
+      "empty": "Nessuna attivita' registrata",
+      "connect": "Connessione",
+      "disconnect": "Disconnessione",
+      "publish": "Pubblicazione",
+      "subscribe": "Sottoscrizione",
+      "error": "Errore"
     }
   }
 }
