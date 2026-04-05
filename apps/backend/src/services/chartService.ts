@@ -212,4 +212,40 @@ export class ChartService {
 
     return { resolution, points };
   }
+
+  // -------------------------------------------------------------------------
+  // Batch query — single DB call, per-panel projection
+  // -------------------------------------------------------------------------
+
+  /**
+   * Query chart data for multiple panels in a single DB call.
+   * Collects all unique fields, fetches once, then projects per query.
+   */
+  static async queryBatchChartData(
+    from: Date,
+    to: Date,
+    queries: Array<{ id: string; fields: string[] }>,
+  ): Promise<{ resolution: 'raw' | '5min' | '1h'; results: Record<string, { points: Array<Record<string, number | string>> }> }> {
+    // 1. Collect all unique fields across all queries
+    const allFields = [...new Set(queries.flatMap(q => q.fields))];
+
+    // 2. Make a single call to queryChartData with the union of all fields
+    const unified = await ChartService.queryChartData({ from, to, fields: allFields });
+
+    // 3. Split the result: for each query, project only its requested fields
+    const results: Record<string, { points: Array<Record<string, number | string>> }> = {};
+    for (const query of queries) {
+      results[query.id] = {
+        points: unified.points.map(point => {
+          const projected: Record<string, number | string> = { timestamp: point['timestamp']! };
+          for (const f of query.fields) {
+            if (f in point) projected[f] = point[f]!;
+          }
+          return projected;
+        }),
+      };
+    }
+
+    return { resolution: unified.resolution, results };
+  }
 }

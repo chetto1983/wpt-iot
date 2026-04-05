@@ -51,4 +51,36 @@ export const chartRoutes: FastifyPluginAsync = async (server) => {
     const result = await ChartService.queryChartData({ from, to, fields });
     return result;
   });
+
+  /** POST /charts/batch -- batch data for multiple panels */
+  server.post('/charts/batch', async (request, reply) => {
+    const body = request.body as { from: string; to: string; queries: Array<{ id: string; fields: string[] }> };
+    const from = new Date(body.from);
+    const to = new Date(body.to);
+
+    if (isNaN(from.getTime()) || isNaN(to.getTime())) {
+      return reply.code(400).send({ error: 'Invalid date range' });
+    }
+    if (!Array.isArray(body.queries) || body.queries.length === 0) {
+      return reply.code(400).send({ error: 'No queries provided' });
+    }
+
+    // Role-based field filtering per query
+    const role = request.session.role as UserRole;
+    const allowedFields: readonly string[] =
+      role === UserRole.CLIENT ? CLIENT_VISIBLE_FIELDS : WPT_VISIBLE_FIELDS;
+    const filteredQueries = body.queries
+      .map(q => ({
+        id: q.id,
+        fields: q.fields.filter(f => (allowedFields as readonly string[]).includes(f)),
+      }))
+      .filter(q => q.fields.length > 0);
+
+    if (filteredQueries.length === 0) {
+      return reply.code(400).send({ error: 'No valid fields for your role' });
+    }
+
+    const result = await ChartService.queryBatchChartData(from, to, filteredQueries);
+    return result;
+  });
 };
