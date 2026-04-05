@@ -1,9 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
-import { Loader2, ArrowDownToLine } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import type { IJobData } from '@wpt/types';
 import {
   CycleType,
@@ -65,6 +65,15 @@ export default function JobsPage() {
       </div>
     );
   }
+
+  // Auto-read from PLC on page load (like the legacy system)
+  const didAutoRead = useRef(false);
+  useEffect(() => {
+    if (user?.role === 'CLIENT' || didAutoRead.current) return;
+    didAutoRead.current = true;
+    handleRead();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleRead = async () => {
     setIsReading(true);
@@ -134,22 +143,12 @@ export default function JobsPage() {
         namespace="jobs"
       />
 
-      {!hasRead && (
+      {!hasRead && isReading && (
         <div className="rounded-lg border border-blue-500/30 bg-blue-500/10 p-6 text-center">
-          <ArrowDownToLine className="mx-auto mb-3 h-10 w-10 text-blue-500" />
-          <h2 className="text-lg font-semibold">{t('readFirst.title')}</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {t('readFirst.subtitle')}
+          <Loader2 className="mx-auto mb-3 h-10 w-10 animate-spin text-blue-500" />
+          <p className="text-sm text-muted-foreground">
+            {t('actions.reading')}
           </p>
-          <Button
-            size="lg"
-            className="mt-4"
-            onClick={handleRead}
-            disabled={isReading}
-          >
-            {isReading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {isReading ? t('actions.reading') : t('actions.readFromPlc')}
-          </Button>
         </div>
       )}
 
@@ -310,23 +309,21 @@ export default function JobsPage() {
         </CardContent>
       </Card>
 
-      {/* Button row — visible only after first read */}
-      {hasRead && (
-        <div className="flex justify-end gap-4">
-          <Button onClick={handleRead} disabled={isReading || isWriting}>
-            {isReading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {isReading ? t('actions.reading') : t('actions.readFromPlc')}
-          </Button>
-          <Button
-            variant={lock.canWrite ? 'default' : 'outline'}
-            onClick={handleWriteClick}
-            disabled={!lock.canWrite || isReading || isWriting}
-          >
-            {isWriting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {isWriting ? t('actions.writing') : t('actions.writeToPlc')}
-          </Button>
-        </div>
-      )}
+      {/* Button row */}
+      <div className="flex justify-end gap-4">
+        <Button onClick={handleRead} disabled={isReading || isWriting}>
+          {isReading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          {isReading ? t('actions.reading') : t('actions.readFromPlc')}
+        </Button>
+        <Button
+          variant={lock.canWrite ? 'default' : 'outline'}
+          onClick={handleWriteClick}
+          disabled={!lock.canWrite || isReading || isWriting}
+        >
+          {isWriting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          {isWriting ? t('actions.writing') : t('actions.writeToPlc')}
+        </Button>
+      </div>
 
       <PlcWriteConfirm
         open={confirmOpen}
