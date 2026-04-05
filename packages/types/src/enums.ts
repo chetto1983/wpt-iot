@@ -15,26 +15,26 @@ export enum CycleType {
   PLASTIC_END = 12,
 }
 
-/** Machine phase from Mappatura S1_I_DATO_60 — 5 states per spec PDF */
+/** Machine phase from Mappatura S1_I_DATO_60 -- 5 states per spec PDF */
 export enum MachinePhase {
-  IDLE = 0,
-  LOADING = 1,
-  PROCESSING = 2,
-  DRYING = 3,
-  UNLOADING = 4,
+  NO_SELECTION = 0,
+  STANDBY = 1,
+  MANUAL = 2,
+  AUTOMATIC_STARTED = 3,
+  IN_ALARM = 4,
 }
 
-/** Machine status from Mappatura S1_I_DATO_61 — 9 states per spec PDF */
+/** Machine status / processing sub-stage from Mappatura S1_I_DATO_61 -- 9 states per spec PDF */
 export enum MachineStatus {
-  OFF = 0,
-  STANDBY = 1,
-  READY = 2,
-  RUNNING = 3,
-  PAUSED = 4,
-  ALARM = 5,
-  MAINTENANCE = 6,
-  EMERGENCY = 7,
-  MANUAL = 8,
+  LOADING = 0,
+  SHREDDING = 1,
+  HEATING = 2,
+  EVAPORATION = 3,
+  OVERHEATING = 4,
+  HOLDING = 5,
+  COOLING = 6,
+  FINAL_DRYING = 7,
+  DISCHARGE = 8,
 }
 
 /** IoT login user roles (local auth, not RFID PLC users) */

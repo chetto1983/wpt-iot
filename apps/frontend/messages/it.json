@@ -206,22 +206,22 @@
       "PLASTIC_END": "Fine plastica"
     },
     "machinePhases": {
-      "IDLE": "Inattivo",
-      "LOADING": "Caricamento",
-      "PROCESSING": "Lavorazione",
-      "DRYING": "Essiccazione",
-      "UNLOADING": "Scarico"
+      "NO_SELECTION": "Nessuna Selezione",
+      "STANDBY": "Standby",
+      "MANUAL": "Manuale",
+      "AUTOMATIC_STARTED": "Automatico Avviato",
+      "IN_ALARM": "In Allarme"
     },
     "machineStatuses": {
-      "OFF": "Spento",
-      "STANDBY": "Standby",
-      "READY": "Pronto",
-      "RUNNING": "In funzione",
-      "PAUSED": "In pausa",
-      "ALARM": "Allarme",
-      "MAINTENANCE": "Manutenzione",
-      "EMERGENCY": "Emergenza",
-      "MANUAL": "Manuale"
+      "LOADING": "Caricamento",
+      "SHREDDING": "Triturazione",
+      "HEATING": "Riscaldamento",
+      "EVAPORATION": "Evaporazione",
+      "OVERHEATING": "Surriscaldamento",
+      "HOLDING": "Mantenimento",
+      "COOLING": "Raffreddamento",
+      "FINAL_DRYING": "Essiccazione Finale",
+      "DISCHARGE": "Scarico"
     }
   },
   "rfid": {

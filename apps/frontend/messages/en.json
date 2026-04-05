@@ -206,22 +206,22 @@
       "PLASTIC_END": "Plastic End"
     },
     "machinePhases": {
-      "IDLE": "Idle",
-      "LOADING": "Loading",
-      "PROCESSING": "Processing",
-      "DRYING": "Drying",
-      "UNLOADING": "Unloading"
+      "NO_SELECTION": "No Selection",
+      "STANDBY": "Standby",
+      "MANUAL": "Manual",
+      "AUTOMATIC_STARTED": "Auto Started",
+      "IN_ALARM": "In Alarm"
     },
     "machineStatuses": {
-      "OFF": "Off",
-      "STANDBY": "Standby",
-      "READY": "Ready",
-      "RUNNING": "Running",
-      "PAUSED": "Paused",
-      "ALARM": "Alarm",
-      "MAINTENANCE": "Maintenance",
-      "EMERGENCY": "Emergency",
-      "MANUAL": "Manual"
+      "LOADING": "Loading",
+      "SHREDDING": "Shredding",
+      "HEATING": "Heating",
+      "EVAPORATION": "Evaporation",
+      "OVERHEATING": "Overheating",
+      "HOLDING": "Holding",
+      "COOLING": "Cooling",
+      "FINAL_DRYING": "Final Drying",
+      "DISCHARGE": "Discharge"
     }
   },
   "rfid": {
