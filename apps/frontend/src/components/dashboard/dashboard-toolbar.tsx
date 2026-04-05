@@ -1,12 +1,9 @@
 'use client';
 
-import type { DateRange } from 'react-day-picker';
 import { useTranslations } from 'next-intl';
-import { Plus, Save, Lock, Unlock, RefreshCw, Loader2 } from 'lucide-react';
+import { Plus, Save, Lock, Unlock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { DateRangePicker } from '@/components/date-range-picker';
+import { TimeRangePicker } from '@/components/time-range-picker';
 
 interface DashboardToolbarProps {
   dashboardName: string;
@@ -15,14 +12,16 @@ interface DashboardToolbarProps {
   onAddPanel: () => void;
   onSave: () => void;
   saving: boolean;
-  dateRange: DateRange | undefined;
-  onDateRangeChange: (range: DateRange | undefined) => void;
-  fromTime: string;
-  toTime: string;
-  onFromTimeChange: (time: string) => void;
-  onToTimeChange: (time: string) => void;
-  onReload: () => void;
-  loading: boolean;
+  // Time range props (passed through to TimeRangePicker)
+  from: Date;
+  to: Date;
+  onRangeChange: (from: Date, to: Date) => void;
+  activePreset: string | null;
+  onPresetChange: (preset: string | null) => void;
+  refreshInterval: number;
+  onRefreshIntervalChange: (ms: number) => void;
+  lastUpdated: Date | null;
+  dataLoading: boolean;
 }
 
 export function DashboardToolbar({
@@ -32,66 +31,40 @@ export function DashboardToolbar({
   onAddPanel,
   onSave,
   saving,
-  dateRange,
-  onDateRangeChange,
-  fromTime,
-  toTime,
-  onFromTimeChange,
-  onToTimeChange,
-  onReload,
-  loading,
+  from,
+  to,
+  onRangeChange,
+  activePreset,
+  onPresetChange,
+  refreshInterval,
+  onRefreshIntervalChange,
+  lastUpdated,
+  dataLoading,
 }: DashboardToolbarProps) {
   const t = useTranslations('dashboards');
 
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3">
-      <h1 className="text-xl font-semibold">{dashboardName}</h1>
+    <div className="flex flex-wrap items-center gap-4">
+      {/* LEFT: Dashboard name */}
+      <h1 className="text-xl font-semibold shrink-0">{dashboardName}</h1>
 
-      <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
-        <div className="space-y-0.5">
-          <Label className="text-[10px] text-muted-foreground">{t('dateRangeLabel')}</Label>
-          <DateRangePicker
-            value={dateRange}
-            onChange={onDateRangeChange}
-            placeholder={t('dateRangePlaceholder')}
-          />
-        </div>
-        <div className="space-y-0.5">
-          <Label htmlFor="dashboard-from-time" className="text-[10px] text-muted-foreground">{t('fromTimeLabel')}</Label>
-          <Input
-            id="dashboard-from-time"
-            type="time"
-            value={fromTime}
-            onChange={(e) => onFromTimeChange(e.target.value)}
-            className="w-[100px]"
-          />
-        </div>
-        <div className="space-y-0.5">
-          <Label htmlFor="dashboard-to-time" className="text-[10px] text-muted-foreground">{t('toTimeLabel')}</Label>
-          <Input
-            id="dashboard-to-time"
-            type="time"
-            value={toTime}
-            onChange={(e) => onToTimeChange(e.target.value)}
-            className="w-[100px]"
-          />
-        </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={onReload}
-          disabled={loading || !dateRange?.from}
-        >
-          {loading ? (
-            <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
-          ) : (
-            <RefreshCw className="mr-1.5 h-4 w-4" />
-          )}
-          {t('reload')}
-        </Button>
+      {/* CENTER: Time range picker (grows to fill) */}
+      <div className="flex flex-1 items-center justify-center">
+        <TimeRangePicker
+          from={from}
+          to={to}
+          onRangeChange={onRangeChange}
+          activePreset={activePreset}
+          onPresetChange={onPresetChange}
+          refreshInterval={refreshInterval}
+          onRefreshIntervalChange={onRefreshIntervalChange}
+          lastUpdated={lastUpdated}
+          loading={dataLoading}
+        />
       </div>
 
-      <div className="flex items-center gap-2">
+      {/* RIGHT: Edit/View + Add Panel + Save */}
+      <div className="flex items-center gap-2 shrink-0">
         <Button
           variant="outline"
           size="sm"
@@ -106,15 +79,17 @@ export function DashboardToolbar({
           {editMode ? t('editing') : t('locked')}
         </Button>
         {editMode && (
-          <Button variant="outline" size="sm" onClick={onAddPanel}>
-            <Plus className="mr-1.5 h-4 w-4" />
-            {t('addPanel')}
-          </Button>
+          <>
+            <Button variant="outline" size="sm" onClick={onAddPanel}>
+              <Plus className="mr-1.5 h-4 w-4" />
+              {t('addPanel')}
+            </Button>
+            <Button size="sm" onClick={onSave} disabled={saving}>
+              <Save className="mr-1.5 h-4 w-4" />
+              {saving ? t('saving') : t('save')}
+            </Button>
+          </>
         )}
-        <Button size="sm" onClick={onSave} disabled={saving}>
-          <Save className="mr-1.5 h-4 w-4" />
-          {saving ? t('saving') : t('save')}
-        </Button>
       </div>
     </div>
   );
