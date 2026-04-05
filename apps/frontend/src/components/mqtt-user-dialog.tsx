@@ -100,6 +100,8 @@ export function MqttUserDialog({ open, onOpenChange, onCreated }: MqttUserDialog
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               required
+              minLength={3}
+              maxLength={50}
               autoComplete="off"
             />
           </div>
@@ -111,6 +113,8 @@ export function MqttUserDialog({ open, onOpenChange, onCreated }: MqttUserDialog
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
+              minLength={8}
+              maxLength={100}
               autoComplete="new-password"
             />
           </div>
