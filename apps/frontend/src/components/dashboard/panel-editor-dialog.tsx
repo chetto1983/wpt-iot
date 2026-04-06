@@ -5,7 +5,9 @@ import { useTranslations } from 'next-intl';
 import type { ChartType, IPanel, IPanelConfig } from '@wpt/types';
 import { useAuth } from '@/lib/auth-context';
 import { getFieldLabel } from '@/lib/field-labels';
+import { fieldsShareUnit } from '@/lib/field-units';
 import { FieldSelector, getChartableFields } from '@/components/field-selector';
+import { AlertTriangle } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -192,6 +194,12 @@ export function PanelEditorDialog({
               <p className="text-xs text-destructive mt-2">
                 {t('editor.noFieldsSelected')}
               </p>
+            )}
+            {chartType === 'pie' && fields.length >= 2 && !fieldsShareUnit(fields) && (
+              <div className="mt-2 flex items-start gap-2 rounded-md border border-wpt-gold/40 bg-wpt-gold/10 p-2 text-xs text-wpt-gold">
+                <AlertTriangle className="mt-0.5 size-3.5 shrink-0" />
+                <span>{t('editor.pieMixedUnits')}</span>
+              </div>
             )}
           </TabsContent>
 

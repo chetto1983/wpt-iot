@@ -276,7 +276,8 @@
       "yAxisMax": "Y-Axis Max",
       "save": "Save Panel",
       "cancel": "Cancel",
-      "noFieldsSelected": "Select at least one field"
+      "noFieldsSelected": "Select at least one field",
+      "pieMixedUnits": "Selected fields have different units. Pie charts only make sense with homogeneous fields (e.g., all temperatures, or all currents)."
     }
   },
   "rfid": {
@@ -493,6 +494,8 @@
     "notFound": "Dashboard not found",
     "panelError": "This panel failed to load",
     "retryPanel": "Retry Panel",
+    "pieMixedUnitsTitle": "Incompatible units",
+    "pieMixedUnitsHint": "Pie charts require all selected fields to share the same unit (e.g., all in degC, or all in A). Adjust the field selection.",
     "deletePanel": {
       "title": "Delete Panel",
       "description": "This panel will be permanently removed from your dashboard. This action cannot be undone.",

@@ -25,8 +25,15 @@ import { AlertCircle } from 'lucide-react';
 import type { ChartType, IPanelConfig } from '@wpt/types';
 import { CHART_COLORS } from '@/lib/chart-colors';
 import { getFieldLabel } from '@/lib/field-labels';
+import {
+  aggregateField,
+  fieldsShareUnit,
+  formatValue,
+  getFieldUnit,
+} from '@/lib/field-units';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
+import { AlertTriangle } from 'lucide-react';
 
 /* ========================================================================
  * Grafana-style chart constants
@@ -145,8 +152,19 @@ export const PanelChart = React.memo(function PanelChart({
   );
 });
 
-/* ----- Pie Chart (aggregated averages) ----- */
-
+/* ----- Pie Chart -------------------------------------------------------
+ * Pie charts only make sense when all selected fields share a unit
+ * (e.g., 3 phase currents in Amperes, 4 thermos in °C). Otherwise we
+ * refuse to render and show a warning instead — the previous version
+ * silently averaged kWh + L + °C, producing meaningless slices.
+ *
+ * Aggregation per field comes from field-units.ts:
+ *   - Counters (energy, water): last - first  → "consumed during window"
+ *   - Instantaneous readings:   average       → "typical value"
+ *   - Sums:                     total         → "total over window"
+ *
+ * Slices with value <= 0 are skipped (recharts can't render zero arcs).
+ * --------------------------------------------------------------------- */
 function PieChartRenderer({
   config,
   data,
@@ -156,24 +174,43 @@ function PieChartRenderer({
   data: Array<Record<string, number | string>>;
   locale: 'it' | 'en';
 }) {
+  const t = useTranslations('dashboards');
+  const sharedUnit = fieldsShareUnit(config.fields);
+  const unitLabel = config.fields[0] ? getFieldUnit(config.fields[0]).unit : '';
+
   const pieData = useMemo(() => {
-    return config.fields.map((field, i) => {
-      let sum = 0;
-      let count = 0;
-      for (const row of data) {
-        const val = row[field];
-        if (typeof val === 'number') {
-          sum += val;
-          count++;
-        }
-      }
-      return {
+    if (!sharedUnit) return [];
+    return config.fields
+      .map((field, i) => ({
+        field,
         name: getFieldLabel(field, locale),
-        value: count > 0 ? Math.round((sum / count) * 100) / 100 : 0,
+        value: aggregateField(field, data),
         color: CHART_COLORS[i % CHART_COLORS.length]!,
-      };
-    });
-  }, [config.fields, data, locale]);
+      }))
+      .filter((d) => d.value > 0);
+  }, [config.fields, data, locale, sharedUnit]);
+
+  if (!sharedUnit) {
+    return (
+      <div className="flex h-full w-full flex-col items-center justify-center gap-2 px-4 text-center">
+        <AlertTriangle className="size-6 text-wpt-gold" />
+        <p className="text-sm font-medium">{t('pieMixedUnitsTitle')}</p>
+        <p className="text-xs text-muted-foreground">
+          {t('pieMixedUnitsHint')}
+        </p>
+      </div>
+    );
+  }
+
+  if (pieData.length === 0) {
+    return (
+      <div className="flex h-full w-full items-center justify-center">
+        <p className="text-xs text-muted-foreground">No data</p>
+      </div>
+    );
+  }
+
+  const total = pieData.reduce((a, b) => a + b.value, 0);
 
   return (
     <ResponsiveContainer width="100%" height="100%">
@@ -184,20 +221,42 @@ function PieChartRenderer({
           nameKey="name"
           cx="50%"
           cy="50%"
+          innerRadius="40%"
           outerRadius="72%"
+          paddingAngle={1}
           stroke="var(--color-card)"
           strokeWidth={2}
+          isAnimationActive={false}
+          label={({ value }: { value: number }) => {
+            const pct = total > 0 ? Math.round((value / total) * 100) : 0;
+            return pct >= 5 ? `${pct}%` : '';
+          }}
+          labelLine={false}
         >
-          {pieData.map((entry, i) => (
-            <Cell key={i} fill={entry.color} />
+          {pieData.map((entry) => (
+            <Cell key={entry.field} fill={entry.color} />
           ))}
         </Pie>
         <Tooltip
           contentStyle={TOOLTIP_STYLE}
           itemStyle={TOOLTIP_ITEM_STYLE}
           labelStyle={TOOLTIP_LABEL_STYLE}
+          formatter={(value: unknown, _name: unknown, entry: unknown): [string, string] => {
+            const num = typeof value === 'number' ? value : Number(value);
+            const fld =
+              ((entry as { payload?: { field?: string } } | undefined)?.payload?.field) ?? '';
+            const pct = total > 0 ? ((num / total) * 100).toFixed(1) : '0';
+            return [`${formatValue(num, fld)} (${pct}%)`, getFieldLabel(fld, locale)];
+          }}
         />
-        {config.showLegend && <Legend wrapperStyle={LEGEND_STYLE} iconSize={8} iconType="circle" />}
+        {config.showLegend && (
+          <Legend
+            wrapperStyle={LEGEND_STYLE}
+            iconSize={8}
+            iconType="circle"
+            formatter={(value) => `${value}${unitLabel ? ` (${unitLabel})` : ''}`}
+          />
+        )}
       </PieChart>
     </ResponsiveContainer>
   );
@@ -221,6 +280,34 @@ function TimeSeriesRenderer({
   const yDomain: [number | string, number | string] = config.yAxisRange
     ? [config.yAxisRange.min, config.yAxisRange.max]
     : ['auto', 'auto'];
+
+  // Y-axis unit suffix only when ALL selected fields share the same unit.
+  // Mixed units fall back to no suffix (we don't pretend the axis means a
+  // single thing). The tooltip still shows per-series units.
+  const sharedUnit = fieldsShareUnit(config.fields);
+  const yUnit = sharedUnit && config.fields[0] ? getFieldUnit(config.fields[0]).unit : '';
+  const yTickFormatter = (v: number): string => {
+    if (!Number.isFinite(v)) return '';
+    // Compact large numbers (>1000 → "1.2k", >1e6 → "1.2M") to keep axis tight
+    const abs = Math.abs(v);
+    let label: string;
+    if (abs >= 1e6) label = (v / 1e6).toFixed(1) + 'M';
+    else if (abs >= 1000) label = (v / 1000).toFixed(1) + 'k';
+    else label = Number.isInteger(v) ? String(v) : v.toFixed(1);
+    return yUnit ? `${label} ${yUnit}` : label;
+  };
+
+  const tooltipFormatter = (
+    value: unknown,
+    name: unknown,
+    entry: unknown,
+  ): [string, string] => {
+    const field = String(
+      (entry as { dataKey?: string | number } | undefined)?.dataKey ?? '',
+    );
+    const num = typeof value === 'number' ? value : Number(value);
+    return [formatValue(num, field), String(name ?? field)];
+  };
 
   // Sort data ascending by timestamp — defensive against backend ordering bugs.
   const sortedData = useMemo(() => {
@@ -255,10 +342,12 @@ function TimeSeriesRenderer({
         tick={AXIS_TICK}
         tickLine={false}
         axisLine={false}
-        width={36}
+        tickFormatter={yTickFormatter}
+        width={yUnit ? 56 : 44}
       />
       <Tooltip
         labelFormatter={(v) => formatTooltipLabel(v as number, resolution)}
+        formatter={tooltipFormatter}
         contentStyle={TOOLTIP_STYLE}
         itemStyle={TOOLTIP_ITEM_STYLE}
         labelStyle={TOOLTIP_LABEL_STYLE}

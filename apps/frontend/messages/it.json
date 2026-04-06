@@ -276,7 +276,8 @@
       "yAxisMax": "Y Max",
       "save": "Salva Pannello",
       "cancel": "Annulla",
-      "noFieldsSelected": "Seleziona almeno un campo"
+      "noFieldsSelected": "Seleziona almeno un campo",
+      "pieMixedUnits": "I campi selezionati hanno unita' di misura diverse. Il grafico a torta ha senso solo con campi omogenei (es. tutte temperature, o tutte correnti)."
     }
   },
   "rfid": {
@@ -493,6 +494,8 @@
     "notFound": "Dashboard non trovata",
     "panelError": "Impossibile caricare questo pannello",
     "retryPanel": "Riprova Pannello",
+    "pieMixedUnitsTitle": "Unita' incompatibili",
+    "pieMixedUnitsHint": "Il grafico a torta richiede campi con la stessa unita' di misura (es. tutti in degC, o tutti in A). Modifica la selezione dei campi.",
     "deletePanel": {
       "title": "Elimina Pannello",
       "description": "Questo pannello verra' rimosso definitivamente dalla tua dashboard. Questa azione non puo' essere annullata.",
