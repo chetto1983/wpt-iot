@@ -45,6 +45,32 @@ services:
         max-size: "10m"
         max-file: "3"
 
+  # =====================================================================
+  # ⚠ UDP NETWORKING WARNING — READ BEFORE DEPLOYING WITH A REAL PLC ⚠
+  # =====================================================================
+  # This base compose uses Docker bridge networking + explicit UDP port
+  # mappings (9090-9093/udp). That works for the dev simulator stack
+  # (simulator → backend over the bridge network) but it WILL silently
+  # drop inbound packets from a real ABB AC500 PLC.
+  #
+  # CLAUDE.md mandate (non-negotiable):
+  #   "Backend networking: Must use network_mode: host in Docker —
+  #    bridge networking kills UDP PLC packets"
+  #
+  # For ANY deployment attached to a real PLC, you MUST layer the
+  # production override on top of this file:
+  #
+  #   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+  #
+  # The prod override (docker-compose.prod.yml) applies
+  # `network_mode: host` and clears `ports: []` on the backend service,
+  # which is the only configuration that lets the PLC's UDP frames
+  # actually reach the listener sockets.
+  #
+  # If you are extending this file with a new "real-plc" profile or
+  # reorganising deployments, the network_mode: host requirement
+  # carries over — do not "simplify" it away.
+  # =====================================================================
   backend:
     build:
       context: .
