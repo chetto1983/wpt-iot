@@ -142,3 +142,55 @@
     to { opacity: 1; transform: translateY(0); }
   }
 }
+
+/* ----------------------------------------------------------------------
+ * Grafana-style react-grid-layout overrides
+ * The default react-grid-layout resize handle uses rgba(0,0,0,0.4) which
+ * is invisible on our dark theme. Below we (a) show the SE handle as a
+ * highly visible diagonal grip when the grid is in edit mode, and (b)
+ * show a subtle dashed selection ring + drag-affordance on hover.
+ * The wpt-grid--editing class is added to the ResponsiveGridLayout root
+ * by the dashboard page when editMode === true.
+ * -------------------------------------------------------------------- */
+.wpt-grid--editing .react-grid-item {
+  outline: 1px dashed hsl(var(--border));
+  outline-offset: -1px;
+  border-radius: var(--radius);
+}
+.wpt-grid--editing .react-grid-item:hover {
+  outline-color: var(--color-wpt-teal);
+}
+
+/* Force the SE resize handle visible in edit mode and recolor for dark theme */
+.wpt-grid--editing .react-grid-item > .react-resizable-handle {
+  opacity: 1;
+  width: 18px;
+  height: 18px;
+  z-index: 10;
+}
+.wpt-grid--editing .react-grid-item > .react-resizable-handle::after {
+  content: "";
+  position: absolute;
+  right: 2px;
+  bottom: 2px;
+  width: 10px;
+  height: 10px;
+  border-right: 2px solid var(--color-wpt-teal);
+  border-bottom: 2px solid var(--color-wpt-teal);
+  border-radius: 0 0 2px 0;
+}
+
+/* Resize-in-progress placeholder uses brand teal at low opacity */
+.react-grid-item.react-grid-placeholder {
+  background: var(--color-wpt-teal) !important;
+  opacity: 0.18 !important;
+  border-radius: var(--radius);
+}
+
+/* Hide the chart container's overflow so axis ticks don't bleed out */
+.wpt-panel-chart .recharts-responsive-container {
+  overflow: hidden;
+}
+.wpt-panel-chart .recharts-cartesian-axis-tick text {
+  font-variant-numeric: tabular-nums;
+}

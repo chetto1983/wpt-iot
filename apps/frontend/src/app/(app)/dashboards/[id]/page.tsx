@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useQueryStates, parseAsString, parseAsInteger } from 'nuqs';
@@ -24,19 +24,23 @@ import type {
 } from '@wpt/types';
 import { apiFetch } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
-import { PANEL_SIZE_DEFAULTS } from '@/lib/chart-colors';
+import { PANEL_SIZE_DEFAULTS, computePresetRange } from '@/lib/chart-colors';
 import { cn } from '@/lib/utils';
-import { DashboardPanel } from '@/components/dashboard/dashboard-panel';
+import { DashboardPanelItem } from '@/components/dashboard/dashboard-panel-item';
 import { DashboardToolbar } from '@/components/dashboard/dashboard-toolbar';
 import { PanelEditorDialog } from '@/components/dashboard/panel-editor-dialog';
-import { PanelChart } from '@/components/dashboard/panel-chart';
 
 import 'react-grid-layout/css/styles.css';
 
-const MIN_W = 4;
-const MIN_H = 4;
+const MIN_W = 6;
+const MIN_H = 6;
 
-/** Ensure layout items have sane minimums — DB may contain corrupted w:1/h:1 values */
+/**
+ * Migrate older layouts whose w/h are below the new MIN to a usable size.
+ * Without this, panels saved before the MIN bump would render unreadable.
+ * The migration happens client-side every load; the new size is persisted
+ * the next time the user saves the layout.
+ */
 function enforceMinLayout(items: ILayoutItem[]): ILayoutItem[] {
   return items.map((item) => ({
     ...item,
@@ -47,14 +51,23 @@ function enforceMinLayout(items: ILayoutItem[]): ILayoutItem[] {
   }));
 }
 
-const MemoPanel = React.memo(DashboardPanel);
-
 const WIDGET_CARDS = [
   { type: 'line' as ChartType, icon: LineChart },
   { type: 'bar' as ChartType, icon: BarChart3 },
   { type: 'area' as ChartType, icon: AreaChart },
   { type: 'pie' as ChartType, icon: PieChart },
 ] as const;
+
+/**
+ * Tracks an undo-able panel deletion. We hold the original panel + layout item
+ * so the undo path can restore the panel at its exact previous position/size,
+ * not at a hardcoded {x:0,y:Infinity,w:12,h:8}.
+ */
+interface PendingDelete {
+  panel: IPanel;
+  layoutItem: ILayoutItem | null;
+  timer: ReturnType<typeof setTimeout>;
+}
 
 export default function SingleDashboardPage() {
   const t = useTranslations('dashboards');
@@ -87,22 +100,37 @@ export default function SingleDashboardPage() {
   // Fullscreen panel tracking
   const [fullscreenPanel, setFullscreenPanel] = useState<string | null>(null);
 
-  // Undo-toast delete tracking
-  const [pendingDelete, setPendingDelete] = useState<
-    { panelId: number; panelKey: string; timer: ReturnType<typeof setTimeout> } | null
-  >(null);
+  // Undo-toast delete tracking — keyed by panelId so concurrent deletes don't
+  // race. The previous single-state version silently lost the first delete
+  // when a second was triggered within the 5s window.
+  const pendingDeletesRef = useRef<Map<number, PendingDelete>>(new Map());
+
   const [defaultChartType, setDefaultChartType] = useState<ChartType | null>(null);
 
-  // Time range state synced to URL via nuqs
-  const [dateFilters, setDateFilters] = useQueryStates({
-    from: parseAsString.withDefault(new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString()),
-    to: parseAsString.withDefault(new Date().toISOString()),
-    preset: parseAsString.withDefault('last6h'),
-    refresh: parseAsInteger.withDefault(15000),
-  });
+  // Time range state synced to URL via nuqs.
+  // The default ISO strings are computed ONCE at mount via useMemo with empty
+  // deps. Computing them inline (`new Date().toISOString()`) every render
+  // creates a fresh string per render — once dataVersion bumps, Effect 2 then
+  // fires every render → fetch storm. Pinning the defaults at mount fixes
+  // the root loop cause.
+  const queryParsers = useMemo(
+    () => ({
+      from: parseAsString.withDefault(
+        new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString(),
+      ),
+      to: parseAsString.withDefault(new Date().toISOString()),
+      preset: parseAsString.withDefault('last6h'),
+      refresh: parseAsInteger.withDefault(15000),
+    }),
+    [],
+  );
+  const [dateFilters, setDateFilters] = useQueryStates(queryParsers);
 
-  const rangeFrom = new Date(dateFilters.from);
-  const rangeTo = new Date(dateFilters.to);
+  // rangeFrom/rangeTo are useMemo'd so identity is stable across renders
+  // when the underlying ISO strings don't change. Required for React.memo
+  // children that receive Date props.
+  const rangeFrom = useMemo(() => new Date(dateFilters.from), [dateFilters.from]);
+  const rangeTo = useMemo(() => new Date(dateFilters.to), [dateFilters.to]);
   const activePreset = dateFilters.preset;
   const refreshInterval = dateFilters.refresh;
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
@@ -197,24 +225,53 @@ export default function SingleDashboardPage() {
     return () => { cancelled = true; };
   }, [id, fetchPanelData]);
 
-  // Effect 2: Re-fetch on range change or panel edits
+  // Effect 2: Re-fetch on range change or panel edits.
+  // NOTE: depends on the primitive ISO strings (dateFilters.from/to), NOT the
+  // derived Date objects — Dates are re-created each render, so using them as
+  // deps would cause an infinite render→fetch→setState→render loop after the
+  // first dataVersion bump.
   useEffect(() => {
-    if (dataVersion === 0) return; // Skip initial render, Effect 1 handles that
+    if (dataVersion === 0) return; // Skip initial render — Effect 1 handles that
     if (panels.length > 0) {
       void fetchPanelData(panels);
     }
-  }, [dataVersion, rangeFrom, rangeTo, fetchPanelData, panels]);
+  }, [dataVersion, dateFilters.from, dateFilters.to, fetchPanelData, panels]);
 
-  // Effect 3: Auto-refresh interval
+  // Effect 3: Auto-refresh interval.
+  // For RELATIVE presets (last1h, last6h, etc.) we slide the window forward
+  // each tick before fetching, so the chart actually shows recent data
+  // instead of the same frozen window. Custom ranges are left untouched.
   useEffect(() => {
     if (refreshInterval === 0 || panels.length === 0) return;
     const timer = setInterval(() => {
+      if (activePreset && activePreset !== 'custom') {
+        const range = computePresetRange(activePreset);
+        if (range) {
+          void setDateFilters({
+            from: range.from.toISOString(),
+            to: range.to.toISOString(),
+          });
+          // setDateFilters will trigger Effect 2 via dateFilters.from/to,
+          // which calls fetchPanelData. No need to call it directly here.
+          return;
+        }
+      }
       void fetchPanelData(panels);
     }, refreshInterval);
     return () => clearInterval(timer);
-  }, [refreshInterval, panels, fetchPanelData]);
+  }, [refreshInterval, panels, fetchPanelData, activePreset, setDateFilters]);
 
-  useEffect(() => () => { if (pendingDelete) clearTimeout(pendingDelete.timer); }, [pendingDelete]);
+  // Clean up any in-flight undo timers on unmount only — NOT on every change.
+  // The previous version cleared the timer whenever pendingDelete changed,
+  // which silently dropped the first delete when a second was queued.
+  useEffect(
+    () => () => {
+      const timers = pendingDeletesRef.current;
+      for (const { timer } of timers.values()) clearTimeout(timer);
+      timers.clear();
+    },
+    [],
+  );
 
   const handleLayoutChange = useCallback((currentLayout: Layout) => {
     setLayout(
@@ -230,8 +287,8 @@ export default function SingleDashboardPage() {
     );
   }, []);
 
-  const handleSave = useCallback(async () => {
-    if (!dashboard) return;
+  const handleSave = useCallback(async (): Promise<boolean> => {
+    if (!dashboard) return false;
     setSaving(true);
     try {
       await apiFetch(`/dashboards/${id}`, {
@@ -239,22 +296,36 @@ export default function SingleDashboardPage() {
         body: JSON.stringify({ layout }),
       });
       toast.success(t('save'));
+      return true;
     } catch (err) {
       toast.error((err as Error).message);
+      return false;
     } finally {
       setSaving(false);
     }
   }, [dashboard, id, layout, t]);
 
-  const handleEditModeChange = useCallback((newMode: boolean) => {
-    if (editMode && !newMode) {
-      void handleSave();
-    }
-    setEditMode(newMode);
-  }, [editMode, handleSave]);
+  // Edit-mode toggle awaits save and stays in edit mode if save fails. The
+  // previous fire-and-forget version exited edit mode immediately even on
+  // network failure, leaving the user unaware their layout was lost.
+  const handleEditModeChange = useCallback(
+    async (newMode: boolean) => {
+      if (editMode && !newMode) {
+        const ok = await handleSave();
+        if (!ok) return; // Stay in edit mode so user can retry
+      }
+      setEditMode(newMode);
+    },
+    [editMode, handleSave],
+  );
 
   const handleAddPanel = useCallback(() => { setEditingPanel(null); setEditorOpen(true); }, []);
   const handleEditPanel = useCallback((panel: IPanel) => { setEditingPanel(panel); setEditorOpen(true); }, []);
+
+  // Stable fullscreen toggle for memoized panel items
+  const handleToggleFullscreen = useCallback((panelKey: string) => {
+    setFullscreenPanel((prev) => (prev === panelKey ? null : panelKey));
+  }, []);
 
   const handleEditorSave = useCallback(
     async (data: {
@@ -285,12 +356,33 @@ export default function SingleDashboardPage() {
               body: JSON.stringify({ panelKey, ...data }),
             },
           );
-          setPanels((prev) => [...prev, newPanel]);
           const defaults = PANEL_SIZE_DEFAULTS[data.chartType];
-          setLayout((prev) => [
-            ...prev,
-            { i: panelKey, x: 0, y: Infinity, w: defaults.w, h: defaults.h, minW: defaults.minW, minH: defaults.minH },
-          ]);
+          const newLayoutItem: ILayoutItem = {
+            i: panelKey,
+            x: 0,
+            y: Infinity, // react-grid-layout's compactor places it below
+            w: defaults.w,
+            h: defaults.h,
+            minW: defaults.minW,
+            minH: defaults.minH,
+          };
+          setPanels((prev) => [...prev, newPanel]);
+
+          // Persist the new layout immediately so a hard refresh keeps the
+          // panel at its computed position. Without this, only the panel row
+          // is created server-side and the next page load misses it.
+          const nextLayout = [...layout, newLayoutItem];
+          setLayout(nextLayout);
+          try {
+            await apiFetch(`/dashboards/${id}`, {
+              method: 'PUT',
+              body: JSON.stringify({ layout: nextLayout }),
+            });
+          } catch (err) {
+            // Layout-save failure isn't fatal — the panel exists, just at a
+            // default position on next reload.
+            toast.warning((err as Error).message);
+          }
         }
         setEditorOpen(false);
         setEditingPanel(null);
@@ -300,7 +392,7 @@ export default function SingleDashboardPage() {
         toast.error((err as Error).message);
       }
     },
-    [editingPanel, id],
+    [editingPanel, id, layout],
   );
 
   const handleDeletePanel = useCallback(
@@ -308,12 +400,19 @@ export default function SingleDashboardPage() {
       const panel = panels.find((p) => p.id === panelId);
       if (!panel) return;
 
+      // Capture the original layout item BEFORE removing it, so undo can
+      // restore the panel at its exact previous position/size instead of a
+      // hardcoded {x:0,y:Infinity,w:12,h:8}.
+      const originalLayoutItem =
+        layout.find((item) => item.i === panel.panelKey) ?? null;
+
       // Immediately hide the panel from UI
       setPanels((prev) => prev.filter((p) => p.id !== panelId));
       setLayout((prev) => prev.filter((item) => item.i !== panel.panelKey));
 
-      // Set up undo timer -- actual delete after 5 seconds
+      // Set up undo timer — actual delete after 5 seconds
       const timer = setTimeout(async () => {
+        pendingDeletesRef.current.delete(panelId);
         try {
           await apiFetch(`/panels/${String(panelId)}`, { method: 'DELETE' });
           setDataVersion((v) => v + 1);
@@ -321,30 +420,38 @@ export default function SingleDashboardPage() {
           toast.error((err as Error).message);
           // Re-add panel on failure
           setPanels((prev) => [...prev, panel]);
+          if (originalLayoutItem) {
+            setLayout((prev) => [...prev, originalLayoutItem]);
+          }
         }
-        setPendingDelete(null);
       }, 5000);
 
-      setPendingDelete({ panelId, panelKey: panel.panelKey, timer });
+      // Track in a Map keyed by panelId so concurrent deletes don't race
+      pendingDeletesRef.current.set(panelId, {
+        panel,
+        layoutItem: originalLayoutItem,
+        timer,
+      });
 
       toast(t('undoDelete'), {
         action: {
           label: t('undoAction'),
           onClick: () => {
-            clearTimeout(timer);
-            // Restore panel
-            setPanels((prev) => [...prev, panel]);
-            setLayout((prev) => [
-              ...prev,
-              { i: panel.panelKey, x: 0, y: Infinity, w: 12, h: 8 },
-            ]);
-            setPendingDelete(null);
+            const pending = pendingDeletesRef.current.get(panelId);
+            if (!pending) return;
+            clearTimeout(pending.timer);
+            pendingDeletesRef.current.delete(panelId);
+            // Restore panel + original layout
+            setPanels((prev) => [...prev, pending.panel]);
+            if (pending.layoutItem) {
+              setLayout((prev) => [...prev, pending.layoutItem!]);
+            }
           },
         },
         duration: 5000,
       });
     },
-    [panels, t],
+    [panels, layout, t],
   );
 
   if (loading || !mounted) {
@@ -431,38 +538,29 @@ export default function SingleDashboardPage() {
               onLayoutChange={handleLayoutChange}
               compactor={verticalCompactor}
               dragConfig={{ enabled: editMode, handle: '.drag-handle' }}
-              resizeConfig={{ enabled: editMode }}
-              className={cn(!editMode && '[&_.drag-handle]:cursor-default')}
+              resizeConfig={{
+                enabled: editMode,
+                handles: ['se'],
+              }}
+              className={cn(
+                editMode && 'wpt-grid--editing',
+                !editMode && '[&_.drag-handle]:cursor-default',
+              )}
             >
               {panels.map((panel) => (
                 <div key={panel.panelKey}>
-                  <MemoPanel
-                    title={panel.title}
+                  <DashboardPanelItem
+                    panel={panel}
+                    data={panelData[panel.panelKey]?.points}
+                    resolution={resolution}
+                    locale={locale}
+                    loading={dataLoading}
                     editMode={editMode}
                     fullscreen={fullscreenPanel === panel.panelKey}
-                    onEdit={() => handleEditPanel(panel)}
-                    onDelete={() => handleDeletePanel(panel.id)}
-                    onMaximize={() =>
-                      setFullscreenPanel((prev) =>
-                        prev === panel.panelKey ? null : panel.panelKey,
-                      )
-                    }
-                  >
-                    {panel.config.fields.length === 0 ? (
-                      <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-                        {t('panelPlaceholder')}
-                      </div>
-                    ) : (
-                      <PanelChart
-                        chartType={panel.chartType}
-                        config={panel.config}
-                        data={panelData[panel.panelKey]?.points ?? []}
-                        resolution={resolution}
-                        locale={locale}
-                        loading={dataLoading}
-                      />
-                    )}
-                  </MemoPanel>
+                    onEdit={handleEditPanel}
+                    onDelete={handleDeletePanel}
+                    onToggleFullscreen={handleToggleFullscreen}
+                  />
                 </div>
               ))}
             </ResponsiveGridLayout>

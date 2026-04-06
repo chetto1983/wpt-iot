@@ -12,12 +12,18 @@ export const CHART_COLORS = [
   '#D4BBFF', // Lavender
 ] as const;
 
-/** Per-chart-type default panel sizing for react-grid-layout */
+/**
+ * Per-chart-type default panel sizing for react-grid-layout.
+ * Grid is 24 cols × 30px row height; see [dashboards/[id]/page.tsx] cols/rowHeight.
+ *  - line/area/bar default: 12 cols × 8 rows = 50% width × 240px tall
+ *  - pie default: 8 cols × 8 rows = 33% width × 240px tall
+ *  - MIN: 6 cols × 6 rows = 25% width × 180px tall (any smaller hides axes)
+ */
 export const PANEL_SIZE_DEFAULTS: Record<ChartType, { w: number; h: number; minW: number; minH: number }> = {
-  line:  { w: 12, h: 8, minW: 6, minH: 4 },
-  area:  { w: 12, h: 8, minW: 6, minH: 4 },
-  bar:   { w: 12, h: 8, minW: 6, minH: 4 },
-  pie:   { w: 6,  h: 8, minW: 4, minH: 6 },
+  line:  { w: 12, h: 8, minW: 6, minH: 6 },
+  area:  { w: 12, h: 8, minW: 6, minH: 6 },
+  bar:   { w: 12, h: 8, minW: 6, minH: 6 },
+  pie:   { w: 8,  h: 8, minW: 6, minH: 6 },
 };
 
 /** Grafana-style time range presets */
@@ -41,3 +47,21 @@ export const REFRESH_INTERVALS = [
   { label: '5m', ms: 300000 },
   { label: 'off', ms: 0 },
 ] as const;
+
+/**
+ * Compute an absolute {from,to} window from a relative preset label.
+ * Used by both the TimeRangePicker (preset click) and the auto-refresh
+ * effect (sliding-window refresh) so they stay in sync.
+ */
+export function computePresetRange(presetLabel: string): { from: Date; to: Date } | null {
+  const now = new Date();
+  const preset = TIME_PRESETS.find((p) => p.label === presetLabel);
+  if (!preset || preset.minutes === 0) return null;
+  if (preset.minutes === -1) {
+    // todaySoFar: from midnight today
+    const midnight = new Date(now);
+    midnight.setHours(0, 0, 0, 0);
+    return { from: midnight, to: now };
+  }
+  return { from: new Date(now.getTime() - preset.minutes * 60_000), to: now };
+}

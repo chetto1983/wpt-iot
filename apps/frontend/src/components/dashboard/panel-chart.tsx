@@ -28,6 +28,50 @@ import { getFieldLabel } from '@/lib/field-labels';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 
+/* ========================================================================
+ * Grafana-style chart constants
+ * Tuned to match Grafana's default time series panel:
+ *  - 11px tabular numerics for axis ticks (Grafana uses 11)
+ *  - 2px stroke for series, no dots, monotone interpolation
+ *  - Legend at bottom, 12px max height when single row
+ *  - Subtle horizontal-only grid lines (no vertical) like Grafana default
+ *  - Tooltip uses card bg with 1px border, 6px radius
+ * ====================================================================== */
+
+const AXIS_TICK = {
+  fill: 'var(--color-muted-foreground)',
+  fontSize: 11,
+  fontVariantNumeric: 'tabular-nums' as const,
+};
+
+const TOOLTIP_STYLE = {
+  backgroundColor: 'var(--color-popover)',
+  border: '1px solid var(--color-border)',
+  borderRadius: 6,
+  padding: '6px 10px',
+  fontSize: 12,
+  boxShadow: '0 6px 24px -6px rgba(0,0,0,0.45)',
+};
+
+const TOOLTIP_LABEL_STYLE = {
+  color: 'var(--color-muted-foreground)',
+  fontSize: 11,
+  marginBottom: 4,
+  fontWeight: 500,
+};
+
+const TOOLTIP_ITEM_STYLE = {
+  fontSize: 12,
+  padding: '2px 0',
+};
+
+const LEGEND_STYLE = {
+  fontSize: 11,
+  paddingTop: 4,
+};
+
+const CHART_MARGIN = { top: 8, right: 12, left: 4, bottom: 0 };
+
 function PanelErrorFallback({ resetErrorBoundary }: { resetErrorBoundary: () => void }) {
   const t = useTranslations('dashboards');
   return (
@@ -48,6 +92,13 @@ function formatTick(epochMs: number, resolution: string): string {
   return format(d, 'dd/MM HH:mm');
 }
 
+function formatTooltipLabel(epochMs: number, resolution: string): string {
+  const d = new Date(epochMs);
+  if (resolution === 'raw') return format(d, 'dd/MM HH:mm:ss');
+  if (resolution === '5min') return format(d, 'dd/MM HH:mm');
+  return format(d, 'dd/MM/yyyy HH:mm');
+}
+
 interface PanelChartProps {
   chartType: ChartType;
   config: IPanelConfig;
@@ -66,13 +117,13 @@ export const PanelChart = React.memo(function PanelChart({
   loading,
 }: PanelChartProps) {
   if (loading) {
-    return <Skeleton className="h-full w-full min-h-[200px]" />;
+    return <Skeleton className="h-full w-full" />;
   }
 
   if (data.length === 0) {
     return (
-      <div className="flex h-full w-full items-center justify-center min-h-[200px]">
-        <p className="text-sm text-muted-foreground">No data</p>
+      <div className="flex h-full w-full items-center justify-center">
+        <p className="text-xs text-muted-foreground">No data</p>
       </div>
     );
   }
@@ -80,11 +131,7 @@ export const PanelChart = React.memo(function PanelChart({
   return (
     <ErrorBoundary FallbackComponent={PanelErrorFallback}>
       {chartType === 'pie' ? (
-        <PieChartRenderer
-          config={config}
-          data={data}
-          locale={locale}
-        />
+        <PieChartRenderer config={config} data={data} locale={locale} />
       ) : (
         <TimeSeriesRenderer
           chartType={chartType}
@@ -130,21 +177,27 @@ function PieChartRenderer({
 
   return (
     <ResponsiveContainer width="100%" height="100%">
-      <PieChart>
+      <PieChart margin={{ top: 4, right: 4, left: 4, bottom: 4 }}>
         <Pie
           data={pieData}
           dataKey="value"
           nameKey="name"
           cx="50%"
           cy="50%"
-          outerRadius="70%"
+          outerRadius="72%"
+          stroke="var(--color-card)"
+          strokeWidth={2}
         >
           {pieData.map((entry, i) => (
             <Cell key={i} fill={entry.color} />
           ))}
         </Pie>
-        <Tooltip />
-        {config.showLegend && <Legend />}
+        <Tooltip
+          contentStyle={TOOLTIP_STYLE}
+          itemStyle={TOOLTIP_ITEM_STYLE}
+          labelStyle={TOOLTIP_LABEL_STYLE}
+        />
+        {config.showLegend && <Legend wrapperStyle={LEGEND_STYLE} iconSize={8} iconType="circle" />}
       </PieChart>
     </ResponsiveContainer>
   );
@@ -165,48 +218,68 @@ function TimeSeriesRenderer({
   resolution: string;
   locale: 'it' | 'en';
 }) {
-  const tooltipStyle = {
-    backgroundColor: 'var(--color-card)',
-    border: '1px solid var(--color-border)',
-    color: 'var(--color-foreground)',
-    borderRadius: '8px',
-  };
-
-  const tickStyle = {
-    fill: 'var(--color-muted-foreground)',
-    fontSize: 11,
-  };
-
   const yDomain: [number | string, number | string] = config.yAxisRange
     ? [config.yAxisRange.min, config.yAxisRange.max]
     : ['auto', 'auto'];
 
-  const sharedChildren = (
+  // Sort data ascending by timestamp — defensive against backend ordering bugs.
+  const sortedData = useMemo(() => {
+    return [...data].sort(
+      (a, b) => Number(a['timestamp']) - Number(b['timestamp']),
+    );
+  }, [data]);
+
+  const sharedAxes = (
     <>
       {config.showGrid && (
-        <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+        <CartesianGrid
+          strokeDasharray="2 4"
+          stroke="var(--color-border)"
+          vertical={false}
+        />
       )}
       <XAxis
         dataKey="timestamp"
         type="number"
+        scale="time"
         domain={['dataMin', 'dataMax']}
         tickFormatter={(v: number) => formatTick(v, resolution)}
-        tick={tickStyle}
+        tick={AXIS_TICK}
+        tickLine={{ stroke: 'var(--color-border)' }}
+        axisLine={{ stroke: 'var(--color-border)' }}
+        minTickGap={48}
+        height={20}
       />
-      <YAxis domain={yDomain} tick={tickStyle} />
+      <YAxis
+        domain={yDomain}
+        tick={AXIS_TICK}
+        tickLine={false}
+        axisLine={false}
+        width={36}
+      />
       <Tooltip
-        labelFormatter={(v) => formatTick(v as number, resolution)}
-        contentStyle={tooltipStyle}
+        labelFormatter={(v) => formatTooltipLabel(v as number, resolution)}
+        contentStyle={TOOLTIP_STYLE}
+        itemStyle={TOOLTIP_ITEM_STYLE}
+        labelStyle={TOOLTIP_LABEL_STYLE}
+        cursor={{ stroke: 'var(--color-border)', strokeWidth: 1, strokeDasharray: '3 3' }}
       />
-      {config.showLegend && <Legend />}
+      {config.showLegend && (
+        <Legend
+          wrapperStyle={LEGEND_STYLE}
+          iconSize={8}
+          iconType="circle"
+          height={20}
+        />
+      )}
     </>
   );
 
   if (chartType === 'line') {
     return (
       <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={data}>
-          {sharedChildren}
+        <LineChart data={sortedData} margin={CHART_MARGIN}>
+          {sharedAxes}
           {config.fields.map((field, i) => (
             <Line
               key={field}
@@ -214,8 +287,11 @@ function TimeSeriesRenderer({
               dataKey={field}
               stroke={CHART_COLORS[i % CHART_COLORS.length]}
               dot={false}
+              activeDot={{ r: 4, strokeWidth: 0 }}
               strokeWidth={2}
               name={getFieldLabel(field, locale)}
+              isAnimationActive={false}
+              connectNulls
             />
           ))}
         </LineChart>
@@ -226,8 +302,8 @@ function TimeSeriesRenderer({
   if (chartType === 'bar') {
     return (
       <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={data}>
-          {sharedChildren}
+        <BarChart data={sortedData} margin={CHART_MARGIN}>
+          {sharedAxes}
           {config.fields.map((field, i) => (
             <Bar
               key={field}
@@ -235,6 +311,7 @@ function TimeSeriesRenderer({
               fill={CHART_COLORS[i % CHART_COLORS.length]}
               name={getFieldLabel(field, locale)}
               stackId={config.stacked ? 'stack' : undefined}
+              isAnimationActive={false}
             />
           ))}
         </BarChart>
@@ -245,8 +322,8 @@ function TimeSeriesRenderer({
   // area
   return (
     <ResponsiveContainer width="100%" height="100%">
-      <AreaChart data={data}>
-        {sharedChildren}
+      <AreaChart data={sortedData} margin={CHART_MARGIN}>
+        {sharedAxes}
         {config.fields.map((field, i) => (
           <Area
             key={field}
@@ -254,9 +331,12 @@ function TimeSeriesRenderer({
             dataKey={field}
             stroke={CHART_COLORS[i % CHART_COLORS.length]}
             fill={CHART_COLORS[i % CHART_COLORS.length]}
-            fillOpacity={0.3}
+            fillOpacity={0.18}
+            strokeWidth={2}
             name={getFieldLabel(field, locale)}
             stackId={config.stacked ? 'stack' : undefined}
+            isAnimationActive={false}
+            connectNulls
           />
         ))}
       </AreaChart>

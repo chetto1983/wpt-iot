@@ -125,7 +125,7 @@ export function FieldSelector({
             selected.includes(f),
           ).length;
           return (
-            <Collapsible key={key} defaultOpen className="mb-2 last:mb-0">
+            <Collapsible key={key} className="mb-2 last:mb-0">
               <CollapsibleTrigger className="flex w-full items-center gap-1.5 py-1.5 group cursor-pointer">
                 <ChevronRight className="size-3.5 text-muted-foreground transition-transform duration-200 group-data-[panel-open]:rotate-90" />
                 <span className="text-xs font-semibold text-muted-foreground">

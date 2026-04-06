@@ -5,7 +5,7 @@ import { format } from 'date-fns';
 import { useTranslations } from 'next-intl';
 import { Clock, RefreshCw, Loader2 } from 'lucide-react';
 
-import { TIME_PRESETS, REFRESH_INTERVALS } from '@/lib/chart-colors';
+import { REFRESH_INTERVALS, computePresetRange } from '@/lib/chart-colors';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
@@ -51,21 +51,6 @@ const PRESET_GROUPS = [
   { heading: 'Trend analysis', presets: ['last7d', 'last30d', 'custom'] },
 ] as const;
 
-function computePresetRange(presetLabel: string): { from: Date; to: Date } {
-  const now = new Date();
-  const preset = TIME_PRESETS.find((p) => p.label === presetLabel);
-  if (!preset || preset.minutes === 0) return { from: now, to: now };
-
-  if (preset.minutes === -1) {
-    // todaySoFar: from midnight today
-    const midnight = new Date(now);
-    midnight.setHours(0, 0, 0, 0);
-    return { from: midnight, to: now };
-  }
-
-  return { from: new Date(now.getTime() - preset.minutes * 60000), to: now };
-}
-
 export function TimeRangePicker({
   from,
   to,
@@ -102,6 +87,7 @@ export function TimeRangePicker({
     }
 
     const range = computePresetRange(presetLabel);
+    if (!range) return;
     onPresetChange(presetLabel);
     onRangeChange(range.from, range.to);
     setShowCustom(false);

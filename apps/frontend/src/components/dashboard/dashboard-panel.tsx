@@ -1,12 +1,12 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import type { ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
-import { MoreVertical, Settings, Maximize2, Minimize2, Trash2 } from 'lucide-react';
+import { MoreVertical, Settings, Maximize2, Minimize2, Trash2, GripVertical, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -25,6 +25,12 @@ interface DashboardPanelProps {
   children: ReactNode;
 }
 
+/**
+ * Grafana-style panel chrome.
+ * Header is intentionally short (28px) so the chart gets max vertical space.
+ * Title doubles as the drag handle in edit mode (cursor-move + GripVertical).
+ * Action buttons live behind a single MoreVertical menu to avoid clutter.
+ */
 export function DashboardPanel({
   title,
   editMode,
@@ -35,57 +41,95 @@ export function DashboardPanel({
   children,
 }: DashboardPanelProps) {
   const t = useTranslations('dashboards');
+  const [mounted, setMounted] = useState(false);
+
+  // Wait for mount before allowing portal (SSR safety)
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Escape key exits fullscreen + lock body scroll
   useEffect(() => {
     if (!fullscreen) return;
+    const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     const handler = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onMaximize();
     };
     window.addEventListener('keydown', handler);
     return () => {
-      document.body.style.overflow = '';
+      document.body.style.overflow = prevOverflow;
       window.removeEventListener('keydown', handler);
     };
   }, [fullscreen, onMaximize]);
 
-  return (
-    <>
-      {fullscreen && (
-        <div
-          className="fixed inset-0 z-40 bg-background/80 backdrop-blur-sm"
-          onClick={onMaximize}
-        />
+  // The panel content is the same shape in both modes; the wrapper differs.
+  // When fullscreen, we render the panel into a portal at <body> so that
+  // react-grid-layout's `transform: translate(...)` on the grid item doesn't
+  // capture our `position: fixed` (transformed ancestors create a containing
+  // block for fixed children).
+  const panelBody = (
+    <div
+      className={cn(
+        'group/panel flex flex-col bg-card border border-border/60 transition-colors',
+        fullscreen
+          ? 'fixed inset-4 z-50 rounded-lg shadow-2xl'
+          : 'h-full w-full overflow-hidden rounded-md hover:border-border',
       )}
-      <Card
-        className={
-          fullscreen
-            ? 'fixed inset-0 z-50 flex flex-col overflow-auto rounded-none border-0 bg-background'
-            : 'group/panel flex h-full flex-col overflow-hidden'
-        }
-      >
-        <div className="flex items-center justify-between border-b px-3 py-2">
-          <div className="drag-handle cursor-move flex-1 truncate">
-            <h3 className="text-sm font-medium truncate">{title}</h3>
-          </div>
-          {/* Controls: opacity-0 on hover in view mode, always visible in edit mode */}
-          <div className={cn(
-            'flex items-center gap-1 transition-opacity duration-150',
-            editMode ? 'opacity-100' : 'opacity-0 group-hover/panel:opacity-100'
-          )}>
+    >
+        {/* HEADER -- 28px tall (40px when fullscreen), drag handle = title text */}
+        <div
+          className={cn(
+            'drag-handle flex shrink-0 items-center gap-1 border-b border-border/40 px-2',
+            fullscreen ? 'h-10 cursor-default' : 'h-7',
+            !fullscreen && editMode ? 'cursor-move' : !fullscreen && 'cursor-default',
+          )}
+        >
+          {editMode && (
+            <GripVertical className="size-3 shrink-0 text-muted-foreground/60" />
+          )}
+          <h3
+            className={cn(
+              'flex-1 truncate font-medium tracking-wide text-muted-foreground/90',
+              fullscreen ? 'text-sm' : 'text-[11px] uppercase',
+            )}
+          >
+            {title}
+          </h3>
+          {/* X close button — only in fullscreen, always visible */}
+          {fullscreen && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-6 rounded-sm"
+              aria-label={t('panelActions.restore')}
+              onClick={onMaximize}
+              title={t('panelActions.restore')}
+            >
+              <X className="size-4" />
+            </Button>
+          )}
+          {/* Actions: visible only on hover (or always in edit mode/fullscreen) */}
+          <div
+            className={cn(
+              'flex items-center transition-opacity duration-150',
+              editMode || fullscreen
+                ? 'opacity-100'
+                : 'opacity-0 group-hover/panel:opacity-100',
+            )}
+          >
             <DropdownMenu>
               <DropdownMenuTrigger
                 render={
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-7 w-7"
+                    className="size-5 rounded-sm"
                     aria-label={t('panelActions.settings')}
                   />
                 }
               >
-                <MoreVertical className="h-4 w-4" />
+                <MoreVertical className="size-3.5" />
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuItem onClick={onEdit}>
@@ -106,10 +150,7 @@ export function DashboardPanel({
                   )}
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  onClick={onDelete}
-                  variant="destructive"
-                >
+                <DropdownMenuItem onClick={onDelete} variant="destructive">
                   <Trash2 className="mr-2 h-4 w-4" />
                   {t('panelActions.delete')}
                 </DropdownMenuItem>
@@ -117,10 +158,27 @@ export function DashboardPanel({
             </DropdownMenu>
           </div>
         </div>
-        <CardContent className="flex-1 p-2 overflow-hidden">
-          {children}
-        </CardContent>
-      </Card>
-    </>
+
+      {/* BODY -- min-h-0 is critical so flex children can shrink and the
+          recharts ResponsiveContainer can compute a finite height */}
+      <div className="wpt-panel-chart flex min-h-0 min-w-0 flex-1 p-1.5">
+        {children}
+      </div>
+    </div>
   );
+
+  if (fullscreen && mounted) {
+    return createPortal(
+      <>
+        <div
+          className="fixed inset-0 z-40 bg-background/85 backdrop-blur-sm"
+          onClick={onMaximize}
+        />
+        {panelBody}
+      </>,
+      document.body,
+    );
+  }
+
+  return panelBody;
 }
