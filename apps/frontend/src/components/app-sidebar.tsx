@@ -57,11 +57,16 @@ export function AppSidebar() {
 
   if (!user) return null;
 
-  const navItems: NavItem[] = [
+  // Home + Custom Dashboards visible to ALL authenticated roles
+  const allRoleMainItems: NavItem[] = [
     { label: t('nav.home'), href: '/dashboard', icon: LayoutDashboard },
+    { label: t('nav.dashboards'), href: '/dashboards', icon: LayoutGrid },
+  ];
+
+  // RFID + Jobs visible to WPT/SUPER_ADMIN only (mirrors wptOnlyReportItems pattern)
+  const wptOnlyMainItems: NavItem[] = [
     { label: t('nav.rfid'), href: '/rfid', icon: Users },
     { label: t('nav.jobs'), href: '/jobs', icon: Briefcase },
-    { label: t('nav.dashboards'), href: '/dashboards', icon: LayoutGrid },
   ];
 
   // Reports link visible to ALL authenticated roles
@@ -142,7 +147,9 @@ export function AppSidebar() {
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu className="gap-0.5">
-              {navItems.map(renderNavItem)}
+              {renderNavItem(allRoleMainItems[0]!)}
+              {isWptOrAdmin ? wptOnlyMainItems.map(renderNavItem) : null}
+              {renderNavItem(allRoleMainItems[1]!)}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
