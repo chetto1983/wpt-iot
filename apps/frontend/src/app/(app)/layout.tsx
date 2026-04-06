@@ -32,12 +32,18 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <SidebarProvider>
+    // h-svh (instead of the provider's default min-h-svh) pins the layout to
+    // exactly the viewport height. Without this, the wrapper grows with its
+    // content and the inner overflow-auto div has nothing to clip against —
+    // so panels overflow the viewport and the dashboard has no scrollbar.
+    // min-h-0 on SidebarInset is required so the flex column can shrink,
+    // letting `<div className="flex-1 overflow-auto">` actually scroll.
+    <SidebarProvider className="h-svh">
       <WebSocketProvider>
         <AppSidebar />
-        <SidebarInset>
+        <SidebarInset className="min-h-0">
           <AppHeader />
-          <div className="flex-1 overflow-auto">
+          <div className="min-h-0 flex-1 overflow-auto">
             {children}
           </div>
         </SidebarInset>
