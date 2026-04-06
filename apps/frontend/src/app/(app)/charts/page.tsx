@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
-import type { DateRange } from 'react-day-picker';
 import {
   ResponsiveContainer,
   LineChart,
@@ -16,7 +15,7 @@ import {
 } from 'recharts';
 import { format } from 'date-fns';
 import { useTranslations } from 'next-intl';
-import { useQueryStates, parseAsString } from 'nuqs';
+import { useQueryStates, parseAsString, parseAsInteger } from 'nuqs';
 import { TrendingUp, CalendarDays, Loader2, Maximize2, Minimize2, RotateCcw } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -26,23 +25,14 @@ import { getFieldLabel } from '@/lib/field-labels';
 import { CHART_COLORS } from '@/lib/chart-colors';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { DateRangePicker } from '@/components/date-range-picker';
+import { TimeRangePicker } from '@/components/time-range-picker';
 import { FieldSelector, getChartableFields } from '@/components/field-selector';
 
 interface IChartResponse {
   resolution: 'raw' | '5min' | '1h';
   points: Array<Record<string, number>>;
-}
-
-function buildDateTimeISO(date: Date, time: string): string {
-  const [h, m] = time.split(':').map(Number);
-  const d = new Date(date);
-  d.setHours(h ?? 0, m ?? 0, 0, 0);
-  return d.toISOString();
 }
 
 function formatTick(epochMs: number, resolution: string): string {
@@ -58,26 +48,43 @@ export default function ChartsPage() {
   const locale = (user?.language ?? 'it') as 'it' | 'en';
   const role = user?.role ?? 'CLIENT';
 
-  const [filters, setFilters] = useQueryStates({
-    from: parseAsString,
-    to: parseAsString,
-    fromTime: parseAsString.withDefault('00:00'),
-    toTime: parseAsString.withDefault('23:59'),
-  });
+  // Time range state synced to URL via nuqs.
+  // The default ISO strings are computed ONCE at mount via useMemo with empty
+  // deps. Computing them inline (`new Date().toISOString()`) every render
+  // creates a fresh string per render — once any state bumps, an effect
+  // reading these would fire every render → fetch storm. Pinning the defaults
+  // at mount fixes the root loop cause.
+  const queryParsers = useMemo(
+    () => ({
+      from: parseAsString.withDefault(
+        new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString(),
+      ),
+      to: parseAsString.withDefault(new Date().toISOString()),
+      preset: parseAsString.withDefault('last6h'),
+      refresh: parseAsInteger.withDefault(0), // default OFF on /charts (single-shot generation, not streaming)
+    }),
+    [],
+  );
+  const [dateFilters, setDateFilters] = useQueryStates(queryParsers);
 
-  const dateRange: DateRange | undefined = filters.from && filters.to
-    ? { from: new Date(filters.from), to: new Date(filters.to) }
-    : undefined;
+  // rangeFrom/rangeTo are useMemo'd so identity is stable across renders
+  // when the underlying ISO strings don't change. Required for any effect
+  // or memoised child reading these as deps.
+  const rangeFrom = useMemo(() => new Date(dateFilters.from), [dateFilters.from]);
+  const rangeTo = useMemo(() => new Date(dateFilters.to), [dateFilters.to]);
+  const activePreset = dateFilters.preset;
+  const refreshInterval = dateFilters.refresh;
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
-  const setDateRange = useCallback((range: DateRange | undefined) => {
-    void setFilters({
-      from: range?.from ? range.from.toISOString().split('T')[0] : null,
-      to: range?.to ? range.to.toISOString().split('T')[0] : null,
-    });
-  }, [setFilters]);
-
-  const setFromTime = useCallback((v: string) => { void setFilters({ fromTime: v }); }, [setFilters]);
-  const setToTime = useCallback((v: string) => { void setFilters({ toTime: v }); }, [setFilters]);
+  const handleRangeChange = useCallback((f: Date, tDate: Date) => {
+    void setDateFilters({ from: f.toISOString(), to: tDate.toISOString() });
+  }, [setDateFilters]);
+  const handlePresetChange = useCallback((preset: string | null) => {
+    void setDateFilters({ preset: preset ?? null });
+  }, [setDateFilters]);
+  const handleRefreshIntervalChange = useCallback((ms: number) => {
+    void setDateFilters({ refresh: ms });
+  }, [setDateFilters]);
 
   const [selectedFields, setSelectedFields] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
@@ -147,7 +154,7 @@ export default function ChartsPage() {
   }, [role, locale]);
 
   const generateChart = useCallback(async () => {
-    if (!dateRange?.from || !dateRange?.to || selectedFields.length === 0) return;
+    if (selectedFields.length === 0) return;
 
     // Abort any previous in-flight request
     abortRef.current?.abort();
@@ -159,8 +166,8 @@ export default function ChartsPage() {
 
     try {
       const params = new URLSearchParams({
-        from: buildDateTimeISO(dateRange.from, filters.fromTime),
-        to: buildDateTimeISO(dateRange.to, filters.toTime),
+        from: rangeFrom.toISOString(),
+        to: rangeTo.toISOString(),
         fields: selectedFields.join(','),
       });
 
@@ -170,6 +177,7 @@ export default function ChartsPage() {
       );
       if (!controller.signal.aborted) {
         setChartData(data);
+        setLastUpdated(new Date());
       }
     } catch (err: unknown) {
       if (err instanceof Error && err.name === 'AbortError') return;
@@ -177,12 +185,23 @@ export default function ChartsPage() {
     } finally {
       if (!controller.signal.aborted) setLoading(false);
     }
-  }, [dateRange, filters.fromTime, filters.toTime, selectedFields, t]);
+  }, [rangeFrom, rangeTo, selectedFields, t]);
 
-  const canGenerate =
-    Boolean(dateRange?.from && dateRange?.to) &&
-    selectedFields.length > 0 &&
-    !loading;
+  const canGenerate = selectedFields.length > 0 && !loading;
+
+  // Auto-refresh tick. NOTE: We deliberately do NOT slide the window for
+  // relative presets on /charts (unlike dashboards/[id] which calls
+  // computePresetRange each tick to keep the window flush with "now").
+  // /charts is a single-shot generator by design — the user clicks Generate,
+  // gets a chart for the currently-selected window, and that's it. For live
+  // sliding windows, use /dashboards/[id]. See 17-01-PLAN rationale.
+  useEffect(() => {
+    if (refreshInterval === 0 || selectedFields.length === 0) return;
+    const timer = setInterval(() => {
+      void generateChart();
+    }, refreshInterval);
+    return () => clearInterval(timer);
+  }, [refreshInterval, selectedFields, generateChart]);
 
   return (
     <div className="space-y-6 p-6">
@@ -190,33 +209,18 @@ export default function ChartsPage() {
 
       {/* Filter Bar Card */}
       <Card>
-        <CardContent className="flex flex-wrap items-end gap-4 p-4">
-          <div className="space-y-1">
-            <Label className="text-xs">{t('dateRangeLabel')}</Label>
-            <DateRangePicker
-              value={dateRange}
-              onChange={setDateRange}
-              placeholder={t('dateRangePlaceholder')}
-            />
-          </div>
-          <div className="space-y-1">
-            <Label className="text-xs">{t('fromTimeLabel')}</Label>
-            <Input
-              type="time"
-              value={filters.fromTime}
-              onChange={(e) => setFromTime(e.target.value)}
-              className="w-[120px]"
-            />
-          </div>
-          <div className="space-y-1">
-            <Label className="text-xs">{t('toTimeLabel')}</Label>
-            <Input
-              type="time"
-              value={filters.toTime}
-              onChange={(e) => setToTime(e.target.value)}
-              className="w-[120px]"
-            />
-          </div>
+        <CardContent className="flex flex-wrap items-center gap-4 p-4">
+          <TimeRangePicker
+            from={rangeFrom}
+            to={rangeTo}
+            onRangeChange={handleRangeChange}
+            activePreset={activePreset}
+            onPresetChange={handlePresetChange}
+            refreshInterval={refreshInterval}
+            onRefreshIntervalChange={handleRefreshIntervalChange}
+            lastUpdated={lastUpdated}
+            loading={loading}
+          />
           <Button
             onClick={generateChart}
             disabled={!canGenerate}
