@@ -194,3 +194,37 @@
 .wpt-panel-chart .recharts-cartesian-axis-tick text {
   font-variant-numeric: tabular-nums;
 }
+
+/* ----------------------------------------------------------------------
+ * Always-visible thin scrollbars on the dashboard scroll container.
+ * Default Windows overlay scrollbars are nearly invisible against the
+ * dark theme; users couldn't tell that the dashboard scrolls.
+ * Firefox: scrollbar-width + scrollbar-color
+ * WebKit/Chromium (Edge): ::-webkit-scrollbar variants
+ * -------------------------------------------------------------------- */
+[data-slot="sidebar-inset"] > .overflow-auto,
+.wpt-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: hsl(var(--border)) transparent;
+}
+[data-slot="sidebar-inset"] > .overflow-auto::-webkit-scrollbar,
+.wpt-scroll::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+[data-slot="sidebar-inset"] > .overflow-auto::-webkit-scrollbar-track,
+.wpt-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+[data-slot="sidebar-inset"] > .overflow-auto::-webkit-scrollbar-thumb,
+.wpt-scroll::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 5px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+[data-slot="sidebar-inset"] > .overflow-auto::-webkit-scrollbar-thumb:hover,
+.wpt-scroll::-webkit-scrollbar-thumb:hover {
+  background: var(--color-muted-foreground);
+  background-clip: padding-box;
+}
