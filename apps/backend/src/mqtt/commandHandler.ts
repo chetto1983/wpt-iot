@@ -4,6 +4,7 @@ import type { IMqttCommandResponse } from '@wpt/types';
 import { MqttCommandRequestSchema, JobDataSchema, RfidUserSchema, mqttTopic, RemoteCycleSelection, CycleType } from '@wpt/types';
 import { readJob, writeJob, writeUsers } from '../udp/handshakeFsm.js';
 import { getSockets } from '../udp/sockets.js';
+import { dataHub } from '../events/hub.js';
 import { config } from '../config.js';
 import { CommandQueue } from './commandQueue.js';
 import { z } from 'zod/v4';
@@ -121,7 +122,7 @@ function handleCommandMessage(topic: string, payload: Buffer, packet: IPublishPa
 }
 
 /** Route a validated command to the correct handshake FSM operation */
-async function routeCommand(
+export async function routeCommand(
   target: string,
   requestId: string,
   commandPayload: Record<string, unknown>,
@@ -143,6 +144,7 @@ async function routeCommand(
         const start = Date.now();
         const sockets = getSockets();
         await writeJob(sockets.ackSocket, sockets.dataSocket, jobData, log!);
+        dataHub.emitJobData(jobData);
         return {
           requestId,
           status: 'success' as const,
@@ -167,6 +169,7 @@ async function routeCommand(
         const start = Date.now();
         const sockets = getSockets();
         await writeUsers(sockets.ackSocket, sockets.userSocket, users, log!);
+        dataHub.emitUserData(users);
         return {
           requestId,
           status: 'success' as const,
@@ -211,6 +214,7 @@ async function routeCommand(
 
         // Write composite job back to PLC
         await writeJob(sockets.ackSocket, sockets.dataSocket, compositeJob, log!);
+        dataHub.emitJobData(compositeJob);
         return {
           requestId,
           status: 'success' as const,
