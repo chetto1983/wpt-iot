@@ -201,11 +201,13 @@ export class HandshakeHandler {
         return;
       }
 
-      // Send ACK on port 9093
+      // Send ACK on port 9093 to the BACKEND's ack listener (not our own).
+      // In docker bridge mode UDP_LISTEN_ACK and TARGET_ACK_PORT happen to match;
+      // in local Windows dev they MUST differ — only TARGET_ACK_PORT routes correctly.
       const ackBuf = Buffer.alloc(2);
       ackBuf.writeUInt8(actions.ackByte9090, 0);
       ackBuf.writeUInt8(actions.ackByte9092, 1);
-      this.ackSocket.send(ackBuf, 0, 2, config.UDP_LISTEN_ACK, targetHost);
+      this.ackSocket.send(ackBuf, 0, 2, config.TARGET_ACK_PORT, targetHost);
 
       // Update state with ACK transition
       if (actions.port9090StateTransition !== undefined) {
@@ -215,16 +217,18 @@ export class HandshakeHandler {
         updateState({ handshake: { port9092State: actions.port9092StateTransition } });
       }
 
-      // Send data for read requests
+      // Send data for read requests — destination is BACKEND's listening port,
+      // not our own (UDP_LISTEN_*). Use TARGET_*_PORT so local Windows dev works
+      // when sim listens on 19xxx and backend listens on 9xxx.
       if (actions.sendUserData) {
         const userPacket = buildUserDataPacket(getState().users);
-        this.ackSocket.send(userPacket, 0, userPacket.length, config.UDP_LISTEN_USERS, targetHost);
+        this.ackSocket.send(userPacket, 0, userPacket.length, config.TARGET_USERS_PORT, targetHost);
         console.log(`[HandshakeHandler] Sent user data (${userPacket.length} bytes)`);
       }
 
       if (actions.sendJobData) {
         const jobPacket = buildJobReadPacket(getState().job);
-        this.ackSocket.send(jobPacket, 0, jobPacket.length, config.UDP_LISTEN_DATA, targetHost);
+        this.ackSocket.send(jobPacket, 0, jobPacket.length, config.TARGET_DATA_PORT, targetHost);
         console.log(`[HandshakeHandler] Sent job data (${jobPacket.length} bytes)`);
       }
 
@@ -247,13 +251,14 @@ export class HandshakeHandler {
         };
       }
 
-      // Return to IDLE after a short delay
+      // Return to IDLE after a short delay — send to BACKEND's ack listener
+      // (TARGET_ACK_PORT) so the backend's FSM observes the cycle completing.
       if (actions.returnToIdle) {
         setTimeout(() => {
           const idleBuf = Buffer.alloc(2);
           idleBuf.writeUInt8(actions.port9090FinalState ?? state.handshake.port9090State, 0);
           idleBuf.writeUInt8(actions.port9092FinalState ?? state.handshake.port9092State, 1);
-          this.ackSocket.send(idleBuf, 0, 2, config.UDP_LISTEN_ACK, targetHost);
+          this.ackSocket.send(idleBuf, 0, 2, config.TARGET_ACK_PORT, targetHost);
 
           if (actions.port9090FinalState !== undefined) {
             updateState({ handshake: { port9090State: actions.port9090FinalState } });

@@ -11,6 +11,8 @@ export interface ISimulatorConfig {
   TARGET_HOST: string;
   TARGET_DATA_PORT: number;
   TARGET_ALARMS_PORT: number;
+  TARGET_USERS_PORT: number;
+  TARGET_ACK_PORT: number;
   UDP_LISTEN_DATA: number;
   UDP_LISTEN_ALARMS: number;
   UDP_LISTEN_USERS: number;
@@ -36,6 +38,8 @@ export const config: ISimulatorConfig = {
   TARGET_HOST: envStr('TARGET_HOST', 'host.docker.internal'),
   TARGET_DATA_PORT: envInt('TARGET_DATA_PORT', 9090),
   TARGET_ALARMS_PORT: envInt('TARGET_ALARMS_PORT', 9091),
+  TARGET_USERS_PORT: envInt('TARGET_USERS_PORT', 9092),
+  TARGET_ACK_PORT: envInt('TARGET_ACK_PORT', 9093),
   UDP_LISTEN_DATA: envInt('UDP_LISTEN_DATA', 9090),
   UDP_LISTEN_ALARMS: envInt('UDP_LISTEN_ALARMS', 9091),
   UDP_LISTEN_USERS: envInt('UDP_LISTEN_USERS', 9092),
