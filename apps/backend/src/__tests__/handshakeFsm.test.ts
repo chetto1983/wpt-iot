@@ -81,6 +81,8 @@ function buildTestJobDataBuffer(): Buffer {
     maintenanceRequest: MaintenanceRequest.NO_REQUEST,
     remoteCycleSelection: RemoteCycleSelection.NO_REQUEST,
     cycleType: CycleType.DRY_MIXED,
+    spareInt02: 0,  // V03 (Phase 19.1 Wave 1)
+    spareInt03: 0,  // V03 (Phase 19.1 Wave 1)
   };
   return buildJobWritePacket(job);
 }
@@ -570,6 +572,8 @@ describe('Convenience functions', () => {
       maintenanceRequest: MaintenanceRequest.NO_REQUEST,
       remoteCycleSelection: RemoteCycleSelection.NO_REQUEST,
       cycleType: CycleType.ORGANIC,
+      spareInt02: 0,  // V03 (Phase 19.1 Wave 1)
+      spareInt03: 0,  // V03 (Phase 19.1 Wave 1)
     };
 
     const writePromise = writeJob(ackSocket as any, dataSocket as any, job, mockLog);

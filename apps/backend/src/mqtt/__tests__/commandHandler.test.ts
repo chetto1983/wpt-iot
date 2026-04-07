@@ -64,6 +64,8 @@ function makeJob(overrides?: Partial<IJobData>): IJobData {
     maintenanceRequest: MaintenanceRequest.NO_REQUEST,
     remoteCycleSelection: RemoteCycleSelection.NO_REQUEST,
     cycleType: CycleType.NO_CYCLE,
+    spareInt02: 0,  // V03 (Phase 19.1 Wave 1)
+    spareInt03: 0,  // V03 (Phase 19.1 Wave 1)
     ...overrides,
   };
 }

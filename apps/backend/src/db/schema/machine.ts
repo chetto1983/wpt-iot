@@ -75,8 +75,10 @@ export const machineSnapshots = pgTable('machine_snapshots', {
   spareInt68: integer('spare_int_68'),
   spareInt69: integer('spare_int_69'),
   spareInt70: integer('spare_int_70'),
-  spareInt71: integer('spare_int_71'),
-  spareInt72: integer('spare_int_72'),
+  // V03 — S1_I_DATO_71 renamed from spare_int_71 via ensureV03Columns() migration
+  cycleStatus: integer('cycle_status'),
+  // V03 — S1_I_DATO_72 renamed from spare_int_72 via ensureV03Columns() migration
+  container: integer('container'),
 
   // DINT fields (S1_DI_DATO_1, S1_DI_DATO_2) — 32-bit signed
   completedCycles: integer('completed_cycles'),
@@ -89,14 +91,24 @@ export const machineSnapshots = pgTable('machine_snapshots', {
   serialNumber: varchar('serial_number', { length: 20 }),
   spareString01: varchar('spare_string_01', { length: 20 }),
 
-  // REAL fields (S1_R_DATO_1 through S1_R_DATO_7) — 32-bit float
+  // REAL fields (S1_R_DATO_1 through S1_R_DATO_15, V03) — 32-bit float
+  // V03 exception to v1.1 scope wall: added 8 new nullable REAL columns as raw PLC
+  // mirror, NOT consumed by any energy*.ts service (ROADMAP Phase 19.1 success criterion 5).
   energyConsumption: real('energy_consumption'),
   rmsCurrL1: real('rms_curr_l1'),
   rmsCurrL2: real('rms_curr_l2'),
   rmsCurrL3: real('rms_curr_l3'),
   rmsCurrN: real('rms_curr_n'),
-  waterConsumption: real('water_consumption'),
-  spareReal01: real('spare_real_01'),
+  spareReal01: real('spare_real_01'),                 // V03: rebound from S1_R_DATO_7 to S1_R_DATO_6
+  lineVoltL1L2: real('line_volt_l1_l2'),              // V03 NEW — S1_R_DATO_7
+  lineVoltL2L3: real('line_volt_l2_l3'),              // V03 NEW — S1_R_DATO_8
+  lineVoltL3L1: real('line_volt_l3_l1'),              // V03 NEW — S1_R_DATO_9
+  lineNeutralVoltL1: real('line_neutral_volt_l1'),    // V03 NEW — S1_R_DATO_10
+  lineNeutralVoltL2: real('line_neutral_volt_l2'),    // V03 NEW — S1_R_DATO_11
+  lineNeutralVoltL3: real('line_neutral_volt_l3'),    // V03 NEW — S1_R_DATO_12
+  pfTotal: real('pf_total'),                          // V03 NEW — S1_R_DATO_13
+  waterConsumption: real('water_consumption'),        // V03: rebound from S1_R_DATO_6 to S1_R_DATO_14
+  spareReal02: real('spare_real_02'),                 // V03 NEW — S1_R_DATO_15
 
   // BYTE fields (S1_B_DATO_1 through S1_B_DATO_6) — 8-bit unsigned
   thermoLeftLowSel: smallint('thermo_left_low_sel'),
