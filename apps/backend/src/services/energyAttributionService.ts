@@ -105,16 +105,55 @@ export class EnergyAttributionService {
   }
 
   /**
+   * Pure classifier -- derives AttributionStatus from a window result + event.
+   * Per CONTEXT D-13 (reformulated -- see comment block at the top of this file):
+   *   TOO_SHORT  : sample_count < 5  (precedence: takes priority over hint;
+   *                if the window is too short we cannot trust ANY signal,
+   *                including the abort hint)
+   *   DATA_GAP   : max_gap_seconds > 60  (also takes priority over hint)
+   *   ABORTED    : event.attributionStatusHint === 'ABORTED' (set by Plan 05
+   *                cycleTracker FSM when a window opened+closed without a
+   *                completedCycles increment)
+   *   ATTRIBUTED : happy path (kwh_delta >= 0 and >= 5 samples and <= 60s max gap)
+   *   UNKNOWN    : catch-all (includes negative kwh_delta -- Plan 09 reset-split
+   *                deferred to v1.2 per Plan 12 KNOWN_ISSUES)
+   *
+   * Pure -- no I/O, no state. The trust boundary is the input contract.
+   * insertCycleFromEvent delegates to this helper after running windowKwhDelta.
+   * The ENRG-09 kwh_per_kg null guard lives OUTSIDE this classifier and is
+   * applied in insertCycleFromEvent after the status is decided.
+   */
+  static classifyAttribution(
+    window: {
+      sample_count: number;
+      max_gap_seconds: number | null;
+      kwh_delta: number | null;
+    },
+    event: { attributionStatusHint?: 'ABORTED' },
+  ): AttributionStatus {
+    // Window-quality checks take precedence -- an unreliable window cannot
+    // trust ANY higher-level signal, including the abort hint. A short or
+    // gappy window with a hint set is a TOO_SHORT / DATA_GAP, NOT an ABORTED.
+    if (window.sample_count < 5) return AttributionStatus.TOO_SHORT;
+    if ((window.max_gap_seconds ?? 0) > 60) return AttributionStatus.DATA_GAP;
+    // Window is reliable -- honor the abort hint if the tracker set one.
+    if (event.attributionStatusHint === 'ABORTED') {
+      return AttributionStatus.ABORTED;
+    }
+    // Negative or null delta -> UNKNOWN catch-all (typically reset-in-window;
+    // per-bucket reset split deferred to v1.2 per Plan 12 KNOWN_ISSUES).
+    if (window.kwh_delta == null || window.kwh_delta < 0) {
+      return AttributionStatus.UNKNOWN;
+    }
+    return AttributionStatus.ATTRIBUTED;
+  }
+
+  /**
    * Insert one row into cycle_records for the given cycle event. Uses the
    * window-query helper to compute the kWh delta, material weights, and
-   * average rms current.
-   *
-   * Stub classifier (Plan 06) -- Plan 07 replaces with classifyAttribution():
-   *   - TOO_SHORT precedence: sample_count < 5 -> TOO_SHORT
-   *   - DATA_GAP precedence:  max_gap_seconds > 60 -> DATA_GAP
-   *   - ABORTED hint honored: event.attributionStatusHint === 'ABORTED' -> ABORTED
-   *   - UNKNOWN catch-all:    kwh_delta < 0 or null -> UNKNOWN
-   *   - ATTRIBUTED happy path otherwise
+   * average rms current. Status classification is delegated to
+   * classifyAttribution() above (Plan 07); the ENRG-09 kwh_per_kg null guard
+   * lives in this method after the classifier returns.
    *
    * Idempotency (ENRG-03): skip insert if a row with the same
    * (reset_epoch, cycle_number) already exists. Called by both the
@@ -149,23 +188,9 @@ export class EnergyAttributionService {
       (event.endedAt.getTime() - event.startedAt.getTime()) / 1000,
     );
 
-    // Stub classifier -- Plan 07 replaces with classifyAttribution(window, event).
+    // Plan 07: delegate status classification to the pure helper above.
     // Precedence: TOO_SHORT > DATA_GAP > hint > kwh_delta sign check > happy.
-    let status: AttributionStatus;
-    if (window.sample_count < 5) {
-      status = AttributionStatus.TOO_SHORT;
-    } else if ((window.max_gap_seconds ?? 0) > 60) {
-      status = AttributionStatus.DATA_GAP;
-    } else if (event.attributionStatusHint === 'ABORTED') {
-      status = AttributionStatus.ABORTED;
-    } else if (window.kwh_delta == null || window.kwh_delta < 0) {
-      // Negative delta catch-all: typically means a counter reset landed
-      // mid-window. Reset-in-window per-bucket split is deferred to v1.2
-      // per Plan 12 KNOWN_ISSUES -- mark UNKNOWN for now.
-      status = AttributionStatus.UNKNOWN;
-    } else {
-      status = AttributionStatus.ATTRIBUTED;
-    }
+    const status = EnergyAttributionService.classifyAttribution(window, event);
 
     // ENRG-09: kwh_per_kg is NULL when material weights are 0.
     // NEVER Infinity, NEVER NaN. Belt-and-braces Number.isFinite() check.
