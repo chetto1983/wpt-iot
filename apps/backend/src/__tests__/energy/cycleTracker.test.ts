@@ -1,14 +1,24 @@
-import { describe, it, beforeEach, vi } from 'vitest';
-import { AttributionStatus } from '@wpt/types';
+import { describe, it, expect, beforeEach, afterEach, afterAll, vi } from 'vitest';
+import { sql } from 'drizzle-orm';
+import { AttributionStatus, MachinePhase } from '@wpt/types';
+import type { IMachineSnapshot } from '@wpt/types';
+import { dataHub } from '../../events/hub.js';
+import { db, pool } from '../../db/index.js';
+import { startCycleTracker } from '../../persistence/cycleTracker.js';
 
 /**
  * PHASE 19 — cycleTracker FSM + classifyAttribution behavior contract.
  *
- * 6 it.skip cases pin the expected behavior of:
+ * Tests 1-2 GREEN as of Plan 19-05 (startCycleTracker FSM).
+ * Tests 3-6 stay it.skip — they are enabled by Plan 19-07 (classifyAttribution
+ * + computeKwhPerKg).
+ *
+ * 6 cases total pin the expected behavior of:
  *
  *   - startCycleTracker (Plan 19-05) — the dataHub.onMachineData subscriber
- *     that detects completedCycles increments and counter resets, and emits
- *     dataHub.emitCycleClosed with the appropriate (cycleNumber, resetEpoch).
+ *     that detects currentPhase transitions and counter resets, and emits
+ *     dataHub.emitCycleClosed with the appropriate (cycleNumber, resetEpoch)
+ *     and optional attributionStatusHint: 'ABORTED'.
  *
  *   - classifyAttribution (Plan 19-07) — the function that decides which
  *     AttributionStatus to assign to a closed cycle window based on:
@@ -23,89 +33,148 @@ import { AttributionStatus } from '@wpt/types';
  * Plus the ENRG-09 invariant: kwhPerKg is NULL (never Infinity / NaN) when
  * material weights are zero.
  *
- * RED — turns GREEN in Plan 19-05 (startCycleTracker) and Plan 19-07
- * (classifyAttribution + computeKwhPerKg). Imports the AttributionStatus
- * enum from @wpt/types so a regression in Plan 19-01's enum shape would
- * fail compile here.
- *
  * The `AttributionStatus` import below is intentionally retained — it lets
  * the test file fail at COMPILE time if Plan 19-01's enum shape regresses,
- * even before any test body is enabled.
+ * even before any it.skip body is enabled.
  */
 
-// Touch the import so noUnusedLocals does not strip it before Plan 19-12.
+// Touch the import so noUnusedLocals does not strip it before Plan 19-07.
 void AttributionStatus;
 
-describe('startCycleTracker — completedCycles tracking and counter resets', () => {
+/** Build a minimal IMachineSnapshot fixture for the FSM tests. The tracker
+ *  only reads 4 fields (completedCycles, currentPhase, machineStatus,
+ *  selectedCycle) — the rest are unchecked filler. */
+function snap(overrides: Partial<IMachineSnapshot>): IMachineSnapshot {
+  return {
+    completedCycles: 10,
+    machineStatus: 1,
+    currentPhase: MachinePhase.AUTOMATIC_STARTED,
+    selectedCycle: 0,
+    ...overrides,
+  } as unknown as IMachineSnapshot;
+}
+
+describe('startCycleTracker — cycle window FSM (RED — Plan 19-05)', () => {
   beforeEach(() => {
+    // dataHub is a module singleton; strip all listeners so each test runs
+    // against a clean subscriber set.
+    dataHub.removeAllListeners('machine:data');
+    dataHub.removeAllListeners('cycle:closed');
     vi.clearAllMocks();
   });
 
-  it.skip('emits cycle:closed exactly once when completedCycles increments (RED — Plan 19-05)', () => {
-    /* BODY — enable in Plan 19-12:
-    // Mock dataHub to capture handler registration and emit calls.
-    const handlers: Array<(snapshot: { completedCycles: number; machineStatus: number; currentPhase: number; selectedCycle: number }, ts: Date) => void> = [];
-    const emitCycleClosed = vi.fn();
-    vi.doMock('../../events/hub.js', () => ({
-      dataHub: {
-        onMachineData: (h: typeof handlers[number]) => { handlers.push(h); },
-        emitCycleClosed,
-      },
-    }));
-    const { startCycleTracker } = await import('../../persistence/cycleTracker.js');
-    startCycleTracker({ info: vi.fn(), error: vi.fn(), warn: vi.fn() });
-
-    // Emit 10 stable snapshots with completedCycles = 5.
-    for (let i = 0; i < 10; i++) {
-      handlers[0]!({ completedCycles: 5, machineStatus: 1, currentPhase: 2, selectedCycle: 0 }, new Date(2026, 3, 7, 12, i, 0));
-    }
-    // Then 5 snapshots with completedCycles = 6 (the cycle just closed).
-    for (let i = 10; i < 15; i++) {
-      handlers[0]!({ completedCycles: 6, machineStatus: 1, currentPhase: 2, selectedCycle: 0 }, new Date(2026, 3, 7, 12, i, 0));
-    }
-    // Exactly one cycle:closed event for cycleNumber=6, resetEpoch=0.
-    expect(emitCycleClosed).toHaveBeenCalledTimes(1);
-    const payload = emitCycleClosed.mock.calls[0]![0];
-    expect(payload.cycleNumber).toBe(6);
-    expect(payload.resetEpoch).toBe(0);
-    */
+  afterEach(() => {
+    dataHub.removeAllListeners('machine:data');
+    dataHub.removeAllListeners('cycle:closed');
   });
 
-  it.skip('counter decrease creates a new cycle_resets row and increments resetEpoch on the next emitted cycle (RED — Plan 19-05)', () => {
-    /* BODY — enable in Plan 19-12:
-    // Same mock setup as test 1 but inject a counter reset partway through.
-    const handlers: Array<(snapshot: { completedCycles: number; machineStatus: number; currentPhase: number; selectedCycle: number }, ts: Date) => void> = [];
-    const emitCycleClosed = vi.fn();
-    const insertResetRow = vi.fn().mockResolvedValue({ resetEpoch: 1 });
-    vi.doMock('../../events/hub.js', () => ({
-      dataHub: { onMachineData: (h: typeof handlers[number]) => { handlers.push(h); }, emitCycleClosed },
-    }));
-    vi.doMock('../../persistence/cycleResets.js', () => ({ insertResetRow }));
-    const { startCycleTracker } = await import('../../persistence/cycleTracker.js');
-    startCycleTracker({ info: vi.fn(), error: vi.fn(), warn: vi.fn() });
+  it('emits cycle:closed exactly once when completedCycles increments (RED — Plan 19-05)', () => {
+    const emitSpy = vi.spyOn(dataHub, 'emitCycleClosed');
+    const log = { info: vi.fn(), error: vi.fn() };
+    startCycleTracker(log);
 
-    // 5 stable snapshots with completedCycles=10.
-    for (let i = 0; i < 5; i++) {
-      handlers[0]!({ completedCycles: 10, machineStatus: 1, currentPhase: 2, selectedCycle: 0 }, new Date(2026, 3, 7, 12, i, 0));
-    }
-    // RESET: completedCycles drops to 0 (PLC reboot or simulator state file wipe).
-    handlers[0]!({ completedCycles: 0, machineStatus: 1, currentPhase: 2, selectedCycle: 0 }, new Date(2026, 3, 7, 12, 5, 0));
-    expect(insertResetRow).toHaveBeenCalledTimes(1);
+    // Seed: STANDBY snapshot at completedCycles=10.
+    dataHub.emitMachineData(
+      snap({ completedCycles: 10, currentPhase: MachinePhase.STANDBY, machineStatus: 0 }),
+      new Date('2026-04-07T10:00:00Z'),
+    );
+    // Cycle open: AUTOMATIC_STARTED at completedCycles=10, machineStatus=LOADING.
+    dataHub.emitMachineData(
+      snap({ completedCycles: 10, currentPhase: MachinePhase.AUTOMATIC_STARTED, machineStatus: 0 }),
+      new Date('2026-04-07T10:00:15Z'),
+    );
+    // Mid-cycle progression — completedCycles still 10, processing sub-stage advances.
+    dataHub.emitMachineData(
+      snap({ completedCycles: 10, currentPhase: MachinePhase.AUTOMATIC_STARTED, machineStatus: 4 }),
+      new Date('2026-04-07T10:00:30Z'),
+    );
+    // Cycle increment landed — completedCycles=11, still AUTOMATIC_STARTED.
+    dataHub.emitMachineData(
+      snap({ completedCycles: 11, currentPhase: MachinePhase.AUTOMATIC_STARTED, machineStatus: 8 }),
+      new Date('2026-04-07T10:00:45Z'),
+    );
+    // Cycle close: STANDBY at completedCycles=11.
+    dataHub.emitMachineData(
+      snap({ completedCycles: 11, currentPhase: MachinePhase.STANDBY, machineStatus: 8 }),
+      new Date('2026-04-07T10:01:00Z'),
+    );
 
-    // 3 snapshots with completedCycles=1 — the first cycle of the new epoch.
-    handlers[0]!({ completedCycles: 1, machineStatus: 1, currentPhase: 2, selectedCycle: 0 }, new Date(2026, 3, 7, 12, 6, 0));
-    handlers[0]!({ completedCycles: 1, machineStatus: 1, currentPhase: 2, selectedCycle: 0 }, new Date(2026, 3, 7, 12, 7, 0));
-    handlers[0]!({ completedCycles: 1, machineStatus: 1, currentPhase: 2, selectedCycle: 0 }, new Date(2026, 3, 7, 12, 8, 0));
-    // The cycle_closed event for the post-reset cycle must carry resetEpoch=1.
-    expect(emitCycleClosed).toHaveBeenCalled();
-    const lastCall = emitCycleClosed.mock.calls[emitCycleClosed.mock.calls.length - 1]![0];
-    expect(lastCall.resetEpoch).toBe(1);
-    expect(lastCall.cycleNumber).toBe(1);
-    */
+    expect(emitSpy).toHaveBeenCalledTimes(1);
+    const payload = emitSpy.mock.calls[0]?.[0];
+    expect(payload?.cycleNumber).toBe(11);
+    expect(payload?.resetEpoch).toBe(0);
+    expect(payload?.attributionStatusHint).toBeUndefined();
+    expect(payload?.endedAt.toISOString()).toBe('2026-04-07T10:01:00.000Z');
+    expect(payload?.startedAt.toISOString()).toBe('2026-04-07T10:00:15.000Z');
+    expect(payload?.machineStatus).toBe(8);
+
+    emitSpy.mockRestore();
+  });
+
+  it('counter decrease creates a new cycle_resets row and increments resetEpoch (RED — Plan 19-05)', async () => {
+    // Ensure the cycle_resets table exists and is empty before the test runs.
+    // Directly CREATE the table rather than calling EnergyConfigService.ensureTable()
+    // because tariffPeriods.test.ts runs in parallel and DROPs a shared set of
+    // tables CASCADE in its beforeEach — a full ensureTable() call races with
+    // that DROP. A scoped `CREATE TABLE IF NOT EXISTS cycle_resets` does not.
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS cycle_resets (
+        id SERIAL PRIMARY KEY,
+        reset_epoch INTEGER NOT NULL,
+        observed_at TIMESTAMPTZ NOT NULL,
+        last_completed_cycles_before INTEGER NOT NULL,
+        new_completed_cycles_after INTEGER NOT NULL
+      )
+    `);
+    await db.execute(sql`DELETE FROM cycle_resets`);
+
+    const log = { info: vi.fn(), error: vi.fn() };
+    startCycleTracker(log);
+
+    // 3 stable snapshots at completedCycles=10, STANDBY (not in an active window).
+    dataHub.emitMachineData(
+      snap({ completedCycles: 10, currentPhase: MachinePhase.STANDBY, machineStatus: 0 }),
+      new Date('2026-04-07T11:00:00Z'),
+    );
+    dataHub.emitMachineData(
+      snap({ completedCycles: 10, currentPhase: MachinePhase.STANDBY, machineStatus: 0 }),
+      new Date('2026-04-07T11:00:15Z'),
+    );
+    dataHub.emitMachineData(
+      snap({ completedCycles: 10, currentPhase: MachinePhase.STANDBY, machineStatus: 0 }),
+      new Date('2026-04-07T11:00:30Z'),
+    );
+    // RESET: completedCycles drops from 10 to 0 (PLC reboot / simulator wipe).
+    dataHub.emitMachineData(
+      snap({ completedCycles: 0, currentPhase: MachinePhase.STANDBY, machineStatus: 0 }),
+      new Date('2026-04-07T11:00:45Z'),
+    );
+
+    // Give the fire-and-forget INSERT a chance to land.
+    await new Promise((r) => setTimeout(r, 200));
+
+    const rows = await db.execute(sql`
+      SELECT
+        reset_epoch                   AS "resetEpoch",
+        last_completed_cycles_before  AS "lastBefore",
+        new_completed_cycles_after    AS "newAfter"
+      FROM cycle_resets
+      ORDER BY reset_epoch DESC
+      LIMIT 1
+    `);
+    expect(rows.rows.length).toBe(1);
+    const row = rows.rows[0] as {
+      resetEpoch: number;
+      lastBefore: number;
+      newAfter: number;
+    };
+    expect(Number(row.resetEpoch)).toBe(1);
+    expect(Number(row.lastBefore)).toBe(10);
+    expect(Number(row.newAfter)).toBe(0);
   });
 
   it.skip('cycle window opened+closed without completedCycles increment → attributionStatusHint=ABORTED → AttributionStatus.ABORTED (RED — Plan 19-05 / Plan 19-07)', () => {
-    /* BODY — enable in Plan 19-12:
+    /* BODY — enable in Plan 19-07:
     // CONTEXT D-13 reformulation: there is no MachineStatus.ABORTED enum value,
     // so cycleTracker FSM uses currentPhase transitions
     // (STANDBY → AUTOMATIC_STARTED → STANDBY) to bracket a window. If
@@ -113,24 +182,31 @@ describe('startCycleTracker — completedCycles tracking and counter resets', ()
     // attributionStatusHint='ABORTED' on the emitted ICycleClosedEvent.
     // classifyAttribution then honors that hint AFTER checking TOO_SHORT and
     // DATA_GAP precedence.
-    const handlers: Array<(snapshot: { completedCycles: number; machineStatus: number; currentPhase: number; selectedCycle: number }, ts: Date) => void> = [];
-    const emitCycleClosed = vi.fn();
-    vi.doMock('../../events/hub.js', () => ({
-      dataHub: { onMachineData: (h: typeof handlers[number]) => { handlers.push(h); }, emitCycleClosed },
-    }));
-    const { startCycleTracker } = await import('../../persistence/cycleTracker.js');
-    startCycleTracker({ info: vi.fn(), error: vi.fn(), warn: vi.fn() });
+    const emitSpy = vi.spyOn(dataHub, 'emitCycleClosed');
+    const log = { info: vi.fn(), error: vi.fn() };
+    startCycleTracker(log);
 
-    // STANDBY (currentPhase 0) → AUTOMATIC_STARTED (currentPhase 1) → STANDBY (currentPhase 0)
-    // with completedCycles never changing.
-    handlers[0]!({ completedCycles: 7, machineStatus: 0, currentPhase: 0, selectedCycle: 0 }, new Date(2026, 3, 7, 12, 0, 0));
+    // Seed STANDBY.
+    dataHub.emitMachineData(
+      snap({ completedCycles: 7, currentPhase: MachinePhase.STANDBY, machineStatus: 0 }),
+      new Date('2026-04-07T12:00:00Z'),
+    );
+    // Open cycle + 11 intermediate AUTOMATIC_STARTED snapshots, completedCycles never moves off 7.
     for (let i = 1; i < 12; i++) {
-      handlers[0]!({ completedCycles: 7, machineStatus: 1, currentPhase: 1, selectedCycle: 0 }, new Date(2026, 3, 7, 12, i, 0));
+      dataHub.emitMachineData(
+        snap({ completedCycles: 7, currentPhase: MachinePhase.AUTOMATIC_STARTED, machineStatus: 1 }),
+        new Date(`2026-04-07T12:00:${String(i * 5).padStart(2, '0')}Z`),
+      );
     }
-    handlers[0]!({ completedCycles: 7, machineStatus: 0, currentPhase: 0, selectedCycle: 0 }, new Date(2026, 3, 7, 12, 12, 0));
-    expect(emitCycleClosed).toHaveBeenCalledTimes(1);
-    const payload = emitCycleClosed.mock.calls[0]![0];
-    expect(payload.attributionStatusHint).toBe('ABORTED');
+    // Close cycle — still completedCycles=7.
+    dataHub.emitMachineData(
+      snap({ completedCycles: 7, currentPhase: MachinePhase.STANDBY, machineStatus: 0 }),
+      new Date('2026-04-07T12:01:00Z'),
+    );
+
+    expect(emitSpy).toHaveBeenCalledTimes(1);
+    const payload = emitSpy.mock.calls[0]?.[0];
+    expect(payload?.attributionStatusHint).toBe('ABORTED');
 
     // classifyAttribution should map the hint to AttributionStatus.ABORTED for
     // a window with sufficient samples and no gaps.
@@ -141,11 +217,12 @@ describe('startCycleTracker — completedCycles tracking and counter resets', ()
       attributionStatusHint: 'ABORTED',
     });
     expect(result).toBe(AttributionStatus.ABORTED);
+    emitSpy.mockRestore();
     */
   });
 
   it.skip('cycle window with fewer than 5 snapshots → AttributionStatus.TOO_SHORT (RED — Plan 19-07)', () => {
-    /* BODY — enable in Plan 19-12:
+    /* BODY — enable in Plan 19-07:
     const { classifyAttribution } = await import('../../services/energyAttributionService.js');
     // 3 samples × 15s = 45s window, well under the 75s/5-sample TOO_SHORT
     // threshold from CONTEXT D-13.
@@ -158,7 +235,7 @@ describe('startCycleTracker — completedCycles tracking and counter resets', ()
   });
 
   it.skip('cycle window with a gap > 60s between consecutive snapshots → AttributionStatus.DATA_GAP (RED — Plan 19-07, ENRG-05)', () => {
-    /* BODY — enable in Plan 19-12:
+    /* BODY — enable in Plan 19-07:
     const { classifyAttribution } = await import('../../services/energyAttributionService.js');
     // 10 samples but a 75s gap somewhere in the middle.
     const result = classifyAttribution({
@@ -177,7 +254,7 @@ describe('startCycleTracker — completedCycles tracking and counter resets', ()
   });
 
   it.skip('materialInputKg=0 + materialOutputKg=0 → kwhPerKg === null (never Infinity, never NaN) (RED — Plan 19-07, ENRG-09)', () => {
-    /* BODY — enable in Plan 19-12:
+    /* BODY — enable in Plan 19-07:
     const { computeKwhPerKg } = await import('../../services/energyAttributionService.js');
     // Zero in, zero out — the divide-by-zero edge case ENRG-09 protects against.
     const result = computeKwhPerKg({
@@ -200,4 +277,9 @@ describe('startCycleTracker — completedCycles tracking and counter resets', ()
     expect(happy).toBeGreaterThan(0);
     */
   });
+});
+
+afterAll(async () => {
+  // Release the pool so vitest exits cleanly instead of hanging on open handles.
+  await pool.end();
 });
