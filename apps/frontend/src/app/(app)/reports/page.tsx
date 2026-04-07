@@ -71,8 +71,10 @@ export default function ReportsPage() {
   const [preview, setPreview] = useState<IMachinePreview | null>(null);
 
   // Load preview when filters change
+  // Deps must be the stable string values from nuqs, NOT dateRange.from/to:
+  // those are fresh Date instances on every render and would cause an infinite loop.
   useEffect(() => {
-    if (!dateRange?.from || !dateRange?.to) {
+    if (!filters.from || !filters.to) {
       setPreview(null);
       return;
     }
@@ -81,8 +83,8 @@ export default function ReportsPage() {
     setLoading(true);
 
     const params = new URLSearchParams({
-      from: buildDateTimeISO(dateRange.from, filters.fromTime),
-      to: buildDateTimeISO(dateRange.to, filters.toTime),
+      from: buildDateTimeISO(new Date(filters.from), filters.fromTime),
+      to: buildDateTimeISO(new Date(filters.to), filters.toTime),
       lang: locale,
     });
 
@@ -100,7 +102,7 @@ export default function ReportsPage() {
       });
 
     return () => controller.abort();
-  }, [dateRange?.from, dateRange?.to, filters.fromTime, filters.toTime, locale, t]);
+  }, [filters.from, filters.to, filters.fromTime, filters.toTime, locale, t]);
 
   const downloadReport = useCallback(async () => {
     if (!dateRange?.from || !dateRange?.to) return;

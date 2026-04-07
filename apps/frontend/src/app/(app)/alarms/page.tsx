@@ -104,8 +104,10 @@ function AlarmsContent({ locale }: { locale: string }) {
   const [events, setEvents] = useState<IAlarmEvent[]>([]);
   const [summary, setSummary] = useState({ total: 0, active: 0, resolved: 0 });
 
+  // Deps must be the stable string values from nuqs, NOT dateRange.from/to:
+  // those are fresh Date instances on every render and would cause an infinite loop.
   useEffect(() => {
-    if (!dateRange?.from || !dateRange?.to) {
+    if (!filters.from || !filters.to) {
       setEvents([]);
       setSummary({ total: 0, active: 0, resolved: 0 });
       return;
@@ -115,8 +117,8 @@ function AlarmsContent({ locale }: { locale: string }) {
     setLoading(true);
 
     const params = new URLSearchParams({
-      from: buildDateTimeISO(dateRange.from, filters.fromTime),
-      to: buildDateTimeISO(dateRange.to, filters.toTime),
+      from: buildDateTimeISO(new Date(filters.from), filters.fromTime),
+      to: buildDateTimeISO(new Date(filters.to), filters.toTime),
       status: filters.status,
       lang: locale,
     });
@@ -141,7 +143,7 @@ function AlarmsContent({ locale }: { locale: string }) {
       });
 
     return () => controller.abort();
-  }, [dateRange?.from, dateRange?.to, filters.fromTime, filters.toTime, filters.status, locale, t]);
+  }, [filters.from, filters.to, filters.fromTime, filters.toTime, filters.status, locale, t]);
 
   const downloadAlarmReport = useCallback(async () => {
     if (!dateRange?.from || !dateRange?.to) return;
