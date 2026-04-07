@@ -370,9 +370,116 @@ BEGIN
   );
   RAISE NOTICE 'Refresh policy for energy_5min configured.';
 
-  -- Phase 19 Plan 09 will append energy_1h / energy_1d / energy_1mo CA-on-CA
-  -- definitions BELOW THIS LINE, inside the same function body, BEFORE the
-  -- closing END;
+  -- ─── Level 2: energy_1h — reads Level 1 (CA-on-CA) ─────────────────────
+  -- CRITICAL: aggregates via sum(kwh_delta), NOT a fresh last - first.
+  -- Recomputing last - first at higher levels breaks across resets and hits
+  -- TimescaleDB Issue #5341 / #7524. sum(kwh_delta) is correct by construction
+  -- as long as every Level-1 bucket is short relative to reset frequency
+  -- (guaranteed by the 5-min bucket width vs PLC reboot frequency).
+  SELECT EXISTS (
+    SELECT 1 FROM timescaledb_information.continuous_aggregates
+    WHERE view_name = 'energy_1h'
+  ) INTO v_view_exists;
+
+  IF NOT v_view_exists THEN
+    EXECUTE $energy1h$
+      CREATE MATERIALIZED VIEW energy_1h
+      WITH (timescaledb.continuous, timescaledb.materialized_only = true) AS
+      SELECT
+        time_bucket('1 hour', bucket, 'Europe/Rome') AS bucket_1h,
+        sum(kwh_delta)            AS kwh_delta,
+        first(kwh_first, bucket)  AS kwh_first,
+        last(kwh_last,  bucket)   AS kwh_last,
+        sum(sample_count)         AS sample_count
+      FROM energy_5min
+      GROUP BY bucket_1h
+      WITH NO DATA
+    $energy1h$;
+    RAISE NOTICE 'Continuous aggregate energy_1h created.';
+  ELSE
+    RAISE NOTICE 'Continuous aggregate energy_1h already exists, skipping.';
+  END IF;
+
+  -- Refresh policy for energy_1h: every 1 hour, covering the last 6 hours,
+  -- with a 1-hour end offset. NEVER end_offset => NULL (Issue #5726).
+  PERFORM add_continuous_aggregate_policy('energy_1h',
+    start_offset      => INTERVAL '6 hours',
+    end_offset        => INTERVAL '1 hour',
+    schedule_interval => INTERVAL '1 hour',
+    if_not_exists     => true
+  );
+  RAISE NOTICE 'Refresh policy for energy_1h configured.';
+
+  -- ─── Level 3: energy_1d — reads Level 2 (CA-on-CA) ─────────────────────
+  SELECT EXISTS (
+    SELECT 1 FROM timescaledb_information.continuous_aggregates
+    WHERE view_name = 'energy_1d'
+  ) INTO v_view_exists;
+
+  IF NOT v_view_exists THEN
+    EXECUTE $energy1d$
+      CREATE MATERIALIZED VIEW energy_1d
+      WITH (timescaledb.continuous, timescaledb.materialized_only = true) AS
+      SELECT
+        time_bucket('1 day', bucket_1h, 'Europe/Rome') AS bucket_1d,
+        sum(kwh_delta)              AS kwh_delta,
+        first(kwh_first, bucket_1h) AS kwh_first,
+        last(kwh_last,  bucket_1h)  AS kwh_last,
+        sum(sample_count)           AS sample_count
+      FROM energy_1h
+      GROUP BY bucket_1d
+      WITH NO DATA
+    $energy1d$;
+    RAISE NOTICE 'Continuous aggregate energy_1d created.';
+  ELSE
+    RAISE NOTICE 'Continuous aggregate energy_1d already exists, skipping.';
+  END IF;
+
+  -- Refresh policy for energy_1d: every 1 day, covering the last 7 days,
+  -- with a 1-day end offset.
+  PERFORM add_continuous_aggregate_policy('energy_1d',
+    start_offset      => INTERVAL '7 days',
+    end_offset        => INTERVAL '1 day',
+    schedule_interval => INTERVAL '1 day',
+    if_not_exists     => true
+  );
+  RAISE NOTICE 'Refresh policy for energy_1d configured.';
+
+  -- ─── Level 4: energy_1mo — reads Level 3 (CA-on-CA) ────────────────────
+  SELECT EXISTS (
+    SELECT 1 FROM timescaledb_information.continuous_aggregates
+    WHERE view_name = 'energy_1mo'
+  ) INTO v_view_exists;
+
+  IF NOT v_view_exists THEN
+    EXECUTE $energy1mo$
+      CREATE MATERIALIZED VIEW energy_1mo
+      WITH (timescaledb.continuous, timescaledb.materialized_only = true) AS
+      SELECT
+        time_bucket('1 month', bucket_1d, 'Europe/Rome') AS bucket_1mo,
+        sum(kwh_delta)              AS kwh_delta,
+        first(kwh_first, bucket_1d) AS kwh_first,
+        last(kwh_last,  bucket_1d)  AS kwh_last,
+        sum(sample_count)           AS sample_count
+      FROM energy_1d
+      GROUP BY bucket_1mo
+      WITH NO DATA
+    $energy1mo$;
+    RAISE NOTICE 'Continuous aggregate energy_1mo created.';
+  ELSE
+    RAISE NOTICE 'Continuous aggregate energy_1mo already exists, skipping.';
+  END IF;
+
+  -- Refresh policy for energy_1mo: every 1 day, covering the last 13 months,
+  -- with a 1-day end offset.
+  PERFORM add_continuous_aggregate_policy('energy_1mo',
+    start_offset      => INTERVAL '13 months',
+    end_offset        => INTERVAL '1 day',
+    schedule_interval => INTERVAL '1 day',
+    if_not_exists     => true
+  );
+  RAISE NOTICE 'Refresh policy for energy_1mo configured.';
+
 END;
 $$;
 
