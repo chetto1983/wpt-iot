@@ -8,6 +8,7 @@ import { connectMqtt, disconnectMqtt } from './mqtt/connectionManager.js';
 import { MqttConfigService } from './mqtt/configService.js';
 import { EnergyConfigService } from './services/energyConfigService.js';
 import { PlcConfigService, setPlcConfigLogger } from './udp/plcConfigService.js';
+import { MachineSchemaMigrationService } from './db/machineSchemaMigrationService.js';
 import { pool } from './db/index.js';
 
 function setupGracefulShutdown(server: ReturnType<typeof buildServer>): void {
@@ -78,6 +79,12 @@ async function main(): Promise<void> {
     // handshake FSM picks it up via the 30s-TTL cache on its next read.
     await PlcConfigService.ensureTable();
     setPlcConfigLogger(server.log);
+
+    // [BLOCKING] V03 protocol schema migration (PROT-V03-04, PROT-V03-05).
+    // Renames spare_int_71/72 -> cycle_status/container and adds 8 new REAL
+    // columns. Idempotent. MUST run before startUdpPipeline() — the UDP parser
+    // INSERTs rows assuming the V03 schema and would throw on a pre-V03 DB.
+    await MachineSchemaMigrationService.ensureV03Columns();
 
     // Start UDP pipeline after server is listening
     await startUdpPipeline(server.log);
