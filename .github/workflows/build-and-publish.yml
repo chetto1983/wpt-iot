@@ -1,0 +1,78 @@
+name: Build and publish images to GHCR
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'apps/backend/**'
+      - 'apps/frontend/**'
+      - 'packages/types/**'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - 'package.json'
+      - '.github/workflows/build-and-publish.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_OWNER: ${{ github.repository_owner }}
+
+jobs:
+  build:
+    name: Build ${{ matrix.app }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        app: [backend, frontend]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU (multi-arch)
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Compute image tags
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_OWNER }}/wpt-${{ matrix.app }}
+          tags: |
+            type=raw,value=latest
+            type=sha,prefix=master-,format=short
+            type=raw,value=master-{{date 'YYYYMMDD-HHmmss'}}
+
+      - name: Build and push image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/${{ matrix.app }}/Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=${{ matrix.app }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.app }}
+          # Frontend bundle bakes the API URL at build time. Customer machines
+          # all use http://wpt.local:3000 because every install configures
+          # avahi to publish wpt.local on the LAN.
+          build-args: |
+            NEXT_PUBLIC_API_URL=http://wpt.local:3000
+
+      - name: Image digest
+        run: echo "${{ matrix.app }} digest = ${{ steps.meta.outputs.json && fromJSON(steps.meta.outputs.json).tags[0] }}"
