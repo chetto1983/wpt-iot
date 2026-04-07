@@ -10,12 +10,12 @@ import type { IAlarmWords } from '@wpt/types';
  * These tests round-trip: build a packet, then parse it back and verify field values.
  */
 describe('UDP Data Consistency', () => {
-  describe('Machine Data Packet (port 9090) - 286 bytes', () => {
+  describe('Machine Data Packet (port 9090) - 318 bytes (V03)', () => {
     const machine = createDefaultMachineData();
     const packet = buildMachineDataPacket(machine);
 
-    it('produces exactly 286 bytes', () => {
-      expect(packet.length).toBe(286);
+    it('produces exactly 318 bytes (V03)', () => {
+      expect(packet.length).toBe(318);
     });
 
     it('INT fields are Big Endian 16-bit signed at correct offsets', () => {
@@ -33,8 +33,10 @@ describe('UDP Data Consistency', () => {
       expect(packet.readInt16BE(112)).toBe(machine.materialInputWeight);
       // S1_I_DATO_61 = machineStatus at offset 120
       expect(packet.readInt16BE(120)).toBe(machine.machineStatus);
-      // S1_I_DATO_72 (last INT) at offset 142
-      expect(packet.readInt16BE(142)).toBe(machine.spareInt72);
+      // S1_I_DATO_71 = cycleStatus at offset 140 (V03)
+      expect(packet.readInt16BE(140)).toBe(machine.cycleStatus);
+      // S1_I_DATO_72 = container at offset 142 (V03, last INT)
+      expect(packet.readInt16BE(142)).toBe(machine.container);
     });
 
     it('DINT fields are Big Endian 32-bit signed at correct offsets', () => {
@@ -53,18 +55,20 @@ describe('UDP Data Consistency', () => {
       expect(orderStr).toBe(machine.orderNumber);
     });
 
-    it('REAL fields are Big Endian 32-bit float at correct offsets', () => {
+    it('REAL fields are Big Endian 32-bit float at correct offsets (V03 layout)', () => {
       // S1_R_DATO_1 = energyConsumption at offset 252
       expect(packet.readFloatBE(252)).toBeCloseTo(machine.energyConsumption, 1);
-      // S1_R_DATO_6 = waterConsumption at offset 272
-      expect(packet.readFloatBE(272)).toBeCloseTo(machine.waterConsumption, 1);
+      // S1_R_DATO_6 = spareReal01 at offset 272 (V03 — was waterConsumption in V01)
+      expect(packet.readFloatBE(272)).toBeCloseTo(machine.spareReal01, 1);
+      // S1_R_DATO_14 = waterConsumption at offset 304 (V03 — rebound from pos 6)
+      expect(packet.readFloatBE(304)).toBeCloseTo(machine.waterConsumption, 1);
     });
 
-    it('BYTE fields are unsigned 8-bit at correct offsets', () => {
-      // S1_B_DATO_1 = thermoLeftLowSel at offset 280
-      expect(packet.readUInt8(280)).toBe(machine.thermoLeftLowSel);
-      // S1_B_DATO_6 = thermoRightHighSel at offset 285 (last byte)
-      expect(packet.readUInt8(285)).toBe(machine.thermoRightHighSel);
+    it('BYTE fields are unsigned 8-bit at correct offsets (V03)', () => {
+      // S1_B_DATO_1 = thermoLeftLowSel at offset 312 (V03 — shifted from 280 by +8 REALs)
+      expect(packet.readUInt8(312)).toBe(machine.thermoLeftLowSel);
+      // S1_B_DATO_6 = thermoRightHighSel at offset 317 (V03, last byte)
+      expect(packet.readUInt8(317)).toBe(machine.thermoRightHighSel);
     });
 
     it('negative INT values encode correctly (signed)', () => {
@@ -141,12 +145,12 @@ describe('UDP Data Consistency', () => {
     });
   });
 
-  describe('Job Read Packet (port 9092 response) - 88 bytes', () => {
+  describe('Job Read Packet (port 9090 response) - 92 bytes (V03)', () => {
     const job = createDefaultJob();
     const pkt = buildJobReadPacket(job);
 
-    it('produces exactly 88 bytes', () => {
-      expect(pkt.length).toBe(88);
+    it('produces exactly 92 bytes (V03)', () => {
+      expect(pkt.length).toBe(92);
     });
   });
 
@@ -180,7 +184,7 @@ describe('UDP Data Consistency', () => {
       // INT range: -32768 to 32767 — max valid alarm word is 0x7FFF
       alarms.words[0] = 0x7FFF;
 
-      expect(buildMachineDataPacket(machine).length).toBe(286);
+      expect(buildMachineDataPacket(machine).length).toBe(318);
       expect(buildAlarmPacket(alarms).length).toBe(80);
     });
   });
