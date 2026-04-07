@@ -166,7 +166,11 @@ export function buildMachineDataPacket(data: IMachineSnapshot): Buffer {
 export function buildAlarmPacket(alarms: IAlarmWords): Buffer {
   const buf = Buffer.alloc(80);
   for (let i = 0; i < 40; i++) {
-    buf.writeInt16BE(alarms.words[i] ?? 0, i * 2);
+    // Alarm words are 16-bit bitfields (unsigned). Setting bit 15 in alarmEngine
+    // produces values >= 32768 which overflow Int16. writeUInt16BE accepts the
+    // full 16-bit range; the wire byte pattern is identical and the backend's
+    // readInt16BE reinterprets it without semantic loss for bitwise checks.
+    buf.writeUInt16BE((alarms.words[i] ?? 0) & 0xFFFF, i * 2);
   }
   return buf;
 }
