@@ -1,6 +1,7 @@
 import { MachinePhase, CycleType } from '@wpt/types';
 import type { IMachineSnapshot } from '@wpt/types';
 import { getState, updateState } from './simulatorState.js';
+import { getStageEnergyProfile } from './defaults.js';
 
 /**
  * PLC wire-format constants for S1_I_DATO_61 (machineStatus).
@@ -298,10 +299,19 @@ export class CycleEngine {
       }
     }
 
-    // Accumulate energy and water consumption
-    const energyIncrement = (current.mainMotorSpeed / 2200) * (5 + Math.random() * 10);
+    // Accumulate energy via per-stage SEC profile (Phase 19 Plan 11 — ESIM-01).
+    // Replaces the v1.0 motor-speed-coupled emission so per-cycle attribution
+    // math (Plan 19-12 fixture, Phase 21 dashboard) has a deterministic input.
+    // The 9-element profile is indexed by currentStageIndex which matches
+    // PLC_STATUS values 0..8. Test-mode override lives in defaults.ts via
+    // overrideStageEnergyProfileForTest(). ESIM-03 monotonicity is preserved
+    // because every kwhPerTick is guaranteed >= 0 (runtime-enforced in
+    // defaults.ts). Water consumption unchanged — still vacuum-pump-gated.
+    const stageProfile = getStageEnergyProfile();
+    const stageEntry = stageProfile[this.currentStageIndex];
+    const energyIncrement = stageEntry ? stageEntry.kwhPerTick : 0;
     const waterIncrement = current.vacuumPumpSpeed01 > 0 ? (0.5 + Math.random() * 1.5) : 0;
-    interpolated.energyConsumption = parseFloat((current.energyConsumption + energyIncrement).toFixed(1));
+    interpolated.energyConsumption = parseFloat((current.energyConsumption + energyIncrement).toFixed(2));
     interpolated.waterConsumption = parseFloat((current.waterConsumption + waterIncrement).toFixed(1));
 
     // Handle DISCHARGE output weight growth

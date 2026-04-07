@@ -104,3 +104,16 @@ export function updateState(partial: DeepPartial<ISimulatorState>, source?: Upda
 export function resetState(): void {
   state = createDefaultState();
 }
+
+/**
+ * Reset state to defaults — Phase 19 Plan 11 test-friendly alias for resetState().
+ *
+ * The deterministic cycleEnergyCurve.test.ts (Plan 19-03 RED contract) imports
+ * this name so the per-test before/after deltas of energyConsumption start
+ * from a known zero baseline. Both names are kept to avoid breaking existing
+ * callers of resetState() while giving the energy tests the explicit name
+ * they assert against.
+ */
+export function resetSimulatorState(): void {
+  resetState();
+}
