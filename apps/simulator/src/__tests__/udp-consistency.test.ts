@@ -1,4 +1,6 @@
 import { describe, it, expect } from 'vitest';
+import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { join, relative } from 'node:path';
 import { createDefaultMachineData, createDefaultUsers, createDefaultJob } from '../state/defaults.js';
 import { buildMachineDataPacket, buildAlarmPacket, buildUserDataPacket, buildJobReadPacket } from '../udp/packetBuilder.js';
 import type { IAlarmWords } from '@wpt/types';
@@ -187,5 +189,61 @@ describe('UDP Data Consistency', () => {
       expect(buildMachineDataPacket(machine).length).toBe(318);
       expect(buildAlarmPacket(alarms).length).toBe(80);
     });
+  });
+});
+
+describe('v1.1 scope-wall fence — Phase 19.1 new columns must NOT be consumed by energy services (PROT-V03-04, ROADMAP Phase 19.1 criterion 5)', () => {
+  it('energy services must not reference the 10 new V03 columns', () => {
+    // Resolve the backend energy services directory relative to this test file.
+    // This test lives in apps/simulator/src/__tests__, so 3 x '..' lands at apps/,
+    // then join('backend', 'src', 'services') = apps/backend/src/services.
+    // DO NOT use 4 x '..' — that lands at wpt-iot/ and produces apps/backend/src/services
+    // which does not exist, making the walk silently no-op and the test trivially pass.
+    const root = join(__dirname, '..', '..', '..', 'backend', 'src', 'services');
+
+    // Sanity assertion (BLOCKER #1 hardening): the walk() function catches readdirSync
+    // errors to tolerate pristine checkouts where services/ may not exist, but we WANT
+    // it to exist in any checkout that runs Phase 19.1+ tests. Convert the silent-pass
+    // failure mode into a hard crash so any future path regression fails loudly.
+    if (!statSync(root).isDirectory()) {
+      throw new Error(`scope-wall fence: root directory not found: ${root}`);
+    }
+
+    const forbidden = /(line_volt_|pf_total|spare_real_02|cycle_status|container)/;
+    const hits: string[] = [];
+
+    function walk(dir: string): void {
+      let entries: string[];
+      try {
+        entries = readdirSync(dir);
+      } catch {
+        return;  // subdirectories may be absent; tolerated here, root is already asserted
+      }
+      for (const entry of entries) {
+        const full = join(dir, entry);
+        const stat = statSync(full);
+        if (stat.isDirectory()) {
+          walk(full);
+        } else if (entry.startsWith('energy') && entry.endsWith('.ts')) {
+          const contents = readFileSync(full, 'utf-8');
+          const lines = contents.split('\n');
+          for (let i = 0; i < lines.length; i++) {
+            if (forbidden.test(lines[i]!)) {
+              hits.push(`${relative(process.cwd(), full)}:${i + 1}: ${lines[i]!.trim()}`);
+            }
+          }
+        }
+      }
+    }
+
+    walk(root);
+
+    if (hits.length > 0) {
+      throw new Error(
+        `SCOPE WALL VIOLATION: ${hits.length} reference(s) to V03-only columns in energy services:\n${hits.join('\n')}\n\n` +
+          `These columns (line_volt_*, pf_total, spare_real_02, cycle_status, container) are raw PLC mirror fields added in Phase 19.1 as a narrowly-scoped exception to the v1.1 "no new columns on machine_snapshots" rule. Energy services in Phases 20-23 MUST NOT consume them — that's a v1.2 decision.`,
+      );
+    }
+    expect(hits.length).toBe(0);
   });
 });
