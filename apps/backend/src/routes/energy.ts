@@ -1,6 +1,9 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod/v4';
 import { EnergyAggregateService } from '../services/energyAggregateService.js';
+import { EnergyAttributionService } from '../services/energyAttributionService.js';
+import { startCycleTracker } from '../persistence/cycleTracker.js';
+import { startCyclePersister } from '../persistence/cyclePersister.js';
 import type { EnergyBucket } from '@wpt/types';
 
 /**
@@ -36,14 +39,67 @@ const aggregateQuerySchema = z.object({
 });
 
 export const energyRoutes: FastifyPluginAsync = async (server) => {
-  // ── PLAN-19-06-HOOK ───────────────────────────────────────────────
-  // Plan 19-06 will add subscriber start-function registrations here
-  // (startCycleTracker, startCyclePersister) plus the 5-minute
-  // idempotent backfill scheduler. Do NOT add them now — Plans 19-06
-  // and 19-07 ship the dependencies (cyclePersister.ts and
-  // energyAttributionService.ts). Leaving the hook empty in Plan 19-10
-  // keeps the read-side surface decoupled from the persister wave.
+  // ── Plan 19-06: lifecycle wiring (Pattern 3 from RESEARCH.md) ────
+  // The Fastify route plugin body is the start-function call site for
+  // cycle-closed FSM tracking and per-cycle persistence:
+  //
+  //   1. startCycleTracker    — subscribes to dataHub.onMachineData,
+  //                             emits cycle:closed on STANDBY ↔
+  //                             AUTOMATIC_STARTED transitions + >30s
+  //                             gap debounce; sets attributionStatusHint
+  //                             = 'ABORTED' per CONTEXT D-13 reformulation
+  //                             when completedCycles did NOT increment
+  //                             during the active window (Plan 19-05).
+  //
+  //   2. startCyclePersister  — subscribes to dataHub.onCycleClosed and
+  //                             calls EnergyAttributionService
+  //                             .insertCycleFromEvent which is idempotent
+  //                             on (reset_epoch, cycle_number) per
+  //                             ENRG-03/04.
+  //
+  //   3. 5-minute backfill    — every 5 minutes, scan machine_snapshots
+  //                             for completedCycles increments in the
+  //                             last BACKFILL_WINDOW_MS and insert any
+  //                             rows still missing from cycle_records.
+  //                             Safety net for cycles missed by the live
+  //                             path (e.g. after a backend restart).
+  //                             Idempotency: insertCycleFromEvent skips
+  //                             rows that already exist, so live +
+  //                             backfill paths are race-safe.
+  //
+  // onClose cleanup clears the interval so vitest processes don't leak.
   // ─────────────────────────────────────────────────────────────────
+  startCycleTracker(server.log);
+  startCyclePersister(server.log);
+
+  const BACKFILL_INTERVAL_MS = 5 * 60 * 1000;
+  const BACKFILL_WINDOW_MS = 15 * 60 * 1000;
+  const backfillInterval: NodeJS.Timeout = setInterval(() => {
+    void (async () => {
+      try {
+        const inserted =
+          await EnergyAttributionService.detectAndPersistClosedCycles(
+            { since: new Date(Date.now() - BACKFILL_WINDOW_MS) },
+            server.log,
+          );
+        if (inserted > 0) {
+          server.log.info(
+            { name: 'CycleBackfill', inserted },
+            'Backfill scan inserted rows',
+          );
+        }
+      } catch (err) {
+        server.log.error(
+          { name: 'CycleBackfill', err: (err as Error).message },
+          'Backfill scan failed',
+        );
+      }
+    })();
+  }, BACKFILL_INTERVAL_MS);
+
+  server.addHook('onClose', async () => {
+    clearInterval(backfillInterval);
+  });
 
   /**
    * GET /api/energy/aggregate
