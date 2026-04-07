@@ -2,7 +2,7 @@ import { z } from 'zod/v4';
 
 /**
  * Machine data snapshot from Mappatura AC500->IOT_9090.
- * 72 INT + 2 DINT + 5 STRING[20] + 7 REAL + 6 BYTE = 92 fields total.
+ * 72 INT + 2 DINT + 5 STRING[20] + 15 REAL + 6 BYTE = 100 fields total (V03).
  */
 export interface IMachineSnapshot {
   // --- INT fields (S1_I_DATO_1 through S1_I_DATO_72) — 16-bit signed ---
@@ -76,8 +76,8 @@ export interface IMachineSnapshot {
   spareInt68: number;               // S1_I_DATO_68
   spareInt69: number;               // S1_I_DATO_69
   spareInt70: number;               // S1_I_DATO_70
-  spareInt71: number;               // S1_I_DATO_71
-  spareInt72: number;               // S1_I_DATO_72
+  cycleStatus: number;              // S1_I_DATO_71 (V03 — integer verdict, decoded via decodeCycleStatus())
+  container: number;                // S1_I_DATO_72 (V03 — bidoni count)
 
   // --- DINT fields (S1_DI_DATO_1, S1_DI_DATO_2) — 32-bit signed ---
   completedCycles: number;          // S1_DI_DATO_1
@@ -90,14 +90,22 @@ export interface IMachineSnapshot {
   serialNumber: string;             // S1_S_DATO_4
   spareString01: string;            // S1_S_DATO_5
 
-  // --- REAL fields (S1_R_DATO_1 through S1_R_DATO_7) — 32-bit float ---
+  // --- REAL fields (S1_R_DATO_1 through S1_R_DATO_15) — 32-bit float (V03) ---
   energyConsumption: number;        // S1_R_DATO_1
   rmsCurrL1: number;                // S1_R_DATO_2
   rmsCurrL2: number;                // S1_R_DATO_3
   rmsCurrL3: number;                // S1_R_DATO_4
   rmsCurrN: number;                 // S1_R_DATO_5
-  waterConsumption: number;         // S1_R_DATO_6
-  spareReal01: number;              // S1_R_DATO_7
+  spareReal01: number;              // S1_R_DATO_6  (V03: rebound from pos 7 — was waterConsumption slot in V01)
+  lineVoltL1L2: number;             // S1_R_DATO_7  (V03 NEW — L1-L2 V RMS)
+  lineVoltL2L3: number;             // S1_R_DATO_8  (V03 NEW — L2-L3 V RMS)
+  lineVoltL3L1: number;             // S1_R_DATO_9  (V03 NEW — L3-L1 V RMS)
+  lineNeutralVoltL1: number;        // S1_R_DATO_10 (V03 NEW — VL1-N)
+  lineNeutralVoltL2: number;        // S1_R_DATO_11 (V03 NEW — VL2-N)
+  lineNeutralVoltL3: number;        // S1_R_DATO_12 (V03 NEW — VL3-N)
+  pfTotal: number;                  // S1_R_DATO_13 (V03 NEW — PF total MSW)
+  waterConsumption: number;         // S1_R_DATO_14 (V03: rebound from pos 6)
+  spareReal02: number;              // S1_R_DATO_15 (V03 NEW)
 
   // --- BYTE fields (S1_B_DATO_1 through S1_B_DATO_6) — 8-bit unsigned ---
   thermoLeftLowSel: number;         // S1_B_DATO_1
@@ -180,8 +188,8 @@ export const MachineSnapshotSchema = z.object({
   spareInt68: z.int(),
   spareInt69: z.int(),
   spareInt70: z.int(),
-  spareInt71: z.int(),
-  spareInt72: z.int(),
+  cycleStatus: z.int(),
+  container: z.int(),
   // DINT fields
   completedCycles: z.int(),
   spareDint01: z.int(),
@@ -191,14 +199,22 @@ export const MachineSnapshotSchema = z.object({
   orderNumber: z.string().max(20),
   serialNumber: z.string().max(20),
   spareString01: z.string().max(20),
-  // REAL fields
+  // REAL fields (V03 — 15 fields, S1_R_DATO_1..15)
   energyConsumption: z.number(),
   rmsCurrL1: z.number(),
   rmsCurrL2: z.number(),
   rmsCurrL3: z.number(),
   rmsCurrN: z.number(),
-  waterConsumption: z.number(),
   spareReal01: z.number(),
+  lineVoltL1L2: z.number(),
+  lineVoltL2L3: z.number(),
+  lineVoltL3L1: z.number(),
+  lineNeutralVoltL1: z.number(),
+  lineNeutralVoltL2: z.number(),
+  lineNeutralVoltL3: z.number(),
+  pfTotal: z.number(),
+  waterConsumption: z.number(),
+  spareReal02: z.number(),
   // BYTE fields
   thermoLeftLowSel: z.int().min(0).max(255),
   thermoLeftMedSel: z.int().min(0).max(255),
@@ -228,6 +244,8 @@ export const CLIENT_VISIBLE_FIELDS = [
   'spareString01',
   'energyConsumption',
   'waterConsumption',
+  'cycleStatus',
+  'container',
 ] as const satisfies ReadonlyArray<keyof IMachineSnapshot>;
 
 /** Fields visible to WPT-role users (all Salvataggio Login Wpt = x) */
@@ -259,6 +277,13 @@ export const WPT_VISIBLE_FIELDS = [
   'rmsCurrL3',
   'rmsCurrN',
   'spareReal01',
+  'lineVoltL1L2',
+  'lineVoltL2L3',
+  'lineVoltL3L1',
+  'lineNeutralVoltL1',
+  'lineNeutralVoltL2',
+  'lineNeutralVoltL3',
+  'pfTotal',
   'thermoLeftLowSel',
   'thermoLeftMedSel',
   'thermoLeftHighSel',
