@@ -100,10 +100,11 @@ else
   info ".env already exists — updating LAN-specific values only."
 fi
 
-# CORS_ORIGIN must include the LAN frontend URL so browsers from other hosts work
-sed -i "s|^CORS_ORIGIN=.*|CORS_ORIGIN=http://${LAN_IP}:3001,http://localhost:3001|" .env
+# CORS_ORIGIN must include the LAN frontend URL AND wpt.local so browsers can
+# reach the API from either the raw IP or the mDNS hostname (set up later).
+sed -i "s|^CORS_ORIGIN=.*|CORS_ORIGIN=http://wpt.local:3001,http://${LAN_IP}:3001,http://localhost:3001|" .env
 sed -i "s|^NEXT_PUBLIC_API_URL=.*|NEXT_PUBLIC_API_URL=http://${LAN_IP}:3000|" .env
-ok "CORS_ORIGIN and NEXT_PUBLIC_API_URL set to LAN IP $LAN_IP."
+ok "CORS_ORIGIN and NEXT_PUBLIC_API_URL set to LAN IP $LAN_IP + wpt.local."
 
 # =============================================================================
 # 3. Host networking override
@@ -127,14 +128,19 @@ services:
     environment:
       MQTT_HOST: 127.0.0.1
       PG_HOST: 127.0.0.1
-      CORS_ORIGIN: http://${LAN_IP}:3001,http://localhost:3001
+      CORS_ORIGIN: http://wpt.local:3001,http://${LAN_IP}:3001,http://localhost:3001
 
   frontend:
+    # Bake the frontend bundle to call the API at wpt.local so the browser's
+    # session cookie stays SAME-SITE under SameSite=Lax. Calling the LAN IP
+    # from a wpt.local-hosted page is cross-site and silently drops the
+    # session cookie on every authenticated XHR (auth-context, mqtt-config,
+    # plc-config). Customer LAN clients reach the backend the same way.
     build:
       args:
-        NEXT_PUBLIC_API_URL: http://${LAN_IP}:3000
+        NEXT_PUBLIC_API_URL: http://wpt.local:3000
     environment:
-      NEXT_PUBLIC_API_URL: http://${LAN_IP}:3000
+      NEXT_PUBLIC_API_URL: http://wpt.local:3000
 EOF
 ok "docker-compose.host.yml written."
 
