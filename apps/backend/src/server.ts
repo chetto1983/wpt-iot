@@ -20,6 +20,7 @@ import { alarmReportRoutes } from './routes/alarmReports.js';
 import { chartRoutes } from './routes/charts.js';
 import { dashboardRoutes } from './routes/dashboards.js';
 import { mqttRoutes } from './routes/mqtt.js';
+import { plcConfigRoutes } from './routes/plcConfig.js';
 import { wsRoute } from './ws/route.js';
 
 const isDev = process.env.NODE_ENV !== 'production';
@@ -122,6 +123,10 @@ export function buildServer(): ReturnType<typeof Fastify> {
   // Note: the broker connection itself is initialized after server.listen()
   // by `connectMqtt()` in index.ts, which reads its config from the DB.
   server.register(mqttRoutes);
+
+  // 19. PLC config routes (Super Admin only) — DB-backed PLC target host
+  // replaces the legacy SIM_HOST env var. Handshake FSM reads via cache.
+  server.register(plcConfigRoutes);
 
   return server;
 }

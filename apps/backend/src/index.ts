@@ -6,6 +6,7 @@ import { startUdpPipeline, stopUdpPipeline } from './udp/index.js';
 import { initBroadcaster, shutdownBroadcaster } from './ws/broadcaster.js';
 import { connectMqtt, disconnectMqtt } from './mqtt/connectionManager.js';
 import { MqttConfigService } from './mqtt/configService.js';
+import { PlcConfigService, setPlcConfigLogger } from './udp/plcConfigService.js';
 import { pool } from './db/index.js';
 
 function setupGracefulShutdown(server: ReturnType<typeof buildServer>): void {
@@ -64,6 +65,12 @@ async function main(): Promise<void> {
 
     // Ensure MQTT config table exists with default row
     await MqttConfigService.ensureTable();
+
+    // Ensure PLC config table exists with default row (target_host='localhost').
+    // Operators update the target from the frontend (SUPER_ADMIN only) and the
+    // handshake FSM picks it up via the 30s-TTL cache on its next read.
+    await PlcConfigService.ensureTable();
+    setPlcConfigLogger(server.log);
 
     // Start UDP pipeline after server is listening
     await startUdpPipeline(server.log);

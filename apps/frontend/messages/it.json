@@ -22,7 +22,8 @@
       "alarms": "Allarmi",
       "charts": "Grafici",
       "dashboards": "Dashboard",
-      "mqtt": "Gateway MQTT"
+      "mqtt": "Gateway MQTT",
+      "plc": "Impostazioni PLC"
     },
     "brandSubtitle": "Sistema IoT",
     "signOut": "Esci",
@@ -622,5 +623,13 @@
       "subscribe": "Sottoscrizione",
       "error": "Errore"
     }
+  },
+  "plc": {
+    "pageTitle": "Impostazioni PLC",
+    "title": "Indirizzo PLC",
+    "targetHost": "Indirizzo PLC",
+    "targetHostHelp": "IP o hostname del PLC ABB AC500 (o del simulatore CODESYS). Usato dall'handshake FSM per leggere/scrivere commesse e utenti RFID.",
+    "save": "Salva Configurazione",
+    "saved": "Configurazione PLC salvata"
   }
 }

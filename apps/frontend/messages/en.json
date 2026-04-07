@@ -22,7 +22,8 @@
       "alarms": "Alarms",
       "charts": "Charts",
       "dashboards": "Dashboards",
-      "mqtt": "MQTT Gateway"
+      "mqtt": "MQTT Gateway",
+      "plc": "PLC Settings"
     },
     "brandSubtitle": "IoT System",
     "signOut": "Sign Out",
@@ -622,5 +623,13 @@
       "subscribe": "Subscribe",
       "error": "Error"
     }
+  },
+  "plc": {
+    "pageTitle": "PLC Settings",
+    "title": "PLC Target",
+    "targetHost": "PLC Address",
+    "targetHostHelp": "IP address or hostname of the ABB AC500 PLC (or CODESYS simulator). The handshake FSM uses this for jobs and RFID reads/writes.",
+    "save": "Save Configuration",
+    "saved": "PLC configuration saved"
   }
 }

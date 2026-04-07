@@ -4,6 +4,7 @@ import type { IRfidUser, IJobData } from '@wpt/types';
 import { parseUserData, parseJobData, buildUserWritePacket, buildJobWritePacket } from './parsers.js';
 import { USER_DATA_PACKET_SIZE, JOB_DATA_PACKET_SIZE } from './packetSizes.js';
 import { config } from '../config.js';
+import { getCachedPlcConfig } from './plcConfigService.js';
 
 /** Configuration for a single HandshakeFSM instance */
 export interface IFsmConfig {
@@ -55,11 +56,16 @@ export class HandshakeFSM {
     return buf;
   }
 
-  /** Send a control message to the simulator's ACK port (19093) via the ackSocket */
-  private sendControl(ackSocket: dgram.Socket, value: HandshakeState): Promise<void> {
+  /**
+   * Send a control message to the PLC's ACK port via the ackSocket.
+   * Target host comes from the DB-backed `plc_config` cache so operators
+   * can change it from the frontend without restarting the backend.
+   */
+  private async sendControl(ackSocket: dgram.Socket, value: HandshakeState): Promise<void> {
+    const { targetHost } = await getCachedPlcConfig();
     return new Promise((resolve, reject) => {
       const msg = this.buildControlMsg(value);
-      ackSocket.send(msg, 0, 2, config.simAckPort, config.simHost, (err) => {
+      ackSocket.send(msg, 0, 2, config.simAckPort, targetHost, (err) => {
         if (err) reject(err);
         else resolve();
       });
@@ -134,9 +140,10 @@ export class HandshakeFSM {
       // Wait for ACK
       await this.waitForAck(ackSocket, log);
 
-      // Send data to simulator's data port
+      // Send data to PLC's data port using DB-backed target host
+      const { targetHost } = await getCachedPlcConfig();
       await new Promise<void>((resolve, reject) => {
-        dataSocket.send(data, 0, data.length, this.fsmConfig.simTargetDataPort, config.simHost, (err) => {
+        dataSocket.send(data, 0, data.length, this.fsmConfig.simTargetDataPort, targetHost, (err) => {
           if (err) reject(err);
           else resolve();
         });

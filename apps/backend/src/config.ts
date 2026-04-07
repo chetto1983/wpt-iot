@@ -17,7 +17,9 @@ export const config = {
   simAckPort: Number(process.env.SIM_ACK_PORT ?? 19093),
   simDataPort: Number(process.env.SIM_DATA_PORT ?? 19090),
   simUsersPort: Number(process.env.SIM_USERS_PORT ?? 19092),
-  simHost: process.env.SIM_HOST ?? 'localhost',
+  // PLC target host is NOT in env anymore — it lives in the `plc_config` DB
+  // row and is read via `getCachedPlcConfig()` in `udp/plcConfigService.ts`.
+  // Operators change it from the frontend UI (SUPER_ADMIN only).
   handshakeTimeoutMs: Number(process.env.HANDSHAKE_TIMEOUT_MS ?? 5000),
   sessionSecret: process.env.SESSION_SECRET ?? 'dev-only-session-secret-minimum-32-chars!!',
   adminPassword: process.env.ADMIN_PASSWORD ?? '',

@@ -15,6 +15,7 @@ import {
   AlertTriangle,
   BarChart3,
   Radio,
+  Cpu,
   LogOut,
   Loader2,
   KeyRound,
@@ -83,6 +84,7 @@ export function AppSidebar() {
   const adminItems: NavItem[] = [
     { label: t('nav.users'), href: '/users', icon: UserCog },
     { label: t('nav.mqtt'), href: '/mqtt', icon: Radio },
+    { label: t('nav.plc'), href: '/plc', icon: Cpu },
   ];
 
   const isWptOrAdmin = user.role === 'SUPER_ADMIN' || user.role === 'WPT';

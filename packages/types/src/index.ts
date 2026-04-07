@@ -8,3 +8,4 @@ export * from './udp.js';
 export * from './websocket.js';
 export * from './dashboard.js';
 export * from './mqtt.js';
+export * from './plc.js';
