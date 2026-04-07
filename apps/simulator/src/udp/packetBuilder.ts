@@ -75,8 +75,8 @@ export const MACHINE_DATA_INT_FIELDS: (keyof IMachineSnapshot)[] = [
   'spareInt68',            // S1_I_DATO_68  offset 134
   'spareInt69',            // S1_I_DATO_69  offset 136
   'spareInt70',            // S1_I_DATO_70  offset 138
-  'spareInt71',            // S1_I_DATO_71  offset 140
-  'spareInt72',            // S1_I_DATO_72  offset 142
+  'cycleStatus',           // S1_I_DATO_71  offset 140 (V03)
+  'container',             // S1_I_DATO_72  offset 142 (V03)
 ];
 
 const DINT_FIELDS: (keyof IMachineSnapshot)[] = [
@@ -93,36 +93,44 @@ const STRING_FIELDS: (keyof IMachineSnapshot)[] = [
 ];
 
 const REAL_FIELDS: (keyof IMachineSnapshot)[] = [
-  'energyConsumption', // S1_R_DATO_1  offset 252
-  'rmsCurrL1',         // S1_R_DATO_2  offset 256
-  'rmsCurrL2',         // S1_R_DATO_3  offset 260
-  'rmsCurrL3',         // S1_R_DATO_4  offset 264
-  'rmsCurrN',          // S1_R_DATO_5  offset 268
-  'waterConsumption',  // S1_R_DATO_6  offset 272
-  'spareReal01',       // S1_R_DATO_7  offset 276
+  'energyConsumption',  // S1_R_DATO_1   offset 252
+  'rmsCurrL1',          // S1_R_DATO_2   offset 256
+  'rmsCurrL2',          // S1_R_DATO_3   offset 260
+  'rmsCurrL3',          // S1_R_DATO_4   offset 264
+  'rmsCurrN',           // S1_R_DATO_5   offset 268
+  'spareReal01',        // S1_R_DATO_6   offset 272 (V03 — was waterConsumption in V01)
+  'lineVoltL1L2',       // S1_R_DATO_7   offset 276 (V03 NEW)
+  'lineVoltL2L3',       // S1_R_DATO_8   offset 280 (V03 NEW)
+  'lineVoltL3L1',       // S1_R_DATO_9   offset 284 (V03 NEW)
+  'lineNeutralVoltL1',  // S1_R_DATO_10  offset 288 (V03 NEW)
+  'lineNeutralVoltL2',  // S1_R_DATO_11  offset 292 (V03 NEW)
+  'lineNeutralVoltL3',  // S1_R_DATO_12  offset 296 (V03 NEW)
+  'pfTotal',            // S1_R_DATO_13  offset 300 (V03 NEW)
+  'waterConsumption',   // S1_R_DATO_14  offset 304 (V03 — was S1_R_DATO_6 in V01)
+  'spareReal02',        // S1_R_DATO_15  offset 308 (V03 NEW)
 ];
 
 const BYTE_FIELDS: (keyof IMachineSnapshot)[] = [
-  'thermoLeftLowSel',   // S1_B_DATO_1  offset 280
-  'thermoLeftMedSel',   // S1_B_DATO_2  offset 281
-  'thermoLeftHighSel',  // S1_B_DATO_3  offset 282
-  'thermoRightLowSel',  // S1_B_DATO_4  offset 283
-  'thermoRightMedSel',  // S1_B_DATO_5  offset 284
-  'thermoRightHighSel', // S1_B_DATO_6  offset 285
+  'thermoLeftLowSel',   // S1_B_DATO_1  offset 312
+  'thermoLeftMedSel',   // S1_B_DATO_2  offset 313
+  'thermoLeftHighSel',  // S1_B_DATO_3  offset 314
+  'thermoRightLowSel',  // S1_B_DATO_4  offset 315
+  'thermoRightMedSel',  // S1_B_DATO_5  offset 316
+  'thermoRightHighSel', // S1_B_DATO_6  offset 317
 ];
 
 /**
- * Build port 9090 machine data packet.
- * Layout from Mappatura AC500->IOT_9090:
+ * Build port 9090 machine data packet (V03).
+ * Layout from Mappatura_WPT_IOT_V03.xlsx sheet AC500->IOT_9090:
  *   Bytes 0-143:   72 INT fields (2 bytes each, Big Endian)
  *   Bytes 144-151: 2 DINT fields (4 bytes each, Big Endian)
  *   Bytes 152-251: 5 STRING[20] fields (20 bytes each, null-padded ASCII)
- *   Bytes 252-279: 7 REAL fields (4 bytes each, Big Endian float)
- *   Bytes 280-285: 6 BYTE fields (1 byte each, unsigned)
- *   Total: 286 bytes
+ *   Bytes 252-311: 15 REAL fields (4 bytes each, Big Endian float)
+ *   Bytes 312-317: 6 BYTE fields (1 byte each, unsigned)
+ *   Total: 318 bytes
  */
 export function buildMachineDataPacket(data: IMachineSnapshot): Buffer {
-  const buf = Buffer.alloc(286);
+  const buf = Buffer.alloc(318);
   let offset = 0;
 
   // 72 INT fields -- Big Endian 16-bit signed
@@ -144,7 +152,7 @@ export function buildMachineDataPacket(data: IMachineSnapshot): Buffer {
     offset += 20;
   }
 
-  // 7 REAL fields -- Big Endian 32-bit float
+  // 15 REAL fields -- Big Endian 32-bit float (V03)
   for (const field of REAL_FIELDS) {
     buf.writeFloatBE(data[field] as number, offset);
     offset += 4;
@@ -178,7 +186,11 @@ export function buildAlarmPacket(alarms: IAlarmWords): Buffer {
 /**
  * Build port 9092 user data packet.
  * 48 names (20 bytes each = 960) + 48 group bytes (48) + 48 enabled bytes (48) = 1056 bytes.
- * INVERTED LOGIC for enabled: PLC uses 0=enabled, 1=disabled.
+ *
+ * RFID enable polarity (V03 xlsx, PROT-V03-07): 0 = enabled, 1 = disabled, in BOTH directions.
+ * Source: Mappatura_WPT_IOT_V03.xlsx sheets `AC500->IOT_9092` and `IOT->AC500_9092` rows 98-145
+ * column C, literal text `0:enable/1:disable`. Do NOT flip this. The .EXP file is not authoritative
+ * (user directive 2026-04-07). If in doubt, re-parse the xlsx with unzip + xl/sharedStrings.xml.
  */
 export function buildUserDataPacket(users: IRfidUser[]): Buffer {
   const buf = Buffer.alloc(1056);
@@ -206,11 +218,12 @@ export function buildUserDataPacket(users: IRfidUser[]): Buffer {
 }
 
 /**
- * Build port 9090 job read-back packet.
- * 4 STRING[20] = 80 bytes + 4 INT = 8 bytes = 88 bytes total.
+ * Build port 9090 job read-back packet (V03).
+ * 4 STRING[20] = 80 bytes + 6 INT = 12 bytes = 92 bytes total.
+ * V03 delta vs V01: added R1_I_DATO_5 (spareInt02, offset 88) and R1_I_DATO_6 (spareInt03, offset 90).
  */
 export function buildJobReadPacket(job: IJobData): Buffer {
-  const buf = Buffer.alloc(88);
+  const buf = Buffer.alloc(92);
   let offset = 0;
 
   // 4 STRING[20] fields
@@ -220,11 +233,13 @@ export function buildJobReadPacket(job: IJobData): Buffer {
     offset += 20;
   }
 
-  // 4 INT fields
+  // 6 INT fields (V03 — added spareInt02/spareInt03 at offsets 88, 90)
   buf.writeInt16BE(job.remoteJobEnable, offset); offset += 2;
   buf.writeInt16BE(job.maintenanceRequest, offset); offset += 2;
   buf.writeInt16BE(job.remoteCycleSelection, offset); offset += 2;
-  buf.writeInt16BE(job.cycleType, offset);
+  buf.writeInt16BE(job.cycleType, offset); offset += 2;
+  buf.writeInt16BE(job.spareInt02, offset); offset += 2;
+  buf.writeInt16BE(job.spareInt03, offset);
 
   return buf;
 }

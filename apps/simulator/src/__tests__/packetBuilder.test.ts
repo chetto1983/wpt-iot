@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { CycleType, MachineStatus, RfidUserGroup, RemoteJobEnable } from '@wpt/types';
 import type { IMachineSnapshot, IAlarmWords, IRfidUser } from '@wpt/types';
 import { createDefaultMachineData, createDefaultUsers, createDefaultJob } from '../state/defaults.js';
@@ -17,9 +17,9 @@ describe('machine data packet', () => {
     data = createDefaultMachineData();
   });
 
-  it('returns a Buffer of exactly 286 bytes', () => {
+  it('returns a Buffer of exactly 318 bytes (V03)', () => {
     const buf = buildMachineDataPacket(data);
-    expect(buf.length).toBe(286);
+    expect(buf.length).toBe(318);
   });
 
   it('writes thermoLeftLower (INT) at offset 0 as Big Endian', () => {
@@ -88,10 +88,56 @@ describe('machine data packet', () => {
     expect(Math.abs(value - 450.5)).toBeLessThan(0.1);
   });
 
-  it('writes thermoLeftLowSel (BYTE) at offset 280 as writeUInt8', () => {
+  it('writes cycleStatus (S1_I_DATO_71, INT) at offset 140 (V03)', () => {
+    data.cycleStatus = 2;  // COMPLETED
+    const buf = buildMachineDataPacket(data);
+    expect(buf.readInt16BE(140)).toBe(2);
+  });
+
+  it('writes container (S1_I_DATO_72, INT) at offset 142 (V03)', () => {
+    data.container = 13;
+    const buf = buildMachineDataPacket(data);
+    expect(buf.readInt16BE(142)).toBe(13);
+  });
+
+  it('writes spareReal01 (S1_R_DATO_6, V03 rebinding) at offset 272', () => {
+    data.spareReal01 = 42.0;
+    const buf = buildMachineDataPacket(data);
+    expect(buf.readFloatBE(272)).toBeCloseTo(42.0, 1);
+  });
+
+  it('writes lineVoltL1L2 (S1_R_DATO_7, V03 NEW) at offset 276', () => {
+    data.lineVoltL1L2 = 400.5;
+    const buf = buildMachineDataPacket(data);
+    expect(buf.readFloatBE(276)).toBeCloseTo(400.5, 1);
+  });
+
+  it('writes pfTotal (S1_R_DATO_13, V03 NEW) at offset 300', () => {
+    data.pfTotal = 0.92;
+    const buf = buildMachineDataPacket(data);
+    expect(buf.readFloatBE(300)).toBeCloseTo(0.92, 2);
+  });
+
+  it('writes waterConsumption (S1_R_DATO_14, V03) at offset 304 (NOT V01 offset 272)', () => {
+    data.waterConsumption = 55.7;
+    const buf = buildMachineDataPacket(data);
+    expect(buf.readFloatBE(304)).toBeCloseTo(55.7, 1);
+    // Confirm the V01 slot (272) is NOT the same value — it belongs to spareReal01 now.
+    data.spareReal01 = 0.0;
+    const buf2 = buildMachineDataPacket(data);
+    expect(buf2.readFloatBE(272)).toBeCloseTo(0.0, 1);
+  });
+
+  it('writes spareReal02 (S1_R_DATO_15, V03 NEW) at offset 308', () => {
+    data.spareReal02 = 7.5;
+    const buf = buildMachineDataPacket(data);
+    expect(buf.readFloatBE(308)).toBeCloseTo(7.5, 1);
+  });
+
+  it('writes thermoLeftLowSel (BYTE) at offset 312 as writeUInt8 (V03)', () => {
     data.thermoLeftLowSel = 1;
     const buf = buildMachineDataPacket(data);
-    expect(buf.readUInt8(280)).toBe(1);
+    expect(buf.readUInt8(312)).toBe(1);
   });
 });
 
@@ -155,10 +201,10 @@ describe('user data packet', () => {
 });
 
 describe('job read packet', () => {
-  it('returns a Buffer of 88 bytes', () => {
+  it('returns a Buffer of 92 bytes (V03)', () => {
     const job = createDefaultJob();
     const buf = buildJobReadPacket(job);
-    expect(buf.length).toBe(88);
+    expect(buf.length).toBe(92);
   });
 
   it('writes supervisor string at offset 0', () => {
@@ -189,6 +235,20 @@ describe('job read packet', () => {
     job.cycleType = CycleType.HOSPITAL;
     const buf = buildJobReadPacket(job);
     expect(buf.readInt16BE(86)).toBe(7);
+  });
+
+  it('writes spareInt02 (R1_I_DATO_5, V03 NEW) as INT at offset 88', () => {
+    const job = createDefaultJob();
+    job.spareInt02 = 99;
+    const buf = buildJobReadPacket(job);
+    expect(buf.readInt16BE(88)).toBe(99);
+  });
+
+  it('writes spareInt03 (R1_I_DATO_6, V03 NEW) as INT at offset 90', () => {
+    const job = createDefaultJob();
+    job.spareInt03 = 88;
+    const buf = buildJobReadPacket(job);
+    expect(buf.readInt16BE(90)).toBe(88);
   });
 });
 

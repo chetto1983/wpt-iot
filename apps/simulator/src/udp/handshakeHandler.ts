@@ -107,6 +107,11 @@ export function processControlMessage(msg: Buffer, state: ISimulatorState): IHan
 /**
  * Parse a 1056-byte user data buffer back into IRfidUser array.
  * Used when receiving write data from the backend.
+ *
+ * RFID enable polarity (V03 xlsx, PROT-V03-07): 0 = enabled, 1 = disabled, in BOTH directions.
+ * Source: Mappatura_WPT_IOT_V03.xlsx sheets `AC500->IOT_9092` and `IOT->AC500_9092` rows 98-145
+ * column C, literal text `0:enable/1:disable`. Do NOT flip this. The .EXP file is not authoritative
+ * (user directive 2026-04-07).
  */
 export function parseUserDataBuffer(buf: Buffer): IRfidUser[] {
   const users: IRfidUser[] = [];
@@ -125,8 +130,9 @@ export function parseUserDataBuffer(buf: Buffer): IRfidUser[] {
 }
 
 /**
- * Parse an 88-byte job data buffer back into IJobData.
+ * Parse a 92-byte job data buffer back into IJobData (V03).
  * Used when receiving write data from the backend.
+ * V03 layout: 4 STRING[20] (80B) + 6 INT (12B) = 92 bytes.
  */
 export function parseJobDataBuffer(buf: Buffer): IJobData {
   return {
@@ -137,6 +143,8 @@ export function parseJobDataBuffer(buf: Buffer): IJobData {
     maintenanceRequest: buf.readInt16BE(82),
     remoteCycleSelection: buf.readInt16BE(84),
     cycleType: buf.readInt16BE(86),
+    spareInt02: buf.readInt16BE(88),  // V03 — R1_I_DATO_5
+    spareInt03: buf.readInt16BE(90),  // V03 — R1_I_DATO_6
   };
 }
 
@@ -178,7 +186,8 @@ export class HandshakeHandler {
 
     // Listen on port 9090 for incoming job write data
     this.dataListenSocket.on('message', (msg: Buffer) => {
-      if (this.pendingJobWrite && msg.length >= 88) {
+      // V03: job write expanded from 88 to 92 bytes (PROT-V03-12).
+      if (this.pendingJobWrite && msg.length >= 92) {
         this.pendingJobWrite(msg);
         this.pendingJobWrite = null;
       }

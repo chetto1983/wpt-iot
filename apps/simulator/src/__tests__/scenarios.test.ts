@@ -11,11 +11,11 @@ import os from 'node:os';
 
 describe('defaults', () => {
   describe('createDefaultMachineData', () => {
-    it('returns an object with all 92 IMachineSnapshot fields populated', () => {
+    it('returns an object with all 100 IMachineSnapshot fields populated (V03)', () => {
       const data = createDefaultMachineData();
-      // 72 INT + 2 DINT + 5 STRING + 7 REAL + 6 BYTE = 92 fields
+      // V03: 72 INT + 2 DINT + 5 STRING + 15 REAL + 6 BYTE = 100 fields
       const keys = Object.keys(data);
-      expect(keys.length).toBe(92);
+      expect(keys.length).toBe(100);
 
       // Spot check field existence
       expect(data.thermoLeftLower).toBeDefined();
@@ -26,10 +26,14 @@ describe('defaults', () => {
       expect(data.user).toBeDefined();
       expect(data.energyConsumption).toBeDefined();
       expect(data.thermoLeftLowSel).toBeDefined();
-      expect(data.spareInt72).toBeDefined();
+      expect(data.cycleStatus).toBeDefined();   // V03 — replaces spareInt71
+      expect(data.container).toBeDefined();     // V03 — replaces spareInt72
       expect(data.spareDint01).toBeDefined();
       expect(data.spareString01).toBeDefined();
       expect(data.spareReal01).toBeDefined();
+      expect(data.lineVoltL1L2).toBeDefined();  // V03 NEW
+      expect(data.pfTotal).toBeDefined();       // V03 NEW
+      expect(data.spareReal02).toBeDefined();   // V03 NEW
       expect(data.thermoRightHighSel).toBeDefined();
     });
   });

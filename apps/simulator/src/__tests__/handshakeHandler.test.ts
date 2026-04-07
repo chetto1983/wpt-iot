@@ -153,11 +153,22 @@ describe('handshake FSM', () => {
       expect(users[0]!.enabled).toBe(true);
       expect(users[1]!.enabled).toBe(false);
     });
+
+    it('preserves RFID enable polarity: byte 0 -> enabled=true, byte 1 -> enabled=false (PROT-V03-07)', () => {
+      const buf = Buffer.alloc(1056);
+      buf.write('UserEnabled', 0, 20, 'ascii');
+      buf.write('UserDisabled', 20, 20, 'ascii');
+      buf.writeUInt8(0, 1008);  // tag 1 -> enabled (byte 0)
+      buf.writeUInt8(1, 1009);  // tag 2 -> disabled (byte 1)
+      const users = parseUserDataBuffer(buf);
+      expect(users[0]!.enabled).toBe(true);   // byte 0 means enabled
+      expect(users[1]!.enabled).toBe(false);  // byte 1 means disabled
+    });
   });
 
   describe('parseJobDataBuffer', () => {
-    it('parses an 88-byte buffer back into job data', () => {
-      const buf = Buffer.alloc(88);
+    it('parses a 92-byte V03 buffer back into job data with all 9 fields', () => {
+      const buf = Buffer.alloc(92);
       buf.write('Supervisor A', 0, 20, 'ascii');
       buf.write('ORD-123', 20, 20, 'ascii');
       buf.write('SER-456', 40, 20, 'ascii');
@@ -174,6 +185,11 @@ describe('handshake FSM', () => {
       expect(job.maintenanceRequest).toBe(MaintenanceRequest.NO_REQUEST);
       expect(job.remoteCycleSelection).toBe(RemoteCycleSelection.WAITING_FOR_REMOTE_CYCLE);
       expect(job.cycleType).toBe(CycleType.HOSPITAL);
+      buf.writeInt16BE(99, 88);  // spareInt02
+      buf.writeInt16BE(88, 90);  // spareInt03
+      const job2 = parseJobDataBuffer(buf);
+      expect(job2.spareInt02).toBe(99);
+      expect(job2.spareInt03).toBe(88);
     });
   });
 });
