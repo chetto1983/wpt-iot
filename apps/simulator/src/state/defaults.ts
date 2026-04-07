@@ -293,8 +293,8 @@ export function createDefaultMachineData(): IMachineSnapshot {
     spareInt68: 0,
     spareInt69: 0,
     spareInt70: 0,
-    spareInt71: 0,
-    spareInt72: 0,
+    cycleStatus: 0,  // V03 — no cycle in progress
+    container: 0,    // V03 — no bidoni count known at cold start
     // DINT fields
     completedCycles: 0,
     spareDint01: 0,
@@ -304,14 +304,22 @@ export function createDefaultMachineData(): IMachineSnapshot {
     orderNumber: 'ORD-2024-0847',
     serialNumber: 'WPT-SH400-0023',
     spareString01: '',
-    // REAL fields
+    // REAL fields (V03 — 15 fields)
     energyConsumption: 0,
     rmsCurrL1: 0,
     rmsCurrL2: 0,
     rmsCurrL3: 0,
     rmsCurrN: 0,
-    waterConsumption: 0,
-    spareReal01: 0,
+    spareReal01: 0,       // V03: rebound from V01 pos 7 to V03 pos 6
+    lineVoltL1L2: 0,      // V03 NEW
+    lineVoltL2L3: 0,
+    lineVoltL3L1: 0,
+    lineNeutralVoltL1: 0,
+    lineNeutralVoltL2: 0,
+    lineNeutralVoltL3: 0,
+    pfTotal: 0,
+    waterConsumption: 0,  // V03: rebound from V01 pos 6 to V03 pos 14
+    spareReal02: 0,       // V03 NEW
     // BYTE fields
     thermoLeftLowSel: 0,
     thermoLeftMedSel: 0,
@@ -353,5 +361,7 @@ export function createDefaultJob(): IJobData {
     maintenanceRequest: MaintenanceRequest.NO_REQUEST,
     remoteCycleSelection: RemoteCycleSelection.NO_REQUEST,
     cycleType: CycleType.NO_CYCLE,
+    spareInt02: 0,  // V03 — R1_I_DATO_5
+    spareInt03: 0,  // V03 — R1_I_DATO_6
   };
 }
