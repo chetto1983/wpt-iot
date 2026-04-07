@@ -8,8 +8,8 @@ type FilteredSnapshot = Partial<IMachineSnapshot>;
  * Per D-09: service-level pick function, called explicitly.
  * Per D-10: reused by API routes (Phase 5+), WebSocket (Phase 6), CSV (Phase 9).
  *
- * SUPER_ADMIN and WPT see all WPT_VISIBLE_FIELDS (42 fields).
- * CLIENT sees only CLIENT_VISIBLE_FIELDS (18 fields).
+ * SUPER_ADMIN and WPT see all WPT_VISIBLE_FIELDS (89 fields, V03).
+ * CLIENT sees only CLIENT_VISIBLE_FIELDS (20 fields, V03).
  */
 export function filterByRole(
   snapshot: IMachineSnapshot,

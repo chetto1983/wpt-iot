@@ -3,7 +3,7 @@ import type { IMachineSnapshot } from '@wpt/types';
 import { UserRole } from '@wpt/types';
 import { filterByRole } from '../services/filterByRole.js';
 
-/** Build a mock IMachineSnapshot with all 92 fields set to recognizable values */
+/** Build a mock IMachineSnapshot with all 100 fields set to recognizable values */
 function createMockSnapshot(): IMachineSnapshot {
   return {
     // INT fields (72)
@@ -77,8 +77,8 @@ function createMockSnapshot(): IMachineSnapshot {
     spareInt68: 68,
     spareInt69: 69,
     spareInt70: 70,
-    spareInt71: 71,
-    spareInt72: 72,
+    cycleStatus: 2,    // V03 — was spareInt71 in V01
+    container: 13,     // V03 — was spareInt72 in V01
     // DINT fields (2)
     completedCycles: 1000,
     spareDint01: 2000,
@@ -88,14 +88,22 @@ function createMockSnapshot(): IMachineSnapshot {
     orderNumber: 'ORD001',
     serialNumber: 'SER001',
     spareString01: 'spare',
-    // REAL fields (7)
+    // REAL fields (15, V03)
     energyConsumption: 100.5,
     rmsCurrL1: 10.1,
     rmsCurrL2: 10.2,
     rmsCurrL3: 10.3,
     rmsCurrN: 0.5,
-    waterConsumption: 50.0,
     spareReal01: 0.0,
+    lineVoltL1L2: 400.5,
+    lineVoltL2L3: 401.2,
+    lineVoltL3L1: 399.8,
+    lineNeutralVoltL1: 231.1,
+    lineNeutralVoltL2: 232.0,
+    lineNeutralVoltL3: 230.5,
+    pfTotal: 0.92,
+    waterConsumption: 50.0,
+    spareReal02: 0.0,
     // BYTE fields (6)
     thermoLeftLowSel: 1,
     thermoLeftMedSel: 2,
@@ -109,9 +117,9 @@ function createMockSnapshot(): IMachineSnapshot {
 describe('filterByRole', () => {
   const snapshot = createMockSnapshot();
 
-  it('CLIENT role returns exactly 18 keys', () => {
+  it('CLIENT role returns exactly 20 keys', () => {
     const result = filterByRole(snapshot, UserRole.CLIENT);
-    expect(Object.keys(result).length).toBe(18);
+    expect(Object.keys(result).length).toBe(20);
   });
 
   it('CLIENT role includes garbageTemp and waterConsumption', () => {
@@ -120,15 +128,21 @@ describe('filterByRole', () => {
     expect(result.waterConsumption).toBe(50.0);
   });
 
+  it('CLIENT role includes cycleStatus and container (V03 NEW)', () => {
+    const result = filterByRole(snapshot, UserRole.CLIENT);
+    expect(result.cycleStatus).toBe(2);
+    expect(result.container).toBe(13);
+  });
+
   it('CLIENT role does NOT include thermoLeftLower or rmsCurrL1', () => {
     const result = filterByRole(snapshot, UserRole.CLIENT);
     expect(result.thermoLeftLower).toBeUndefined();
     expect(result.rmsCurrL1).toBeUndefined();
   });
 
-  it('WPT role returns exactly 42 keys', () => {
+  it('WPT role returns exactly 89 keys', () => {
     const result = filterByRole(snapshot, UserRole.WPT);
-    expect(Object.keys(result).length).toBe(42);
+    expect(Object.keys(result).length).toBe(89);
   });
 
   it('WPT role includes all CLIENT fields plus thermoLeftLower and rmsCurrL1', () => {
@@ -141,9 +155,31 @@ describe('filterByRole', () => {
     expect(result.rmsCurrL1).toBe(10.1);
   });
 
-  it('SUPER_ADMIN role returns exactly 42 keys (same as WPT)', () => {
+  it('WPT role includes 7 new V03 electrical REAL fields', () => {
+    const result = filterByRole(snapshot, UserRole.WPT);
+    expect(result.lineVoltL1L2).toBeCloseTo(400.5, 1);
+    expect(result.lineVoltL2L3).toBeCloseTo(401.2, 1);
+    expect(result.lineVoltL3L1).toBeCloseTo(399.8, 1);
+    expect(result.lineNeutralVoltL1).toBeCloseTo(231.1, 1);
+    expect(result.lineNeutralVoltL2).toBeCloseTo(232.0, 1);
+    expect(result.lineNeutralVoltL3).toBeCloseTo(230.5, 1);
+    expect(result.pfTotal).toBeCloseTo(0.92, 2);
+  });
+
+  it('WPT role does NOT include spareReal02 (explicit exclusion)', () => {
+    const result = filterByRole(snapshot, UserRole.WPT);
+    expect((result as Record<string, unknown>).spareReal02).toBeUndefined();
+  });
+
+  it('CLIENT role does NOT include the new WPT-only electrical REAL fields', () => {
+    const result = filterByRole(snapshot, UserRole.CLIENT);
+    expect((result as Record<string, unknown>).lineVoltL1L2).toBeUndefined();
+    expect((result as Record<string, unknown>).pfTotal).toBeUndefined();
+  });
+
+  it('SUPER_ADMIN role returns exactly 89 keys (same as WPT)', () => {
     const result = filterByRole(snapshot, UserRole.SUPER_ADMIN);
-    expect(Object.keys(result).length).toBe(42);
+    expect(Object.keys(result).length).toBe(89);
   });
 
   it('all CLIENT fields are a subset of WPT fields', () => {
