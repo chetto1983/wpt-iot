@@ -20,7 +20,6 @@ import { alarmReportRoutes } from './routes/alarmReports.js';
 import { chartRoutes } from './routes/charts.js';
 import { dashboardRoutes } from './routes/dashboards.js';
 import { mqttRoutes } from './routes/mqtt.js';
-import mqttPlugin from './mqtt/plugin.js';
 import { wsRoute } from './ws/route.js';
 
 const isDev = process.env.NODE_ENV !== 'production';
@@ -119,10 +118,9 @@ export function buildServer(): ReturnType<typeof Fastify> {
   // 17. Dashboard routes (all authenticated)
   server.register(dashboardRoutes);
 
-  // 18. MQTT broker connection
-  server.register(mqttPlugin);
-
-  // 19. MQTT admin routes (Super Admin only)
+  // 18. MQTT admin routes (Super Admin only).
+  // Note: the broker connection itself is initialized after server.listen()
+  // by `connectMqtt()` in index.ts, which reads its config from the DB.
   server.register(mqttRoutes);
 
   return server;

@@ -6,6 +6,8 @@ export const mqttConfig = pgTable('mqtt_config', {
   enabled: boolean('enabled').default(false).notNull(),
   brokerHost: varchar('broker_host', { length: 255 }).default('localhost').notNull(),
   brokerPort: integer('broker_port').default(1883).notNull(),
+  username: varchar('username', { length: 255 }).default('wpt-backend').notNull(),
+  password: varchar('password', { length: 255 }).default('wpt_mqtt_dev_password').notNull(),
   siteId: varchar('site_id', { length: 100 }).default('site-01').notNull(),
   machineId: varchar('machine_id', { length: 100 }).default('wpt40-001').notNull(),
   publishMachine: boolean('publish_machine').default(true).notNull(),

@@ -1,10 +1,12 @@
-import type { FastifyPluginAsync } from 'fastify';
+import type { FastifyPluginAsync, FastifyBaseLogger } from 'fastify';
+import type { MqttClient } from 'mqtt';
 import { z } from 'zod/v4';
 import { UserRole, MqttRole } from '@wpt/types';
 import { requireRole } from '../auth/authHooks.js';
 import { MqttConfigService } from '../mqtt/configService.js';
 import { DynSecClient } from '../mqtt/dynSecClient.js';
 import { getEvents } from '../mqtt/activityLog.js';
+import { getMqttClient, reloadMqttConnection } from '../mqtt/connectionManager.js';
 
 const createUserSchema = z.object({
   username: z.string().min(3).max(50),
@@ -28,18 +30,40 @@ export const mqttRoutes: FastifyPluginAsync = async (server) => {
   // Plugin-level preHandler: all routes require SUPER_ADMIN
   server.addHook('preHandler', requireRole(UserRole.SUPER_ADMIN));
 
-  // Initialize DynSecClient if MQTT broker is connected
+  // Lazy-init DynSecClient: the broker connection is set up after server.listen()
+  // and may be torn down + rebuilt by `reloadMqttConnection`. Each call rebinds
+  // the DynSecClient to the live MQTT client if it has changed.
   let dynSecClient: DynSecClient | null = null;
+  let dynSecBoundClient: MqttClient | null = null;
 
-  if (server.mqtt) {
-    dynSecClient = new DynSecClient(server.mqtt, server.log);
-    await dynSecClient.init();
+  async function ensureDynSec(log: FastifyBaseLogger): Promise<DynSecClient | null> {
+    const live = getMqttClient();
+    if (!live) {
+      // Connection gone — discard any stale DynSecClient.
+      if (dynSecClient && dynSecBoundClient) {
+        try { dynSecClient.shutdown(); } catch { /* best effort */ }
+      }
+      dynSecClient = null;
+      dynSecBoundClient = null;
+      return null;
+    }
+    if (dynSecBoundClient !== live) {
+      if (dynSecClient) {
+        try { dynSecClient.shutdown(); } catch { /* best effort */ }
+      }
+      dynSecClient = new DynSecClient(live, log);
+      await dynSecClient.init();
+      dynSecBoundClient = live;
+    }
+    return dynSecClient;
   }
 
   // Cleanup on server close
   server.addHook('onClose', async () => {
     if (dynSecClient) {
-      dynSecClient.shutdown();
+      try { dynSecClient.shutdown(); } catch { /* best effort */ }
+      dynSecClient = null;
+      dynSecBoundClient = null;
     }
   });
 
@@ -47,21 +71,28 @@ export const mqttRoutes: FastifyPluginAsync = async (server) => {
 
   /**
    * GET /api/mqtt/config
-   * Returns current MQTT gateway configuration.
+   * Returns current MQTT gateway configuration with the broker password
+   * redacted. The frontend uses `passwordSet` to decide whether the password
+   * input is required.
    */
   server.get('/api/mqtt/config', async (_request, _reply) => {
-    return MqttConfigService.getConfig();
+    return MqttConfigService.getPublicConfig();
   });
 
   /**
    * PUT /api/mqtt/config
    * Update MQTT gateway configuration. All fields optional.
+   * An empty-string password is treated as "leave unchanged" so the form can
+   * round-trip without forcing the operator to retype credentials.
    */
   server.put('/api/mqtt/config', async (request, reply) => {
     const result = z.object({
       enabled: z.boolean().optional(),
       brokerHost: z.string().min(1).max(255).optional(),
       brokerPort: z.int().min(1).max(65535).optional(),
+      username: z.string().min(1).max(255).optional(),
+      // Allow empty string to mean "no change". Non-empty must be 1..255 chars.
+      password: z.string().max(255).optional(),
       siteId: z.string().min(1).max(100).optional(),
       machineId: z.string().min(1).max(100).optional(),
       publishMachine: z.boolean().optional(),
@@ -76,7 +107,13 @@ export const mqttRoutes: FastifyPluginAsync = async (server) => {
       return reply.code(400).send({ error: 'Invalid config', details: result.error.issues });
     }
 
-    return MqttConfigService.updateConfig(result.data);
+    await MqttConfigService.updateConfig(result.data);
+    // Reload the MQTT connection so the new broker host/port/credentials/TLS,
+    // site/machine identity, LWT topic, and command-handler subscription all
+    // take effect immediately. This is a full disconnect → reconnect cycle.
+    await reloadMqttConnection(request.log);
+    // Return the redacted public view (no password leak in the response).
+    return MqttConfigService.getPublicConfig();
   });
 
   // ── Status route ───────────────────────────────────────────────
@@ -87,8 +124,9 @@ export const mqttRoutes: FastifyPluginAsync = async (server) => {
    */
   server.get('/api/mqtt/status', async (_request, _reply) => {
     const config = await MqttConfigService.getConfig();
+    const live = getMqttClient();
     return {
-      connected: server.mqtt?.connected ?? false,
+      connected: live?.connected ?? false,
       enabled: config.enabled,
       brokerHost: config.brokerHost,
       brokerPort: config.brokerPort,
@@ -102,11 +140,12 @@ export const mqttRoutes: FastifyPluginAsync = async (server) => {
    * GET /api/mqtt/users
    * List all MQTT users from Dynamic Security Plugin.
    */
-  server.get('/api/mqtt/users', async (_request, reply) => {
-    if (!dynSecClient) {
+  server.get('/api/mqtt/users', async (request, reply) => {
+    const dsc = await ensureDynSec(request.log);
+    if (!dsc) {
       return reply.code(503).send({ error: 'MQTT not connected' });
     }
-    return dynSecClient.listClients();
+    return dsc.listClients();
   });
 
   /**
@@ -114,7 +153,8 @@ export const mqttRoutes: FastifyPluginAsync = async (server) => {
    * Create a new MQTT user with a role.
    */
   server.post('/api/mqtt/users', async (request, reply) => {
-    if (!dynSecClient) {
+    const dsc = await ensureDynSec(request.log);
+    if (!dsc) {
       return reply.code(503).send({ error: 'MQTT not connected' });
     }
 
@@ -125,7 +165,7 @@ export const mqttRoutes: FastifyPluginAsync = async (server) => {
 
     const { username, password, role, textName } = result.data;
     try {
-      await dynSecClient.createClient(username, password, role, textName);
+      await dsc.createClient(username, password, role, textName);
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Unknown error';
       if (msg.includes('already exists') || msg.includes('Client already exists')) {
@@ -143,7 +183,8 @@ export const mqttRoutes: FastifyPluginAsync = async (server) => {
   server.put<{ Params: { username: string } }>(
     '/api/mqtt/users/:username',
     async (request, reply) => {
-      if (!dynSecClient) {
+      const dsc = await ensureDynSec(request.log);
+      if (!dsc) {
         return reply.code(503).send({ error: 'MQTT not connected' });
       }
 
@@ -153,7 +194,7 @@ export const mqttRoutes: FastifyPluginAsync = async (server) => {
       }
 
       const { password, role, textName } = result.data;
-      await dynSecClient.modifyClient(request.params.username, {
+      await dsc.modifyClient(request.params.username, {
         password,
         roles: role ? [role] : undefined,
         textName,
@@ -170,7 +211,8 @@ export const mqttRoutes: FastifyPluginAsync = async (server) => {
   server.delete<{ Params: { username: string } }>(
     '/api/mqtt/users/:username',
     async (request, reply) => {
-      if (!dynSecClient) {
+      const dsc = await ensureDynSec(request.log);
+      if (!dsc) {
         return reply.code(503).send({ error: 'MQTT not connected' });
       }
 
@@ -179,7 +221,7 @@ export const mqttRoutes: FastifyPluginAsync = async (server) => {
       }
 
       try {
-        await dynSecClient.deleteClient(request.params.username);
+        await dsc.deleteClient(request.params.username);
       } catch (err) {
         const msg = err instanceof Error ? err.message : 'Unknown error';
         if (msg.includes('not found') || msg.includes('Client not found')) {
@@ -198,7 +240,8 @@ export const mqttRoutes: FastifyPluginAsync = async (server) => {
    * Quick broker connection health check.
    */
   server.post('/api/mqtt/test', async (_request, reply) => {
-    if (server.mqtt?.connected) {
+    const live = getMqttClient();
+    if (live?.connected) {
       return { success: true, message: 'Broker connection active' };
     }
     return reply.code(503).send({ success: false, message: 'Broker not connected' });

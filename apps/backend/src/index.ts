@@ -4,8 +4,7 @@ import { loadAlarmDescriptions } from './i18n/alarmDescriptions.js';
 import { seedDefaultAdmin } from './auth/seed.js';
 import { startUdpPipeline, stopUdpPipeline } from './udp/index.js';
 import { initBroadcaster, shutdownBroadcaster } from './ws/broadcaster.js';
-import { initMqttPublisher, shutdownMqttPublisher } from './mqtt/publisher.js';
-import { initCommandHandler, shutdownCommandHandler } from './mqtt/commandHandler.js';
+import { connectMqtt, disconnectMqtt } from './mqtt/connectionManager.js';
 import { MqttConfigService } from './mqtt/configService.js';
 import { pool } from './db/index.js';
 
@@ -27,10 +26,9 @@ function setupGracefulShutdown(server: ReturnType<typeof buildServer>): void {
       shutdownBroadcaster();
       server.log.info({ name: 'Shutdown' }, 'WebSocket broadcaster stopped');
 
-      // 3. Shut down MQTT publisher and command handler
-      shutdownMqttPublisher();
-      shutdownCommandHandler();
-      server.log.info({ name: 'Shutdown' }, 'MQTT publisher and command handler stopped');
+      // 3. Disconnect MQTT (publishes offline LWT, tears down publisher + command handler)
+      await disconnectMqtt(server.log);
+      server.log.info({ name: 'Shutdown' }, 'MQTT disconnected');
 
       // 4. Stop UDP pipeline (close sockets)
       stopUdpPipeline(server.log);
@@ -73,13 +71,10 @@ async function main(): Promise<void> {
     // Initialize WebSocket broadcaster (subscribes to dataHub, seeds active alarms)
     await initBroadcaster(server.log);
 
-    // Initialize MQTT publisher (subscribes to dataHub, publishes to MQTT topics)
-    if (server.mqtt) {
-      await initMqttPublisher(server.mqtt, server.log);
-
-      // Initialize MQTT command handler (subscribes to cmd/+/req, queues PLC writes)
-      await initCommandHandler(server.mqtt, server.log);
-    }
+    // Connect to MQTT broker using DB-backed config and initialize publisher +
+    // command handler. Reads enabled / brokerHost / brokerPort / siteId /
+    // machineId / useTls / caCert from the mqtt_config row.
+    await connectMqtt(server.log);
 
     // Register graceful shutdown (must have server reference)
     setupGracefulShutdown(server);

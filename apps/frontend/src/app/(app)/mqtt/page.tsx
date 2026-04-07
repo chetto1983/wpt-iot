@@ -56,6 +56,10 @@ interface MqttConfig {
   enabled: boolean;
   brokerHost: string;
   brokerPort: number;
+  username: string;
+  // GET responses never include the broker password — only `passwordSet`
+  // tells the form whether the input is required or can be left blank.
+  passwordSet: boolean;
   siteId: string;
   machineId: string;
   publishMachine: boolean;

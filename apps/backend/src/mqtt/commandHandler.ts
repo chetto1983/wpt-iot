@@ -1,11 +1,10 @@
 import type { MqttClient, IPublishPacket } from 'mqtt';
 import type { FastifyBaseLogger } from 'fastify';
 import type { IMqttCommandResponse } from '@wpt/types';
-import { MqttCommandRequestSchema, JobDataSchema, RfidUserSchema, mqttTopic, RemoteCycleSelection, CycleType } from '@wpt/types';
+import { MqttCommandRequestSchema, JobDataSchema, RfidUserSchema, RemoteCycleSelection, CycleType } from '@wpt/types';
 import { readJob, writeJob, writeUsers } from '../udp/handshakeFsm.js';
 import { getSockets } from '../udp/sockets.js';
 import { dataHub } from '../events/hub.js';
-import { config } from '../config.js';
 import { CommandQueue } from './commandQueue.js';
 import { z } from 'zod/v4';
 
@@ -28,13 +27,9 @@ const CycleCommandSchema = z.object({
 // Module-level state
 let client: MqttClient | null = null;
 let log: FastifyBaseLogger | null = null;
+let topicPrefix: string | null = null;
 const commandQueue = new CommandQueue();
 let dedupCleanupInterval: ReturnType<typeof setInterval> | null = null;
-
-/** Topic prefix for this site/machine */
-function topicPrefix(): string {
-  return mqttTopic(config.mqttSiteId, config.mqttMachineId);
-}
 
 /** Publish a JSON response to the MQTT v5 responseTopic with correlationData */
 function publishResponse(
@@ -74,7 +69,8 @@ function errorResponse(requestId: string, message: string): IMqttCommandResponse
 /** Handle incoming MQTT command messages on cmd/+/req topics */
 function handleCommandMessage(topic: string, payload: Buffer, packet: IPublishPacket): void {
   // Only process messages matching our cmd/+/req pattern
-  const prefix = topicPrefix();
+  const prefix = topicPrefix;
+  if (!prefix) return;
   if (!topic.startsWith(prefix + '/cmd/') || !topic.endsWith('/req')) return;
 
   // Extract target from topic: wpt/{site}/{machine}/cmd/{target}/req
@@ -237,13 +233,21 @@ export async function routeCommand(
 /**
  * Initialize the MQTT command handler.
  * Subscribes to cmd/+/req topics and wires message handler.
+ *
+ * @param prefix Topic prefix `wpt/{siteId}/{machineId}` (built from DB config
+ *               by the connection manager — never read from env here).
  */
-export async function initCommandHandler(mqttClient: MqttClient, logger: FastifyBaseLogger): Promise<void> {
+export async function initCommandHandler(
+  mqttClient: MqttClient,
+  logger: FastifyBaseLogger,
+  prefix: string,
+): Promise<void> {
   client = mqttClient;
   log = logger;
+  topicPrefix = prefix;
 
-  // Subscribe to all command request topics: wpt/{site}/{machine}/cmd/+/req
-  const cmdTopicPattern = mqttTopic(config.mqttSiteId, config.mqttMachineId, 'cmd', '+', 'req');
+  // Subscribe to all command request topics: {prefix}/cmd/+/req
+  const cmdTopicPattern = `${prefix}/cmd/+/req`;
   await mqttClient.subscribeAsync(cmdTopicPattern, { qos: 1 });
 
   // Register message handler (only processes cmd/+/req messages, ignores others)
@@ -272,4 +276,5 @@ export function shutdownCommandHandler(): void {
   commandQueue.reset();
   client = null;
   log = null;
+  topicPrefix = null;
 }

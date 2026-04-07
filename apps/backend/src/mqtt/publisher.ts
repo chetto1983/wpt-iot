@@ -7,7 +7,6 @@ import type { IAlarmTransition } from '../events/types.js';
 import { latestState } from '../cache/latestState.js';
 import { getAlarmDescription } from '../i18n/alarmDescriptions.js';
 import { getActiveAlarmIndices } from '../persistence/alarmStore.js';
-import { config } from '../config.js';
 import { MqttConfigService } from './configService.js';
 import { pushEvent } from './activityLog.js';
 
@@ -15,12 +14,21 @@ import { pushEvent } from './activityLog.js';
 let mqttClient: MqttClient | null = null;
 let logger: FastifyBaseLogger | null = null;
 
+interface CachedMqttConfig {
+  siteId: string;
+  machineId: string;
+  publishMachine: boolean;
+  publishAlarms: boolean;
+  publishRfid: boolean;
+  publishJobs: boolean;
+}
+
 /** Cached config to avoid DB query on every publish (refreshed every 30s) */
-let cachedConfig: { publishMachine: boolean; publishAlarms: boolean; publishRfid: boolean; publishJobs: boolean } | null = null;
+let cachedConfig: CachedMqttConfig | null = null;
 let configCacheExpiry = 0;
 const CONFIG_CACHE_TTL_MS = 30_000; // 30 seconds
 
-async function getPublishFlags(): Promise<{ publishMachine: boolean; publishAlarms: boolean; publishRfid: boolean; publishJobs: boolean }> {
+async function getCachedConfig(): Promise<CachedMqttConfig> {
   const now = Date.now();
   if (cachedConfig && now < configCacheExpiry) {
     return cachedConfig;
@@ -28,6 +36,8 @@ async function getPublishFlags(): Promise<{ publishMachine: boolean; publishAlar
   try {
     const cfg = await MqttConfigService.getConfig();
     cachedConfig = {
+      siteId: cfg.siteId,
+      machineId: cfg.machineId,
       publishMachine: cfg.publishMachine,
       publishAlarms: cfg.publishAlarms,
       publishRfid: cfg.publishRfid,
@@ -36,14 +46,28 @@ async function getPublishFlags(): Promise<{ publishMachine: boolean; publishAlar
     configCacheExpiry = now + CONFIG_CACHE_TTL_MS;
     return cachedConfig;
   } catch (err) {
-    logger?.error({ name: 'MqttPublisher', err: (err as Error).message }, 'Failed to read publish config, using defaults (all enabled)');
-    return { publishMachine: true, publishAlarms: true, publishRfid: true, publishJobs: true };
+    logger?.error(
+      { name: 'MqttPublisher', err: (err as Error).message },
+      'Failed to read MQTT config from DB — suppressing publish until next read',
+    );
+    // Return all-disabled flags so we don't publish to a wrong topic when DB
+    // is unreachable. siteId/machineId are placeholders; nothing will publish
+    // because every publishX flag is false. Cache is left null so the next
+    // call retries the DB read.
+    return {
+      siteId: '',
+      machineId: '',
+      publishMachine: false,
+      publishAlarms: false,
+      publishRfid: false,
+      publishJobs: false,
+    };
   }
 }
 
-/** Build a full topic path for this site/machine */
-function topic(...segments: string[]): string {
-  return mqttTopic(config.mqttSiteId, config.mqttMachineId, ...segments);
+/** Build a full topic path for this site/machine using the cached config. */
+function buildTopic(cfg: CachedMqttConfig, ...segments: string[]): string {
+  return mqttTopic(cfg.siteId, cfg.machineId, ...segments);
 }
 
 /** Publish JSON payload to MQTT, swallowing errors to never crash the pipeline */
@@ -73,10 +97,10 @@ async function safePublish(
 function publishMachineData(snapshot: IMachineSnapshot, timestamp: Date): void {
   if (!mqttClient) return;
   void (async () => {
-    const flags = await getPublishFlags();
-    if (!flags.publishMachine) return;
+    const cfg = await getCachedConfig();
+    if (!cfg.publishMachine) return;
     await safePublish(
-      topic(...MQTT_TOPIC_SUFFIXES.SNAPSHOT.split('/')),
+      buildTopic(cfg, ...MQTT_TOPIC_SUFFIXES.SNAPSHOT.split('/')),
       { ...snapshot, ts: timestamp.toISOString() },
       { qos: 0, retain: true },
     );
@@ -87,8 +111,8 @@ function publishMachineData(snapshot: IMachineSnapshot, timestamp: Date): void {
 function publishAlarmChange(transitions: IAlarmTransition[]): void {
   if (!mqttClient) return;
   void (async () => {
-    const flags = await getPublishFlags();
-    if (!flags.publishAlarms) return;
+    const cfg = await getCachedConfig();
+    if (!cfg.publishAlarms) return;
 
     // Publish individual activation/reset events
     for (const t of transitions) {
@@ -101,13 +125,13 @@ function publishAlarmChange(transitions: IAlarmTransition[]): void {
 
       if (t.active) {
         await safePublish(
-          topic(...MQTT_TOPIC_SUFFIXES.ALARMS_ACTIVATE.split('/')),
+          buildTopic(cfg, ...MQTT_TOPIC_SUFFIXES.ALARMS_ACTIVATE.split('/')),
           desc,
           { qos: 1, retain: false },
         );
       } else {
         await safePublish(
-          topic(...MQTT_TOPIC_SUFFIXES.ALARMS_RESET.split('/')),
+          buildTopic(cfg, ...MQTT_TOPIC_SUFFIXES.ALARMS_RESET.split('/')),
           desc,
           { qos: 1, retain: false },
         );
@@ -115,13 +139,15 @@ function publishAlarmChange(transitions: IAlarmTransition[]): void {
     }
 
     // Publish updated active alarm list (retained)
-    await publishActiveAlarmList();
+    await publishActiveAlarmList(cfg);
   })();
 }
 
 /** Query active alarms from persistence and publish retained list */
-async function publishActiveAlarmList(): Promise<void> {
+async function publishActiveAlarmList(cfg?: CachedMqttConfig): Promise<void> {
   try {
+    const resolved = cfg ?? (await getCachedConfig());
+    if (!resolved.publishAlarms || !resolved.siteId || !resolved.machineId) return;
     const indices = await getActiveAlarmIndices();
     const activeAlarms: IActiveAlarm[] = indices.map((idx) => ({
       alarmIndex: idx,
@@ -134,7 +160,7 @@ async function publishActiveAlarmList(): Promise<void> {
     }));
 
     await safePublish(
-      topic(...MQTT_TOPIC_SUFFIXES.ALARMS_ACTIVE.split('/')),
+      buildTopic(resolved, ...MQTT_TOPIC_SUFFIXES.ALARMS_ACTIVE.split('/')),
       activeAlarms,
       { qos: 1, retain: true },
     );
@@ -150,10 +176,10 @@ async function publishActiveAlarmList(): Promise<void> {
 function publishUserData(users: IRfidUser[]): void {
   if (!mqttClient) return;
   void (async () => {
-    const flags = await getPublishFlags();
-    if (!flags.publishRfid) return;
+    const cfg = await getCachedConfig();
+    if (!cfg.publishRfid) return;
     await safePublish(
-      topic(...MQTT_TOPIC_SUFFIXES.RFID_USERS.split('/')),
+      buildTopic(cfg, ...MQTT_TOPIC_SUFFIXES.RFID_USERS.split('/')),
       users,
       { qos: 1, retain: true },
     );
@@ -164,10 +190,10 @@ function publishUserData(users: IRfidUser[]): void {
 function publishJobData(job: IJobData): void {
   if (!mqttClient) return;
   void (async () => {
-    const flags = await getPublishFlags();
-    if (!flags.publishJobs) return;
+    const cfg = await getCachedConfig();
+    if (!cfg.publishJobs) return;
     await safePublish(
-      topic(...MQTT_TOPIC_SUFFIXES.JOBS_CURRENT.split('/')),
+      buildTopic(cfg, ...MQTT_TOPIC_SUFFIXES.JOBS_CURRENT.split('/')),
       job,
       { qos: 1, retain: true },
     );
@@ -188,18 +214,19 @@ export async function initMqttPublisher(client: MqttClient, log: FastifyBaseLogg
   dataHub.onUserData((users) => publishUserData(users));
   dataHub.onJobData((job) => publishJobData(job));
 
-  // Bootstrap retained messages from cache
+  // Bootstrap retained messages from cache (use DB-backed siteId/machineId, not env)
+  const bootstrapCfg = await getCachedConfig();
   const snapshot = latestState.getMachineSnapshot();
   if (snapshot) {
     void safePublish(
-      topic(...MQTT_TOPIC_SUFFIXES.SNAPSHOT.split('/')),
+      buildTopic(bootstrapCfg, ...MQTT_TOPIC_SUFFIXES.SNAPSHOT.split('/')),
       { ...snapshot, ts: new Date().toISOString() },
       { qos: 0, retain: true },
     );
   }
 
   // Publish current active alarm list
-  await publishActiveAlarmList();
+  await publishActiveAlarmList(bootstrapCfg);
 
   log.info(
     { name: 'MqttPublisher' },

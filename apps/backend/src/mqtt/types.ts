@@ -1,18 +1,4 @@
-import type { MqttClient } from 'mqtt';
-
-declare module 'fastify' {
-  interface FastifyInstance {
-    mqtt: MqttClient;
-  }
-}
-
-/** Options for the MQTT plugin */
-export interface IMqttPluginOptions {
-  host: string;
-  port: number;
-  username: string;
-  password: string;
-  clientId: string;
-  siteId: string;
-  machineId: string;
-}
+// MQTT client lifecycle is owned by `connectionManager.ts` since the broker
+// host/port/identity now come from the DB and can be reloaded at runtime.
+// Use `getMqttClient()` from connectionManager instead of decorating Fastify.
+export {};

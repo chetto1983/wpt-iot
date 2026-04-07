@@ -21,6 +21,8 @@ interface MqttConfig {
   enabled: boolean;
   brokerHost: string;
   brokerPort: number;
+  username: string;
+  passwordSet: boolean;
   siteId: string;
   machineId: string;
   publishMachine: boolean;
@@ -43,6 +45,10 @@ export function MqttConfigForm({ config, onSaved }: MqttConfigFormProps) {
   const [enabled, setEnabled] = useState(config.enabled);
   const [brokerHost, setBrokerHost] = useState(config.brokerHost);
   const [brokerPort, setBrokerPort] = useState(config.brokerPort);
+  const [username, setUsername] = useState(config.username);
+  // Password is never returned by GET — leaving this blank means
+  // "keep current". On save we only send the password field if non-empty.
+  const [password, setPassword] = useState('');
   const [siteId, setSiteId] = useState(config.siteId);
   const [machineId, setMachineId] = useState(config.machineId);
   const [publishMachine, setPublishMachine] = useState(config.publishMachine);
@@ -56,23 +62,31 @@ export function MqttConfigForm({ config, onSaved }: MqttConfigFormProps) {
   const handleSave = useCallback(async () => {
     setSaving(true);
     try {
+      const body: Record<string, unknown> = {
+        enabled,
+        brokerHost,
+        brokerPort,
+        username,
+        siteId,
+        machineId,
+        publishMachine,
+        publishAlarms,
+        publishRfid,
+        publishJobs,
+        useTls,
+        caCert: caCert || null,
+      };
+      // Only send password if user typed one — empty means "no change".
+      if (password.length > 0) body.password = password;
+
       await apiFetch('/api/mqtt/config', {
         method: 'PUT',
-        body: JSON.stringify({
-          enabled,
-          brokerHost,
-          brokerPort,
-          siteId,
-          machineId,
-          publishMachine,
-          publishAlarms,
-          publishRfid,
-          publishJobs,
-          useTls,
-          caCert: caCert || null,
-        }),
+        body: JSON.stringify(body),
       });
       toast.success(t('config.saved'));
+      // Clear the password input after a successful save so the field
+      // remains blank ("keep current") for the next edit.
+      setPassword('');
       onSaved();
     } catch (err) {
       const msg = err instanceof Error ? err.message : tCommon('error');
@@ -80,7 +94,7 @@ export function MqttConfigForm({ config, onSaved }: MqttConfigFormProps) {
     } finally {
       setSaving(false);
     }
-  }, [enabled, brokerHost, brokerPort, siteId, machineId, publishMachine, publishAlarms, publishRfid, publishJobs, useTls, caCert, onSaved, t, tCommon]);
+  }, [enabled, brokerHost, brokerPort, username, password, siteId, machineId, publishMachine, publishAlarms, publishRfid, publishJobs, useTls, caCert, onSaved, t, tCommon]);
 
   return (
     <Card>
@@ -120,6 +134,39 @@ export function MqttConfigForm({ config, onSaved }: MqttConfigFormProps) {
               max={65535}
             />
           </div>
+        </div>
+
+        {/* Broker credentials */}
+        <div className="grid gap-2">
+          <Label htmlFor="mqtt-username">{t('config.username')}</Label>
+          <Input
+            id="mqtt-username"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            placeholder="wpt-backend"
+            autoComplete="off"
+          />
+        </div>
+
+        <div className="grid gap-2">
+          <Label htmlFor="mqtt-password">{t('config.password')}</Label>
+          <Input
+            id="mqtt-password"
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder={
+              config.passwordSet
+                ? t('config.passwordKeepCurrent')
+                : t('config.passwordRequired')
+            }
+            autoComplete="new-password"
+          />
+          <p className="text-xs text-muted-foreground">
+            {config.passwordSet
+              ? t('config.passwordHelpKeepCurrent')
+              : t('config.passwordHelpRequired')}
+          </p>
         </div>
 
         {/* Site ID */}

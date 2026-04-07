@@ -37,12 +37,14 @@ export const MQTT_TOPIC_SUFFIXES = {
   CONNECTION: 'state/connection',
 } as const;
 
-/** MQTT gateway configuration stored in database */
+/** MQTT gateway configuration stored in database (server-side full row) */
 export interface IMqttConfig {
   id: number;
   enabled: boolean;
   brokerHost: string;
   brokerPort: number;
+  username: string;
+  password: string;
   siteId: string;
   machineId: string;
   publishMachine: boolean;
@@ -54,10 +56,21 @@ export interface IMqttConfig {
   updatedAt: Date;
 }
 
+/**
+ * Redacted MQTT config returned by GET /api/mqtt/config — never includes
+ * the broker password. The frontend uses `passwordSet` to decide whether to
+ * show "leave blank to keep current" or "required" on the password input.
+ */
+export type IMqttConfigPublic = Omit<IMqttConfig, 'password'> & {
+  passwordSet: boolean;
+};
+
 export const MqttConfigSchema = z.object({
   enabled: z.boolean(),
   brokerHost: z.string().min(1).max(255),
   brokerPort: z.int().min(1).max(65535),
+  username: z.string().min(1).max(255),
+  password: z.string().min(1).max(255),
   siteId: z.string().min(1).max(100),
   machineId: z.string().min(1).max(100),
   publishMachine: z.boolean(),

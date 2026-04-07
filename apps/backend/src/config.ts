@@ -23,14 +23,8 @@ export const config = {
   adminPassword: process.env.ADMIN_PASSWORD ?? '',
   corsOrigin: (process.env.CORS_ORIGIN ?? 'http://localhost:3001').split(','),
 
-  // MQTT Gateway
-  mqttHost: process.env.MQTT_HOST ?? 'localhost',
-  mqttPort: Number(process.env.MQTT_PORT ?? 1883),
-  mqttUsername: process.env.MQTT_USERNAME ?? 'wpt-backend',
-  mqttPassword: process.env.MQTT_PASSWORD ?? 'wpt_mqtt_dev_password',
-  mqttEnabled: (process.env.MQTT_ENABLED ?? 'true') === 'true',
-  mqttSiteId: process.env.MQTT_SITE_ID ?? 'site-01',
-  mqttMachineId: process.env.MQTT_MACHINE_ID ?? 'wpt40-001',
-  mqttUseTls: (process.env.MQTT_USE_TLS ?? 'false') === 'true',
-  mqttCaCert: process.env.MQTT_CA_CERT ?? '',
 } as const;
+
+// All MQTT settings (broker host/port, credentials, TLS, site/machine
+// identity, publish flags) live in the `mqtt_config` DB row and are managed
+// via the UI form. There are intentionally no MQTT_* env vars here.
