@@ -1,5 +1,5 @@
 {
-	"changeIndex":	30,
+	"changeIndex":	33,
 	"defaultACLAccess":	{
 		"publishClientSend":	false,
 		"publishClientReceive":	false,
@@ -7,6 +7,20 @@
 		"unsubscribe":	true
 	},
 	"clients":	[{
+			"username":	"operatore",
+			"textname":	"oper",
+			"roles":	[{
+					"rolename":	"mqtt-operator"
+				}],
+			"encoded_password":	"$7$1000$e2zG/q3NADPjvzp6lEp2Ps+ActldTtulY2sRqWDsJPUAOKVoCwtgkZmENdk7Q3kY3r15mHjbekyDys76nM90XQ==$pdlqyuWx4yphnuDS9Szcumqn43L2jfCUgAqyUktmLb84RHs1yXCQSSesuF/bQm+UHOZV7Uylb0S6hnfZGghIpA=="
+		}, {
+			"username":	"test",
+			"textname":	"test",
+			"roles":	[{
+					"rolename":	"mqtt-admin"
+				}],
+			"encoded_password":	"$7$1000$mSo1xUUnlAv4rgyIUaAzQniKfyXkYKILYzJgkuXcL7lTOIVGuMA5IRnWiWCCeaJMAehS2wx0g3ugq24JiUXdlA==$jnueZGLUh2d6cVcNXVn+owQA+aVYEqYJfGbqdLAXxRFUFBIvhWSqZd3QUCb8/Al8755yEVtZG908vucwSeXI3A=="
+		}, {
 			"username":	"wpt-backend",
 			"textname":	"WPT Backend Service",
 			"roles":	[{
