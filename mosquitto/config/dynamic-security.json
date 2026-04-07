@@ -1,5 +1,5 @@
 {
-	"changeIndex":	33,
+	"changeIndex":	34,
 	"defaultACLAccess":	{
 		"publishClientSend":	false,
 		"publishClientReceive":	false,
@@ -13,6 +13,13 @@
 					"rolename":	"mqtt-operator"
 				}],
 			"encoded_password":	"$7$1000$e2zG/q3NADPjvzp6lEp2Ps+ActldTtulY2sRqWDsJPUAOKVoCwtgkZmENdk7Q3kY3r15mHjbekyDys76nM90XQ==$pdlqyuWx4yphnuDS9Szcumqn43L2jfCUgAqyUktmLb84RHs1yXCQSSesuF/bQm+UHOZV7Uylb0S6hnfZGghIpA=="
+		}, {
+			"username":	"pippo",
+			"textname":	"test",
+			"roles":	[{
+					"rolename":	"mqtt-reader"
+				}],
+			"encoded_password":	"$7$1000$chFIRw4BNj81k+60yOEWF6dv8pVNf/xC0rnmxPV3TB/Q8Yyc0lWqOhZREG4g1Gu7e6ntllo9TGuiErdjHnqEAQ==$dmsahW4j4/dRyRDNgorz4JjjLNk1gj5pDT7+hpMzgsuJ25qyBHrWzkoJ3itjdLr+YHe9wCKCQ1ndcYRXwpWfoA=="
 		}, {
 			"username":	"test",
 			"textname":	"test",
