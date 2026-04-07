@@ -154,6 +154,15 @@ services:
         max-size: "10m"
         max-file: "3"
 
+  # Simulator runs on a dedicated bridge network with a STATIC IP so the
+  # backend (host network mode in prod/host overrides) can reach it as a
+  # drop-in PLC replacement: just point plc_config.target_host at
+  # 172.28.0.10 to use the simulator, or at the real PLC IP to use the
+  # real PLC. No env-var or port changes needed when switching.
+  #
+  # The dedicated network avoids pinning IPs on wpt-iot_default and keeps
+  # the simulator routable from the host kernel via its own br-xxx
+  # interface (host → 172.28.0.0/24 → simulator container).
   simulator:
     build:
       context: .
@@ -179,6 +188,9 @@ services:
       STATE_FILE_PATH: /app/data/simulator-state.json
     volumes:
       - simulator-data:/app/data
+    networks:
+      wpt-sim:
+        ipv4_address: 172.28.0.10
     extra_hosts:
       - "host.docker.internal:host-gateway"
     healthcheck:
@@ -199,3 +211,16 @@ volumes:
   mosquitto_data:
   mosquitto_log:
   simulator-data:
+
+networks:
+  # Dedicated bridge network for the dev simulator. Fixed subnet so the
+  # static IP 172.28.0.10 (assigned to the simulator service) is stable
+  # across recreations and can be hardcoded in plc_config when the
+  # operator switches between simulator and real PLC modes.
+  wpt-sim:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.28.0.0/24
+          gateway: 172.28.0.1
