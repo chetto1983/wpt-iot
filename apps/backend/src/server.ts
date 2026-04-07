@@ -21,6 +21,7 @@ import { chartRoutes } from './routes/charts.js';
 import { dashboardRoutes } from './routes/dashboards.js';
 import { mqttRoutes } from './routes/mqtt.js';
 import { plcConfigRoutes } from './routes/plcConfig.js';
+import { energyRoutes } from './routes/energy.js';
 import { wsRoute } from './ws/route.js';
 
 const isDev = process.env.NODE_ENV !== 'production';
@@ -127,6 +128,15 @@ export function buildServer(): ReturnType<typeof Fastify> {
   // 19. PLC config routes (Super Admin only) — DB-backed PLC target host
   // replaces the legacy SIM_HOST env var. Handshake FSM reads via cache.
   server.register(plcConfigRoutes);
+
+  // 20. Energy routes (Phase 19 Plan 19-10) — read-side aggregate API
+  // over the energy_5min/1h/1d/1mo CAGG hierarchy. Ships GET
+  // /api/energy/aggregate wired and GET /api/energy/cycles as a 503
+  // stub. Plan 19-06 will extend this plugin with cycle persister +
+  // attribution scheduler lifecycle hooks. Phase 21 adds auth + role
+  // filtering (currently open per threat register T-19-26
+  // accept-for-now).
+  server.register(energyRoutes);
 
   return server;
 }

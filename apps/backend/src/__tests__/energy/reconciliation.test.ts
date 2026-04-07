@@ -1,6 +1,7 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterAll } from 'vitest';
 import { db, pool } from '../../db/index.js';
 import { sql } from 'drizzle-orm';
+import { EnergyAggregateService } from '../../services/energyAggregateService.js';
 
 /**
  * PHASE 19 — CA-on-CA reconciliation invariant.
@@ -52,45 +53,53 @@ describe('energy CAGG reconciliation — sum(child) ≈ parent within ±0.1 kWh'
       WHERE timestamp >= ${new Date(LOCAL_DAY_START_UTC.getTime() - 3600_000)}
         AND timestamp <  ${new Date(LOCAL_DAY_END_UTC.getTime() + 3600_000)}
     `);
+    // Also clean cycle_records in the same window so Test 2's
+    // getReconciliation query sees only whatever the test itself inserted.
+    // Plan 19-10 ships getReconciliation without cycle_records wiring
+    // (Plan 19-06 does that); the reconciliation baseline here is the
+    // "no cycles yet" path where idleKwh absorbs 100% of meterKwh.
+    await db.execute(sql`
+      DELETE FROM cycle_records
+      WHERE started_at >= ${new Date(LOCAL_DAY_START_UTC.getTime() - 3600_000)}
+        AND started_at <  ${new Date(LOCAL_DAY_END_UTC.getTime() + 3600_000)}
+    `);
   });
 
-  it('288 snapshots over 24 hours (linear ramp 1000→1100 kWh) — sum(energy_1h.kwh_delta) == energy_1d.kwh_delta within ±0.1 (GREEN — Plan 19-09)', async () => {
-    // Seed 2 snapshots inside each 5-minute bucket (576 total), so every
-    // Level-1 kwh_delta is a non-zero `last - first`. Sample A lives 30
-    // seconds into the bucket, sample B lives 4 minutes 30 seconds in.
-    // Sample A has the cumulative kWh at the start of the bucket's delta,
-    // Sample B has the value after one PER_BUCKET_KWH increment. The
-    // energy_consumption field is therefore a stepwise ramp — it stays flat
-    // across bucket boundaries (so no cross-bucket delta is lost) and jumps
-    // by PER_BUCKET_KWH inside each bucket.
-    //
-    // machine_snapshots has no NOT NULL columns beyond the serial id (auto)
-    // and timestamp. In the dev DB the table is a minimal subset
-    // (id, timestamp, energy_consumption, rms_curr_l1..l3, machine_status)
-    // so the INSERT only names columns known to exist everywhere.
+  // Release the pg pool once after the whole suite — NOT inside each
+  // test. Plan 19-09 used an in-test pool.end() when only one case was
+  // live; now that Test 2 joins the party, closing the pool mid-suite
+  // would break the second case.
+  afterAll(async () => {
+    await pool.end().catch(() => undefined);
+  });
+
+  /**
+   * Shared seed+refresh helper used by both the CAGG invariant test and
+   * the getReconciliation service-level test. Seeds 576 snapshots across
+   * the Europe/Rome local day 2026-04-08 such that
+   * sum(energy_1d.kwh_delta) = EXPECTED_DAY_KWH (100) exactly, then
+   * refreshes the 3 lower CAGG levels in strict order.
+   *
+   * Kept as a closure so both tests share one implementation — any future
+   * fix to the seed density or refresh window semantics only has to land
+   * in one place.
+   */
+  async function seedAndRefreshCleanDay(): Promise<void> {
     for (let bucket = 0; bucket < BUCKET_COUNT; bucket++) {
       const bucketStartMs = LOCAL_DAY_START_UTC.getTime() + bucket * 5 * 60 * 1000;
       const startKwh = RAMP_START_KWH + bucket * PER_BUCKET_KWH;
       const endKwh = startKwh + PER_BUCKET_KWH;
-      const tsA = new Date(bucketStartMs + 30_000);         // 00:30 into bucket
-      const tsB = new Date(bucketStartMs + 270_000);        // 04:30 into bucket
+      const tsA = new Date(bucketStartMs + 30_000);
+      const tsB = new Date(bucketStartMs + 270_000);
       await db.execute(sql`
-        INSERT INTO machine_snapshots (timestamp, energy_consumption, machine_status)
-        VALUES (${tsA}, ${startKwh}, 1)
+        INSERT INTO machine_snapshots (timestamp, energy_consumption, machine_status, rms_curr_l1, rms_curr_l2, rms_curr_l3)
+        VALUES (${tsA}, ${startKwh}, 1, 10, 10, 10)
       `);
       await db.execute(sql`
-        INSERT INTO machine_snapshots (timestamp, energy_consumption, machine_status)
-        VALUES (${tsB}, ${endKwh}, 1)
+        INSERT INTO machine_snapshots (timestamp, energy_consumption, machine_status, rms_curr_l1, rms_curr_l2, rms_curr_l3)
+        VALUES (${tsB}, ${endKwh}, 1, 10, 10, 10)
       `);
     }
-
-    // Refresh the 3 levels of the CA-on-CA chain in strict order. Each call
-    // must cover a window strictly wider than the data window at that level
-    // so TimescaleDB refreshes the relevant buckets. The upper levels need
-    // the window padded because their buckets can be much larger than a day.
-    // Explicit ::timestamptz casts are required because Postgres cannot
-    // infer parameter types inside a CALL argument list the way it does
-    // for SELECT — the server rejects the prepared statement otherwise.
     const refreshWindowStart = new Date(LOCAL_DAY_START_UTC.getTime() - 2 * 3600_000);
     const refreshWindowEndForSmall = new Date(LOCAL_DAY_END_UTC.getTime() + 2 * 3600_000);
     await db.execute(sql`
@@ -99,13 +108,24 @@ describe('energy CAGG reconciliation — sum(child) ≈ parent within ±0.1 kWh'
     await db.execute(sql`
       CALL refresh_continuous_aggregate('energy_1h',   ${refreshWindowStart}::timestamptz, ${refreshWindowEndForSmall}::timestamptz)
     `);
-    // For energy_1d, the refresh window must align to day boundaries in
-    // Europe/Rome. We expand by 1 day on each side to be safe.
     const dayRefreshStart = new Date(LOCAL_DAY_START_UTC.getTime() - 24 * 3600_000);
     const dayRefreshEnd = new Date(LOCAL_DAY_END_UTC.getTime() + 24 * 3600_000);
     await db.execute(sql`
       CALL refresh_continuous_aggregate('energy_1d',   ${dayRefreshStart}::timestamptz, ${dayRefreshEnd}::timestamptz)
     `);
+  }
+
+  it('288 snapshots over 24 hours (linear ramp 1000→1100 kWh) — sum(energy_1h.kwh_delta) == energy_1d.kwh_delta within ±0.1 (GREEN — Plan 19-09)', async () => {
+    // Seed 2 snapshots inside each 5-minute bucket (576 total), so every
+    // Level-1 kwh_delta is a non-zero `last - first`. Seed/refresh is
+    // centralized in seedAndRefreshCleanDay() so Test 2 (getReconciliation)
+    // can reuse the exact same fixture.
+    //
+    // machine_snapshots has no NOT NULL columns beyond the serial id (auto)
+    // and timestamp. In the dev DB the table is a minimal subset
+    // (id, timestamp, energy_consumption, rms_curr_l1..l3, machine_status)
+    // so the helper INSERT only names columns known to exist everywhere.
+    await seedAndRefreshCleanDay();
 
     // Query the chained invariant: the sum of the 24 hourly deltas covering
     // the seeded day must equal the single daily delta row for that day,
@@ -137,29 +157,58 @@ describe('energy CAGG reconciliation — sum(child) ≈ parent within ±0.1 kWh'
     expect(dailyTotal).toBeLessThanOrEqual(EXPECTED_DAY_KWH + 1);
     expect(hourlySum).toBeGreaterThanOrEqual(EXPECTED_DAY_KWH - 1);
     expect(hourlySum).toBeLessThanOrEqual(EXPECTED_DAY_KWH + 1);
-
-    // Release the pg pool so vitest can exit cleanly.
-    await pool.end().catch(() => undefined);
   });
 
-  it.skip('EnergyAggregateService.getReconciliation({from,to}) returns ratio >= 0.98 on a clean seeded day (RED — Plan 19-10)', async () => {
-    /* BODY — enable in Plan 19-10:
-    const { EnergyAggregateService } = await import('../../services/energyAggregateService.js');
-    const day = new Date('2026-04-07T00:00:00Z');
-    const nextDay = new Date(day.getTime() + 24 * 3600 * 1000);
-    const result = await EnergyAggregateService.getReconciliation({ from: day, to: nextDay });
+  /**
+   * Service-level reconciliation test (Plan 19-10). Seeds the same
+   * 100-kWh clean day and calls EnergyAggregateService.getReconciliation.
+   *
+   * Expected shape:
+   *   { meterKwh, cycleKwh, idleKwh, unknownKwh, ratio }
+   *
+   * In Plan 19-10 the cycle_records table is empty for this window
+   * (Plan 19-06 wires the cycle persister), so cycleKwh = unknownKwh = 0
+   * and idleKwh absorbs the full meterKwh ≈ 100. Therefore:
+   *
+   *   ratio = (cycleKwh + idleKwh) / meterKwh
+   *         = (0 + 100) / 100
+   *         = 1.0
+   *
+   * This is the baseline reconciliation contract: a clean window with no
+   * persisted cycles still reports ratio = 1.0, not NaN / 0 / Infinity.
+   * Once Plan 19-06 wires the persister, this test will need to seed a
+   * cycle_records row too so `cycleKwh > 0`; until then, the "no cycles
+   * yet" path is the correct assertion and Plan 19-10 closes the
+   * read-side of ENRG-06.
+   */
+  it('EnergyAggregateService.getReconciliation({from,to}) returns ratio >= 0.98 on a clean seeded day (GREEN — Plan 19-10)', async () => {
+    await seedAndRefreshCleanDay();
+
+    const result = await EnergyAggregateService.getReconciliation({
+      from: LOCAL_DAY_START_UTC,
+      to: LOCAL_DAY_END_UTC,
+    });
+
     expect(result).toBeDefined();
     expect(result.meterKwh).toBeGreaterThan(0);
-    expect(result.attributedKwh).toBeGreaterThanOrEqual(0);
-    expect(result.idleKwh).toBeGreaterThanOrEqual(0);
-    expect(result.unknownKwh).toBeGreaterThanOrEqual(0);
-    // ratio = (attributedKwh + idleKwh) / meterKwh
-    const ratio = (result.attributedKwh + result.idleKwh) / result.meterKwh;
-    expect(ratio).toBeGreaterThanOrEqual(0.98);
-    expect(ratio).toBeLessThanOrEqual(1.02);
-    // Also exposed pre-computed by the service so callers don't have to do
-    // the division themselves.
+    // Meter total should match the seeded 100 kWh ± 1 float rounding.
+    expect(result.meterKwh).toBeGreaterThanOrEqual(EXPECTED_DAY_KWH - 1);
+    expect(result.meterKwh).toBeLessThanOrEqual(EXPECTED_DAY_KWH + 1);
+
+    // Plan 19-10 ships without the cycle persister (Plan 19-06). The
+    // cycle_records table is empty for this window, so attribution
+    // columns must be exactly 0 and idleKwh must absorb the entire meter
+    // total.
+    expect(result.cycleKwh).toBe(0);
+    expect(result.unknownKwh).toBe(0);
+    expect(result.idleKwh).toBeGreaterThanOrEqual(EXPECTED_DAY_KWH - 1);
+    expect(result.idleKwh).toBeLessThanOrEqual(EXPECTED_DAY_KWH + 1);
+
+    // The ratio contract — the central assertion of ENRG-06. On a clean
+    // day with or without cycle persister wiring, (cycleKwh + idleKwh) /
+    // meterKwh must be >= 0.98. Here it should be exactly 1.0 within
+    // float rounding.
     expect(result.ratio).toBeGreaterThanOrEqual(0.98);
-    */
+    expect(result.ratio).toBeLessThanOrEqual(1.02);
   });
 });
