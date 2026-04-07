@@ -2,7 +2,13 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "outDir": "./dist",
-    "rootDir": "./src"
+    "rootDir": "./src",
+    // Extend the base ES2022 lib with ES2023.Intl so format.ts can use
+    // `useGrouping: 'always'` (NumberFormatOptions string literal added in
+    // ES2023). Required by the EFMT-01 helpers — Italian energy/finance
+    // formatting always wants dot grouping at every thousand, but Node 22 /
+    // CLDR 42+ defaults to 'auto' which omits it on 4-digit integer parts.
+    "lib": ["ES2022", "ES2023.Intl"]
   },
   "include": ["src/**/*.ts"]
 }
