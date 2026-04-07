@@ -5,69 +5,79 @@
  */
 
 /**
- * Build a 286-byte machine data buffer with known test values.
- * Layout: 72 INT (144B) + 2 DINT (8B) + 5 STRING[20] (100B) + 7 REAL (28B) + 6 BYTE (6B)
+ * Build a 318-byte V03 machine data buffer with known test values.
+ * Layout: 72 INT (144B) + 2 DINT (8B) + 5 STRING[20] (100B) + 15 REAL (60B) + 6 BYTE (6B) = 318
  */
 export function buildTestMachineBuffer(): Buffer {
-  const buf = Buffer.alloc(286);
+  const buf = Buffer.alloc(318);
 
   // INT fields (2 bytes each, Big Endian)
-  buf.writeInt16BE(180, 0);    // thermoLeftLower at offset 0
-  buf.writeInt16BE(200, 2);    // thermoLeftMedium at offset 2
-  buf.writeInt16BE(220, 4);    // thermoLeftUpper at offset 4
-  buf.writeInt16BE(170, 6);    // thermoRightLower at offset 6
-  buf.writeInt16BE(190, 8);    // thermoRightMedium at offset 8
-  buf.writeInt16BE(210, 10);   // thermoRightUpper at offset 10
-  buf.writeInt16BE(300, 12);   // thermoLeftHighLower at offset 12
-  buf.writeInt16BE(310, 14);   // thermoLeftHighMedium at offset 14
-  buf.writeInt16BE(320, 16);   // thermoLeftHighUpper at offset 16
-  buf.writeInt16BE(290, 18);   // thermoRightHighLower at offset 18
-  buf.writeInt16BE(450, 20);   // garbageTemp at offset 20
-  buf.writeInt16BE(400, 22);   // holdingTempSetpoint at offset 22
-  buf.writeInt16BE(-50, 24);   // chamberPressure at offset 24 (negative = vacuum)
-  buf.writeInt16BE(1500, 26);  // mainMotorSpeed at offset 26
-  buf.writeInt16BE(85, 28);    // mainMotorTorque at offset 28
-  buf.writeInt16BE(42, 30);    // mainMotorCurrent at offset 30
-  buf.writeInt16BE(2800, 32);  // vacuumPumpSpeed01 at offset 32
-  buf.writeInt16BE(2700, 34);  // vacuumPumpSpeed02 at offset 34
-  // spareInt19..spareInt56 = 0 (already zeroed by alloc)
-  buf.writeInt16BE(500, 112);  // materialInputWeight at offset 112 (S1_I_DATO_57)
-  buf.writeInt16BE(350, 114);  // materialOutputWeight at offset 114 (S1_I_DATO_58)
-  buf.writeInt16BE(3, 116);    // selectedCycle at offset 116 (S1_I_DATO_59: DRY_MIXED)
-  buf.writeInt16BE(2, 118);    // currentPhase at offset 118 (S1_I_DATO_60: PROCESSING)
-  buf.writeInt16BE(3, 120);    // machineStatus at offset 120 (S1_I_DATO_61: RUNNING)
-  // spareInt62..spareInt72 = 0
+  buf.writeInt16BE(180, 0);    // thermoLeftLower
+  buf.writeInt16BE(200, 2);
+  buf.writeInt16BE(220, 4);
+  buf.writeInt16BE(170, 6);
+  buf.writeInt16BE(190, 8);
+  buf.writeInt16BE(210, 10);
+  buf.writeInt16BE(300, 12);
+  buf.writeInt16BE(310, 14);
+  buf.writeInt16BE(320, 16);
+  buf.writeInt16BE(290, 18);
+  buf.writeInt16BE(450, 20);   // garbageTemp
+  buf.writeInt16BE(400, 22);
+  buf.writeInt16BE(-50, 24);   // chamberPressure
+  buf.writeInt16BE(1500, 26);
+  buf.writeInt16BE(85, 28);
+  buf.writeInt16BE(42, 30);
+  buf.writeInt16BE(2800, 32);
+  buf.writeInt16BE(2700, 34);
+  // spareInt19..56 = 0 (zeroed by alloc)
+  buf.writeInt16BE(500, 112);  // materialInputWeight (S1_I_DATO_57)
+  buf.writeInt16BE(350, 114);
+  buf.writeInt16BE(3, 116);    // selectedCycle = DRY_MIXED
+  buf.writeInt16BE(2, 118);    // currentPhase
+  buf.writeInt16BE(3, 120);    // machineStatus = RUNNING
+  // spareInt62..70 = 0
+  buf.writeInt16BE(2, 140);    // cycleStatus = COMPLETED (S1_I_DATO_71, V03)
+  buf.writeInt16BE(13, 142);   // container = 13 bidoni (S1_I_DATO_72, V03)
 
-  // DINT fields (4 bytes each, Big Endian)
-  buf.writeInt32BE(42, 144);   // completedCycles at offset 144
-  buf.writeInt32BE(0, 148);    // spareDint01 at offset 148
+  // DINT fields
+  buf.writeInt32BE(42, 144);
+  buf.writeInt32BE(0, 148);
 
-  // STRING[20] fields (20 bytes each, null-padded ASCII)
+  // STRING[20] fields
   const writeString = (str: string, offset: number): void => {
     buf.write(str.padEnd(20, '\0'), offset, 20, 'ascii');
   };
-  writeString('Mario', 152);        // user at offset 152
-  writeString('Luigi', 172);        // supervisor at offset 172
-  writeString('ORD-100', 192);      // orderNumber at offset 192
-  writeString('SN-200', 212);       // serialNumber at offset 212
-  writeString('', 232);             // spareString01 at offset 232
+  writeString('Mario', 152);
+  writeString('Luigi', 172);
+  writeString('ORD-100', 192);
+  writeString('SN-200', 212);
+  writeString('', 232);
 
-  // REAL fields (4 bytes each, Big Endian float)
-  buf.writeFloatBE(123.45, 252);    // energyConsumption at offset 252
-  buf.writeFloatBE(10.5, 256);      // rmsCurrL1 at offset 256
-  buf.writeFloatBE(11.2, 260);      // rmsCurrL2 at offset 260
-  buf.writeFloatBE(10.8, 264);      // rmsCurrL3 at offset 264
-  buf.writeFloatBE(0.3, 268);       // rmsCurrN at offset 268
-  buf.writeFloatBE(55.7, 272);      // waterConsumption at offset 272
-  buf.writeFloatBE(0.0, 276);       // spareReal01 at offset 276
+  // REAL fields (4 bytes each, V03 — 15 fields)
+  buf.writeFloatBE(123.45, 252);  // energyConsumption (S1_R_DATO_1)
+  buf.writeFloatBE(10.5, 256);    // rmsCurrL1 (S1_R_DATO_2)
+  buf.writeFloatBE(11.2, 260);    // rmsCurrL2 (S1_R_DATO_3)
+  buf.writeFloatBE(10.8, 264);    // rmsCurrL3 (S1_R_DATO_4)
+  buf.writeFloatBE(0.3, 268);     // rmsCurrN (S1_R_DATO_5)
+  buf.writeFloatBE(0.0, 272);     // spareReal01 (S1_R_DATO_6, V03 — was waterConsumption in V01)
+  buf.writeFloatBE(400.5, 276);   // lineVoltL1L2 (S1_R_DATO_7, V03 NEW)
+  buf.writeFloatBE(401.2, 280);   // lineVoltL2L3
+  buf.writeFloatBE(399.8, 284);   // lineVoltL3L1
+  buf.writeFloatBE(231.1, 288);   // lineNeutralVoltL1
+  buf.writeFloatBE(232.0, 292);   // lineNeutralVoltL2
+  buf.writeFloatBE(230.5, 296);   // lineNeutralVoltL3
+  buf.writeFloatBE(0.92, 300);    // pfTotal
+  buf.writeFloatBE(55.7, 304);    // waterConsumption (S1_R_DATO_14, V03)
+  buf.writeFloatBE(0.0, 308);     // spareReal02 (S1_R_DATO_15, V03 NEW)
 
-  // BYTE fields (1 byte each, unsigned)
-  buf.writeUInt8(1, 280);           // thermoLeftLowSel at offset 280
-  buf.writeUInt8(0, 281);           // thermoLeftMedSel at offset 281
-  buf.writeUInt8(1, 282);           // thermoLeftHighSel at offset 282
-  buf.writeUInt8(0, 283);           // thermoRightLowSel at offset 283
-  buf.writeUInt8(1, 284);           // thermoRightMedSel at offset 284
-  buf.writeUInt8(0, 285);           // thermoRightHighSel at offset 285
+  // BYTE fields (V03 offsets 312-317)
+  buf.writeUInt8(1, 312);  // thermoLeftLowSel
+  buf.writeUInt8(0, 313);
+  buf.writeUInt8(1, 314);
+  buf.writeUInt8(0, 315);
+  buf.writeUInt8(1, 316);
+  buf.writeUInt8(0, 317);
 
   return buf;
 }
@@ -111,23 +121,20 @@ export function buildTestUserBuffer(): Buffer {
 }
 
 /**
- * Build an 88-byte job data buffer with known test values.
- * Layout: 4 STRING[20] (80B) + 4 INT (8B)
+ * Build a 92-byte V03 job data buffer with known test values.
+ * Layout: 4 STRING[20] (80B) + 6 INT (12B) = 92 bytes
  */
 export function buildTestJobBuffer(): Buffer {
-  const buf = Buffer.alloc(88);
-
-  // STRING[20] fields
-  buf.write('Supervisor1'.padEnd(20, '\0'), 0, 20, 'ascii');   // supervisor
-  buf.write('ORD-001'.padEnd(20, '\0'), 20, 20, 'ascii');      // orderNumber
-  buf.write('SN-001'.padEnd(20, '\0'), 40, 20, 'ascii');       // serialNumber
-  buf.write(''.padEnd(20, '\0'), 60, 20, 'ascii');             // spare string
-
-  // INT fields (2 bytes each, Big Endian)
-  buf.writeInt16BE(0, 80);    // remoteJobEnable = NO_REQUEST
-  buf.writeInt16BE(0, 82);    // maintenanceRequest = NO_REQUEST
-  buf.writeInt16BE(0, 84);    // remoteCycleSelection = NO_REQUEST
+  const buf = Buffer.alloc(92);
+  buf.write('Supervisor1'.padEnd(20, '\0'), 0, 20, 'ascii');
+  buf.write('ORD-001'.padEnd(20, '\0'), 20, 20, 'ascii');
+  buf.write('SN-001'.padEnd(20, '\0'), 40, 20, 'ascii');
+  buf.write(''.padEnd(20, '\0'), 60, 20, 'ascii');
+  buf.writeInt16BE(0, 80);    // remoteJobEnable
+  buf.writeInt16BE(0, 82);    // maintenanceRequest
+  buf.writeInt16BE(0, 84);    // remoteCycleSelection
   buf.writeInt16BE(3, 86);    // cycleType = DRY_MIXED
-
+  buf.writeInt16BE(0, 88);    // spareInt02 (V03)
+  buf.writeInt16BE(0, 90);    // spareInt03 (V03)
   return buf;
 }

@@ -16,7 +16,7 @@ import {
 import { RfidUserGroup, CycleType } from '@wpt/types';
 
 describe('parseMachineData', () => {
-  it('decodes all 92 fields from a 286-byte buffer', () => {
+  it('decodes all 100 fields from a 318-byte buffer', () => {
     const buf = buildTestMachineBuffer();
     const snapshot = parseMachineData(buf);
 
@@ -38,6 +38,10 @@ describe('parseMachineData', () => {
     expect(snapshot.currentPhase).toBe(2);
     expect(snapshot.machineStatus).toBe(3);
 
+    // V03 NEW INT fields
+    expect(snapshot.cycleStatus).toBe(2);
+    expect(snapshot.container).toBe(13);
+
     // DINT fields
     expect(snapshot.completedCycles).toBe(42);
     expect(snapshot.spareDint01).toBe(0);
@@ -49,13 +53,24 @@ describe('parseMachineData', () => {
     expect(snapshot.serialNumber).toBe('SN-200');
     expect(snapshot.spareString01).toBe('');
 
-    // REAL fields (float precision)
+    // REAL fields (V03 — 15 fields, float precision)
     expect(snapshot.energyConsumption).toBeCloseTo(123.45, 1);
     expect(snapshot.rmsCurrL1).toBeCloseTo(10.5, 1);
-    expect(snapshot.waterConsumption).toBeCloseTo(55.7, 1);
-    expect(snapshot.spareReal01).toBe(0);
+    expect(snapshot.rmsCurrL2).toBeCloseTo(11.2, 1);
+    expect(snapshot.rmsCurrL3).toBeCloseTo(10.8, 1);
+    expect(snapshot.rmsCurrN).toBeCloseTo(0.3, 1);
+    expect(snapshot.spareReal01).toBe(0); // V03 — was waterConsumption slot in V01
+    expect(snapshot.lineVoltL1L2).toBeCloseTo(400.5, 1);
+    expect(snapshot.lineVoltL2L3).toBeCloseTo(401.2, 1);
+    expect(snapshot.lineVoltL3L1).toBeCloseTo(399.8, 1);
+    expect(snapshot.lineNeutralVoltL1).toBeCloseTo(231.1, 1);
+    expect(snapshot.lineNeutralVoltL2).toBeCloseTo(232.0, 1);
+    expect(snapshot.lineNeutralVoltL3).toBeCloseTo(230.5, 1);
+    expect(snapshot.pfTotal).toBeCloseTo(0.92, 2);
+    expect(snapshot.waterConsumption).toBeCloseTo(55.7, 1); // NEW offset 304
+    expect(snapshot.spareReal02).toBe(0);
 
-    // BYTE fields
+    // BYTE fields (V03 offsets 312-317)
     expect(snapshot.thermoLeftLowSel).toBe(1);
     expect(snapshot.thermoLeftMedSel).toBe(0);
     expect(snapshot.thermoLeftHighSel).toBe(1);
@@ -64,9 +79,9 @@ describe('parseMachineData', () => {
     expect(snapshot.thermoRightHighSel).toBe(0);
   });
 
-  it('throws on buffer shorter than 286 bytes', () => {
-    const shortBuf = Buffer.alloc(100);
-    expect(() => parseMachineData(shortBuf)).toThrow('too short');
+  it('throws on buffer shorter than 318 bytes (rejects V01 packets)', () => {
+    const v01Buf = Buffer.alloc(286);
+    expect(() => parseMachineData(v01Buf)).toThrow('too short');
   });
 });
 
@@ -122,7 +137,7 @@ describe('parseUserData', () => {
 });
 
 describe('parseJobData', () => {
-  it('decodes job data from an 88-byte buffer', () => {
+  it('decodes job data from a 92-byte buffer with 6 INT fields', () => {
     const buf = buildTestJobBuffer();
     const job = parseJobData(buf);
 
@@ -133,11 +148,13 @@ describe('parseJobData', () => {
     expect(job.maintenanceRequest).toBe(0);
     expect(job.remoteCycleSelection).toBe(0);
     expect(job.cycleType).toBe(CycleType.DRY_MIXED);
+    expect(job.spareInt02).toBe(0);
+    expect(job.spareInt03).toBe(0);
   });
 
-  it('throws on buffer shorter than 88 bytes', () => {
-    const shortBuf = Buffer.alloc(40);
-    expect(() => parseJobData(shortBuf)).toThrow('too short');
+  it('throws on buffer shorter than 92 bytes (rejects V01 job packets)', () => {
+    const v01Buf = Buffer.alloc(88);
+    expect(() => parseJobData(v01Buf)).toThrow('too short');
   });
 });
 
@@ -167,43 +184,52 @@ describe('buildUserWritePacket', () => {
 });
 
 describe('buildJobWritePacket', () => {
-  it('produces an 88-byte buffer that round-trips with parseJobData', () => {
+  it('produces a 92-byte buffer that round-trips with parseJobData (PROT-V03-12)', () => {
     const job = {
-      supervisor: 'TestSupervisor',
-      orderNumber: 'ORD-999',
-      serialNumber: 'SN-555',
-      remoteJobEnable: 1,
+      supervisor: 'alice',
+      orderNumber: 'WO-42',
+      serialNumber: 'SN-1',
+      remoteJobEnable: 0,
       maintenanceRequest: 0,
-      remoteCycleSelection: 1,
+      remoteCycleSelection: 0,
       cycleType: CycleType.ORGANIC,
+      spareInt02: 99,
+      spareInt03: 88,
     };
 
     const buf = buildJobWritePacket(job);
-    expect(buf.length).toBe(88);
+    expect(buf.length).toBe(92);
 
+    // Round-trip: parse, rebuild, assert byte-identical
     const parsed = parseJobData(buf);
-    expect(parsed.supervisor).toBe('TestSupervisor');
-    expect(parsed.orderNumber).toBe('ORD-999');
-    expect(parsed.serialNumber).toBe('SN-555');
-    expect(parsed.remoteJobEnable).toBe(1);
-    expect(parsed.maintenanceRequest).toBe(0);
-    expect(parsed.remoteCycleSelection).toBe(1);
+    expect(parsed.supervisor).toBe('alice');
+    expect(parsed.orderNumber).toBe('WO-42');
+    expect(parsed.serialNumber).toBe('SN-1');
     expect(parsed.cycleType).toBe(CycleType.ORGANIC);
+    expect(parsed.spareInt02).toBe(99);
+    expect(parsed.spareInt03).toBe(88);
+    const rebuilt = buildJobWritePacket(parsed);
+    expect(rebuilt.equals(buf)).toBe(true);
   });
 });
 
 describe('Round-trip tests (simulator format -> parser)', () => {
-  it('parseMachineData round-trips with fixture buffer', () => {
+  it('parseMachineData round-trips with V03 fixture buffer', () => {
     const buf = buildTestMachineBuffer();
     const snapshot = parseMachineData(buf);
 
-    // Verify key values survive the round-trip
+    // Verify key V03 values survive the round-trip
     expect(snapshot.thermoLeftLower).toBe(180);
     expect(snapshot.garbageTemp).toBe(450);
     expect(snapshot.completedCycles).toBe(42);
     expect(snapshot.user).toBe('Mario');
     expect(snapshot.energyConsumption).toBeCloseTo(123.45, 1);
     expect(snapshot.thermoLeftLowSel).toBe(1);
+    // V03 NEW
+    expect(snapshot.cycleStatus).toBe(2);
+    expect(snapshot.container).toBe(13);
+    expect(snapshot.waterConsumption).toBeCloseTo(55.7, 1); // NEW offset 304
+    expect(snapshot.lineVoltL1L2).toBeCloseTo(400.5, 1);
   });
 
   it('parseAlarmWords round-trips with fixture buffer', () => {
