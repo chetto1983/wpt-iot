@@ -6,6 +6,7 @@ import { startUdpPipeline, stopUdpPipeline } from './udp/index.js';
 import { initBroadcaster, shutdownBroadcaster } from './ws/broadcaster.js';
 import { connectMqtt, disconnectMqtt } from './mqtt/connectionManager.js';
 import { MqttConfigService } from './mqtt/configService.js';
+import { EnergyConfigService } from './services/energyConfigService.js';
 import { PlcConfigService, setPlcConfigLogger } from './udp/plcConfigService.js';
 import { pool } from './db/index.js';
 
@@ -65,6 +66,12 @@ async function main(): Promise<void> {
 
     // Ensure MQTT config table exists with default row
     await MqttConfigService.ensureTable();
+
+    // Ensure Phase 19 energy tables exist + seed the default tariff period
+    // (energy_config singleton, energy_config_periods, cycle_records,
+    // cycle_resets). Direct SQL idempotent — never drizzle-kit push.
+    // Pattern mirrors MqttConfigService.ensureTable() exactly. ECFG-01..06.
+    await EnergyConfigService.ensureTable();
 
     // Ensure PLC config table exists with default row (target_host='localhost').
     // Operators update the target from the frontend (SUPER_ADMIN only) and the
