@@ -306,3 +306,78 @@ BEGIN
 
 END;
 $$;
+
+-- =============================================================================
+-- Phase 19 (v1.1) — Energy continuous aggregates
+-- =============================================================================
+-- Per CONTEXT D-06: existing snapshots_5min / snapshots_1h are LEFT UNTOUCHED.
+-- The energy_* CAs live in a parallel namespace and use last(energy_consumption,
+-- timestamp) - first(energy_consumption, timestamp) AS kwh_delta per bucket
+-- (NOT AVG, which is wrong for a totalizer field — see PITFALLS.md Pitfall 1).
+--
+-- Idempotent — safe to call multiple times. Runbook step:
+--   docker compose exec db psql -U wpt -d wpt -c "SELECT setup_energy_aggregates();"
+--
+-- This function ONLY creates Level 1 (energy_5min reading from raw
+-- machine_snapshots). Level 2-4 (energy_1h, energy_1d, energy_1mo CA-on-CA)
+-- are added in Phase 19 Plan 09 in this same function definition. To extend,
+-- CREATE OR REPLACE this function and re-run.
+-- =============================================================================
+
+CREATE OR REPLACE FUNCTION setup_energy_aggregates()
+RETURNS void
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  v_view_exists boolean;
+BEGIN
+  -- ─── Level 1: energy_5min — reads raw machine_snapshots ────────────────
+  SELECT EXISTS (
+    SELECT 1 FROM timescaledb_information.continuous_aggregates
+    WHERE view_name = 'energy_5min'
+  ) INTO v_view_exists;
+
+  IF NOT v_view_exists THEN
+    EXECUTE $energy5$
+      CREATE MATERIALIZED VIEW energy_5min
+      WITH (timescaledb.continuous, timescaledb.materialized_only = true) AS
+      SELECT
+        time_bucket('5 minutes', "timestamp", 'Europe/Rome') AS bucket,
+        first(energy_consumption, "timestamp") AS kwh_first,
+        last(energy_consumption,  "timestamp") AS kwh_last,
+        (last(energy_consumption, "timestamp") - first(energy_consumption, "timestamp")) AS kwh_delta,
+        count(*) AS sample_count,
+        avg(rms_curr_l1) AS rms_l1_avg,
+        avg(rms_curr_l2) AS rms_l2_avg,
+        avg(rms_curr_l3) AS rms_l3_avg,
+        last(machine_status, "timestamp") AS last_machine_status
+      FROM machine_snapshots
+      GROUP BY bucket
+      WITH NO DATA
+    $energy5$;
+    RAISE NOTICE 'Continuous aggregate energy_5min created.';
+  ELSE
+    RAISE NOTICE 'Continuous aggregate energy_5min already exists, skipping.';
+  END IF;
+
+  -- Refresh policy for energy_5min: every 5 minutes, covering the last hour,
+  -- with a 5-minute end offset to avoid refreshing in-progress buckets.
+  PERFORM add_continuous_aggregate_policy('energy_5min',
+    start_offset      => INTERVAL '1 hour',
+    end_offset        => INTERVAL '5 minutes',
+    schedule_interval => INTERVAL '5 minutes',
+    if_not_exists     => true
+  );
+  RAISE NOTICE 'Refresh policy for energy_5min configured.';
+
+  -- Phase 19 Plan 09 will append energy_1h / energy_1d / energy_1mo CA-on-CA
+  -- definitions BELOW THIS LINE, inside the same function body, BEFORE the
+  -- closing END;
+END;
+$$;
+
+-- NOTE: Like setup_timescaledb_retention(), this function is NOT auto-invoked
+-- from init because machine_snapshots does not exist until Drizzle creates it
+-- from the backend on first boot. Run the runbook command above AFTER the
+-- backend has booted once and the table exists. Idempotent — safe to call
+-- multiple times.
