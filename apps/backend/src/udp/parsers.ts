@@ -229,10 +229,17 @@ export function parseAlarmWords(buf: Buffer): IAlarmWords {
 }
 
 /**
- * RFID enable polarity (V03 xlsx, PROT-V03-07): 0 = enabled, 1 = disabled, in BOTH directions.
- * Source: Mappatura_WPT_IOT_V03.xlsx sheets `AC500->IOT_9092` and `IOT->AC500_9092` rows 98-145
- * column C, literal text `0:enable/1:disable`. Do NOT flip this. The .EXP file is not authoritative
- * (user directive 2026-04-07). If in doubt, re-parse the xlsx with unzip + xl/sharedStrings.xml.
+ * RFID enable polarity: **0 = disabled, 1 = enabled** in BOTH directions.
+ *
+ * Authoritative per PLC source, confirmed by Paolo on 2026-04-08 against the
+ * real ABB AC500 firmware on 192.168.0.10 — a live /rfid/read showed all 48
+ * enabled bytes = 0 on a fresh PLC, correctly interpreted as "all disabled".
+ *
+ * The V03 xlsx sheets `AC500->IOT_9092` / `IOT->AC500_9092` rows 98-145 say
+ * `0:enable/1:disable` — that is WRONG. The xlsx is the authority for wire
+ * layout (byte offsets, field sizes) but NOT for enum semantics. See also
+ * [.planning/reference/packet-9092-rfid-users.md] lines 34-39 which
+ * documents the same divergence (xlsx vs PLC source).
  */
 /**
  * Parse a 1104-byte user data packet (port 9092) into 48 IRfidUser objects.
@@ -241,8 +248,6 @@ export function parseAlarmWords(buf: Buffer): IAlarmWords {
  * STRING[20] is 21 bytes per slot on the wire (CODESYS V2.3: N content + NUL terminator).
  * Verified 2026-04-08 against real ABB AC500 PLC: tcpdump of 9092 READ showed
  * "operatore1" at offset 0, "operatore2" at offset 21, "operatore3" at 42, "operatore4" at 63.
- *
- * INVERTED LOGIC for enabled: PLC uses 0=enabled, 1=disabled.
  */
 export function parseUserData(buf: Buffer): IRfidUser[] {
   if (buf.length < USER_DATA_PACKET_SIZE) {
@@ -260,7 +265,7 @@ export function parseUserData(buf: Buffer): IRfidUser[] {
       tagId: i + 1,
       name,
       group,
-      enabled: enabledByte === 0, // Inverted: 0=enabled, 1=disabled
+      enabled: enabledByte === 1, // Real PLC: 0=disabled, 1=enabled
     });
   }
 
@@ -293,12 +298,6 @@ export function parseJobData(buf: Buffer): IJobData {
 }
 
 /**
- * RFID enable polarity (V03 xlsx, PROT-V03-07): 0 = enabled, 1 = disabled, in BOTH directions.
- * Source: Mappatura_WPT_IOT_V03.xlsx sheets `AC500->IOT_9092` and `IOT->AC500_9092` rows 98-145
- * column C, literal text `0:enable/1:disable`. Do NOT flip this. The .EXP file is not authoritative
- * (user directive 2026-04-07). If in doubt, re-parse the xlsx with unzip + xl/sharedStrings.xml.
- */
-/**
  * Build a 1104-byte user data write packet for port 9092.
  * Layout: 48 names (48 x 21 = 1008B) + 48 group bytes (48B) + 48 enabled bytes (48B)
  *
@@ -307,7 +306,8 @@ export function parseJobData(buf: Buffer): IJobData {
  * to fill the remaining slot bytes. Buffer.alloc zero-fills, so we just
  * write the content at the slot start.
  *
- * INVERTED LOGIC for enabled: writes 0 for enabled=true, 1 for enabled=false.
+ * Enable polarity: real PLC uses 0=disabled, 1=enabled (see parseUserData
+ * comment block above for authority).
  */
 export function buildUserWritePacket(users: IRfidUser[]): Buffer {
   const buf = Buffer.alloc(USER_DATA_PACKET_SIZE);
@@ -326,10 +326,10 @@ export function buildUserWritePacket(users: IRfidUser[]): Buffer {
     buf.writeUInt8(user ? user.group : 0, 1008 + i);
   }
 
-  // Offset 1056..1103: Enabled bytes (inverted: true->0, false->1)
+  // Offset 1056..1103: Enabled bytes (real PLC: 0=disabled, 1=enabled)
   for (let i = 0; i < 48; i++) {
     const user = users[i];
-    buf.writeUInt8(user && user.enabled ? 0 : 1, 1056 + i);
+    buf.writeUInt8(user && user.enabled ? 1 : 0, 1056 + i);
   }
 
   return buf;
