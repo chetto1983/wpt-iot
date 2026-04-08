@@ -133,14 +133,19 @@ services:
       context: .
       dockerfile: apps/frontend/Dockerfile
       args:
-        NEXT_PUBLIC_API_URL: http://localhost:3000
+        # NEXT_PUBLIC_* is BAKED into the Next.js client bundle at build
+        # time, NOT read at runtime. Override via .env (NEXT_PUBLIC_API_URL=...)
+        # before `docker compose build frontend` to point a LAN deploy at
+        # the right host. Default localhost is for the on-host dev case.
+        # See scripts/install-linux.sh for the LAN-IP overlay generator.
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3000}
     ports:
       - "3001:3001"
     depends_on:
       backend:
         condition: service_healthy
     environment:
-      NEXT_PUBLIC_API_URL: http://localhost:3000
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3000}
     healthcheck:
       test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:3001"]
       interval: 10s
@@ -189,6 +194,11 @@ services:
     volumes:
       - simulator-data:/app/data
     networks:
+      # Dual-homed: `default` for the dev profile (backend on bridge can
+      # resolve `simulator` via service-DNS); `wpt-sim` for the static IP
+      # handoff used when the host overlay puts the backend on
+      # network_mode: host (backend reaches simulator at 172.28.0.10).
+      default: {}
       wpt-sim:
         ipv4_address: 172.28.0.10
     extra_hosts:
