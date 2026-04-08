@@ -49,23 +49,21 @@ services:
   # ⚠ UDP NETWORKING WARNING — READ BEFORE DEPLOYING WITH A REAL PLC ⚠
   # =====================================================================
   # This base compose uses Docker bridge networking + explicit UDP port
-  # mappings (9090-9093/udp). That works for the dev simulator stack
-  # (simulator → backend over the bridge network) but it WILL silently
-  # drop inbound packets from a real ABB AC500 PLC.
+  # mappings (9090-9093/udp). That WILL silently drop inbound packets
+  # from a real ABB AC500 PLC.
   #
   # CLAUDE.md mandate (non-negotiable):
   #   "Backend networking: Must use network_mode: host in Docker —
   #    bridge networking kills UDP PLC packets"
   #
   # For ANY deployment attached to a real PLC, you MUST layer the
-  # production override on top of this file:
+  # host override on top of this file:
   #
-  #   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+  #   docker compose -f docker-compose.yml -f docker-compose.host.yml up -d
   #
-  # The prod override (docker-compose.prod.yml) applies
-  # `network_mode: host` and clears `ports: []` on the backend service,
-  # which is the only configuration that lets the PLC's UDP frames
-  # actually reach the listener sockets.
+  # The host override applies `network_mode: host` and clears `ports: []`
+  # on the backend service, which is the only configuration that lets the
+  # PLC's UDP frames actually reach the listener sockets.
   #
   # If you are extending this file with a new "real-plc" profile or
   # reorganising deployments, the network_mode: host requirement
@@ -98,7 +96,10 @@ services:
       UDP_PORT_ALARMS: 9091
       UDP_PORT_USERS: 9092
       UDP_PORT_ACK: 9093
-      SIM_HOST: ${SIM_HOST:-simulator}
+      # Legacy SIM_* names kept for config.ts compatibility — these are
+      # the PLC-side ports the backend sends control messages / writes to.
+      # The target host is read from the DB-backed plc_config table,
+      # not from env.
       SIM_ACK_PORT: 9093
       SIM_DATA_PORT: 9090
       SIM_USERS_PORT: 9092
@@ -159,78 +160,8 @@ services:
         max-size: "10m"
         max-file: "3"
 
-  # Simulator runs on a dedicated bridge network with a STATIC IP so the
-  # backend (host network mode in prod/host overrides) can reach it as a
-  # drop-in PLC replacement: just point plc_config.target_host at
-  # 172.28.0.10 to use the simulator, or at the real PLC IP to use the
-  # real PLC. No env-var or port changes needed when switching.
-  #
-  # The dedicated network avoids pinning IPs on wpt-iot_default and keeps
-  # the simulator routable from the host kernel via its own br-xxx
-  # interface (host → 172.28.0.0/24 → simulator container).
-  simulator:
-    build:
-      context: .
-      dockerfile: apps/simulator/Dockerfile
-    profiles: ["dev"]
-    ports:
-      - "3002:3002"
-      - "19090:9090/udp"
-      - "19091:9091/udp"
-      - "19092:9092/udp"
-      - "19093:9093/udp"
-    environment:
-      SIM_PORT: 3002
-      TARGET_HOST: backend
-      TARGET_DATA_PORT: 9090
-      TARGET_ALARMS_PORT: 9091
-      UDP_LISTEN_DATA: 9090
-      UDP_LISTEN_ALARMS: 9091
-      UDP_LISTEN_USERS: 9092
-      UDP_LISTEN_ACK: 9093
-      DATA_INTERVAL_MS: 15000
-      ALARM_INTERVAL_MS: 1000
-      STATE_FILE_PATH: /app/data/simulator-state.json
-    volumes:
-      - simulator-data:/app/data
-    networks:
-      # Dual-homed: `default` for the dev profile (backend on bridge can
-      # resolve `simulator` via service-DNS); `wpt-sim` for the static IP
-      # handoff used when the host overlay puts the backend on
-      # network_mode: host (backend reaches simulator at 172.28.0.10).
-      default: {}
-      wpt-sim:
-        ipv4_address: 172.28.0.10
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-    healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:3002/health"]
-      interval: 10s
-      timeout: 3s
-      retries: 3
-    restart: unless-stopped
-    logging:
-      driver: json-file
-      options:
-        max-size: "10m"
-        max-file: "3"
-
 volumes:
   pgdata:
   uploads:
   mosquitto_data:
   mosquitto_log:
-  simulator-data:
-
-networks:
-  # Dedicated bridge network for the dev simulator. Fixed subnet so the
-  # static IP 172.28.0.10 (assigned to the simulator service) is stable
-  # across recreations and can be hardcoded in plc_config when the
-  # operator switches between simulator and real PLC modes.
-  wpt-sim:
-    driver: bridge
-    ipam:
-      driver: default
-      config:
-        - subnet: 172.28.0.0/24
-          gateway: 172.28.0.1
