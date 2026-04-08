@@ -23,7 +23,15 @@ export const config = {
   handshakeTimeoutMs: Number(process.env.HANDSHAKE_TIMEOUT_MS ?? 5000),
   sessionSecret: process.env.SESSION_SECRET ?? 'dev-only-session-secret-minimum-32-chars!!',
   adminPassword: process.env.ADMIN_PASSWORD ?? '',
-  corsOrigin: (process.env.CORS_ORIGIN ?? 'http://localhost:3001').split(','),
+  // Permissive dev/LAN default: wpt.local (mDNS alias), raw localhost, and
+  // a wildcard for any http://<anything>:3001 origin. Production deployments
+  // OVERRIDE this via CORS_ORIGIN in .env (install-linux.sh / install-prod.sh
+  // bake the current LAN IP in). The default exists so a misconfigured or
+  // stale .env does not silently lock browsers out of /auth/login.
+  corsOrigin: (
+    process.env.CORS_ORIGIN ??
+      'http://wpt.local:3001,http://localhost:3001'
+  ).split(','),
 
 } as const;
 
