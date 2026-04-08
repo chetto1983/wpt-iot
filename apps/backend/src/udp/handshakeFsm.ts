@@ -149,21 +149,27 @@ export class HandshakeFSM {
   /**
    * Write data to PLC via handshake protocol (fire-and-forget).
    *
+   * REAL PLC behavior (verified 2026-04-08 via tcpdump of /rfid/write,
+   * .planning/debug/artifacts/rfid-write-9092-9093-2026-04-08.pcap):
+   *
+   *   1. Backend 9093 → PLC 9093: 2B payload [9090ch=IDLE(2), 9092ch=REQUEST_WRITE(254)]
+   *   2. Backend 9092 → PLC 9092: 1104B user data payload (~470 μs after step 1)
+   *   3. Backend 9093 → PLC 9093: 2B payload [IDLE, IDLE] cleanup (~380 μs after step 2)
+   *
+   * Write is TRULY fire-and-forget: the PLC sends ZERO frames back on either
+   * 9092 or 9093 during the entire ~851 μs exchange. This is asymmetric with
+   * the READ path (where the PLC does ACK(100) on 9093 before delivering data
+   * — see read() docstring). The legacy V01 code (SC_Complete_wpt-40-local-server)
+   * sendUsers9092 / sendData9090 established this pattern and the real PLC
+   * firmware behavior confirms it.
+   *
    * Sequence:
    *   1. Send REQUEST_WRITE(254) on ack port (9093) on this channel's byte.
    *   2. Send the data buffer on the data port.
    *   3. Send IDLE(2) on ack port as cleanup.
    *
-   * Legacy V01 code (SC_Complete_wpt-40-local-server) establishes the pattern:
-   * sendUsers9092 / sendData9090 send control → data → control(reset) without
-   * waiting for a write-side ACK. We mirror that pattern here.
-   *
-   * Note: whether the real PLC sends an ACK(100) on 9093 after a REQUEST_WRITE
-   * has NOT been captured as of 2026-04-08 — only the READ path has wire
-   * evidence (where the PLC does ACK, see read() docstring). The WRITE path
-   * treats the exchange as fire-and-forget regardless, so ACK presence or
-   * absence doesn't affect correctness. Bench-day follow-up: capture a 9093
-   * frame after a /rfid/write or /jobs/write to close this question.
+   * No listener is needed for a write — no ACK arrives, no data arrives back,
+   * the PLC just silently accepts. Errors surface only via UDP send failure.
    */
   async write(
     ackSocket: dgram.Socket,
