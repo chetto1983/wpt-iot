@@ -214,8 +214,13 @@ export function parseAlarmWords(buf: Buffer): IAlarmWords {
  * (user directive 2026-04-07). If in doubt, re-parse the xlsx with unzip + xl/sharedStrings.xml.
  */
 /**
- * Parse a 1056-byte user data packet (port 9092) into 48 IRfidUser objects.
- * Layout: 48 names (960B) + 48 group bytes (48B) + 48 enabled bytes (48B)
+ * Parse a 1104-byte user data packet (port 9092) into 48 IRfidUser objects.
+ * Layout: 48 names (48 x 21 = 1008B) + 48 group bytes (48B) + 48 enabled bytes (48B)
+ *
+ * STRING[20] is 21 bytes per slot on the wire (CODESYS V2.3: N content + NUL terminator).
+ * Verified 2026-04-08 against real ABB AC500 PLC: tcpdump of 9092 READ showed
+ * "operatore1" at offset 0, "operatore2" at offset 21, "operatore3" at 42, "operatore4" at 63.
+ *
  * INVERTED LOGIC for enabled: PLC uses 0=enabled, 1=disabled.
  */
 export function parseUserData(buf: Buffer): IRfidUser[] {
@@ -225,9 +230,11 @@ export function parseUserData(buf: Buffer): IRfidUser[] {
 
   const users: IRfidUser[] = [];
   for (let i = 0; i < 48; i++) {
-    const name = buf.toString('ascii', i * 20, (i + 1) * 20).replace(/\0+$/, '');
-    const group = buf.readUInt8(960 + i) as RfidUserGroup;
-    const enabledByte = buf.readUInt8(1008 + i);
+    // 21-byte NAME slot, content up to first NUL (CODESYS string terminator).
+    const slot = buf.toString('ascii', i * 21, (i + 1) * 21);
+    const name = slot.split('\0', 1)[0] ?? '';
+    const group = buf.readUInt8(1008 + i) as RfidUserGroup;     // 48*21 = 1008
+    const enabledByte = buf.readUInt8(1056 + i);                // 1008 + 48 = 1056
     users.push({
       tagId: i + 1,
       name,
@@ -271,31 +278,37 @@ export function parseJobData(buf: Buffer): IJobData {
  * (user directive 2026-04-07). If in doubt, re-parse the xlsx with unzip + xl/sharedStrings.xml.
  */
 /**
- * Build a 1056-byte user data write packet for port 9092.
- * Mirror of simulator's buildUserDataPacket.
- * Layout: 48 names (960B) + 48 group bytes (48B) + 48 enabled bytes (48B)
+ * Build a 1104-byte user data write packet for port 9092.
+ * Layout: 48 names (48 x 21 = 1008B) + 48 group bytes (48B) + 48 enabled bytes (48B)
+ *
+ * STRING[20] = 21 bytes per slot on the wire (CODESYS V2.3). Each name slot
+ * gets at most 20 content chars, followed by NUL terminator + NUL padding
+ * to fill the remaining slot bytes. Buffer.alloc zero-fills, so we just
+ * write the content at the slot start.
+ *
  * INVERTED LOGIC for enabled: writes 0 for enabled=true, 1 for enabled=false.
  */
 export function buildUserWritePacket(users: IRfidUser[]): Buffer {
   const buf = Buffer.alloc(USER_DATA_PACKET_SIZE);
 
-  // Offset 0-959: Names (48 x 20 bytes ASCII null-padded)
+  // Offset 0..1007: Names (48 x 21 bytes, content + NUL terminator + NUL padding)
   for (let i = 0; i < 48; i++) {
     const user = users[i];
-    const name = user ? user.name.slice(0, 20).padEnd(20, '\0') : '\0'.repeat(20);
-    buf.write(name, i * 20, 20, 'ascii');
+    const name = user ? user.name.slice(0, 20) : '';
+    // Buffer.alloc zero-fills; writing name leaves the rest of the slot as NULs
+    buf.write(name, i * 21, Math.min(name.length, 20), 'ascii');
   }
 
-  // Offset 960-1007: Group bytes
+  // Offset 1008..1055: Group bytes
   for (let i = 0; i < 48; i++) {
     const user = users[i];
-    buf.writeUInt8(user ? user.group : 0, 960 + i);
+    buf.writeUInt8(user ? user.group : 0, 1008 + i);
   }
 
-  // Offset 1008-1055: Enabled bytes (inverted: true->0, false->1)
+  // Offset 1056..1103: Enabled bytes (inverted: true->0, false->1)
   for (let i = 0; i < 48; i++) {
     const user = users[i];
-    buf.writeUInt8(user && user.enabled ? 0 : 1, 1008 + i);
+    buf.writeUInt8(user && user.enabled ? 0 : 1, 1056 + i);
   }
 
   return buf;
