@@ -273,27 +273,40 @@ export function parseUserData(buf: Buffer): IRfidUser[] {
 }
 
 /**
- * Parse a 92-byte job data packet (port 9090 during handshake, V03) into IJobData.
- * Layout: 4 STRING[20] (80B) + 6 INT (12B) = 92 bytes
- * The 4th string (offset 60-79) is spare and discarded.
- * V03 delta: added R1_I_DATO_5 (spareInt02, offset 88) and R1_I_DATO_6 (spareInt03, offset 90).
+ * Parse a 96-byte job data packet (port 9090 during handshake, V03) into IJobData.
+ * Layout: 4 STRING[20] (4 x 21 = 84B) + 6 INT (12B) = 96 bytes
+ * The 4th string (offset 63..83) is spare and discarded.
+ * V03 delta: added R1_I_DATO_5 (spareInt02, offset 92) and R1_I_DATO_6 (spareInt03, offset 94).
+ *
+ * STRING[20] is 21 bytes per slot (CODESYS V2.3 N+1 convention). See parseUserData
+ * for the empirical evidence against the real ABB AC500 PLC.
+ *
+ * NOTE: This parser is currently NOT exercised on the real PLC because 9090 is
+ * write-only for job data per packet-9090-job-data.md — reads come from the
+ * machine_data broadcast (S1_S_DATO_2..4). Kept here for symmetry with the
+ * write path and for any future PLC firmware that might implement 9090 reads.
  */
 export function parseJobData(buf: Buffer): IJobData {
   if (buf.length < JOB_DATA_PACKET_SIZE) {
     throw new Error(`Job data packet too short: ${buf.length} bytes (expected >= ${JOB_DATA_PACKET_SIZE})`);
   }
 
+  const slot = (start: number): string => {
+    const s = buf.toString('ascii', start, start + 21);
+    return s.split('\0', 1)[0] ?? '';
+  };
+
   return {
-    supervisor: buf.toString('ascii', 0, 20).replace(/\0+$/, ''),
-    orderNumber: buf.toString('ascii', 20, 40).replace(/\0+$/, ''),
-    serialNumber: buf.toString('ascii', 40, 60).replace(/\0+$/, ''),
-    // 4th string (offset 60-79) is spare, discarded
-    remoteJobEnable: buf.readInt16BE(80),
-    maintenanceRequest: buf.readInt16BE(82),
-    remoteCycleSelection: buf.readInt16BE(84),
-    cycleType: buf.readInt16BE(86),
-    spareInt02: buf.readInt16BE(88),  // V03 — R1_I_DATO_5
-    spareInt03: buf.readInt16BE(90),  // V03 — R1_I_DATO_6
+    supervisor: slot(0),            // 21-byte slot [0..20]
+    orderNumber: slot(21),           // 21-byte slot [21..41]
+    serialNumber: slot(42),          // 21-byte slot [42..62]
+    // 4th string slot [63..83] is spare, discarded
+    remoteJobEnable: buf.readInt16BE(84),
+    maintenanceRequest: buf.readInt16BE(86),
+    remoteCycleSelection: buf.readInt16BE(88),
+    cycleType: buf.readInt16BE(90),
+    spareInt02: buf.readInt16BE(92),  // V03 — R1_I_DATO_5
+    spareInt03: buf.readInt16BE(94),  // V03 — R1_I_DATO_6
   };
 }
 
@@ -336,31 +349,39 @@ export function buildUserWritePacket(users: IRfidUser[]): Buffer {
 }
 
 /**
- * Build a 92-byte job data write packet for port 9090 (V03).
- * Mirror of simulator's buildJobReadPacket.
- * Layout: 4 STRING[20] (80B) + 6 INT (12B) = 92 bytes
- * TODO(PROT-V03-12, open-accepted risk): The real ABB AC500 PLC firmware may still
- * be at the 88-byte layout. If bench-day Wireshark capture shows the PLC rejects
- * 92-byte writes, fall back to dual-version write (try 92, fall back to 88 on no-ACK).
+ * Build a 96-byte job data write packet for port 9090 (V03).
+ * Layout: 4 STRING[20] (4 x 21 = 84B) + 6 INT (12B) = 96 bytes
+ *
+ * STRING[20] is 21 bytes per slot (CODESYS V2.3 N+1 convention). The 92-byte
+ * layout from the V03 xlsx is wrong — verified 2026-04-08 against the real
+ * ABB AC500 PLC: 92-byte writes were silently rejected (next machine_data
+ * broadcast did not reflect the written supervisor/orderNumber/serialNumber).
+ *
+ * No alignment pad needed: 4 * 21 = 84 ends on a 2-byte boundary matching
+ * the INT16 alignment that follows.
  */
 export function buildJobWritePacket(job: IJobData): Buffer {
   const buf = Buffer.alloc(JOB_DATA_PACKET_SIZE);
   let offset = 0;
 
-  // 4 STRING[20] fields
+  // 4 STRING[20] fields (21 bytes each, content + NUL terminator + NUL padding).
+  // Buffer.alloc zero-fills, so writing the content at the slot start leaves
+  // the remaining bytes as NULs — correct CODESYS STRING layout.
   const strings = [job.supervisor, job.orderNumber, job.serialNumber, ''];
   for (const str of strings) {
-    buf.write(str.slice(0, 20).padEnd(20, '\0'), offset, 20, 'ascii');
-    offset += 20;
+    const truncated = str.slice(0, 20);
+    buf.write(truncated, offset, Math.min(truncated.length, 20), 'ascii');
+    offset += 21;
   }
 
-  // 6 INT fields (V03 — added spareInt02/spareInt03 at offsets 88, 90)
-  buf.writeInt16BE(job.remoteJobEnable, offset); offset += 2;
-  buf.writeInt16BE(job.maintenanceRequest, offset); offset += 2;
-  buf.writeInt16BE(job.remoteCycleSelection, offset); offset += 2;
-  buf.writeInt16BE(job.cycleType, offset); offset += 2;
-  buf.writeInt16BE(job.spareInt02, offset); offset += 2;
-  buf.writeInt16BE(job.spareInt03, offset);
+  // 6 INT fields starting at offset 84 (4 * 21).
+  // V03 added spareInt02/spareInt03 at the tail.
+  buf.writeInt16BE(job.remoteJobEnable, offset); offset += 2;       // 84
+  buf.writeInt16BE(job.maintenanceRequest, offset); offset += 2;    // 86
+  buf.writeInt16BE(job.remoteCycleSelection, offset); offset += 2;  // 88
+  buf.writeInt16BE(job.cycleType, offset); offset += 2;             // 90
+  buf.writeInt16BE(job.spareInt02, offset); offset += 2;            // 92 — R1_I_DATO_5
+  buf.writeInt16BE(job.spareInt03, offset);                         // 94 — R1_I_DATO_6
 
   return buf;
 }

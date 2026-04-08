@@ -43,5 +43,18 @@ export const ALARM_PACKET_SIZE = 80;
  */
 export const USER_DATA_PACKET_SIZE = 1104;
 
-/** Job data packet V03: 4 STRING[20] (80B) + 6 INT (12B) = 92 bytes */
-export const JOB_DATA_PACKET_SIZE = 92;
+/**
+ * Job data packet V03 (IoT -> PLC write on port 9090):
+ *   4 STRING[20] (4 x 21 = 84B) + 6 INT (12B) = 96 bytes
+ *
+ * Same CODESYS V2.3 N+1 convention as the other STRING[20] fields: each
+ * slot is 21 bytes on the wire, not 20. The V03 xlsx shows 92 bytes but
+ * that's wrong — the real ABB AC500 firmware rejects 92-byte writes
+ * silently (observed 2026-04-08 with Paolo: sent "TEST/ORD001/SN001" as
+ * supervisor/orderNumber/serialNumber, next machine_data broadcast still
+ * showed the old "pluti/primo/WPT" values — PLC discarded our packet).
+ *
+ * No alignment pad needed: 84 bytes of STRING data ends on a 2-byte
+ * boundary, matching the natural INT16 alignment that follows.
+ */
+export const JOB_DATA_PACKET_SIZE = 96;
