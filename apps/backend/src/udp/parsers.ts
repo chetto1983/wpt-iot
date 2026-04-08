@@ -165,10 +165,14 @@ export function parseMachineData(buf: Buffer): IMachineSnapshot {
     offset += 4;
   }
 
-  // 5 STRING[20] fields -- ASCII, null-stripped
+  // 5 STRING[20] fields -- CODESYS V2.3 STRING[N] occupies N+1 bytes on the wire
+  // (N content + NUL terminator), so each slot is 21 bytes, NOT 20. Take content up
+  // to the first NUL. Verified empirically against real ABB AC500 PLC on 2026-04-08
+  // — see MACHINE_PACKET_SIZE comment in packetSizes.ts for the byte-level evidence.
   for (const field of STRING_FIELDS) {
-    snapshot[field] = buf.toString('ascii', offset, offset + 20).replace(/\0+$/, '');
-    offset += 20;
+    const slot = buf.toString('ascii', offset, offset + 21);
+    snapshot[field] = slot.split('\0', 1)[0] ?? '';
+    offset += 21;
   }
 
   // 15 REAL fields -- Big Endian 32-bit float (V03)
