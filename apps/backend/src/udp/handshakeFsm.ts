@@ -75,24 +75,35 @@ export class HandshakeFSM {
   /**
    * Read data from PLC via handshake protocol.
    *
-   * REAL PLC behavior (verified 2026-04-08 on ABB AC500 @ 192.168.0.10):
-   * The real PLC does NOT send ACK(100) on port 9093. It just pushes the
-   * data packet on the data port within ~50 ms of receiving REQUEST_READ on
-   * 9093. The spec's 3-way handshake with ACK (handshake-fsm.md) is not
-   * implemented on the PLC side; packet-9090-job-data.md implicitly confirms
-   * this by documenting 9090 as write-only with reads via machine_data broadcast.
+   * REAL PLC behavior (verified 2026-04-08 on ABB AC500 @ 192.168.0.10 via
+   * tcpdump, .planning/debug/artifacts/rfid-read-9092-9093-2026-04-08.pcap):
    *
-   * Sequence (real PLC):
-   *   1. Attach data listener on dataSocket BEFORE sending REQUEST_READ
-   *      — the ~50 ms response would otherwise race past the listener.
+   *   1. Backend 9093 → PLC 9093: 2B payload [9090ch=IDLE(2), 9092ch=REQUEST_READ(255)]
+   *   2. PLC 9093 → Backend 9093: 2B payload [9090ch=IDLE(2), 9092ch=ACK(100)] — 44 ms later
+   *   3. PLC 9092 → Backend 9092: full data packet — 10 ms after the ACK (54 ms after step 1)
+   *   4. Backend 9093 → PLC 9093: 2B payload [IDLE, IDLE] cleanup
+   *   5. PLC 9093 → Backend 9093: 2B payload [IDLE, IDLE] — PLC echoes the cleanup state
+   *
+   * The PLC DOES send ACK(100) on 9093, contrary to an earlier claim in this
+   * file. The earlier "PLC never ACKs" observation (7 tcpdump captures showing
+   * zero PLC→VM 9093 traffic) was a RACE CONDITION artifact: the previous
+   * waitForAck() set up its listener AFTER sendControl(REQUEST_READ) returned,
+   * so the ACK — which arrives within ~44 ms — raced past the unattached
+   * listener. The ACK was real; the listener wasn't ready.
+   *
+   * Sequence (current implementation):
+   *   1. Attach data listener on dataSocket BEFORE sending REQUEST_READ — closes
+   *      the original race window on the data path.
    *   2. Send REQUEST_READ(255) on ack port (9093) on this channel's byte.
-   *   3. Await the data that the PLC pushes on the data port.
-   *   4. Send IDLE(2) on ack port as cleanup (PLC may ignore this).
+   *   3. Await the data packet on the data port. The ACK that arrives on 9093
+   *      ~10 ms before the data is correct but ignored — a stricter
+   *      implementation could consume it for faster failure detection, but
+   *      that's an optimization, not a correctness requirement.
+   *   4. Send IDLE(2) on ack port as cleanup.
    *
-   * NOTE: intentionally skips waitForAck. Waiting for a 9093 ACK caused every
-   * read to time out at watchdogMs while the actual data sat unread in the
-   * socket buffer. Verified against 7 separate tcpdump captures showing zero
-   * PLC→VM 9093 traffic across any state/payload/timing combination.
+   * NOTE: this path intentionally skips waitForAck. Not because the PLC doesn't
+   * ACK (it does — see wire capture), but because we only need the data to
+   * consider the read successful, and ignoring the ACK simplifies the FSM.
    */
   async read(
     ackSocket: dgram.Socket,
@@ -138,18 +149,21 @@ export class HandshakeFSM {
   /**
    * Write data to PLC via handshake protocol (fire-and-forget).
    *
-   * REAL PLC behavior (verified 2026-04-08): the PLC does not ACK on 9093
-   * for writes either. Legacy V01 code (SC_Complete_wpt-40-local-server)
-   * confirms this is by design — sendUsers9092 / sendData9090 send control
-   * → data → control(reset) without waiting. We mirror that pattern.
-   *
    * Sequence:
    *   1. Send REQUEST_WRITE(254) on ack port (9093) on this channel's byte.
    *   2. Send the data buffer on the data port.
    *   3. Send IDLE(2) on ack port as cleanup.
    *
-   * NOTE: intentionally skips waitForAck. See read() for the empirical
-   * justification and wire capture evidence.
+   * Legacy V01 code (SC_Complete_wpt-40-local-server) establishes the pattern:
+   * sendUsers9092 / sendData9090 send control → data → control(reset) without
+   * waiting for a write-side ACK. We mirror that pattern here.
+   *
+   * Note: whether the real PLC sends an ACK(100) on 9093 after a REQUEST_WRITE
+   * has NOT been captured as of 2026-04-08 — only the READ path has wire
+   * evidence (where the PLC does ACK, see read() docstring). The WRITE path
+   * treats the exchange as fire-and-forget regardless, so ACK presence or
+   * absence doesn't affect correctness. Bench-day follow-up: capture a 9093
+   * frame after a /rfid/write or /jobs/write to close this question.
    */
   async write(
     ackSocket: dgram.Socket,
@@ -194,10 +208,13 @@ export class HandshakeFSM {
   /**
    * Wait for data packet on the data socket, with watchdog timeout.
    *
-   * NOTE: waitForAck was removed 2026-04-08 after verifying the real ABB AC500
-   * PLC does not send ACK(100) on 9093. The read() path attaches this data
-   * listener BEFORE sending REQUEST_READ so the ~50 ms response doesn't race
-   * past it. The write() path is now fire-and-forget and doesn't use this.
+   * NOTE: waitForAck was removed 2026-04-08 because it was racy — it attached
+   * its 9093 listener AFTER sendControl(REQUEST_READ) returned, so the real
+   * PLC's ACK(100) response (which arrives within ~44 ms — see read() for the
+   * wire capture) raced past the unattached listener and every read timed out.
+   * The read() path now attaches THIS data listener BEFORE sending REQUEST_READ,
+   * so the ~54 ms data response is caught without needing to observe the ACK
+   * at all. The write() path is fire-and-forget and doesn't use this.
    */
   private waitForData(dataSocket: dgram.Socket, log: IFsmLogger): Promise<Buffer> {
     return new Promise((resolve, reject) => {
