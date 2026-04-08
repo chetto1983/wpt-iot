@@ -191,36 +191,14 @@ export class HandshakeFSM {
     }
   }
 
-  /** Wait for ACK (100) on the ack socket, with watchdog timeout (D-06) */
-  private waitForAck(ackSocket: dgram.Socket, log: IFsmLogger): Promise<void> {
-    return new Promise((resolve, reject) => {
-      const onMessage = (msg: Buffer): void => {
-        if (msg.length < 2) return;
-        const ctrlByte = msg.readUInt8(this.fsmConfig.controlByteIndex);
-        if (ctrlByte === HandshakeState.ACK) {
-          cleanup();
-          this.state = HandshakeState.ACK;
-          resolve();
-        }
-      };
-
-      const onTimeout = (): void => {
-        cleanup();
-        log.warn({ name: 'HandshakeFSM', channel: this.fsmConfig.channelName }, 'Watchdog timeout waiting for ACK');
-        reject(new Error(`Handshake timeout on ${this.fsmConfig.channelName}: no ACK within ${this.fsmConfig.watchdogMs}ms`));
-      };
-
-      const cleanup = (): void => {
-        ackSocket.removeListener('message', onMessage);
-        this.clearWatchdog();
-      };
-
-      ackSocket.on('message', onMessage);
-      this.watchdogTimer = setTimeout(onTimeout, this.fsmConfig.watchdogMs);
-    });
-  }
-
-  /** Wait for data packet on the data socket, with watchdog timeout */
+  /**
+   * Wait for data packet on the data socket, with watchdog timeout.
+   *
+   * NOTE: waitForAck was removed 2026-04-08 after verifying the real ABB AC500
+   * PLC does not send ACK(100) on 9093. The read() path attaches this data
+   * listener BEFORE sending REQUEST_READ so the ~50 ms response doesn't race
+   * past it. The write() path is now fire-and-forget and doesn't use this.
+   */
   private waitForData(dataSocket: dgram.Socket, log: IFsmLogger): Promise<Buffer> {
     return new Promise((resolve, reject) => {
       const onMessage = (msg: Buffer): void => {
