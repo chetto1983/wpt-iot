@@ -128,19 +128,24 @@ services:
     environment:
       MQTT_HOST: 127.0.0.1
       PG_HOST: 127.0.0.1
-      CORS_ORIGIN: http://wpt.local:3001,http://${LAN_IP}:3001,http://localhost:3001
+      CORS_ORIGIN: http://${LAN_IP}:3001,http://wpt.local:3001,http://localhost:3001
 
   frontend:
-    # Bake the frontend bundle to call the API at wpt.local so the browser's
-    # session cookie stays SAME-SITE under SameSite=Lax. Calling the LAN IP
-    # from a wpt.local-hosted page is cross-site and silently drops the
-    # session cookie on every authenticated XHR (auth-context, mqtt-config,
-    # plc-config). Customer LAN clients reach the backend the same way.
+    # Bake the frontend bundle to call the API at the raw LAN IP. Earlier
+    # versions baked http://wpt.local:3000 to keep the cookie SameSite=Lax
+    # path clean, but that strategy is fragile in the field: any stale
+    # mDNS cache (router DNS, Windows DNS Client, another VM still
+    # advertising the old IP) silently routes the browser at the wrong
+    # host and the auth POST surfaces as ERR_CONNECTION_REFUSED with no
+    # signal that wpt.local is the culprit. Raw IP always reaches THIS
+    # host. SameSite=Lax is fine because the page itself is also served
+    # from the same raw-IP origin (frontend on http://${LAN_IP}:3001),
+    # so the cookie stays first-party.
     build:
       args:
-        NEXT_PUBLIC_API_URL: http://wpt.local:3000
+        NEXT_PUBLIC_API_URL: http://${LAN_IP}:3000
     environment:
-      NEXT_PUBLIC_API_URL: http://wpt.local:3000
+      NEXT_PUBLIC_API_URL: http://${LAN_IP}:3000
 EOF
 ok "docker-compose.host.yml written."
 
