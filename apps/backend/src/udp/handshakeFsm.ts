@@ -149,27 +149,44 @@ export class HandshakeFSM {
   /**
    * Write data to PLC via handshake protocol (fire-and-forget).
    *
-   * REAL PLC behavior (verified 2026-04-08 via tcpdump of /rfid/write,
-   * .planning/debug/artifacts/rfid-write-9092-9093-2026-04-08.pcap):
+   * REAL PLC behavior verified 2026-04-08 via tcpdump of BOTH write endpoints:
+   * - 9092 RFID write: .planning/debug/artifacts/rfid-write-9092-9093-2026-04-08.pcap
+   * - 9090 job write:  .planning/debug/artifacts/jobs-write-9090-9093-2026-04-08.pcap
    *
-   *   1. Backend 9093 → PLC 9093: 2B payload [9090ch=IDLE(2), 9092ch=REQUEST_WRITE(254)]
-   *   2. Backend 9092 → PLC 9092: 1104B user data payload (~470 μs after step 1)
-   *   3. Backend 9093 → PLC 9093: 2B payload [IDLE, IDLE] cleanup (~380 μs after step 2)
+   * **Channel-asymmetric ACK behavior** — the real PLC treats the two data
+   * channels differently on the write path:
    *
-   * Write is TRULY fire-and-forget: the PLC sends ZERO frames back on either
-   * 9092 or 9093 during the entire ~851 μs exchange. This is asymmetric with
-   * the READ path (where the PLC does ACK(100) on 9093 before delivering data
-   * — see read() docstring). The legacy V01 code (SC_Complete_wpt-40-local-server)
-   * sendUsers9092 / sendData9090 established this pattern and the real PLC
-   * firmware behavior confirms it.
+   *   9092 (RFID write): TRULY fire-and-forget. 3 frames total:
+   *     1. Bkd→PLC 9093: [IDLE, REQUEST_WRITE] — 2B
+   *     2. Bkd→PLC 9092: 1104B user data (~470 μs after step 1)
+   *     3. Bkd→PLC 9093: [IDLE, IDLE] cleanup (~380 μs after step 2)
+   *     Total ~851 μs, ZERO PLC→Backend frames (verified with 5-second
+   *     post-send capture window — no delayed ACK either).
    *
-   * Sequence:
+   *   9090 (job write): Delayed ACK on 9090 channel. 4 frames total:
+   *     1. Bkd→PLC 9093: [REQUEST_WRITE, IDLE] — 2B (byte 0 = 9090 channel)
+   *     2. Bkd→PLC 9090: 96B job data (~385 μs after step 1)
+   *     3. Bkd→PLC 9093: [IDLE, IDLE] cleanup (~304 μs after step 2)
+   *     4. PLC→Bkd 9093: [ACK(100), IDLE] — 2B, ~22 ms AFTER step 3
+   *     Total ~23 ms exchange. The PLC delivers a late ACK on 9090's channel
+   *     byte AFTER the backend has already sent the IDLE cleanup.
+   *
+   * The current code ignores the delayed 9090-write ACK — `writeJob()` returns
+   * as soon as step 3 is sent, so the caller sees success before step 4 has
+   * even arrived. Functional outcome: correct. A stricter implementation could
+   * wait for the 9090 delayed ACK to confirm PLC actually applied the write,
+   * but that's an optimization, not a correctness requirement. The legacy V01
+   * code (SC_Complete_wpt-40-local-server) sendUsers9092 / sendData9090
+   * established the fire-and-forget pattern and it matches the real PLC's
+   * 9092 behavior exactly; 9090 behavior is more lenient (PLC sends something
+   * back) but doesn't require us to listen.
+   *
+   * Sequence (in code):
    *   1. Send REQUEST_WRITE(254) on ack port (9093) on this channel's byte.
    *   2. Send the data buffer on the data port.
    *   3. Send IDLE(2) on ack port as cleanup.
    *
-   * No listener is needed for a write — no ACK arrives, no data arrives back,
-   * the PLC just silently accepts. Errors surface only via UDP send failure.
+   * No listener is needed — errors surface only via UDP send failure.
    */
   async write(
     ackSocket: dgram.Socket,
