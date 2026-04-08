@@ -56,11 +56,15 @@ async function main(): Promise<void> {
   const server = buildServer();
 
   try {
-    // Start Fastify HTTP server
-    await server.listen({ port: config.port, host: config.host });
-
-    // Load alarm i18n descriptions before UDP pipeline starts
-    loadAlarmDescriptions();
+    // ───────────────────────────────────────────────────────────────────
+    // Schema bootstrap MUST run BEFORE server.listen(). Fastify v5 executes
+    // plugin bodies on listen(), and routes/energy.ts → startCycleTracker
+    // fires a DB read against cycle_resets the moment the plugin body
+    // runs. If we listen() first, that read races (and loses to) the
+    // ensureTable below — first boot logs `Failed to load resetEpoch from
+    // cycle_resets`. Functionally tolerated (resetEpoch falls back to 0)
+    // but cosmetically ugly. Order: tables first, then listen.
+    // ───────────────────────────────────────────────────────────────────
 
     // Seed default admin account if auth_users table is empty
     await seedDefaultAdmin(server.log);
@@ -85,6 +89,14 @@ async function main(): Promise<void> {
     // columns. Idempotent. MUST run before startUdpPipeline() — the UDP parser
     // INSERTs rows assuming the V03 schema and would throw on a pre-V03 DB.
     await MachineSchemaMigrationService.ensureV03Columns();
+
+    // Load alarm i18n descriptions before UDP pipeline starts
+    loadAlarmDescriptions();
+
+    // Start Fastify HTTP server (this is when energy-route plugin body
+    // runs and startCycleTracker reads cycle_resets — the table is now
+    // guaranteed to exist).
+    await server.listen({ port: config.port, host: config.host });
 
     // Start UDP pipeline after server is listening
     await startUdpPipeline(server.log);
