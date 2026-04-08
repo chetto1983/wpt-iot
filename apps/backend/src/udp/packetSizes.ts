@@ -1,20 +1,31 @@
 /**
- * Machine data packet V03: 72 INT (144B) + 2 DINT (8B) + 5 STRING[20] (105B) + 15 REAL (60B) + 6 BYTE (6B) = 323 bytes
+ * Machine data packet V03:
+ *   72 INT (144B) + 2 DINT (8B) + 5 STRING[20] (105B) + 3 PAD (3B) + 15 REAL (60B) + 6 BYTE (6B) = 326 bytes
  *
  * NOTE on STRING[20] = 21 bytes on wire (not 20):
  * CODESYS V2.3 STRING[N] allocates N+1 bytes — N content bytes plus a terminating NUL byte.
- * So STRING[20] occupies 21 bytes per slot on the UDP wire, not 20. This was verified
- * empirically on 2026-04-08 against the real ABB AC500 PLC (firmware frozen): tcpdump
- * hex-dump of a real 9090 frame showed consecutive string starts at offsets 152, 173,
- * 194, 215, 236 (21-byte intervals). The V03 xlsx "100B for 5 strings" figure is
- * incorrect on this point; the real wire sends 105B for 5 STRING[20] slots.
+ * So STRING[20] occupies 21 bytes per slot on the UDP wire, not 20. Verified empirically
+ * on 2026-04-08 against the real ABB AC500 PLC: tcpdump hex-dump of a real 9090 frame
+ * showed consecutive string starts at offsets 152, 173, 194, 215, 236 (21-byte intervals).
  *
- * The real PLC sends 328-byte frames; bytes [323..327] are an unidentified trailer
+ * NOTE on the 3-byte PAD between STRING and REAL:
+ * The CODESYS V2.3 AC500 compiler aligns REAL (32-bit float) on a 4-byte boundary. The
+ * STRING block ends at byte 256 (152 + 5*21 = 257 exclusive); the next 4-byte aligned
+ * offset is 260, so 3 NUL pad bytes are inserted at [257..259]. Without this pad the
+ * parser reads garbage IEEE 754 values (e.g. pf_total = 1.51e+23, line_volt_l1_l2 =
+ * -2.27e+33) because the byte stream is misaligned by 3.
+ * Verified 2026-04-08 against the real ABB AC500 PLC: BE float decode at offset 260
+ * gives 400V/400V/400V/230V/230V/230V for the 7 new V03 three-phase voltage fields —
+ * textbook line-to-line/line-to-neutral values for a 400V/230V three-phase system.
+ * The V03 xlsx does NOT document this alignment pad; the empirical hex capture does.
+ * See .planning/debug/artifacts/real-plc-9090-frame-2026-04-08.hex for the golden frame.
+ *
+ * The real PLC sends 328-byte frames; bytes [326..327] are an unidentified trailer
  * (all-zero in captured samples). The length check is `< MACHINE_PACKET_SIZE`, so
- * 328-byte frames still pass; the parser reads exactly 323 bytes and ignores the
+ * 328-byte frames still pass; the parser reads exactly 326 bytes and ignores the
  * trailer. If future captures show non-zero trailer bytes, revisit.
  */
-export const MACHINE_PACKET_SIZE = 323;
+export const MACHINE_PACKET_SIZE = 326;
 
 /** Alarm packet: 40 INT words (80B) = 80 bytes */
 export const ALARM_PACKET_SIZE = 80;

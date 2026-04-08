@@ -74,8 +74,25 @@ export class HandshakeFSM {
 
   /**
    * Read data from PLC via handshake protocol.
-   * Sequence: send REQUEST_READ(255) on ack port -> await ACK(100) on ack port
-   *           -> receive data on data socket -> return to IDLE(2)
+   *
+   * REAL PLC behavior (verified 2026-04-08 on ABB AC500 @ 192.168.0.10):
+   * The real PLC does NOT send ACK(100) on port 9093. It just pushes the
+   * data packet on the data port within ~50 ms of receiving REQUEST_READ on
+   * 9093. The spec's 3-way handshake with ACK (handshake-fsm.md) is not
+   * implemented on the PLC side; packet-9090-job-data.md implicitly confirms
+   * this by documenting 9090 as write-only with reads via machine_data broadcast.
+   *
+   * Sequence (real PLC):
+   *   1. Attach data listener on dataSocket BEFORE sending REQUEST_READ
+   *      — the ~50 ms response would otherwise race past the listener.
+   *   2. Send REQUEST_READ(255) on ack port (9093) on this channel's byte.
+   *   3. Await the data that the PLC pushes on the data port.
+   *   4. Send IDLE(2) on ack port as cleanup (PLC may ignore this).
+   *
+   * NOTE: intentionally skips waitForAck. Waiting for a 9093 ACK caused every
+   * read to time out at watchdogMs while the actual data sat unread in the
+   * socket buffer. Verified against 7 separate tcpdump captures showing zero
+   * PLC→VM 9093 traffic across any state/payload/timing combination.
    */
   async read(
     ackSocket: dgram.Socket,
@@ -89,17 +106,20 @@ export class HandshakeFSM {
     this.state = HandshakeState.REQUEST_READ;
 
     try {
-      // Send REQUEST_READ to simulator
+      // Attach data listener FIRST — the real PLC responds within ~50 ms, so
+      // we must be listening on dataSocket when we send REQUEST_READ. The
+      // waitForData Promise registers its listener synchronously in its
+      // executor, so by the time this assignment returns the listener is live.
+      const dataPromise = this.waitForData(dataSocket, log);
+
+      // Now send REQUEST_READ on ack port (9093), this channel's byte.
       await this.sendControl(ackSocket, HandshakeState.REQUEST_READ);
       log.info({ name: 'HandshakeFSM', channel: this.fsmConfig.channelName }, 'Sent REQUEST_READ');
 
-      // Wait for ACK on ack socket
-      await this.waitForAck(ackSocket, log);
+      // Await the data that the PLC pushes on dataSocket.
+      const data = await dataPromise;
 
-      // Wait for data on data socket
-      const data = await this.waitForData(dataSocket, log);
-
-      // Send IDLE to confirm completion
+      // Send IDLE to reset the channel state (best effort).
       await this.sendControl(ackSocket, HandshakeState.IDLE);
       this.state = HandshakeState.IDLE;
 
@@ -116,9 +136,20 @@ export class HandshakeFSM {
   }
 
   /**
-   * Write data to PLC via handshake protocol.
-   * Sequence: send REQUEST_WRITE(254) on ack port -> await ACK(100)
-   *           -> send data to sim data port -> return to IDLE(2)
+   * Write data to PLC via handshake protocol (fire-and-forget).
+   *
+   * REAL PLC behavior (verified 2026-04-08): the PLC does not ACK on 9093
+   * for writes either. Legacy V01 code (SC_Complete_wpt-40-local-server)
+   * confirms this is by design — sendUsers9092 / sendData9090 send control
+   * → data → control(reset) without waiting. We mirror that pattern.
+   *
+   * Sequence:
+   *   1. Send REQUEST_WRITE(254) on ack port (9093) on this channel's byte.
+   *   2. Send the data buffer on the data port.
+   *   3. Send IDLE(2) on ack port as cleanup.
+   *
+   * NOTE: intentionally skips waitForAck. See read() for the empirical
+   * justification and wire capture evidence.
    */
   async write(
     ackSocket: dgram.Socket,
@@ -133,14 +164,11 @@ export class HandshakeFSM {
     this.state = HandshakeState.REQUEST_WRITE;
 
     try {
-      // Send REQUEST_WRITE to simulator
+      // Send REQUEST_WRITE on ack port (9093), this channel's byte.
       await this.sendControl(ackSocket, HandshakeState.REQUEST_WRITE);
       log.info({ name: 'HandshakeFSM', channel: this.fsmConfig.channelName }, 'Sent REQUEST_WRITE');
 
-      // Wait for ACK
-      await this.waitForAck(ackSocket, log);
-
-      // Send data to PLC's data port using DB-backed target host
+      // Send data to PLC's data port using DB-backed target host.
       const { targetHost } = await getCachedPlcConfig();
       await new Promise<void>((resolve, reject) => {
         dataSocket.send(data, 0, data.length, this.fsmConfig.simTargetDataPort, targetHost, (err) => {
@@ -150,7 +178,7 @@ export class HandshakeFSM {
       });
       log.info({ name: 'HandshakeFSM', channel: this.fsmConfig.channelName, bytes: data.length }, 'Data sent');
 
-      // Send IDLE to confirm completion
+      // Send IDLE to reset the channel state (best effort).
       await this.sendControl(ackSocket, HandshakeState.IDLE);
       this.state = HandshakeState.IDLE;
     } catch (err) {

@@ -99,40 +99,50 @@ const STRING_FIELDS: (keyof IMachineSnapshot)[] = [
   'spareString01',    // S1_S_DATO_5   offset 232
 ];
 
+// Offsets below reflect the real CODESYS V2.3 AC500 wire layout:
+//   152..256 = 5 STRING[20] slots (21 bytes each)
+//   257..259 = 3 bytes alignment PAD (CODESYS aligns REAL on 4-byte boundary)
+//   260..319 = 15 REAL fields (4 bytes each, Big Endian)
+//   320..325 = 6 BYTE fields
+// See packetSizes.ts MACHINE_PACKET_SIZE comment for the byte-level evidence.
 const REAL_FIELDS: (keyof IMachineSnapshot)[] = [
-  'energyConsumption',  // S1_R_DATO_1   offset 252
-  'rmsCurrL1',          // S1_R_DATO_2   offset 256
-  'rmsCurrL2',          // S1_R_DATO_3   offset 260
-  'rmsCurrL3',          // S1_R_DATO_4   offset 264
-  'rmsCurrN',           // S1_R_DATO_5   offset 268
-  'spareReal01',        // S1_R_DATO_6   offset 272 (V03 — was waterConsumption in V01)
-  'lineVoltL1L2',       // S1_R_DATO_7   offset 276 (V03 NEW)
-  'lineVoltL2L3',       // S1_R_DATO_8   offset 280 (V03 NEW)
-  'lineVoltL3L1',       // S1_R_DATO_9   offset 284 (V03 NEW)
-  'lineNeutralVoltL1',  // S1_R_DATO_10  offset 288 (V03 NEW)
-  'lineNeutralVoltL2',  // S1_R_DATO_11  offset 292 (V03 NEW)
-  'lineNeutralVoltL3',  // S1_R_DATO_12  offset 296 (V03 NEW)
-  'pfTotal',            // S1_R_DATO_13  offset 300 (V03 NEW)
-  'waterConsumption',   // S1_R_DATO_14  offset 304 (V03 — was S1_R_DATO_6 in V01)
-  'spareReal02',        // S1_R_DATO_15  offset 308 (V03 NEW)
+  'energyConsumption',  // S1_R_DATO_1   offset 260
+  'rmsCurrL1',          // S1_R_DATO_2   offset 264
+  'rmsCurrL2',          // S1_R_DATO_3   offset 268
+  'rmsCurrL3',          // S1_R_DATO_4   offset 272
+  'rmsCurrN',           // S1_R_DATO_5   offset 276
+  'spareReal01',        // S1_R_DATO_6   offset 280 (V03 — was waterConsumption in V01)
+  'lineVoltL1L2',       // S1_R_DATO_7   offset 284 (V03 NEW)
+  'lineVoltL2L3',       // S1_R_DATO_8   offset 288 (V03 NEW)
+  'lineVoltL3L1',       // S1_R_DATO_9   offset 292 (V03 NEW)
+  'lineNeutralVoltL1',  // S1_R_DATO_10  offset 296 (V03 NEW)
+  'lineNeutralVoltL2',  // S1_R_DATO_11  offset 300 (V03 NEW)
+  'lineNeutralVoltL3',  // S1_R_DATO_12  offset 304 (V03 NEW)
+  'pfTotal',            // S1_R_DATO_13  offset 308 (V03 NEW)
+  'waterConsumption',   // S1_R_DATO_14  offset 312 (V03 — was S1_R_DATO_6 in V01)
+  'spareReal02',        // S1_R_DATO_15  offset 316 (V03 NEW)
 ];
 
 const BYTE_FIELDS: (keyof IMachineSnapshot)[] = [
-  'thermoLeftLowSel',   // S1_B_DATO_1  offset 312 (V03)
-  'thermoLeftMedSel',   // S1_B_DATO_2  offset 313 (V03)
-  'thermoLeftHighSel',  // S1_B_DATO_3  offset 314 (V03)
-  'thermoRightLowSel',  // S1_B_DATO_4  offset 315 (V03)
-  'thermoRightMedSel',  // S1_B_DATO_5  offset 316 (V03)
-  'thermoRightHighSel', // S1_B_DATO_6  offset 317 (V03)
+  'thermoLeftLowSel',   // S1_B_DATO_1  offset 320 (V03)
+  'thermoLeftMedSel',   // S1_B_DATO_2  offset 321 (V03)
+  'thermoLeftHighSel',  // S1_B_DATO_3  offset 322 (V03)
+  'thermoRightLowSel',  // S1_B_DATO_4  offset 323 (V03)
+  'thermoRightMedSel',  // S1_B_DATO_5  offset 324 (V03)
+  'thermoRightHighSel', // S1_B_DATO_6  offset 325 (V03)
 ];
 
 /**
- * Parse a 318-byte machine data packet (port 9090, V03) into a typed IMachineSnapshot.
- * Layout: 72 INT (144B) + 2 DINT (8B) + 5 STRING[20] (100B) + 15 REAL (60B) + 6 BYTE (6B) = 318
- * All multi-byte values are Big Endian.
+ * Parse a 326-byte machine data packet (port 9090, V03) into a typed IMachineSnapshot.
+ * Layout: 72 INT (144B) + 2 DINT (8B) + 5 STRING[20] (105B) + 3 PAD (3B) + 15 REAL (60B) + 6 BYTE (6B) = 326
+ * All multi-byte values are Big Endian. The real PLC sends 328-byte frames; bytes [326..327]
+ * are an unidentified trailer (all-zero in captured samples) — tolerated by the `< length` check.
  * V03 deltas vs V01: REAL expanded 7->15 (added L1-L2/L2-L3/L3-L1 voltages, L1/L2/L3-N voltages,
- * PF total); waterConsumption moved from S1_R_DATO_6 (offset 272) to S1_R_DATO_14 (offset 304);
- * spareReal01 rebound to S1_R_DATO_6 (offset 272); INT S1_I_DATO_71/72 renamed to cycleStatus/container.
+ * PF total); waterConsumption moved from S1_R_DATO_6 (offset 272) to S1_R_DATO_14 (offset 312);
+ * spareReal01 rebound to S1_R_DATO_6 (offset 280); INT S1_I_DATO_71/72 renamed to cycleStatus/container.
+ * 2026-04-08: Added 3-byte alignment pad after STRING block (CODESYS 4-byte REAL alignment),
+ * verified against real ABB AC500 hex capture — without this the REAL block decodes as garbage
+ * IEEE 754 values (e.g. pf_total = 1.51e+23, line_volt_l1_l2 = -2.27e+33).
  */
 export function parseMachineData(buf: Buffer): IMachineSnapshot {
   if (buf.length < MACHINE_PACKET_SIZE) {
@@ -174,6 +184,17 @@ export function parseMachineData(buf: Buffer): IMachineSnapshot {
     snapshot[field] = slot.split('\0', 1)[0] ?? '';
     offset += 21;
   }
+
+  // 3-byte alignment PAD between STRING block and REAL block.
+  // The CODESYS V2.3 AC500 compiler aligns REAL (32-bit float) access on a 4-byte
+  // boundary. STRING block ends at byte 256 (152 + 5*21); the next 4-byte aligned
+  // offset is 260, so the wire has 3 zero pad bytes at [257..259]. Without this
+  // skip, readFloatBE decodes misaligned bytes as garbage IEEE 754 values
+  // (e.g. pf_total = 1.51e+23, line_volt_l1_l2 = -2.27e+33). Verified 2026-04-08
+  // against the real ABB AC500 hex capture — with the pad the REAL block decodes
+  // as textbook 400V/400V/400V/230V/230V/230V/0 for the 7 new V03 three-phase
+  // voltage fields. See .planning/debug/artifacts/real-plc-9090-frame-2026-04-08.hex.
+  offset += 3;
 
   // 15 REAL fields -- Big Endian 32-bit float (V03)
   for (const field of REAL_FIELDS) {
