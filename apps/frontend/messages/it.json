@@ -89,6 +89,30 @@
     "description": "La pagina che stai cercando non esiste o e' stata spostata.",
     "goToDashboard": "Vai alla Dashboard"
   },
+  "pwa": {
+    "installed": "App installata correttamente.",
+    "install": {
+      "title": "Installa WPT IoT",
+      "body": "Aggiungi WPT IoT alla schermata Home per aprirla piu' velocemente in modalita' app.",
+      "action": "Installa"
+    },
+    "ios": {
+      "title": "Aggiungi WPT IoT alla Home",
+      "body": "Su iPhone o iPad usa Condividi e poi Aggiungi alla schermata Home per installare l'app."
+    },
+    "update": {
+      "title": "Aggiornamento disponibile",
+      "body": "E' pronta una versione piu' recente di WPT IoT. Ricarica per usarla.",
+      "action": "Ricarica"
+    },
+    "offline": {
+      "title": "Sei offline",
+      "body": "La shell dell'app e' disponibile, ma i dati live macchina e le operazioni di scrittura richiedono connessione.",
+      "hint": "Riconnettiti e riprova quando PLC e backend sono di nuovo raggiungibili.",
+      "retry": "Riprova",
+      "login": "Torna al login"
+    }
+  },
   "users": {
     "heading": "Gestione Utenti",
     "createUser": "Crea Utente",

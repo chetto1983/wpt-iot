@@ -371,4 +371,38 @@ export class EnergyAttributionService {
   static async ensureSchema(): Promise<void> {
     // Tables created by EnergyConfigService.ensureTable() -- see Plan 04.
   }
+
+  /**
+   * Sum the `material_output_kg` and count of cycles with
+   * `attribution_status = 'ATTRIBUTED'` in the half-open window `[from, to)`.
+   *
+   * Phase 20 ENBL-04 EnPI denominator source. Aborted / gap / too-short
+   * cycles are excluded by the status filter (belt) and by the
+   * `material_output_kg > 0` filter (suspender) — so division by zero
+   * in the ENPI calculation is impossible for any ATTRIBUTED row.
+   *
+   * @param args.from inclusive lower bound (started_at >= from)
+   * @param args.to   exclusive upper bound (started_at <  to)
+   * @returns `{ totalKg, totalCycles }` — zeros when the window is empty
+   */
+  static async sumAttributedKgInWindow(args: {
+    from: Date;
+    to: Date;
+  }): Promise<{ totalKg: number; totalCycles: number }> {
+    const result = await db.execute(sql`
+      SELECT
+        COALESCE(SUM(material_output_kg), 0)::float8 AS total_kg,
+        COUNT(*)::int AS total_cycles
+      FROM cycle_records
+      WHERE attribution_status = 'ATTRIBUTED'
+        AND material_output_kg > 0
+        AND started_at >= ${args.from.toISOString()}::timestamptz
+        AND started_at <  ${args.to.toISOString()}::timestamptz
+    `);
+    const row = result.rows[0] as { total_kg: number; total_cycles: number } | undefined;
+    return {
+      totalKg: Number(row?.total_kg ?? 0),
+      totalCycles: Number(row?.total_cycles ?? 0),
+    };
+  }
 }
