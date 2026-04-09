@@ -133,13 +133,10 @@ describe('HandshakeFSM', () => {
 
       const readPromise = usersFsm.read(ackSocket as any, dataSocket as any, mockLog);
 
-      // Check sent control message (send happens synchronously in constructor)
-      expect(ackSocket.send).toHaveBeenCalledTimes(1);
-      const sentMsg: Buffer = ackSocket.send.mock.calls[0]![0];
-      expect(sentMsg.readUInt8(0)).toBe(HandshakeState.IDLE);
-      expect(sentMsg.readUInt8(1)).toBe(HandshakeState.REQUEST_READ);
-
-      // Simulate ACK then data after a tick to let waitForAck register
+      // `sendControl` awaits getCachedPlcConfig() before calling ackSocket.send,
+      // so the first send is NOT synchronous. Schedule ACK+data, await the
+      // read, then assert on the recorded calls. The read path sends twice on
+      // ackSocket: REQUEST_READ first, then IDLE cleanup.
       scheduleAfterTick(() => {
         ackSocket.simulateMessage(buildAckBuffer(HandshakeState.IDLE, HandshakeState.ACK));
         scheduleAfterTick(() => {
@@ -148,6 +145,11 @@ describe('HandshakeFSM', () => {
       });
 
       await readPromise;
+
+      expect(ackSocket.send).toHaveBeenCalledTimes(2);
+      const sentMsg: Buffer = ackSocket.send.mock.calls[0]![0];
+      expect(sentMsg.readUInt8(0)).toBe(HandshakeState.IDLE);
+      expect(sentMsg.readUInt8(1)).toBe(HandshakeState.REQUEST_READ);
     }, 10000);
 
     it('jobs FSM writes REQUEST_READ at byte index 0, IDLE at byte index 1', async () => {
@@ -155,11 +157,6 @@ describe('HandshakeFSM', () => {
       const dataSocket = createMockSocket();
 
       const readPromise = jobsFsm.read(ackSocket as any, dataSocket as any, mockLog);
-
-      expect(ackSocket.send).toHaveBeenCalledTimes(1);
-      const sentMsg: Buffer = ackSocket.send.mock.calls[0]![0];
-      expect(sentMsg.readUInt8(0)).toBe(HandshakeState.REQUEST_READ);
-      expect(sentMsg.readUInt8(1)).toBe(HandshakeState.IDLE);
 
       scheduleAfterTick(() => {
         ackSocket.simulateMessage(buildAckBuffer(HandshakeState.ACK, HandshakeState.IDLE));
@@ -169,6 +166,11 @@ describe('HandshakeFSM', () => {
       });
 
       await readPromise;
+
+      expect(ackSocket.send).toHaveBeenCalledTimes(2);
+      const sentMsg: Buffer = ackSocket.send.mock.calls[0]![0];
+      expect(sentMsg.readUInt8(0)).toBe(HandshakeState.REQUEST_READ);
+      expect(sentMsg.readUInt8(1)).toBe(HandshakeState.IDLE);
     }, 10000);
 
     it('users FSM writes REQUEST_WRITE at byte index 1', async () => {
@@ -176,18 +178,14 @@ describe('HandshakeFSM', () => {
       const dataSocket = createMockSocket();
       const dataBuffer = buildTestUserDataBuffer();
 
-      const writePromise = usersFsm.write(ackSocket as any, dataSocket as any, dataBuffer, mockLog);
+      // write() is fire-and-forget on the real PLC 9092 path: send
+      // REQUEST_WRITE, send data, send IDLE cleanup. No ACK is awaited.
+      await usersFsm.write(ackSocket as any, dataSocket as any, dataBuffer, mockLog);
 
-      expect(ackSocket.send).toHaveBeenCalledTimes(1);
+      expect(ackSocket.send).toHaveBeenCalledTimes(2);
       const sentMsg: Buffer = ackSocket.send.mock.calls[0]![0];
       expect(sentMsg.readUInt8(0)).toBe(HandshakeState.IDLE);
       expect(sentMsg.readUInt8(1)).toBe(HandshakeState.REQUEST_WRITE);
-
-      scheduleAfterTick(() => {
-        ackSocket.simulateMessage(buildAckBuffer(HandshakeState.IDLE, HandshakeState.ACK));
-      });
-
-      await writePromise;
     }, 10000);
 
     it('jobs FSM writes REQUEST_WRITE at byte index 0', async () => {
@@ -195,18 +193,12 @@ describe('HandshakeFSM', () => {
       const dataSocket = createMockSocket();
       const dataBuffer = buildTestJobDataBuffer();
 
-      const writePromise = jobsFsm.write(ackSocket as any, dataSocket as any, dataBuffer, mockLog);
+      await jobsFsm.write(ackSocket as any, dataSocket as any, dataBuffer, mockLog);
 
-      expect(ackSocket.send).toHaveBeenCalledTimes(1);
+      expect(ackSocket.send).toHaveBeenCalledTimes(2);
       const sentMsg: Buffer = ackSocket.send.mock.calls[0]![0];
       expect(sentMsg.readUInt8(0)).toBe(HandshakeState.REQUEST_WRITE);
       expect(sentMsg.readUInt8(1)).toBe(HandshakeState.IDLE);
-
-      scheduleAfterTick(() => {
-        ackSocket.simulateMessage(buildAckBuffer(HandshakeState.ACK, HandshakeState.IDLE));
-      });
-
-      await writePromise;
     }, 10000);
   });
 
@@ -367,28 +359,25 @@ describe('HandshakeFSM', () => {
   // ----- Timeout (D-06) -----
 
   describe('watchdog timeout', () => {
-    it('rejects with timeout error if no ACK received within watchdogMs', async () => {
+    it('rejects with timeout error if no data received within watchdogMs', async () => {
       const ackSocket = createMockSocket();
       const dataSocket = createMockSocket();
 
       // watchdogMs is 200ms for tests -- just let it expire
       const readPromise = usersFsm.read(ackSocket as any, dataSocket as any, mockLog);
 
-      await expect(readPromise).rejects.toThrow('Handshake timeout on users: no ACK within 200ms');
+      await expect(readPromise).rejects.toThrow('Handshake timeout on users: no data within 200ms');
       expect(usersFsm.getState()).toBe(HandshakeState.IDLE);
       expect(usersFsm.isBusy()).toBe(false);
     }, 10000);
 
-    it('rejects with timeout error for write if no ACK received', async () => {
-      const ackSocket = createMockSocket();
-      const dataSocket = createMockSocket();
-
-      const writePromise = jobsFsm.write(ackSocket as any, dataSocket as any, buildTestJobDataBuffer(), mockLog);
-
-      await expect(writePromise).rejects.toThrow('Handshake timeout on jobs: no ACK within 200ms');
-      expect(jobsFsm.getState()).toBe(HandshakeState.IDLE);
-      expect(jobsFsm.isBusy()).toBe(false);
-    }, 10000);
+    // NOTE: the "write timeout if no ACK" test was removed 2026-04-09.
+    // The real ABB AC500 PLC 9092 write path is TRULY fire-and-forget
+    // (verified 2026-04-08 via tcpdump — zero PLC→Backend frames on the
+    // 5-second post-send capture window). handshakeFsm.write() no longer
+    // awaits any ACK, so there is no timeout to assert. Write failures
+    // can only surface via UDP send errors. See handshakeFsm.ts write()
+    // doc block for the wire evidence.
 
     it('rejects with timeout error if ACK received but no data arrives for read', async () => {
       const ackSocket = createMockSocket();

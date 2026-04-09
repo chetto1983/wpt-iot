@@ -16,7 +16,7 @@ import {
 import { RfidUserGroup, CycleType } from '@wpt/types';
 
 describe('parseMachineData', () => {
-  it('decodes all 100 fields from a 318-byte buffer', () => {
+  it('decodes all 100 fields from a 326-byte buffer', () => {
     const buf = buildTestMachineBuffer();
     const snapshot = parseMachineData(buf);
 
@@ -79,9 +79,9 @@ describe('parseMachineData', () => {
     expect(snapshot.thermoRightHighSel).toBe(0);
   });
 
-  it('throws on buffer shorter than 318 bytes (rejects V01 packets)', () => {
-    const v01Buf = Buffer.alloc(286);
-    expect(() => parseMachineData(v01Buf)).toThrow('too short');
+  it('throws on buffer shorter than 326 bytes (rejects V01/V02 packets)', () => {
+    const shortBuf = Buffer.alloc(318); // V02/pre-V03 318-byte size, now rejected
+    expect(() => parseMachineData(shortBuf)).toThrow('too short');
   });
 });
 
@@ -105,19 +105,22 @@ describe('parseAlarmWords', () => {
 });
 
 describe('parseUserData', () => {
-  it('decodes 48 RFID users from a 1056-byte buffer', () => {
+  it('decodes 48 RFID users from a 1104-byte buffer', () => {
     const buf = buildTestUserBuffer();
     const users = parseUserData(buf);
 
     expect(users).toHaveLength(48);
 
-    // User 0: enabled byte = 0 -> enabled = true
+    // User 0: enabled byte = 1 -> enabled = true
+    // Verified against real ABB AC500 PLC on 2026-04-08 — the V03 xlsx
+    // column C annotation `0:enable/1:disable` is WRONG. Real polarity is
+    // 0 = disabled, 1 = enabled in BOTH directions.
     expect(users[0]!.tagId).toBe(1);
     expect(users[0]!.name).toBe('Operator1');
     expect(users[0]!.group).toBe(RfidUserGroup.OPERATOR);
     expect(users[0]!.enabled).toBe(true);
 
-    // User 1: enabled byte = 1 -> enabled = false (inverted logic)
+    // User 1: enabled byte = 0 -> enabled = false
     expect(users[1]!.tagId).toBe(2);
     expect(users[1]!.name).toBe('Maint1');
     expect(users[1]!.group).toBe(RfidUserGroup.MAINTENANCE);
@@ -130,14 +133,14 @@ describe('parseUserData', () => {
     expect(users[2]!.enabled).toBe(false);
   });
 
-  it('throws on buffer shorter than 1056 bytes', () => {
+  it('throws on buffer shorter than 1104 bytes', () => {
     const shortBuf = Buffer.alloc(500);
     expect(() => parseUserData(shortBuf)).toThrow('too short');
   });
 });
 
 describe('parseJobData', () => {
-  it('decodes job data from a 92-byte buffer with 6 INT fields', () => {
+  it('decodes job data from a 96-byte buffer with 6 INT fields', () => {
     const buf = buildTestJobBuffer();
     const job = parseJobData(buf);
 
@@ -152,14 +155,14 @@ describe('parseJobData', () => {
     expect(job.spareInt03).toBe(0);
   });
 
-  it('throws on buffer shorter than 92 bytes (rejects V01 job packets)', () => {
-    const v01Buf = Buffer.alloc(88);
-    expect(() => parseJobData(v01Buf)).toThrow('too short');
+  it('throws on buffer shorter than 96 bytes (rejects V01/V02 job packets)', () => {
+    const shortBuf = Buffer.alloc(92); // V01/V02 pre-N+1 job size, now rejected
+    expect(() => parseJobData(shortBuf)).toThrow('too short');
   });
 });
 
 describe('buildUserWritePacket', () => {
-  it('produces a 1056-byte buffer that round-trips with parseUserData', () => {
+  it('produces a 1104-byte buffer that round-trips with parseUserData', () => {
     const users = [
       { tagId: 1, name: 'Operator1', group: RfidUserGroup.OPERATOR, enabled: true },
       { tagId: 2, name: 'Maint1', group: RfidUserGroup.MAINTENANCE, enabled: false },
@@ -171,7 +174,7 @@ describe('buildUserWritePacket', () => {
     }
 
     const buf = buildUserWritePacket(users);
-    expect(buf.length).toBe(1056);
+    expect(buf.length).toBe(1104);
 
     const parsed = parseUserData(buf);
     expect(parsed[0]!.name).toBe('Operator1');
@@ -184,7 +187,7 @@ describe('buildUserWritePacket', () => {
 });
 
 describe('buildJobWritePacket', () => {
-  it('produces a 92-byte buffer that round-trips with parseJobData (PROT-V03-12)', () => {
+  it('produces a 96-byte buffer that round-trips with parseJobData (PROT-V03-12)', () => {
     const job = {
       supervisor: 'alice',
       orderNumber: 'WO-42',
@@ -198,7 +201,7 @@ describe('buildJobWritePacket', () => {
     };
 
     const buf = buildJobWritePacket(job);
-    expect(buf.length).toBe(92);
+    expect(buf.length).toBe(96);
 
     // Round-trip: parse, rebuild, assert byte-identical
     const parsed = parseJobData(buf);
