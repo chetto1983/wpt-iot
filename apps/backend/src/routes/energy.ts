@@ -19,9 +19,15 @@ import { startCycleTracker } from '../persistence/cycleTracker.js';
 import { startCyclePersister } from '../persistence/cyclePersister.js';
 import {
   BaselineLockRequestSchema,
+  EnergyCyclesQuerySchema,
+  EnergyDashboardSummaryQuerySchema,
+  EnergyReconciliationQuerySchema,
   SavingsQuerySchema,
   type EnergyBucket,
+  type UserRole,
 } from '@wpt/types';
+import { requireAuth } from '../auth/authHooks.js';
+import { EnergyDashboardService } from '../services/energyDashboardService.js';
 
 /**
  * /api/energy/* route plugin — Phase 19 Plan 19-10 scaffold.
@@ -244,7 +250,7 @@ export const energyRoutes: FastifyPluginAsync = async (server) => {
    * strings (totalKwh, totalCost, totalCo2) so the Phase 21 dashboard
    * can render without re-formatting.
    */
-  server.get('/api/energy/aggregate', async (request, reply) => {
+  server.get('/api/energy/aggregate', { preHandler: requireAuth }, async (request, reply) => {
     const parsed = aggregateQuerySchema.safeParse(request.query);
     if (!parsed.success) {
       return reply.code(400).send({
@@ -286,7 +292,87 @@ export const energyRoutes: FastifyPluginAsync = async (server) => {
    * surface that consumes cycle_records rows populated by the Plan
    * 19-06 cycle persister and the Plan 19-07 attribution classifier.
    */
-  server.get('/api/energy/cycles', async (_request, reply) =>
+  server.get('/api/energy/dashboard', { preHandler: requireAuth }, async (request, reply) => {
+    const parsed = EnergyDashboardSummaryQuerySchema.safeParse(request.query);
+    if (!parsed.success) {
+      return reply
+        .code(400)
+        .send({ error: 'Invalid query parameters', issues: parsed.error.issues });
+    }
+
+    try {
+      return reply.send(
+        await EnergyDashboardService.getDashboardSummary({
+          from: new Date(parsed.data.from),
+          to: new Date(parsed.data.to),
+          role: request.session.role as UserRole,
+        }),
+      );
+    } catch (err) {
+      server.log.error(
+        { name: 'EnergyDashboard', err: (err as Error).message },
+        'getDashboardSummary failed',
+      );
+      return reply.code(500).send({ error: 'Internal error' });
+    }
+  });
+
+  server.get('/api/energy/cycles', { preHandler: requireAuth }, async (request, reply) => {
+    const parsed = EnergyCyclesQuerySchema.safeParse(request.query);
+    if (!parsed.success) {
+      return reply
+        .code(400)
+        .send({ error: 'Invalid query parameters', issues: parsed.error.issues });
+    }
+
+    try {
+      return reply.send(
+        await EnergyDashboardService.getCycles({
+          from: new Date(parsed.data.from),
+          to: new Date(parsed.data.to),
+          limit: parsed.data.limit,
+          role: request.session.role as UserRole,
+        }),
+      );
+    } catch (err) {
+      server.log.error(
+        { name: 'EnergyDashboard', err: (err as Error).message },
+        'getCycles failed',
+      );
+      return reply.code(500).send({ error: 'Internal error' });
+    }
+  });
+
+  server.get(
+    '/api/energy/reconciliation',
+    { preHandler: requireAuth },
+    async (request, reply) => {
+      const parsed = EnergyReconciliationQuerySchema.safeParse(request.query);
+      if (!parsed.success) {
+        return reply
+          .code(400)
+          .send({ error: 'Invalid query parameters', issues: parsed.error.issues });
+      }
+
+      try {
+        return reply.send(
+          await EnergyDashboardService.getReconciliation({
+            from: new Date(parsed.data.from),
+            to: new Date(parsed.data.to),
+            role: request.session.role as UserRole,
+          }),
+        );
+      } catch (err) {
+        server.log.error(
+          { name: 'EnergyDashboard', err: (err as Error).message },
+          'getReconciliation failed',
+        );
+        return reply.code(500).send({ error: 'Internal error' });
+      }
+    },
+  );
+
+  server.get('/api/energy/cycles-legacy-stub', async (_request, reply) =>
     reply
       .code(503)
       .send({ error: 'Not Implemented — Phase 21 wires this' }),
@@ -488,7 +574,7 @@ export const energyRoutes: FastifyPluginAsync = async (server) => {
   // D-09: response shape frozen — ISavingsResponse (detail=0) or
   //       ISavingsDetailResponse (detail=1).
   // =========================================================================
-  server.get('/api/energy/savings', async (request, reply) => {
+  server.get('/api/energy/savings', { preHandler: requireAuth }, async (request, reply) => {
     const parsed = SavingsQuerySchema.safeParse(request.query);
     if (!parsed.success) {
       return reply

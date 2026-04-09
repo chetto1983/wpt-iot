@@ -407,3 +407,117 @@ export const SavingsQuerySchema = z.object({
   baseline_id: z.string().optional(),
   detail: z.enum(['0', '1']).optional().default('0'),
 });
+
+// =============================================================================
+// Phase 21 - Energy KPI dashboard UI
+// =============================================================================
+
+export const EnergyRangePreset = z.enum([
+  'last7d',
+  'last30d',
+  'last12mo',
+  'custom',
+]);
+export type EnergyRangePreset = z.infer<typeof EnergyRangePreset>;
+
+export const EnergyMetric = z.enum([
+  'kwh',
+  'eur',
+  'kgco2',
+]);
+export type EnergyMetric = z.infer<typeof EnergyMetric>;
+
+export const EnergyDashboardSummaryQuerySchema = z.object({
+  from: z.string().datetime(),
+  to: z.string().datetime(),
+});
+
+export const EnergyCyclesQuerySchema = z.object({
+  from: z.string().datetime(),
+  to: z.string().datetime(),
+  limit: z.coerce.number().int().min(1).max(25).optional().default(10),
+});
+
+export const EnergyReconciliationQuerySchema = z.object({
+  from: z.string().datetime(),
+  to: z.string().datetime(),
+});
+
+export interface IEnergyDashboardTariffBreakdown {
+  f1: number;
+  f2: number;
+  f3: number;
+}
+
+export interface IEnergyDashboardRmsCurrentAvg {
+  l1: number | null;
+  l2: number | null;
+  l3: number | null;
+}
+
+export interface IEnergyDashboardWptDetails {
+  peakPowerKw: number | null;
+  baselineEnpi: number | null;
+  tariffBandKwh: IEnergyDashboardTariffBreakdown;
+  rmsCurrentAvg: IEnergyDashboardRmsCurrentAvg;
+}
+
+export interface IEnergyDashboardSummary {
+  currentPowerKw: number | null;
+  dayToDateKwh: number;
+  dayToDateEur: number;
+  dayToDateKgCo2: number;
+  cyclesToday: number;
+  savings: ISavingsResponse | null;
+  savingsUnavailableReason?: BaselineErrorCode | 'UNAVAILABLE' | null;
+  wptDetails?: IEnergyDashboardWptDetails;
+}
+
+export interface IEnergyCycleRow {
+  cycleType: number;
+  cycleLabelKey: string;
+  cycleLabel: string;
+  cycleCount: number;
+  totalKwh: number;
+  totalKg: number;
+  avgKwhPerKg: number | null;
+}
+
+export interface IEnergyCyclesResponse {
+  from: string;
+  to: string;
+  limit: number;
+  rows: IEnergyCycleRow[];
+}
+
+export interface IEnergyReconciliationWptDetails {
+  accountedRatio: number;
+  idleBaseloadKw: number | null;
+}
+
+export interface IEnergyReconciliationResponse {
+  meterKwh: number;
+  cyclesKwh: number;
+  idleKwh: number;
+  unknownKwh: number;
+  cyclesPct: number;
+  idlePct: number;
+  unknownPct: number;
+  warning: boolean;
+  wptDetails?: IEnergyReconciliationWptDetails;
+}
+
+export const CLIENT_VISIBLE_ENERGY_FIELDS = [
+  'currentPowerKw',
+  'dayToDateKwh',
+  'dayToDateEur',
+  'dayToDateKgCo2',
+  'cyclesToday',
+  'savings',
+  'savingsUnavailableReason',
+] as const satisfies ReadonlyArray<keyof IEnergyDashboardSummary>;
+
+export const WPT_VISIBLE_ENERGY_FIELDS = [
+  ...CLIENT_VISIBLE_ENERGY_FIELDS,
+  'wptDetails',
+] as const satisfies ReadonlyArray<keyof IEnergyDashboardSummary>;

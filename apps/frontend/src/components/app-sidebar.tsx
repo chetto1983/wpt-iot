@@ -14,6 +14,7 @@ import {
   FileText,
   AlertTriangle,
   BarChart3,
+  Bolt,
   Radio,
   Cpu,
   LogOut,
@@ -74,6 +75,7 @@ export function AppSidebar() {
   // Reports link visible to ALL authenticated roles
   const allRoleReportItems: NavItem[] = [
     { label: t('nav.reports'), href: '/reports', icon: FileText },
+    { label: t('nav.energy'), href: '/energy', icon: Bolt },
     { label: t('nav.anomaly'), href: '/anomaly', icon: BrainCircuit },
   ];
 

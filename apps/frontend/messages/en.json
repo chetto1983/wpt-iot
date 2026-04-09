@@ -19,6 +19,7 @@
       "rfid": "RFID Users",
       "jobs": "Jobs",
       "reports": "Reports",
+      "energy": "Energy",
       "anomaly": "Anomaly",
       "alarms": "Alarms",
       "charts": "Charts",
@@ -725,5 +726,90 @@
     "targetHostHelp": "IP address or hostname of the ABB AC500 PLC (or CODESYS simulator). The handshake FSM uses this for jobs and RFID reads/writes.",
     "save": "Save Configuration",
     "saved": "PLC configuration saved"
+  },
+  "energy": {
+    "title": "Energy overview",
+    "subtitle": "Live KPIs, trend performance, and reconciliation for the current machine energy profile.",
+    "header": {
+      "eyebrow": "Energy KPI"
+    },
+    "states": {
+      "loading": "Loading energy data...",
+      "live": "Live",
+      "offline": "Offline",
+      "updated": "Updated {time}",
+      "steady": "Stable versus the active range"
+    },
+    "errors": {
+      "summary": "Unable to load the energy summary.",
+      "trend": "Unable to load the energy trend.",
+      "cycles": "Unable to load the cycle efficiency table.",
+      "reconciliation": "Unable to load the reconciliation breakdown."
+    },
+    "range": {
+      "last7d": "7d",
+      "last30d": "30d",
+      "last12mo": "12mo"
+    },
+    "kpis": {
+      "currentPower": "Current power",
+      "dayKwh": "Today kWh",
+      "dayEur": "Today cost",
+      "dayCo2": "Today CO2",
+      "cyclesToday": "Cycles today",
+      "peakPowerValue": "Peak power {value} kW",
+      "baselineEnpiValue": "Baseline EnPI {value} kWh/kg",
+      "rmsAverageValue": "Avg RMS L1 {l1} A, L2 {l2} A, L3 {l3} A"
+    },
+    "trend": {
+      "kicker": "Trend",
+      "title": "Energy trend",
+      "description": "Track the selected machine window through the existing aggregate service.",
+      "empty": "No aggregate rows are available for this range.",
+      "summary": "{count} points using {bucket} buckets for {metric}.",
+      "metrics": {
+        "kwh": "kWh",
+        "eur": "EUR",
+        "kgco2": "kg CO2"
+      }
+    },
+    "savings": {
+      "kicker": "Baseline",
+      "title": "Savings versus baseline",
+      "below": "Below baseline consumption",
+      "above": "Above baseline consumption",
+      "flat": "Aligned with baseline",
+      "good": "Improving",
+      "warning": "Needs attention",
+      "neutral": "Flat",
+      "impactKwh": "Impact kWh",
+      "impactEur": "Impact EUR",
+      "impactCo2": "Impact CO2",
+      "noBaselineBadge": "No active baseline",
+      "noBaseline": "Lock an active baseline to compare this range with an ISO 50001 reference window.",
+      "unavailable": "Savings data is currently unavailable for the selected window."
+    },
+    "reconciliation": {
+      "kicker": "Accounting",
+      "title": "Meter reconciliation",
+      "subtitle": "Cycles, idle, and unknown always account for 100% of the meter delta.",
+      "cycles": "Cycles",
+      "idle": "Idle",
+      "unknown": "Unknown",
+      "warning": "Unknown > 2%",
+      "healthy": "Within tolerance",
+      "equation": "Cycles + idle + unknown = 100% of meter delta.",
+      "empty": "No reconciliation data is available for this range."
+    },
+    "cycles": {
+      "kicker": "Efficiency",
+      "title": "Per-cycle energy table",
+      "cycle": "Cycle",
+      "count": "Count",
+      "totalKwh": "Total kWh",
+      "totalKg": "Total kg",
+      "avgKwhPerKg": "Avg kWh/kg",
+      "empty": "No completed cycles are available for this range."
+    }
   }
 }

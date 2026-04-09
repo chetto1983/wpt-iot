@@ -19,6 +19,7 @@
       "rfid": "Utenti RFID",
       "jobs": "Commesse",
       "reports": "Report",
+      "energy": "Energia",
       "anomaly": "Anomalia",
       "alarms": "Allarmi",
       "charts": "Grafici",
@@ -725,5 +726,90 @@
     "targetHostHelp": "IP o hostname del PLC ABB AC500 (o del simulatore CODESYS). Usato dall'handshake FSM per leggere/scrivere commesse e utenti RFID.",
     "save": "Salva Configurazione",
     "saved": "Configurazione PLC salvata"
+  },
+  "energy": {
+    "title": "Panoramica energia",
+    "subtitle": "KPI live, trend di consumo e riconciliazione per il profilo energetico corrente della macchina.",
+    "header": {
+      "eyebrow": "KPI energia"
+    },
+    "states": {
+      "loading": "Caricamento dati energia...",
+      "live": "Live",
+      "offline": "Offline",
+      "updated": "Aggiornato {time}",
+      "steady": "Stabile rispetto all'intervallo attivo"
+    },
+    "errors": {
+      "summary": "Impossibile caricare il riepilogo energia.",
+      "trend": "Impossibile caricare il trend energia.",
+      "cycles": "Impossibile caricare la tabella efficienza cicli.",
+      "reconciliation": "Impossibile caricare la riconciliazione."
+    },
+    "range": {
+      "last7d": "7g",
+      "last30d": "30g",
+      "last12mo": "12m"
+    },
+    "kpis": {
+      "currentPower": "Potenza attuale",
+      "dayKwh": "kWh oggi",
+      "dayEur": "Costo oggi",
+      "dayCo2": "CO2 oggi",
+      "cyclesToday": "Cicli oggi",
+      "peakPowerValue": "Picco potenza {value} kW",
+      "baselineEnpiValue": "EnPI baseline {value} kWh/kg",
+      "rmsAverageValue": "Media RMS L1 {l1} A, L2 {l2} A, L3 {l3} A"
+    },
+    "trend": {
+      "kicker": "Trend",
+      "title": "Trend energetico",
+      "description": "Monitora l'intervallo selezionato della macchina tramite il servizio aggregato esistente.",
+      "empty": "Nessuna riga aggregata disponibile per questo intervallo.",
+      "summary": "{count} punti con bucket {bucket} per {metric}.",
+      "metrics": {
+        "kwh": "kWh",
+        "eur": "EUR",
+        "kgco2": "kg CO2"
+      }
+    },
+    "savings": {
+      "kicker": "Baseline",
+      "title": "Risparmio vs baseline",
+      "below": "Consumo sotto baseline",
+      "above": "Consumo sopra baseline",
+      "flat": "Allineato alla baseline",
+      "good": "In miglioramento",
+      "warning": "Da verificare",
+      "neutral": "Stabile",
+      "impactKwh": "Impatto kWh",
+      "impactEur": "Impatto EUR",
+      "impactCo2": "Impatto CO2",
+      "noBaselineBadge": "Nessuna baseline attiva",
+      "noBaseline": "Blocca una baseline attiva per confrontare questo intervallo con una finestra di riferimento ISO 50001.",
+      "unavailable": "I dati di risparmio non sono disponibili per l'intervallo selezionato."
+    },
+    "reconciliation": {
+      "kicker": "Accounting",
+      "title": "Riconciliazione contatore",
+      "subtitle": "Cicli, idle e unknown coprono sempre il 100% del delta contatore.",
+      "cycles": "Cicli",
+      "idle": "Idle",
+      "unknown": "Unknown",
+      "warning": "Unknown > 2%",
+      "healthy": "Entro soglia",
+      "equation": "Cicli + idle + unknown = 100% del delta contatore.",
+      "empty": "Nessun dato di riconciliazione disponibile per questo intervallo."
+    },
+    "cycles": {
+      "kicker": "Efficienza",
+      "title": "Tabella energia per ciclo",
+      "cycle": "Ciclo",
+      "count": "Conteggio",
+      "totalKwh": "kWh totali",
+      "totalKg": "kg totali",
+      "avgKwhPerKg": "Media kWh/kg",
+      "empty": "Nessun ciclo completato disponibile per questo intervallo."
+    }
   }
 }
