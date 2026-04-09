@@ -2,6 +2,10 @@ import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod/v4';
 import { EnergyAggregateService } from '../services/energyAggregateService.js';
 import { EnergyAttributionService } from '../services/energyAttributionService.js';
+import { machineAnomalyService } from '../services/machineAnomalyService.js';
+import { MachineAnomalyEventService } from '../services/machineAnomalyEventService.js';
+import { MachineAnomalyReplayService } from '../services/machineAnomalyReplayService.js';
+import { MachineAnomalyScenarioService } from '../services/machineAnomalyScenarioService.js';
 import {
   BaselineOverlapError,
   BaselinePredatesDataError,
@@ -50,6 +54,26 @@ const aggregateQuerySchema = z.object({
   to: z.string().datetime(),
 });
 
+const anomalySimulationSchema = z.object({
+  scenario: z.enum(['temperature_spike', 'pressure_runaway', 'energy_drift']),
+  warmupSamples: z.number().int().min(10).max(500).optional(),
+  scenarioSamples: z.number().int().min(1).max(200).optional(),
+});
+
+const anomalyReplaySchema = z.object({
+  from: z.string().datetime(),
+  to: z.string().datetime(),
+  maxRows: z.number().int().min(100).max(50000).optional(),
+  topN: z.number().int().min(1).max(100).optional(),
+});
+
+const anomalyEventsQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(200).optional(),
+  flaggedOnly: z
+    .union([z.literal('0'), z.literal('1')])
+    .optional(),
+});
+
 export const energyRoutes: FastifyPluginAsync = async (server) => {
   // ── Plan 19-06: lifecycle wiring (Pattern 3 from RESEARCH.md) ────
   // The Fastify route plugin body is the start-function call site for
@@ -83,6 +107,7 @@ export const energyRoutes: FastifyPluginAsync = async (server) => {
   // ─────────────────────────────────────────────────────────────────
   startCycleTracker(server.log);
   startCyclePersister(server.log);
+  machineAnomalyService.start(server.log);
 
   const BACKFILL_INTERVAL_MS = 5 * 60 * 1000;
   const BACKFILL_WINDOW_MS = 15 * 60 * 1000;
@@ -111,6 +136,7 @@ export const energyRoutes: FastifyPluginAsync = async (server) => {
 
   server.addHook('onClose', async () => {
     clearInterval(backfillInterval);
+    machineAnomalyService.stop();
   });
 
   // =========================================================================
@@ -244,6 +270,88 @@ export const energyRoutes: FastifyPluginAsync = async (server) => {
       .code(503)
       .send({ error: 'Not Implemented — Phase 21 wires this' }),
   );
+
+  server.get('/api/energy/anomaly/live', async (_request, reply) =>
+    reply.send({
+      tracking: machineAnomalyService.getTrackingStatus(),
+      latest: machineAnomalyService.getLatest(),
+    }),
+  );
+
+  server.get('/api/energy/anomaly/events', async (request, reply) => {
+    const parsed = anomalyEventsQuerySchema.safeParse(request.query);
+    if (!parsed.success) {
+      return reply
+        .code(400)
+        .send({ error: 'Invalid query parameters', issues: parsed.error.issues });
+    }
+
+    try {
+      const events = await MachineAnomalyEventService.listRecent({
+        limit: parsed.data.limit,
+        flaggedOnly: parsed.data.flaggedOnly === '1',
+      });
+      return reply.send({ events });
+    } catch (err) {
+      server.log.error(
+        { name: 'MachineAnomalyEvents', err: (err as Error).message },
+        'Failed to load anomaly events',
+      );
+      return reply.code(500).send({ error: 'Internal error' });
+    }
+  });
+
+  server.post('/api/energy/anomaly/simulate', async (request, reply) => {
+    const parsed = anomalySimulationSchema.safeParse(request.body);
+    if (!parsed.success) {
+      return reply
+        .code(400)
+        .send({ error: 'Invalid request body', issues: parsed.error.issues });
+    }
+
+    return reply.send(
+      MachineAnomalyScenarioService.run({
+        scenario: parsed.data.scenario,
+        warmupSamples: parsed.data.warmupSamples,
+        scenarioSamples: parsed.data.scenarioSamples,
+      }),
+    );
+  });
+
+  server.post('/api/energy/anomaly/replay', async (request, reply) => {
+    const parsed = anomalyReplaySchema.safeParse(request.body);
+    if (!parsed.success) {
+      return reply
+        .code(400)
+        .send({ error: 'Invalid request body', issues: parsed.error.issues });
+    }
+
+    const from = new Date(parsed.data.from);
+    const to = new Date(parsed.data.to);
+    if (!Number.isFinite(from.getTime()) || !Number.isFinite(to.getTime())) {
+      return reply.code(400).send({ error: 'Invalid from/to datetime' });
+    }
+    if (from >= to) {
+      return reply.code(400).send({ error: 'from must be strictly before to' });
+    }
+
+    try {
+      return reply.send(
+        await MachineAnomalyReplayService.replay({
+          from,
+          to,
+          maxRows: parsed.data.maxRows,
+          topN: parsed.data.topN,
+        }),
+      );
+    } catch (err) {
+      server.log.error(
+        { name: 'MachineAnomalyReplay', err: (err as Error).message },
+        'Historical anomaly replay failed',
+      );
+      return reply.code(500).send({ error: 'Internal error' });
+    }
+  });
 
   // =========================================================================
   // Phase 20 — POST /api/energy/baseline/lock

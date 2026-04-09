@@ -727,6 +727,122 @@ describe('energyBaselineService integration', () => {
   });
 
   // --- Plan 05: startup validator + predates-data ---
-  it.todo('startup validator fatal log');
-  it.todo('BASELINE_PREDATES_DATA');
+  it('startup validator fatal log', async () => {
+    // Seed a baseline row directly (bypassing lockBaseline's validation) with
+    // period_from EARLIER than any energy_1d data — simulates retention having
+    // eaten the backing raw data between lock and this call.
+    const BASELINE_STARTS_EARLY = new Date('2099-03-01T00:00:00Z');
+    const BASELINE_ENDS_EARLY = new Date('2099-04-01T00:00:00Z');
+
+    const insertRes = await db.execute(sql`
+      INSERT INTO energy_baselines (label, period_from, period_to, locked_at, normalization_variables)
+      VALUES ('predate-test', ${BASELINE_STARTS_EARLY.toISOString()}::timestamptz, ${BASELINE_ENDS_EARLY.toISOString()}::timestamptz, NOW(), '{}'::jsonb)
+      RETURNING baseline_id
+    `);
+    const baselineId = Number(
+      (insertRes.rows[0] as { baseline_id: number | string }).baseline_id,
+    );
+    // Matching evidence row (FK ON DELETE RESTRICT — cleanup needs it too)
+    await db.execute(sql`
+      INSERT INTO baseline_evidence (baseline_id, total_kwh, total_kg, total_cycles, enpi, total_eur, total_kgco2, daily_series)
+      VALUES (${baselineId}, 1, 1, 1, 1, 0.25, 0.279, '[]'::jsonb)
+    `);
+
+    // Seed energy_1d with data starting LATER than the baseline's period_from
+    // in the 2024 window (retention scenario — the real 2099-03 buckets never
+    // existed or have been dropped). The validator compares MIN(bucket_1d)
+    // across the whole energy_1d hypertable, so it will pick up the 2024 row.
+    await seedEnergyDayBuckets({ from: BASELINE_FROM, to: BASELINE_TO, totalKwh: 300 });
+
+    const baseline = await EnergyBaselineService.getBaselineById(baselineId);
+    expect(baseline).not.toBeNull();
+
+    // Capturing mock logger (RESEARCH BLOCKER-03 Option 2)
+    const captured: Array<{ level: string; obj: Record<string, unknown>; msg: string }> = [];
+    const testLog = {
+      info: (obj: Record<string, unknown>, msg: string) =>
+        captured.push({ level: 'info', obj, msg }),
+      warn: (obj: Record<string, unknown>, msg: string) =>
+        captured.push({ level: 'warn', obj, msg }),
+      error: (obj: Record<string, unknown>, msg: string) =>
+        captured.push({ level: 'error', obj, msg }),
+      fatal: (obj: Record<string, unknown>, msg: string) =>
+        captured.push({ level: 'fatal', obj, msg }),
+    };
+
+    // Expect a throw AND a fatal log with the RESEARCH.md payload shape
+    await expect(
+      EnergyBaselineService.validateOldestDataAvailability(baseline!, testLog),
+    ).rejects.toThrow(/predates/i);
+
+    const fatals = captured.filter((c) => c.level === 'fatal');
+    expect(fatals.length).toBe(1);
+    expect(fatals[0]?.msg).toBe('baseline_predates_available_data');
+    expect(fatals[0]?.obj.baselineId).toBe(baselineId);
+    expect(fatals[0]?.obj.oldestBucket).toBeDefined();
+    expect(fatals[0]?.obj.baselinePeriodFrom).toBe(BASELINE_STARTS_EARLY.toISOString());
+  });
+
+  it('BASELINE_PREDATES_DATA via computeSavings returns 422', async () => {
+    // Seed baseline window normally so lockBaseline's own validation passes
+    await seedEnergyDayBuckets({ from: BASELINE_FROM, to: BASELINE_TO, totalKwh: 300 });
+    await seedCycleRecords({
+      from: BASELINE_FROM,
+      to: BASELINE_TO,
+      cyclesPerDay: 2,
+      kgPerCycle: 20,
+    });
+    // Measurement window — 29 days in June 2024, past the baseline window
+    await seedEnergyDayBuckets({
+      from: MEASUREMENT_FROM,
+      to: MEASUREMENT_TO,
+      totalKwh: 270,
+    });
+    await seedCycleRecords({
+      from: MEASUREMENT_FROM,
+      to: MEASUREMENT_TO,
+      cyclesPerDay: 1,
+      kgPerCycle: 20,
+    });
+
+    // Lock the baseline over the real seeded window (passes lockBaseline guards)
+    const lockRes = await EnergyBaselineService.lockBaseline({
+      label: 'predate-route-test',
+      periodFrom: BASELINE_FROM,
+      periodTo: BASELINE_TO,
+      normalizationVariables: { temp: 20 },
+    });
+    const baselineId = lockRes.baseline.baselineId;
+
+    // Manually rewind period_from to a date earlier than the oldest energy_1d
+    // bucket (within the cleanup wall so isolation stays intact). This
+    // simulates retention having dropped the earliest data AFTER the lock.
+    const EARLIER = new Date('2024-04-05T00:00:00Z');
+    await db.execute(sql`
+      UPDATE energy_baselines
+      SET period_from = ${EARLIER.toISOString()}::timestamptz
+      WHERE baseline_id = ${baselineId}
+    `);
+
+    // The route should 422 BASELINE_PREDATES_DATA because the per-request
+    // validateOldestDataAvailability inside computeSavings catches it
+    const app = await buildTestServer();
+    try {
+      const response = await app.inject({
+        method: 'GET',
+        url: `/api/energy/savings?from=${encodeURIComponent(
+          MEASUREMENT_FROM.toISOString(),
+        )}&to=${encodeURIComponent(
+          MEASUREMENT_TO.toISOString(),
+        )}&baseline_id=${baselineId}`,
+      });
+      expect(response.statusCode).toBe(422);
+      const body = response.json() as {
+        error: { code: string; details: unknown };
+      };
+      expect(body.error.code).toBe('BASELINE_PREDATES_DATA');
+    } finally {
+      await app.close();
+    }
+  });
 });

@@ -138,7 +138,7 @@ TimescaleDB manages time-series data with automatic downsampling:
 
 | Tier          | Resolution | Retention  | Rows/year |
 |---------------|------------|------------|-----------|
-| Raw snapshots | 15 seconds | 7 days     | ~40,320/week |
+| Raw snapshots | 15 seconds | 30 days    | ~172,800/month |
 | 5-min average | 5 minutes  | indefinite | ~105,120 |
 | 1-hour average| 1 hour     | indefinite | ~8,760   |
 

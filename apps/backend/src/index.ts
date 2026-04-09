@@ -7,6 +7,7 @@ import { initBroadcaster, shutdownBroadcaster } from './ws/broadcaster.js';
 import { connectMqtt, disconnectMqtt } from './mqtt/connectionManager.js';
 import { MqttConfigService } from './mqtt/configService.js';
 import { EnergyConfigService } from './services/energyConfigService.js';
+import { MachineAnomalyEventService } from './services/machineAnomalyEventService.js';
 import { EnergyBaselineService } from './services/energyBaselineService.js';
 import { PlcConfigService, setPlcConfigLogger } from './udp/plcConfigService.js';
 import { MachineSchemaMigrationService } from './db/machineSchemaMigrationService.js';
@@ -84,6 +85,10 @@ async function main(): Promise<void> {
     // EnergyConfigService.ensureTable() because Phase 20 references the
     // `energy_config_periods` values at lock time (ENBL-01, ENBL-06).
     await EnergyBaselineService.ensureSchema();
+
+    // Machine anomaly persistence schema — stores flagged anomaly events
+    // from the live in-memory detector for later inspection and UI use.
+    await MachineAnomalyEventService.ensureSchema();
 
     // Ensure PLC config table exists with default row (target_host='localhost').
     // Operators update the target from the frontend (SUPER_ADMIN only) and the
