@@ -188,11 +188,13 @@ export async function freezeBaselineEvidence(
     const cycle = cycleByDay.get(dayKey) ?? { kg: 0, cyclesCount: 0 };
     const kwh = energy?.kwh ?? 0;
     // Anchor day for tariff lookup: prefer the energy bucket's actual
-    // timestamp; fall back to midnight Europe/Rome of the cycle-day if no
-    // energy row exists. Europe/Rome is UTC+1 (winter) / UTC+2 (summer);
-    // using "+01:00" is safe because the period lookup uses the calendar
-    // year, not the wall-clock hour.
-    const dayDate = energy?.dayDate ?? new Date(`${dayKey}T00:00:00+01:00`);
+    // timestamp; fall back to NOON UTC of the cycle-day key if no energy
+    // row exists. Noon UTC is far from any DST midnight boundary, so the
+    // tariff period lookup (which uses the calendar year / day) is robust
+    // whether `dayKey` falls in CET (+01:00) or CEST (+02:00). The earlier
+    // `+01:00` anchor silently mis-bucketed summer orphan days at DST-boundary
+    // tariff periods (WR-01).
+    const dayDate = energy?.dayDate ?? new Date(`${dayKey}T12:00:00Z`);
     const period = await getPeriodForDay(dayDate);
     const eur = kwh > 0
       ? EnergyTariffService.computeCostFromPeriod(kwh, dayDate, period)
