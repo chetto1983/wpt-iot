@@ -1,5 +1,11 @@
+import { readFile } from 'node:fs/promises';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { UserRole } from '@wpt/types';
+import {
+  formatItEur,
+  formatItKgCO2,
+  formatItKwh,
+  UserRole,
+} from '@wpt/types';
 
 const getAggregateMock = vi.fn();
 const getBaselineByIdMock = vi.fn();
@@ -171,5 +177,100 @@ describe('energy pdf service task 02.1', () => {
       role: UserRole.WPT,
       limit: 1000,
     });
+  });
+
+  it('emits all 9 section headings in the document-definition path with a 10pt body font', async () => {
+    const { ENERGY_PDF_COPY } = await import('../i18n/energyPdfCopy.js');
+    const { EnergyPdfService } = await import('../services/energyPdfService.js');
+
+    const model = await EnergyPdfService.buildReportModel({
+      from: new Date('2026-04-01T00:00:00.000Z'),
+      to: new Date('2026-04-08T00:00:00.000Z'),
+      lang: 'en',
+      baselineId: 7,
+    });
+    const definition = EnergyPdfService.buildDocumentDefinition(model);
+    const headings = ((definition.content as unknown[]) ?? [])
+      .filter((item): item is { text: string; style: string } => {
+        if (!item || typeof item !== 'object') {
+          return false;
+        }
+        const candidate = item as { text?: unknown; style?: unknown };
+        return candidate.style === 'sectionHeading' && typeof candidate.text === 'string';
+      })
+      .map((item) => item.text);
+
+    expect(headings).toEqual([
+      ENERGY_PDF_COPY.en.header.title,
+      ENERGY_PDF_COPY.en.executiveSummary.title,
+      ENERGY_PDF_COPY.en.enpiTable.title,
+      ENERGY_PDF_COPY.en.enbDeclaration.title,
+      ENERGY_PDF_COPY.en.energyByPeriod.title,
+      ENERGY_PDF_COPY.en.perCycleEfficiency.title,
+      ENERGY_PDF_COPY.en.costAndCo2.title,
+      ENERGY_PDF_COPY.en.savingsIndicator.title,
+      ENERGY_PDF_COPY.en.footer.title,
+    ]);
+    expect(model.implementedSectionKeys).toEqual([
+      'header',
+      'executiveSummary',
+      'enpiTable',
+      'enbDeclaration',
+      'energyByPeriod',
+      'savingsIndicator',
+    ]);
+    expect((definition.defaultStyle as { fontSize?: number }).fontSize).toBe(10);
+  });
+
+  it('uses formatItKwh, formatItEur, formatItKgCO2, and explicit above baseline / below baseline wording', async () => {
+    const serviceSource = await readFile(
+      new URL('../services/energyPdfService.ts', import.meta.url),
+      'utf8',
+    );
+    const { EnergyPdfService } = await import('../services/energyPdfService.js');
+
+    expect(serviceSource).toContain('formatItKwh');
+    expect(serviceSource).toContain('formatItEur');
+    expect(serviceSource).toContain('formatItKgCO2');
+    expect(serviceSource).not.toContain('Intl.NumberFormat');
+
+    const belowBaselineModel = await EnergyPdfService.buildReportModel({
+      from: new Date('2026-04-01T00:00:00.000Z'),
+      to: new Date('2026-04-08T00:00:00.000Z'),
+      lang: 'en',
+      baselineId: 7,
+    });
+
+    computeSavingsMock.mockResolvedValueOnce({
+      baselineId: 7,
+      baselineLabel: 'Install baseline',
+      baselineEnpi: 1.55,
+      measurementEnpi: 1.73,
+      deltaPct: 11.61,
+      deltaKwh: 14.2,
+      deltaEur: 3.6,
+      deltaKgco2: 5.8,
+      confidence: 'HIGH',
+      windowFrom: '2026-04-01T00:00:00.000Z',
+      windowTo: '2026-04-08T00:00:00.000Z',
+      excludedStatuses: ['ABORTED'],
+      dailySeries: [],
+    });
+
+    const aboveBaselineModel = await EnergyPdfService.buildReportModel({
+      from: new Date('2026-04-01T00:00:00.000Z'),
+      to: new Date('2026-04-08T00:00:00.000Z'),
+      lang: 'en',
+      baselineId: 7,
+    });
+
+    expect(belowBaselineModel.energyByPeriodRows[0]).toEqual({
+      date: '01/04/2026',
+      energy: formatItKwh(120.4),
+      cost: formatItEur(28.76),
+      co2: formatItKgCO2(41.3),
+    });
+    expect(belowBaselineModel.savingsSummary.directionText).toContain('below baseline');
+    expect(aboveBaselineModel.savingsSummary.directionText).toContain('above baseline');
   });
 });
