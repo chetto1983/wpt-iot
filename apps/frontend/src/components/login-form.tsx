@@ -3,11 +3,11 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { Loader2 } from 'lucide-react';
+import { Download, Loader2, ShieldCheck } from 'lucide-react';
 
 import Image from 'next/image';
 import { useAuth } from '@/lib/auth-context';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { PasswordInput } from '@/components/password-input';
 import { Label } from '@/components/ui/label';
@@ -17,6 +17,7 @@ import {
   CardFooter,
   CardHeader,
 } from '@/components/ui/card';
+import { cn } from '@/lib/utils';
 
 const LANGUAGES = [
   { value: 'it', label: 'Italiano' },
@@ -125,7 +126,8 @@ export function LoginForm() {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
-      <Card className="w-full max-w-sm">
+      <div className="w-full max-w-sm space-y-4">
+        <Card>
         <CardHeader className="items-center space-y-3 pb-2">
           <Image
             src="/logo.png"
@@ -202,7 +204,39 @@ export function LoginForm() {
             ) : null}
           </CardFooter>
         </form>
-      </Card>
+        </Card>
+
+        <Card className="border-amber-500/40 bg-amber-50/70 dark:bg-amber-950/20">
+          <CardHeader className="space-y-2 pb-3">
+            <div className="flex items-center gap-2 text-sm font-medium text-amber-900 dark:text-amber-200">
+              <ShieldCheck className="h-4 w-4" />
+              {t('setup.title')}
+            </div>
+            <p className="text-sm text-muted-foreground">
+              {t('setup.body')}
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-3 text-sm text-muted-foreground">
+            <ol className="list-decimal space-y-2 pl-5">
+              <li>{t('setup.steps.warning')}</li>
+              <li>{t('setup.steps.download')}</li>
+              <li>{t('setup.steps.trust')}</li>
+              <li>{t('setup.steps.install')}</li>
+            </ol>
+            <a
+              href="/setup/wpt-local-ca.crt"
+              download
+              className={cn(buttonVariants({ variant: 'outline' }), 'h-11 w-full')}
+            >
+              <Download className="mr-2 h-4 w-4" />
+              {t('setup.download')}
+            </a>
+            <p className="text-xs text-muted-foreground">
+              {t('setup.hint')}
+            </p>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

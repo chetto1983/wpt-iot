@@ -59,6 +59,18 @@
     "password": "Password",
     "signIn": "Accedi",
     "language": "Lingua",
+    "setup": {
+      "title": "Primo accesso su questo dispositivo",
+      "body": "WPT IoT usa un certificato HTTPS locale. Al primo accesso da un nuovo dispositivo, installa e considera attendibile la CA root WPT prima di aspettarti un PWA installabile e un accesso senza avvisi.",
+      "download": "Scarica CA Root WPT",
+      "hint": "Dopo aver installato la CA, chiudi e riapri il browser, poi accedi. Il prompt di installazione appare solo dopo il login su un dispositivo fidato.",
+      "steps": {
+        "warning": "Se Chrome mostra un avviso certificato, apri la sezione avanzata e prosegui verso WPT IoT una volta per raggiungere il link di configurazione.",
+        "download": "Scarica la CA Root WPT dal pulsante qui sotto.",
+        "trust": "Installa quel certificato nell'archivio delle autorita' radice attendibili del dispositivo.",
+        "install": "Ricarica la pagina e verifica che il lucchetto sia pulito prima di installare l'app."
+      }
+    },
     "errors": {
       "invalid": "Nome utente o password non validi. Controlla le credenziali e riprova.",
       "expired": "La sessione e' scaduta. Accedi nuovamente.",

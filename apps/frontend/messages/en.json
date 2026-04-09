@@ -59,6 +59,18 @@
     "password": "Password",
     "signIn": "Sign In",
     "language": "Language",
+    "setup": {
+      "title": "First access on this device",
+      "body": "WPT IoT uses a local HTTPS certificate. On the first visit from a new device, trust the WPT root certificate before expecting PWA install and warning-free access.",
+      "download": "Download WPT Root CA",
+      "hint": "After the certificate is trusted, close and reopen the browser, then sign in. The install prompt appears only after login on a trusted device.",
+      "steps": {
+        "warning": "If Chrome shows a certificate warning, open the advanced section and continue to WPT IoT once so you can access the setup link.",
+        "download": "Download the WPT Root CA from the button below.",
+        "trust": "Install that certificate in the trusted root store on this device.",
+        "install": "Reload the page and verify the padlock is clean before installing the app."
+      }
+    },
     "errors": {
       "invalid": "Invalid username or password. Check your credentials and try again.",
       "expired": "Your session has expired. Please sign in again.",

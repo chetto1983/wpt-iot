@@ -34,6 +34,7 @@ After install:
 - app: `https://wpt.local`
 - API: `https://wpt.local/api/health`
 - local CA: `/opt/wpt-iot/certs/wpt-local-ca.crt`
+- CA download URL: `https://wpt.local/setup/wpt-local-ca.crt`
 
 Important: client devices must trust `/opt/wpt-iot/certs/wpt-local-ca.crt` or the browser will reject the certificate and the PWA secure-context checks will still fail.
 
@@ -140,18 +141,3 @@ sudo tcpdump -i <iface> -n 'udp and port 9090 or port 9091' -c 5
 2. `network_mode: host` on the backend is mandatory. Do not move the backend back to bridge networking if the machine talks to a real PLC.
 3. Access the app at `https://wpt.local`, not `http://<LAN_IP>:3001`. The published frontend image is baked for `https://wpt.local/api`.
 4. `wpt.local` depends on mDNS. If the client is on another VLAN or routed network, either fix name resolution or deploy real DNS with matching certificates.
-
-## Localhost Mode
-
-If the browser runs on the same machine as the stack, do not use custom local TLS.
-Use the localhost installer instead:
-
-```bash
-bash scripts/install-localhost.sh
-```
-
-That serves:
-- `http://localhost`
-- `http://localhost/api`
-
-This avoids certificate warnings while still allowing service workers and PWA installability because browsers treat `localhost` as a secure context.

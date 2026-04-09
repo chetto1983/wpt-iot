@@ -25,10 +25,8 @@ After setup:
 For Linux installs that use the compose HTTPS overlay, the user-facing URL is:
 - `https://wpt.local` for the app shell and API proxy
 - API traffic is same-origin under `https://wpt.local/api`
-- trust the generated local CA before testing PWA installability
-
-For same-machine installs, prefer `http://localhost` instead of custom local TLS.
-Browsers treat `localhost` as a secure context for service workers and PWA features, which avoids certificate warnings entirely.
+- first access on a new device must trust the generated local CA before PWA installability will work cleanly
+- the CA is exposed by nginx at `https://wpt.local/setup/wpt-local-ca.crt` after the operator proceeds past the initial browser warning once
 
 Login: `admin` / password in `.env` (`ADMIN_PASSWORD`)
 

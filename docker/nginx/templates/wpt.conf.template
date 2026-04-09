@@ -39,6 +39,12 @@ server {
     return 308 /api/;
   }
 
+  location = /setup/wpt-local-ca.crt {
+    alias /etc/nginx/certs/wpt-local-ca.crt;
+    default_type application/x-x509-ca-cert;
+    add_header Cache-Control "no-store";
+  }
+
   location /api/ws {
     proxy_pass http://${BACKEND_UPSTREAM}/ws;
     proxy_http_version 1.1;
