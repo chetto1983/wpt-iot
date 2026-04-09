@@ -294,7 +294,7 @@ export class EnergyDashboardService {
                     THEN pf_total
                   END,
                   ${DEFAULT_COSPHI}
-                )
+                ) / 1000.0
               END
             )::float8 AS peak_power_kw,
             AVG(CASE WHEN rms_curr_l1 BETWEEN ${MIN_VALID_RMS_CURRENT_A} AND ${MAX_VALID_RMS_CURRENT_A} THEN rms_curr_l1 END)::float8 AS avg_l1,

@@ -61,6 +61,10 @@ export function EnergyPageShell() {
   const [refreshTick, setRefreshTick] = useState(0);
   const summaryAbortRef = useRef<AbortController | null>(null);
   const widgetsAbortRef = useRef<AbortController | null>(null);
+  const showSummaryLoading = summaryLoading && summary == null;
+  const showAggregateLoading = aggregateLoading && aggregate == null;
+  const showCyclesLoading = cyclesLoading && cycles == null;
+  const showReconciliationLoading = reconciliationLoading && reconciliation == null;
 
   const liveSignal = `${connected}:${lastUpdate?.getTime() ?? 0}:${machineData?.energyConsumption ?? 0}:${machineData?.completedCycles ?? 0}`;
   const deferredLiveSignal = useDeferredValue(liveSignal);
@@ -191,7 +195,7 @@ export function EnergyPageShell() {
         preset={preset}
         refreshInterval={refreshInterval}
         lastUpdated={lastFetchedAt}
-        loading={summaryLoading || aggregateLoading}
+        loading={showSummaryLoading || showAggregateLoading}
         onRangeChange={(nextFrom, nextTo) => {
           startTransition(() => {
             setFrom(nextFrom);
@@ -210,30 +214,30 @@ export function EnergyPageShell() {
 
       <EnergyKpiGrid
         summary={summary}
-        loading={summaryLoading}
+        loading={showSummaryLoading}
         connected={connected}
         lastUpdate={lastUpdate}
       />
 
-      <EnergySavingsWidget summary={summary} loading={summaryLoading} />
+      <EnergySavingsWidget summary={summary} loading={showSummaryLoading} />
 
       <EnergyTrendCard
         aggregate={aggregate}
         metric={metric}
-        loading={aggregateLoading}
+        loading={showAggregateLoading}
         error={aggregateError}
         onMetricChange={setMetric}
       />
 
       <EnergyReconciliationWidget
         data={reconciliation}
-        loading={reconciliationLoading}
+        loading={showReconciliationLoading}
         error={reconciliationError}
       />
 
       <EnergyCyclesTable
         data={cycles}
-        loading={cyclesLoading}
+        loading={showCyclesLoading}
         error={cyclesError}
       />
     </div>

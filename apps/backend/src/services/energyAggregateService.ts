@@ -301,7 +301,7 @@ export class EnergyAggregateService {
             (CASE WHEN rms_l2_avg BETWEEN ${MIN_VALID_RMS_CURRENT_A} AND ${MAX_VALID_RMS_CURRENT_A} THEN 1 ELSE 0 END) +
             (CASE WHEN rms_l3_avg BETWEEN ${MIN_VALID_RMS_CURRENT_A} AND ${MAX_VALID_RMS_CURRENT_A} THEN 1 ELSE 0 END)
           )
-        ) * sqrt(3) * 400 * ${cosphi}
+        ) * sqrt(3) * 400 * ${cosphi} / 1000.0
       )::float8 AS p10_kw
       FROM energy_5min
       WHERE bucket >= ${opts.from}::timestamptz
