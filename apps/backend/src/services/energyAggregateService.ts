@@ -47,6 +47,10 @@ interface IRawAggRow {
   sample_count: number | string | null;
 }
 
+const MIN_VALID_RMS_CURRENT_A = 0;
+const MAX_VALID_RMS_CURRENT_A = 1000;
+const MIN_VALID_PHASE_COUNT = 2;
+
 export interface IReconciliationResult {
   /** Total metered kWh over [from, to) — sum of energy_1d.kwh_delta rows. */
   meterKwh: number;
@@ -287,14 +291,26 @@ export class EnergyAggregateService {
 
     const rows = await db.execute(sql`
       SELECT percentile_cont(0.10) WITHIN GROUP (ORDER BY
-        ((rms_l1_avg + rms_l2_avg + rms_l3_avg) * sqrt(3) * 400 * ${cosphi})
+        (
+          (
+            COALESCE(CASE WHEN rms_l1_avg BETWEEN ${MIN_VALID_RMS_CURRENT_A} AND ${MAX_VALID_RMS_CURRENT_A} THEN rms_l1_avg END, 0) +
+            COALESCE(CASE WHEN rms_l2_avg BETWEEN ${MIN_VALID_RMS_CURRENT_A} AND ${MAX_VALID_RMS_CURRENT_A} THEN rms_l2_avg END, 0) +
+            COALESCE(CASE WHEN rms_l3_avg BETWEEN ${MIN_VALID_RMS_CURRENT_A} AND ${MAX_VALID_RMS_CURRENT_A} THEN rms_l3_avg END, 0)
+          ) / (
+            (CASE WHEN rms_l1_avg BETWEEN ${MIN_VALID_RMS_CURRENT_A} AND ${MAX_VALID_RMS_CURRENT_A} THEN 1 ELSE 0 END) +
+            (CASE WHEN rms_l2_avg BETWEEN ${MIN_VALID_RMS_CURRENT_A} AND ${MAX_VALID_RMS_CURRENT_A} THEN 1 ELSE 0 END) +
+            (CASE WHEN rms_l3_avg BETWEEN ${MIN_VALID_RMS_CURRENT_A} AND ${MAX_VALID_RMS_CURRENT_A} THEN 1 ELSE 0 END)
+          )
+        ) * sqrt(3) * 400 * ${cosphi}
       )::float8 AS p10_kw
       FROM energy_5min
       WHERE bucket >= ${opts.from}::timestamptz
         AND bucket <  ${opts.to}::timestamptz
-        AND rms_l1_avg IS NOT NULL
-        AND rms_l2_avg IS NOT NULL
-        AND rms_l3_avg IS NOT NULL
+        AND (
+          (CASE WHEN rms_l1_avg BETWEEN ${MIN_VALID_RMS_CURRENT_A} AND ${MAX_VALID_RMS_CURRENT_A} THEN 1 ELSE 0 END) +
+          (CASE WHEN rms_l2_avg BETWEEN ${MIN_VALID_RMS_CURRENT_A} AND ${MAX_VALID_RMS_CURRENT_A} THEN 1 ELSE 0 END) +
+          (CASE WHEN rms_l3_avg BETWEEN ${MIN_VALID_RMS_CURRENT_A} AND ${MAX_VALID_RMS_CURRENT_A} THEN 1 ELSE 0 END)
+        ) >= ${MIN_VALID_PHASE_COUNT}
     `);
     const row = rows.rows[0] as { p10_kw: number | string | null } | undefined;
     const p10 = row?.p10_kw;

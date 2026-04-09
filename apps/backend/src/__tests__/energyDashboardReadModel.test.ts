@@ -137,4 +137,45 @@ describe('energy dashboard read-model', () => {
       'savingsUnavailableReason',
     ]);
   });
+
+  it('energy dashboard read-model ignores impossible rms outliers and falls back to default cosphi', async () => {
+    vi.mocked(db.execute)
+      .mockResolvedValueOnce({
+        rows: [{ rms_curr_l1: 125, rms_curr_l2: 110, rms_curr_l3: 31600, pf_total: 0 }],
+      } as Awaited<ReturnType<typeof db.execute>>)
+      .mockResolvedValueOnce({
+        rows: [{ cycles_today: 0 }],
+      } as Awaited<ReturnType<typeof db.execute>>)
+      .mockResolvedValueOnce({
+        rows: [{ peak_power_kw: 69.2, avg_l1: 125, avg_l2: 110, avg_l3: null }],
+      } as Awaited<ReturnType<typeof db.execute>>);
+    vi.mocked(EnergyAggregateService.getAggregate)
+      .mockResolvedValueOnce({
+        bucket: '5min',
+        from,
+        to,
+        rows: [],
+        display: { totalKwh: '0,0 kWh', totalCost: '0,00 â‚¬', totalCo2: '0 kgCOâ‚‚' },
+      })
+      .mockResolvedValueOnce({
+        bucket: 'day',
+        from,
+        to,
+        rows: [],
+        display: { totalKwh: '0,0 kWh', totalCost: '0,00 â‚¬', totalCo2: '0 kgCOâ‚‚' },
+      });
+    vi.mocked(EnergyBaselineService.getActiveBaseline).mockResolvedValue(null);
+
+    const result = await EnergyDashboardService.getDashboardSummary({
+      from,
+      to,
+      role: UserRole.WPT,
+    });
+
+    expect(result.currentPowerKw).toBeCloseTo(69.2, 2);
+    expect(result.wptDetails).toMatchObject({
+      peakPowerKw: 69.2,
+      rmsCurrentAvg: { l1: 125, l2: 110, l3: null },
+    });
+  });
 });

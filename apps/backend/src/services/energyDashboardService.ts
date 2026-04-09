@@ -55,6 +55,12 @@ interface ICycleGroupRow {
   total_kg: number | string | null;
 }
 
+const MIN_VALID_RMS_CURRENT_A = 0;
+const MAX_VALID_RMS_CURRENT_A = 1000;
+const MIN_VALID_POWER_FACTOR = -1;
+const MAX_VALID_POWER_FACTOR = 1;
+const MIN_VALID_PHASE_COUNT = 2;
+
 function coerceNumber(value: number | string | null | undefined): number | null {
   if (value == null) return null;
   const parsed = Number(value);
@@ -69,6 +75,31 @@ function round(value: number, digits = 2): number {
 function enumKeyName(enumObj: Record<string, string | number>, value: number): string | null {
   const key = enumObj[value];
   return typeof key === 'string' ? key : null;
+}
+
+function sanitizeRmsCurrent(value: number | string | null | undefined): number | null {
+  const parsed = coerceNumber(value);
+  if (parsed == null) return null;
+  if (parsed < MIN_VALID_RMS_CURRENT_A || parsed > MAX_VALID_RMS_CURRENT_A) return null;
+  return parsed;
+}
+
+function sanitizePowerFactor(value: number | string | null | undefined): number | null {
+  const parsed = coerceNumber(value);
+  if (parsed == null) return null;
+  if (parsed < MIN_VALID_POWER_FACTOR || parsed > MAX_VALID_POWER_FACTOR) return null;
+  return parsed;
+}
+
+function resolvePowerFactor(value: number | string | null | undefined): number {
+  const parsed = sanitizePowerFactor(value);
+  return parsed == null || parsed === 0 ? DEFAULT_COSPHI : parsed;
+}
+
+function averageValidCurrents(values: Array<number | null>): number | null {
+  const valid = values.filter((value): value is number => value != null);
+  if (valid.length < MIN_VALID_PHASE_COUNT) return null;
+  return valid.reduce((sum, value) => sum + value, 0) / valid.length;
 }
 
 function normalizeOffset(raw: string | undefined): string {
@@ -112,14 +143,13 @@ function pickSummaryForRole(
 
 function deriveThreePhasePowerKw(snapshot: ILatestSnapshotRow | undefined): number | null {
   if (!snapshot) return null;
-  const currents = [
-    coerceNumber(snapshot.rms_curr_l1),
-    coerceNumber(snapshot.rms_curr_l2),
-    coerceNumber(snapshot.rms_curr_l3),
-  ].filter((value): value is number => value != null);
-  if (currents.length === 0) return null;
-  const avgCurrent = currents.reduce((sum, value) => sum + value, 0) / currents.length;
-  const powerFactor = coerceNumber(snapshot.pf_total) ?? DEFAULT_COSPHI;
+  const avgCurrent = averageValidCurrents([
+    sanitizeRmsCurrent(snapshot.rms_curr_l1),
+    sanitizeRmsCurrent(snapshot.rms_curr_l2),
+    sanitizeRmsCurrent(snapshot.rms_curr_l3),
+  ]);
+  if (avgCurrent == null) return null;
+  const powerFactor = resolvePowerFactor(snapshot.pf_total);
   return round((Math.sqrt(3) * 400 * avgCurrent * powerFactor) / 1000, 2);
 }
 
@@ -240,13 +270,36 @@ export class EnergyDashboardService {
       const [windowStatsResult, tariffBandKwh] = await Promise.all([
         db.execute(sql`
           SELECT
-            MAX(((COALESCE(rms_curr_l1, 0) + COALESCE(rms_curr_l2, 0) + COALESCE(rms_curr_l3, 0)) / 3.0)
-                * sqrt(3)
-                * 400
-                * COALESCE(NULLIF(pf_total, 0), ${DEFAULT_COSPHI}))::float8 AS peak_power_kw,
-            AVG(rms_curr_l1)::float8 AS avg_l1,
-            AVG(rms_curr_l2)::float8 AS avg_l2,
-            AVG(rms_curr_l3)::float8 AS avg_l3
+            MAX(
+              CASE
+                WHEN
+                  (CASE WHEN rms_curr_l1 BETWEEN ${MIN_VALID_RMS_CURRENT_A} AND ${MAX_VALID_RMS_CURRENT_A} THEN 1 ELSE 0 END) +
+                  (CASE WHEN rms_curr_l2 BETWEEN ${MIN_VALID_RMS_CURRENT_A} AND ${MAX_VALID_RMS_CURRENT_A} THEN 1 ELSE 0 END) +
+                  (CASE WHEN rms_curr_l3 BETWEEN ${MIN_VALID_RMS_CURRENT_A} AND ${MAX_VALID_RMS_CURRENT_A} THEN 1 ELSE 0 END)
+                  >= ${MIN_VALID_PHASE_COUNT}
+                THEN (
+                  (
+                    COALESCE(CASE WHEN rms_curr_l1 BETWEEN ${MIN_VALID_RMS_CURRENT_A} AND ${MAX_VALID_RMS_CURRENT_A} THEN rms_curr_l1 END, 0) +
+                    COALESCE(CASE WHEN rms_curr_l2 BETWEEN ${MIN_VALID_RMS_CURRENT_A} AND ${MAX_VALID_RMS_CURRENT_A} THEN rms_curr_l2 END, 0) +
+                    COALESCE(CASE WHEN rms_curr_l3 BETWEEN ${MIN_VALID_RMS_CURRENT_A} AND ${MAX_VALID_RMS_CURRENT_A} THEN rms_curr_l3 END, 0)
+                  ) / (
+                    (CASE WHEN rms_curr_l1 BETWEEN ${MIN_VALID_RMS_CURRENT_A} AND ${MAX_VALID_RMS_CURRENT_A} THEN 1 ELSE 0 END) +
+                    (CASE WHEN rms_curr_l2 BETWEEN ${MIN_VALID_RMS_CURRENT_A} AND ${MAX_VALID_RMS_CURRENT_A} THEN 1 ELSE 0 END) +
+                    (CASE WHEN rms_curr_l3 BETWEEN ${MIN_VALID_RMS_CURRENT_A} AND ${MAX_VALID_RMS_CURRENT_A} THEN 1 ELSE 0 END)
+                  )
+                ) * sqrt(3) * 400 * COALESCE(
+                  CASE
+                    WHEN pf_total BETWEEN ${MIN_VALID_POWER_FACTOR} AND ${MAX_VALID_POWER_FACTOR}
+                      AND pf_total <> 0
+                    THEN pf_total
+                  END,
+                  ${DEFAULT_COSPHI}
+                )
+              END
+            )::float8 AS peak_power_kw,
+            AVG(CASE WHEN rms_curr_l1 BETWEEN ${MIN_VALID_RMS_CURRENT_A} AND ${MAX_VALID_RMS_CURRENT_A} THEN rms_curr_l1 END)::float8 AS avg_l1,
+            AVG(CASE WHEN rms_curr_l2 BETWEEN ${MIN_VALID_RMS_CURRENT_A} AND ${MAX_VALID_RMS_CURRENT_A} THEN rms_curr_l2 END)::float8 AS avg_l2,
+            AVG(CASE WHEN rms_curr_l3 BETWEEN ${MIN_VALID_RMS_CURRENT_A} AND ${MAX_VALID_RMS_CURRENT_A} THEN rms_curr_l3 END)::float8 AS avg_l3
           FROM machine_snapshots
           WHERE timestamp >= ${args.from}::timestamptz
             AND timestamp < ${args.to}::timestamptz
