@@ -185,7 +185,8 @@
       "process": "Dati processo",
       "job": "Dati commessa",
       "technical": "Segnali tecnici",
-      "alarms": "Allarmi attivi"
+      "alarms": "Allarmi attivi",
+      "anomaly": "Anomalia macchina"
     },
     "states": {
       "notAvailable": "Non disponibile",
@@ -196,6 +197,38 @@
       "liveWaitingBody": "La macchina e connessa, ma il primo aggiornamento websocket non e ancora arrivato.",
       "alarmsTitle": "Nessun allarme attivo",
       "alarmsBody": "La macchina non ha allarmi attivi. Il monitoraggio live continua automaticamente."
+    },
+    "anomaly": {
+      "loading": "Caricamento segnale anomalia...",
+      "error": "Impossibile caricare i dati anomalia: {message}",
+      "liveScore": "Score live",
+      "observations": "Osservazioni",
+      "mode": "Modalita",
+      "learning": "Apprendimento",
+      "continuous": "Continuo",
+      "restartReset": "Si azzera al riavvio backend",
+      "liveDetector": "Stato detector live",
+      "lastObservation": "Ultima osservazione",
+      "warmup": "Warmup",
+      "topDriver": "Driver principale",
+      "replayTitle": "Replay storico",
+      "replay6h": "Replay 6h",
+      "replay24h": "Replay 24h",
+      "flaggedRows": "Righe segnalate",
+      "maxScore": "Score massimo",
+      "alarmContext": "Allarmi attivi nella finestra",
+      "recentEvents": "Eventi anomalia recenti",
+      "noEventsTitle": "Nessun evento anomalia persistito",
+      "noEventsBody": "Gli eventi anomalia segnalati appariranno qui dopo che il detector li avra trovati e salvati.",
+      "scoreLabel": "Score {score}",
+      "modeLabel": "Modalita {mode}",
+      "driverLabel": "Driver principale: {driver}",
+      "state": {
+        "flagged": "Segnalata",
+        "normal": "Normale",
+        "ready": "Pronta",
+        "warming": "In warmup"
+      }
     },
     "staleData": "Ultimo aggiornamento: {seconds}s fa",
     "noData": "---",

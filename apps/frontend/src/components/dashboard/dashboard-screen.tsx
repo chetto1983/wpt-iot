@@ -10,6 +10,7 @@ import { ProcessSnapshotCard } from './process-snapshot-card';
 import { JobSnapshotCard } from './job-snapshot-card';
 import { TechnicalSignalsCard } from './technical-signals-card';
 import { ActiveAlarmsPanel } from './active-alarms-panel';
+import { MachineAnomalyCard } from './machine-anomaly-card';
 
 export function DashboardScreen() {
   const { machineData, alarms, connected } = useWsData();
@@ -63,12 +64,15 @@ export function DashboardScreen() {
         <TechnicalSignalsCard machineData={machineData} />
       </section>
 
-      {/* Active Alarms */}
+      {/* Anomaly + Active Alarms */}
       <section
         className="opacity-0 animate-[fadeSlideIn_200ms_ease-out_forwards]"
         style={{ animationDelay: '180ms' }}
       >
-        <ActiveAlarmsPanel alarms={alarms} />
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+          <MachineAnomalyCard />
+          <ActiveAlarmsPanel alarms={alarms} />
+        </div>
       </section>
     </div>
   );

@@ -185,7 +185,8 @@
       "process": "Process snapshot",
       "job": "Job snapshot",
       "technical": "Technical signals",
-      "alarms": "Active alarms"
+      "alarms": "Active alarms",
+      "anomaly": "Machine anomaly"
     },
     "states": {
       "notAvailable": "Not available",
@@ -196,6 +197,38 @@
       "liveWaitingBody": "The machine is connected, but the first websocket update has not arrived yet.",
       "alarmsTitle": "No active alarms",
       "alarmsBody": "The machine has no active alarms. Live monitoring continues automatically."
+    },
+    "anomaly": {
+      "loading": "Loading anomaly signal...",
+      "error": "Unable to load anomaly data: {message}",
+      "liveScore": "Live score",
+      "observations": "Observations",
+      "mode": "Mode",
+      "learning": "Learning",
+      "continuous": "Continuous",
+      "restartReset": "Resets after backend restart",
+      "liveDetector": "Live detector state",
+      "lastObservation": "Last observation",
+      "warmup": "Warmup",
+      "topDriver": "Top driver",
+      "replayTitle": "Historical replay",
+      "replay6h": "Replay 6h",
+      "replay24h": "Replay 24h",
+      "flaggedRows": "Flagged rows",
+      "maxScore": "Max score",
+      "alarmContext": "Active alarms in window",
+      "recentEvents": "Recent anomaly events",
+      "noEventsTitle": "No persisted anomaly events",
+      "noEventsBody": "Flagged anomaly events will appear here after the detector finds and stores them.",
+      "scoreLabel": "Score {score}",
+      "modeLabel": "Mode {mode}",
+      "driverLabel": "Top driver: {driver}",
+      "state": {
+        "flagged": "Flagged",
+        "normal": "Normal",
+        "ready": "Ready",
+        "warming": "Warming up"
+      }
     },
     "staleData": "Last update: {seconds}s ago",
     "noData": "---",
