@@ -112,7 +112,6 @@ export default function JobsPage() {
     if (user?.role === 'CLIENT' || didAutoRead.current) return;
     didAutoRead.current = true;
     handleRead();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleRead = async () => {
