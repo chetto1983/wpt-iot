@@ -1,26 +1,25 @@
 /**
- * EnergyBaselineService
+ * EnergyBaselineService — Phase 20 ISO 50001 EnB + Savings math.
  *
- * Phase 20 — ISO 50001-compatible Energy Baseline (EnB) + Savings math.
+ * Schema (ensureSchema), append-only lockBaseline (ENBL-02), evidence freeze
+ * (ENBL-06), hard-reject + soft-warning savings math (ENBL-03/04/05/D-11),
+ * boot data-availability validator (ENBL-07). Row mappers + read-only
+ * freezeBaselineEvidence helper live in `energyBaselineMath.ts` to keep this
+ * file under the 500-line CLAUDE.md cap.
  *
- * Responsibilities:
- *   - Create `energy_baselines` + `baseline_evidence` tables via direct-SQL
- *     `ensureSchema()` (mirroring `EnergyConfigService.ensureTable()`).
- *   - Lock a baseline (append-only, no UPDATE endpoint — ENBL-02).
- *   - Freeze a `baseline_evidence` snapshot at lock time (ENBL-06).
- *   - Compute savings with hard-reject validation + soft warnings (ENBL-03, D-11).
- *   - Validate baseline data preservation on boot + per-request (ENBL-07).
- *
- * File size cap: 500 lines (CLAUDE.md).
- *
- * @see .planning/phases/20-energy-baseline-savings/20-CONTEXT.md D-01 through D-12
+ * @see .planning/phases/20-energy-baseline-savings/20-CONTEXT.md D-01..D-12
  * @see .planning/phases/20-energy-baseline-savings/20-RESEARCH.md
- * @see REQUIREMENTS.md §ENBL (ENBL-01 through ENBL-07)
  */
 
 import { sql } from 'drizzle-orm';
-import { db } from '../db/index.js';
+import { db, pool } from '../db/index.js';
+import {
+  freezeBaselineEvidence,
+  mapRowToBaseline,
+  mapRowToEvidence,
+} from './energyBaselineMath.js';
 import type {
+  BaselineWarning,
   IBaselineLockRequest,
   IBaselineLockResponse,
   IEnergyBaseline,
@@ -222,15 +221,35 @@ export function _computeSavingsFromScalars(input: IScalarsInput): ISavingsRespon
   };
 }
 
-export function _computeSoftWarnings(_input: {
+/**
+ * Compute soft quality warnings for a baseline lock (D-11).
+ * NON-blocking — the lock succeeds regardless. Warnings surface in the
+ * response body for the SUPER_ADMIN UI to render as a yellow banner.
+ *
+ * Thresholds:
+ *  - cycle_count < 20     → LOW_CYCLE_COUNT  (Pitfall 5c — non-representative sample)
+ *  - data_gap_ratio > 0.05 → HIGH_DATA_GAP_RATIO (>5% unaccounted buckets)
+ *
+ * Pure synchronous — no DB, no Date.now(), no side effects.
+ */
+export function _computeSoftWarnings(input: {
   cycleCount: number;
   dataGapRatio: number;
-}): Array<'LOW_CYCLE_COUNT' | 'HIGH_DATA_GAP_RATIO'> {
-  throw new Error('TODO Plan 03 — _computeSoftWarnings');
+}): BaselineWarning[] {
+  const warnings: BaselineWarning[] = [];
+  if (input.cycleCount < 20) warnings.push('LOW_CYCLE_COUNT');
+  if (input.dataGapRatio > 0.05) warnings.push('HIGH_DATA_GAP_RATIO');
+  return warnings;
 }
 
 // =============================================================================
 // EnergyBaselineService — static class (no instantiation).
+//
+// Row mappers (`mapRowToBaseline`, `mapRowToEvidence`) and the read-only
+// snapshot builder (`freezeBaselineEvidence`) live in `energyBaselineMath.ts`
+// to keep this file under the 500-line CLAUDE.md cap. The only DB writes for
+// Phase 20 are the BEGIN/COMMIT/ROLLBACK transaction inside `lockBaseline`
+// below, plus the idempotent `retired_at = NOW()` UPDATE in `retireBaseline`.
 // =============================================================================
 
 export class EnergyBaselineService {
@@ -281,20 +300,178 @@ export class EnergyBaselineService {
     `);
   }
 
-  static async lockBaseline(_req: IBaselineLockRequest): Promise<IBaselineLockResponse> {
-    throw new Error('TODO Plan 03 — lockBaseline');
+  /**
+   * Lock a new ISO 50001 EnB (method b, period-fixed baseline). Atomic TX
+   * (BEGIN/COMMIT/ROLLBACK on a dedicated pg client) wraps: retire previous
+   * active baseline → insert energy_baselines → insert baseline_evidence.
+   * Uses `pool.connect()` directly (Drizzle 0.45 transaction API differs
+   * from the BEGIN/COMMIT pattern Phase 19 uses).
+   *
+   * @throws {BaselineTooShortError} window < 14 days, period_from in future,
+   *                                 or total_kg === 0
+   */
+  static async lockBaseline(req: IBaselineLockRequest): Promise<IBaselineLockResponse> {
+    // ---- Step 1: validate window ----
+    const windowMs = req.periodTo.getTime() - req.periodFrom.getTime();
+    const fourteenDaysMs = 14 * 86_400_000;
+    if (windowMs < fourteenDaysMs) {
+      throw new BaselineTooShortError(
+        'Baseline window must be at least 14 days',
+        {
+          reason: 'window_too_short',
+          periodFrom: req.periodFrom.toISOString(),
+          periodTo: req.periodTo.toISOString(),
+          daysRequired: 14,
+          daysProvided: windowMs / 86_400_000,
+        },
+      );
+    }
+    if (req.periodFrom.getTime() > Date.now()) {
+      throw new BaselineTooShortError(
+        'Baseline period_from cannot be in the future',
+        {
+          reason: 'period_from_future',
+          periodFrom: req.periodFrom.toISOString(),
+        },
+      );
+    }
+
+    // ---- Step 2: freeze evidence (read-only — happens BEFORE the TX) ----
+    const frozen = await freezeBaselineEvidence(req.periodFrom, req.periodTo);
+
+    // ---- Step 3: enforce total_kg > 0 ----
+    if (frozen.totalKg <= 0) {
+      throw new BaselineTooShortError(
+        'No attributed production in baseline window — baseline is not representative',
+        {
+          reason: 'no_production',
+          periodFrom: req.periodFrom.toISOString(),
+          periodTo: req.periodTo.toISOString(),
+          totalKg: frozen.totalKg,
+          totalCycles: frozen.totalCycles,
+        },
+      );
+    }
+
+    // ---- Step 4: EnPI + soft warnings ----
+    const enpi = frozen.totalKwh / frozen.totalKg;
+    const warnings = _computeSoftWarnings({
+      cycleCount: frozen.totalCycles,
+      dataGapRatio: frozen.dataGapRatio,
+    });
+
+    // ---- Step 5: atomic transaction (BEGIN/COMMIT/ROLLBACK) ----
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+
+      // Retire any previously active baseline (idempotent — no-op if none)
+      await client.query(
+        `UPDATE energy_baselines
+            SET retired_at = NOW()
+          WHERE retired_at IS NULL`,
+      );
+
+      // Insert new baseline row
+      const insertBaselineResult = await client.query(
+        `INSERT INTO energy_baselines
+           (label, period_from, period_to, locked_at, justification,
+            normalization_variables, created_by)
+         VALUES ($1, $2, $3, NOW(), $4, $5::jsonb, NULL)
+         RETURNING baseline_id, label, period_from, period_to, locked_at,
+                   retired_at, justification, normalization_variables, created_by`,
+        [
+          req.label,
+          req.periodFrom.toISOString(),
+          req.periodTo.toISOString(),
+          req.justification ?? null,
+          JSON.stringify(req.normalizationVariables ?? {}),
+        ],
+      );
+      const baselineRow = insertBaselineResult.rows[0] as Record<string, unknown>;
+      const baselineId = Number(baselineRow.baseline_id);
+
+      // Insert baseline_evidence row
+      const insertEvidenceResult = await client.query(
+        `INSERT INTO baseline_evidence
+           (baseline_id, total_kwh, total_kg, total_cycles, enpi, total_eur,
+            total_kgco2, daily_series, locked_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, NOW())
+         RETURNING baseline_id, total_kwh, total_kg, total_cycles, enpi,
+                   total_eur, total_kgco2, daily_series, locked_at`,
+        [
+          baselineId,
+          frozen.totalKwh,
+          frozen.totalKg,
+          frozen.totalCycles,
+          enpi,
+          frozen.totalEur,
+          frozen.totalKgco2,
+          JSON.stringify(frozen.dailySeries),
+        ],
+      );
+      const evidenceRow = insertEvidenceResult.rows[0] as Record<string, unknown>;
+
+      await client.query('COMMIT');
+
+      return {
+        baseline: mapRowToBaseline(baselineRow),
+        evidence: mapRowToEvidence(evidenceRow),
+        warnings,
+      };
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
   }
 
-  static async retireBaseline(_baselineId: number): Promise<void> {
-    throw new Error('TODO Plan 03 — retireBaseline');
+  /**
+   * Sets `retired_at = NOW()` on the baseline. Idempotent — silent on
+   * "not found" or "already retired". The route handler owns the 404 check.
+   * No body fields (D-05). No cascade to baseline_evidence (retired baselines
+   * remain queryable forever).
+   */
+  static async retireBaseline(baselineId: number): Promise<void> {
+    await db.execute(sql`
+      UPDATE energy_baselines
+      SET retired_at = NOW()
+      WHERE baseline_id = ${baselineId}::bigint
+        AND retired_at IS NULL
+    `);
   }
 
+  /**
+   * Returns the most recent un-retired baseline, or null if none exists.
+   * D-04: used by the route handler when `baseline_id` query param is absent.
+   * Hits the composite index energy_baselines_active_lookup_idx.
+   */
   static async getActiveBaseline(): Promise<IEnergyBaseline | null> {
-    throw new Error('TODO Plan 03 — getActiveBaseline');
+    const result = await db.execute(sql`
+      SELECT *
+      FROM energy_baselines
+      WHERE retired_at IS NULL
+      ORDER BY locked_at DESC
+      LIMIT 1
+    `);
+    if (result.rows.length === 0) return null;
+    return mapRowToBaseline(result.rows[0] as Record<string, unknown>);
   }
 
-  static async getBaselineById(_baselineId: number): Promise<IEnergyBaseline | null> {
-    throw new Error('TODO Plan 03 — getBaselineById');
+  /**
+   * Returns the baseline with the given id, or null if not found.
+   * Retired baselines remain queryable forever (D-05). Never throws on
+   * not-found — the route handler owns the 404.
+   */
+  static async getBaselineById(baselineId: number): Promise<IEnergyBaseline | null> {
+    const result = await db.execute(sql`
+      SELECT *
+      FROM energy_baselines
+      WHERE baseline_id = ${baselineId}::bigint
+    `);
+    if (result.rows.length === 0) return null;
+    return mapRowToBaseline(result.rows[0] as Record<string, unknown>);
   }
 
   static async computeSavings(_req: {
