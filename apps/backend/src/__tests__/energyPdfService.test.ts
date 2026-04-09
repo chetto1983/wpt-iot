@@ -145,13 +145,13 @@ describe('energy pdf service task 02.1', () => {
       'savingsIndicator',
       'footer',
     ]);
-    expect(model.sectionOrder.slice(0, 6)).toEqual([
+    expect(model.implementedSectionKeys).toEqual([
       'header',
       'executiveSummary',
       'enpiTable',
       'enbDeclaration',
       'energyByPeriod',
-      'perCycleEfficiency',
+      'savingsIndicator',
     ]);
     expect(getAggregateMock).toHaveBeenCalledWith({
       from: new Date('2026-04-01T00:00:00.000Z'),
