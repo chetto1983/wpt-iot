@@ -1,0 +1,33 @@
+[Unit]
+Description=WPT IoT — Auto Deploy (poll origin/master, rebuild, ship)
+Documentation=https://github.com/chetto1983/wpt-iot/blob/master/scripts/AUTO-DEPLOY.md
+Wants=network-online.target docker.service
+After=network-online.target docker.service
+ConditionPathExists=/opt/wpt-deploy/wpt-iot/.git
+ConditionPathExists=/opt/wpt-deploy/wpt-iot/scripts/auto-deploy.sh
+
+[Service]
+Type=oneshot
+# Override defaults via /etc/default/wpt-auto-deploy if present
+EnvironmentFile=-/etc/default/wpt-auto-deploy
+ExecStart=/opt/wpt-deploy/wpt-iot/scripts/auto-deploy.sh
+# Run as root so we can ssh to customers as their user via /root/.ssh keys
+# and write to /var/log + /var/lib unattended. If you prefer a non-root
+# user, change User= here AND make sure that user owns /var/lib/wpt-deploy/
+# /var/log/wpt-auto-deploy.log AND has SSH keys for the customer hosts.
+User=root
+Group=root
+# Capture all stdout/stderr to journal so `journalctl -u wpt-auto-deploy`
+# shows the same content as the on-disk log file
+StandardOutput=journal
+StandardError=journal
+# Avoid stomping on a previous run if it's still going
+TimeoutStartSec=20min
+# Network/disk hardening — adjust if customer SSH or bundle dirs need wider access
+ProtectSystem=full
+ProtectHome=read-only
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,20 @@
+[Unit]
+Description=WPT IoT — Auto Deploy timer (poll every 5 minutes)
+Documentation=https://github.com/chetto1983/wpt-iot/blob/master/scripts/AUTO-DEPLOY.md
+Requires=wpt-auto-deploy.service
+
+[Timer]
+# Fire 2 minutes after boot, then every 5 minutes thereafter.
+# Each fire runs wpt-auto-deploy.service which polls origin/master and exits
+# if there's nothing new — so this is cheap (just a `git fetch`) when idle.
+OnBootSec=2min
+OnUnitActiveSec=5min
+# If the system was off when a tick was due, fire once immediately on boot
+Persistent=true
+# Add a small randomised delay so 50 machines don't all hit GitHub at the
+# exact same instant after a coordinated power-on
+RandomizedDelaySec=30sec
+Unit=wpt-auto-deploy.service
+
+[Install]
+WantedBy=timers.target

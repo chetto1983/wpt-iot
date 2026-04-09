@@ -1,0 +1,47 @@
+# =============================================================================
+# WPT IoT — Customer endpoints registry
+# =============================================================================
+# Used by scripts/auto-deploy.sh to ship rebuilt bundles to all customer
+# edge PCs after every successful golden-master build.
+#
+# Install path on the golden master:
+#   sudo mkdir -p /etc/wpt-auto-deploy
+#   sudo cp scripts/customers.conf.example /etc/wpt-auto-deploy/customers.conf
+#   sudo chmod 600 /etc/wpt-auto-deploy/customers.conf
+#   sudo chown root:root /etc/wpt-auto-deploy/customers.conf
+#
+# Format: one customer per line, three space-separated columns:
+#   <name>     human-readable label, used in logs (no spaces)
+#   <ssh>      user@host[:port], must be reachable via passwordless SSH
+#              (set up ssh-keygen + ssh-copy-id from the golden master ahead
+#              of time, OR have an ssh-agent running with the right key)
+#   <dir>      remote directory to drop the bundle into (created if missing)
+#
+# Lines starting with # and blank lines are ignored.
+#
+# Each customer must have:
+#   - sudo without a TTY password (or NOPASSWD for the install-offline.sh path)
+#   - Docker Engine + Compose v2 installed (one-time prereq, NOT shipped here)
+#   - The bundle .tar.gz unpacked + sudo bash install-offline.sh executed by
+#     the auto-deploy script (sudo install-offline.sh handles everything else)
+#
+# After deploy:
+#   - .env on the customer is preserved (DB password + admin password kept)
+#   - pgdata + uploads + mosquitto volumes preserved (machine history retained)
+#   - Only docker images + containers are replaced
+# =============================================================================
+
+# Example: production customers (commented out — uncomment + edit as needed)
+# wpt-rome-001    sacchi@192.168.10.50         /home/sacchi/wpt-deploy
+# wpt-milan-002   sacchi@10.0.5.20:2222        /home/sacchi/wpt-deploy
+# wpt-test-vm     sacchi@192.168.0.102          /home/sacchi/wpt-deploy
+
+# Notes on SSH setup from a fresh golden master:
+#   ssh-keygen -t ed25519 -N '' -f /root/.ssh/wpt-deploy
+#   ssh-copy-id -i /root/.ssh/wpt-deploy.pub sacchi@<customer>
+#   # Then add to /root/.ssh/config:
+#   #   Host wpt-rome-001
+#   #     HostName 192.168.10.50
+#   #     User sacchi
+#   #     IdentityFile /root/.ssh/wpt-deploy
+#   #     IdentitiesOnly yes
