@@ -11,6 +11,7 @@
     "db:push": "drizzle-kit push",
     "lint": "eslint src/",
     "test": "vitest run",
+    "test:anomaly:db": "vitest run src/__tests__/machineAnomalyReplayService.integration.test.ts",
     "test:watch": "vitest"
   },
   "dependencies": {
