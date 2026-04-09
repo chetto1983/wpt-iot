@@ -3,6 +3,7 @@ import { z } from 'zod/v4';
 import { EnergyAggregateService } from '../services/energyAggregateService.js';
 import { EnergyAttributionService } from '../services/energyAttributionService.js';
 import { machineAnomalyService } from '../services/machineAnomalyService.js';
+import { MachineAnomalyEvaluationService } from '../services/machineAnomalyEvaluationService.js';
 import { MachineAnomalyEventService } from '../services/machineAnomalyEventService.js';
 import { MachineAnomalyReplayService } from '../services/machineAnomalyReplayService.js';
 import { MachineAnomalyScenarioService } from '../services/machineAnomalyScenarioService.js';
@@ -65,6 +66,15 @@ const anomalyReplaySchema = z.object({
   to: z.string().datetime(),
   maxRows: z.number().int().min(100).max(50000).optional(),
   topN: z.number().int().min(1).max(100).optional(),
+});
+
+const anomalyEvaluationSchema = z.object({
+  from: z.string().datetime(),
+  to: z.string().datetime(),
+  maxRows: z.number().int().min(100).max(50000).optional(),
+  topN: z.number().int().min(1).max(100).optional(),
+  alarmLeadMinutes: z.number().int().min(0).max(120).optional(),
+  alarmLagMinutes: z.number().int().min(0).max(120).optional(),
 });
 
 const anomalyEventsQuerySchema = z.object({
@@ -359,6 +369,43 @@ export const energyRoutes: FastifyPluginAsync = async (server) => {
       server.log.error(
         { name: 'MachineAnomalyReplay', err: (err as Error).message },
         'Historical anomaly replay failed',
+      );
+      return reply.code(500).send({ error: 'Internal error' });
+    }
+  });
+
+  server.post('/api/energy/anomaly/evaluate', async (request, reply) => {
+    const parsed = anomalyEvaluationSchema.safeParse(request.body);
+    if (!parsed.success) {
+      return reply
+        .code(400)
+        .send({ error: 'Invalid request body', issues: parsed.error.issues });
+    }
+
+    const from = new Date(parsed.data.from);
+    const to = new Date(parsed.data.to);
+    if (!Number.isFinite(from.getTime()) || !Number.isFinite(to.getTime())) {
+      return reply.code(400).send({ error: 'Invalid from/to datetime' });
+    }
+    if (from >= to) {
+      return reply.code(400).send({ error: 'from must be strictly before to' });
+    }
+
+    try {
+      return reply.send(
+        await MachineAnomalyEvaluationService.evaluate({
+          from,
+          to,
+          maxRows: parsed.data.maxRows,
+          topN: parsed.data.topN,
+          alarmLeadMinutes: parsed.data.alarmLeadMinutes,
+          alarmLagMinutes: parsed.data.alarmLagMinutes,
+        }),
+      );
+    } catch (err) {
+      server.log.error(
+        { name: 'MachineAnomalyEvaluate', err: (err as Error).message },
+        'Historical anomaly evaluation failed',
       );
       return reply.code(500).send({ error: 'Internal error' });
     }
