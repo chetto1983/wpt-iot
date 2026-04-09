@@ -3,7 +3,7 @@
 How to install, update, debug, and roll back `wpt-iot` on customer machines.
 The production layout is:
 - `https://wpt.local` for the frontend
-- `https://api.wpt.local` for the API and websocket
+- `https://wpt.local/api` for the API and websocket
 - nginx terminates TLS on the edge machine
 - the backend still runs with `network_mode: host` so PLC UDP reaches it
 
@@ -24,15 +24,15 @@ What it does:
 1. Installs Docker Engine + Compose v2 if missing.
 2. Stops conflicting host services such as Grafana and host Mosquitto.
 3. Downloads `docker-compose.yml`, `docker-compose.prod.yml`, `docker-compose.https.yml`, the nginx template, and the TLS helper into `/opt/wpt-iot`.
-4. Publishes `wpt.local` and `api.wpt.local` over mDNS with Avahi.
+4. Publishes `wpt.local` over mDNS with Avahi.
 5. Generates `.env` with random secrets if needed.
-6. Generates a local CA plus the server cert for `wpt.local` and `api.wpt.local`.
+6. Generates a local CA plus the server cert for `wpt.local`.
 7. Pulls the GHCR images and starts the stack.
 8. Verifies backend health, nginx health, and the HTTPS frontend.
 
 After install:
 - app: `https://wpt.local`
-- API: `https://api.wpt.local/health`
+- API: `https://wpt.local/api/health`
 - local CA: `/opt/wpt-iot/certs/wpt-local-ca.crt`
 
 Important: client devices must trust `/opt/wpt-iot/certs/wpt-local-ca.crt` or the browser will reject the certificate and the PWA secure-context checks will still fail.
@@ -65,7 +65,7 @@ GitHub Actions builds and publishes:
 - `ghcr.io/<owner>/wpt-backend:latest`
 - `ghcr.io/<owner>/wpt-frontend:latest`
 
-The workflow now bakes `NEXT_PUBLIC_API_URL=https://api.wpt.local` into the published frontend image so every customer machine can use the same frontend artifact.
+The workflow now bakes `NEXT_PUBLIC_API_URL=https://wpt.local/api` into the published frontend image so every customer machine can use the same frontend artifact.
 
 Watchtower updates the labelled backend/frontend containers automatically.
 
@@ -138,5 +138,5 @@ sudo tcpdump -i <iface> -n 'udp and port 9090 or port 9091' -c 5
 
 1. Trust the local CA on client devices. Without that, HTTPS exists but the browser will not treat the origin as trustworthy enough for service workers and PWA installability.
 2. `network_mode: host` on the backend is mandatory. Do not move the backend back to bridge networking if the machine talks to a real PLC.
-3. Access the app at `https://wpt.local`, not `http://<LAN_IP>:3001`. The published frontend image is baked for `https://api.wpt.local`.
-4. `wpt.local` and `api.wpt.local` depend on mDNS. If the client is on another VLAN or routed network, either fix name resolution or deploy real DNS with matching certificates.
+3. Access the app at `https://wpt.local`, not `http://<LAN_IP>:3001`. The published frontend image is baked for `https://wpt.local/api`.
+4. `wpt.local` depends on mDNS. If the client is on another VLAN or routed network, either fix name resolution or deploy real DNS with matching certificates.

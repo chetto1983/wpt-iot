@@ -22,9 +22,9 @@ After setup:
 | Simulator  | http://localhost:3002   |
 | Database   | localhost:5432          |
 
-For Linux installs that use the compose HTTPS overlay, the user-facing URLs are:
-- `https://wpt.local` for the app shell
-- `https://api.wpt.local` for API + websocket traffic
+For Linux installs that use the compose HTTPS overlay, the user-facing URL is:
+- `https://wpt.local` for the app shell and API proxy
+- API traffic is same-origin under `https://wpt.local/api`
 - trust the generated local CA before testing PWA installability
 
 Login: `admin` / password in `.env` (`ADMIN_PASSWORD`)

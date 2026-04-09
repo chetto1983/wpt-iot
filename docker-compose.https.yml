@@ -15,7 +15,6 @@ services:
     environment:
       DOLLAR: "$"
       FRONTEND_SERVER_NAME: ${WPT_FRONTEND_HOST:-wpt.local}
-      API_SERVER_NAME: ${WPT_API_HOST:-api.wpt.local}
       FRONTEND_UPSTREAM: frontend:3001
       BACKEND_UPSTREAM: host.docker.internal:${PORT:-3000}
       TLS_CERT_PATH: /etc/nginx/certs/server.crt

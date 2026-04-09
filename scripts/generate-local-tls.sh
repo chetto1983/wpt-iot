@@ -23,7 +23,7 @@ if ! command -v openssl >/dev/null 2>&1; then
   exit 1
 fi
 
-ALT_NAMES=$'DNS.1 = wpt.local\nDNS.2 = api.wpt.local\nDNS.3 = localhost\nIP.1 = 127.0.0.1'
+ALT_NAMES=$'DNS.1 = wpt.local\nDNS.2 = localhost\nIP.1 = 127.0.0.1'
 if [[ -n "${LAN_IP}" ]]; then
   ALT_NAMES+=$'\nIP.2 = '"${LAN_IP}"
 fi

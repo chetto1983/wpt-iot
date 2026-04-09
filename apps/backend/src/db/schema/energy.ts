@@ -7,6 +7,9 @@ import {
   timestamp,
   jsonb,
   index,
+  bigint,
+  bigserial,
+  text,
 } from 'drizzle-orm/pg-core';
 
 /**
@@ -133,3 +136,49 @@ export type EnergyConfigRow = typeof energyConfig.$inferSelect;
 export type EnergyConfigPeriodRow = typeof energyConfigPeriods.$inferSelect;
 export type CycleRecordRow = typeof cycleRecords.$inferSelect;
 export type CycleResetRow = typeof cycleResets.$inferSelect;
+
+// =============================================================================
+// Phase 20 — Energy Baseline & Savings
+// Type inference only. Canonical creator: EnergyBaselineService.ensureSchema().
+// =============================================================================
+
+export const energyBaselines = pgTable(
+  'energy_baselines',
+  {
+    baselineId: bigserial('baseline_id', { mode: 'number' }).primaryKey(),
+    label: text('label').notNull(),
+    periodFrom: timestamp('period_from', { withTimezone: true }).notNull(),
+    periodTo: timestamp('period_to', { withTimezone: true }).notNull(),
+    lockedAt: timestamp('locked_at', { withTimezone: true }).notNull().defaultNow(),
+    retiredAt: timestamp('retired_at', { withTimezone: true }),
+    justification: text('justification'),
+    normalizationVariables: jsonb('normalization_variables').notNull().default({}),
+    createdBy: text('created_by'),
+  },
+  (t) => [
+    index('energy_baselines_active_lookup_idx').on(t.retiredAt, t.lockedAt),
+    index('energy_baselines_period_from_idx').on(t.periodFrom),
+  ],
+);
+
+export const baselineEvidence = pgTable(
+  'baseline_evidence',
+  {
+    baselineId: bigint('baseline_id', { mode: 'number' })
+      .notNull()
+      .unique()
+      .references(() => energyBaselines.baselineId, { onDelete: 'restrict' }),
+    totalKwh: real('total_kwh').notNull(),
+    totalKg: real('total_kg').notNull(),
+    totalCycles: integer('total_cycles').notNull(),
+    enpi: real('enpi').notNull(),
+    totalEur: real('total_eur').notNull(),
+    totalKgco2: real('total_kgco2').notNull(),
+    dailySeries: jsonb('daily_series').notNull(),
+    lockedAt: timestamp('locked_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('baseline_evidence_baseline_id_idx').on(t.baselineId)],
+);
+
+export type EnergyBaselineRow = typeof energyBaselines.$inferSelect;
+export type BaselineEvidenceRow = typeof baselineEvidence.$inferSelect;

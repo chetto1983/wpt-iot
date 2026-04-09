@@ -188,7 +188,7 @@ else
   # Apply production overrides
   sed -i 's/^PG_HOST=.*/PG_HOST=127.0.0.1/' "$ENV_FILE"
   sed -i 's/^CORS_ORIGIN=.*/CORS_ORIGIN=https:\/\/wpt.local/' "$ENV_FILE"
-  sed -i 's/^NEXT_PUBLIC_API_URL=.*/NEXT_PUBLIC_API_URL=https:\/\/api.wpt.local/' "$ENV_FILE"
+  sed -i 's/^NEXT_PUBLIC_API_URL=.*/NEXT_PUBLIC_API_URL=https:\/\/wpt.local\/api/' "$ENV_FILE"
   sed -i 's/^SESSION_COOKIE_SECURE=.*/SESSION_COOKIE_SECURE=true/' "$ENV_FILE" || true
   sed -i 's/^TRUST_PROXY=.*/TRUST_PROXY=true/' "$ENV_FILE" || true
 

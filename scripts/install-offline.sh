@@ -93,7 +93,7 @@ else
 
   cat > /etc/systemd/system/wpt-local-alias.service <<'UNITEOF'
 [Unit]
-Description=Publish wpt.local and api.wpt.local as mDNS aliases of this host
+Description=Publish wpt.local as an mDNS alias of this host
 After=avahi-daemon.service network-online.target
 Requires=avahi-daemon.service
 Wants=network-online.target
@@ -147,7 +147,7 @@ services:
 
   frontend:
     environment:
-      NEXT_PUBLIC_API_URL: https://api.wpt.local
+      NEXT_PUBLIC_API_URL: https://wpt.local/api
 HOSTEOF
 ok "Host overlay generated."
 
@@ -180,7 +180,7 @@ SIM_USERS_PORT=9092
 SESSION_SECRET=${SESSION_SECRET}
 ADMIN_PASSWORD=${ADMIN_PASSWORD}
 CORS_ORIGIN=https://wpt.local
-NEXT_PUBLIC_API_URL=https://api.wpt.local
+NEXT_PUBLIC_API_URL=https://wpt.local/api
 SESSION_COOKIE_SECURE=true
 TRUST_PROXY=true
 MQTT_HOST=127.0.0.1
@@ -195,7 +195,7 @@ ENVEOF
   ok ".env generated with random secrets."
 else
   upsert_env "${INSTALL_DIR}/.env" "CORS_ORIGIN" "https://wpt.local"
-  upsert_env "${INSTALL_DIR}/.env" "NEXT_PUBLIC_API_URL" "https://api.wpt.local"
+  upsert_env "${INSTALL_DIR}/.env" "NEXT_PUBLIC_API_URL" "https://wpt.local/api"
   upsert_env "${INSTALL_DIR}/.env" "SESSION_COOKIE_SECURE" "true"
   upsert_env "${INSTALL_DIR}/.env" "TRUST_PROXY" "true"
   ok ".env preserved and updated for HTTPS."
@@ -249,7 +249,7 @@ echo "  WPT IoT installed and running"
 echo -e "==========================================${NC}"
 echo ""
 echo "  Frontend:    https://wpt.local"
-echo "  API:         https://api.wpt.local/health"
+echo "  API:         https://wpt.local/api/health"
 echo "  Local CA:    ${INSTALL_DIR}/certs/wpt-local-ca.crt"
 echo "  Install dir: ${INSTALL_DIR}"
 echo ""

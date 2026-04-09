@@ -69,10 +69,10 @@ jobs:
           cache-from: type=gha,scope=${{ matrix.app }}
           cache-to: type=gha,mode=max,scope=${{ matrix.app }}
           # Frontend bundle bakes the API URL at build time. Customer machines
-          # all use the same HTTPS API origin once the nginx TLS overlay is
+          # all use the same HTTPS origin once the nginx TLS overlay is
           # installed on the edge machine.
           build-args: |
-            NEXT_PUBLIC_API_URL=https://api.wpt.local
+            NEXT_PUBLIC_API_URL=https://wpt.local/api
 
       - name: Image digest
         run: echo "${{ matrix.app }} digest = ${{ steps.meta.outputs.json && fromJSON(steps.meta.outputs.json).tags[0] }}"

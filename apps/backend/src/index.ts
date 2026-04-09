@@ -7,6 +7,7 @@ import { initBroadcaster, shutdownBroadcaster } from './ws/broadcaster.js';
 import { connectMqtt, disconnectMqtt } from './mqtt/connectionManager.js';
 import { MqttConfigService } from './mqtt/configService.js';
 import { EnergyConfigService } from './services/energyConfigService.js';
+import { EnergyBaselineService } from './services/energyBaselineService.js';
 import { PlcConfigService, setPlcConfigLogger } from './udp/plcConfigService.js';
 import { MachineSchemaMigrationService } from './db/machineSchemaMigrationService.js';
 import { pool } from './db/index.js';
@@ -77,6 +78,12 @@ async function main(): Promise<void> {
     // cycle_resets). Direct SQL idempotent — never drizzle-kit push.
     // Pattern mirrors MqttConfigService.ensureTable() exactly. ECFG-01..06.
     await EnergyConfigService.ensureTable();
+
+    // Phase 20 baseline schema — energy_baselines + baseline_evidence.
+    // Direct SQL idempotent CREATE TABLE IF NOT EXISTS. Must run AFTER
+    // EnergyConfigService.ensureTable() because Phase 20 references the
+    // `energy_config_periods` values at lock time (ENBL-01, ENBL-06).
+    await EnergyBaselineService.ensureSchema();
 
     // Ensure PLC config table exists with default row (target_host='localhost').
     // Operators update the target from the frontend (SUPER_ADMIN only) and the

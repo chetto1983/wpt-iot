@@ -19,7 +19,7 @@
 set -euo pipefail
 
 OUTPUT_DIR="${OUTPUT_DIR:-/tmp}"
-NEXT_PUBLIC_API_URL="${NEXT_PUBLIC_API_URL:-https://api.wpt.local}"
+NEXT_PUBLIC_API_URL="${NEXT_PUBLIC_API_URL:-https://wpt.local/api}"
 SKIP_BUILD="${SKIP_BUILD:-0}"
 
 RED='\033[0;31m'

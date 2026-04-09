@@ -49,7 +49,7 @@ step "WPT IoT Linux Installer"
 info "Project dir: $PROJECT_DIR"
 info "Detected LAN IP: $LAN_IP"
 info "Frontend URL: https://wpt.local"
-info "API URL: https://api.wpt.local"
+info "API URL: https://wpt.local/api"
 info "Backend UDP path: host networking"
 
 step "Step 1/9  Stop conflicting host services"
@@ -97,7 +97,7 @@ sudo install -m 0755 "${SCRIPT_DIR}/wpt-local-alias.sh" /usr/local/sbin/wpt-loca
 
 sudo tee /etc/systemd/system/wpt-local-alias.service > /dev/null << 'UNITEOF'
 [Unit]
-Description=Publish wpt.local and api.wpt.local mDNS aliases for WPT IoT
+Description=Publish wpt.local mDNS alias for WPT IoT
 After=avahi-daemon.service network-online.target
 Requires=avahi-daemon.service
 Wants=network-online.target
@@ -134,7 +134,7 @@ else
 fi
 
 upsert_env "CORS_ORIGIN" "https://wpt.local"
-upsert_env "NEXT_PUBLIC_API_URL" "https://api.wpt.local"
+upsert_env "NEXT_PUBLIC_API_URL" "https://wpt.local/api"
 upsert_env "SESSION_COOKIE_SECURE" "true"
 upsert_env "TRUST_PROXY" "true"
 ok ".env updated for HTTPS + secure cookies."
@@ -158,9 +158,9 @@ services:
   frontend:
     build:
       args:
-        NEXT_PUBLIC_API_URL: https://api.wpt.local
+        NEXT_PUBLIC_API_URL: https://wpt.local/api
     environment:
-      NEXT_PUBLIC_API_URL: https://api.wpt.local
+      NEXT_PUBLIC_API_URL: https://wpt.local/api
 EOF
 ok "docker-compose.host.yml written."
 
@@ -253,7 +253,7 @@ echo "  WPT IoT installed and running"
 echo -e "==========================================${NC}"
 echo ""
 echo "  Frontend:    https://wpt.local"
-echo "  API:         https://api.wpt.local/health"
+echo "  API:         https://wpt.local/api/health"
 echo "  Local CA:    ${PROJECT_DIR}/certs/wpt-local-ca.crt"
 echo "  Backend:     http://127.0.0.1:3000/health (maintenance only)"
 echo ""

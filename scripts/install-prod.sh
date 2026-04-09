@@ -48,7 +48,7 @@ info "Repo:     ${REPO_OWNER}/${REPO_NAME}@${BRANCH}"
 info "Install:  ${INSTALL_DIR}"
 info "LAN IP:   ${LAN_IP}"
 info "Frontend: https://wpt.local"
-info "API:      https://api.wpt.local"
+info "API:      https://wpt.local/api"
 
 step "Step 1/7  Docker Engine + Compose v2"
 
@@ -109,7 +109,7 @@ services:
 
   frontend:
     environment:
-      NEXT_PUBLIC_API_URL: https://api.wpt.local
+      NEXT_PUBLIC_API_URL: https://wpt.local/api
 HOSTEOF
 ok "Compose files and helpers downloaded."
 
@@ -120,7 +120,7 @@ install -m 0755 "${INSTALL_DIR}/wpt-local-alias.sh" /usr/local/sbin/wpt-local-al
 
 cat > /etc/systemd/system/wpt-local-alias.service <<'UNITEOF'
 [Unit]
-Description=Publish wpt.local and api.wpt.local mDNS aliases for WPT IoT
+Description=Publish wpt.local mDNS alias for WPT IoT
 After=avahi-daemon.service network-online.target
 Requires=avahi-daemon.service
 Wants=network-online.target
@@ -173,7 +173,7 @@ SIM_USERS_PORT=9092
 SESSION_SECRET=${SESSION_SECRET}
 ADMIN_PASSWORD=${ADMIN_PASSWORD}
 CORS_ORIGIN=https://wpt.local
-NEXT_PUBLIC_API_URL=https://api.wpt.local
+NEXT_PUBLIC_API_URL=https://wpt.local/api
 SESSION_COOKIE_SECURE=true
 TRUST_PROXY=true
 ENVEOF
@@ -181,7 +181,7 @@ ENVEOF
   ok ".env generated with random secrets."
 else
   upsert_env .env "CORS_ORIGIN" "https://wpt.local"
-  upsert_env .env "NEXT_PUBLIC_API_URL" "https://api.wpt.local"
+  upsert_env .env "NEXT_PUBLIC_API_URL" "https://wpt.local/api"
   upsert_env .env "SESSION_COOKIE_SECURE" "true"
   upsert_env .env "TRUST_PROXY" "true"
   ok ".env preserved and updated for HTTPS."
@@ -232,7 +232,7 @@ echo "  WPT IoT installed and running"
 echo -e "==========================================${NC}"
 echo ""
 echo "  Frontend:    https://wpt.local"
-echo "  API:         https://api.wpt.local/health"
+echo "  API:         https://wpt.local/api/health"
 echo "  Local CA:    ${INSTALL_DIR}/certs/wpt-local-ca.crt"
 echo "  Install dir: ${INSTALL_DIR}"
 echo ""
