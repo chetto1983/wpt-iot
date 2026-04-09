@@ -776,6 +776,7 @@
     "savings": {
       "kicker": "Baseline",
       "title": "Risparmio vs baseline",
+      "createAction": "Imposta baseline",
       "below": "Consumo sotto baseline",
       "above": "Consumo sopra baseline",
       "flat": "Allineato alla baseline",
@@ -787,7 +788,25 @@
       "impactCo2": "Impatto CO2",
       "noBaselineBadge": "Nessuna baseline attiva",
       "noBaseline": "Blocca una baseline attiva per confrontare questo intervallo con una finestra di riferimento ISO 50001.",
-      "unavailable": "I dati di risparmio non sono disponibili per l'intervallo selezionato."
+      "unavailable": "I dati di risparmio non sono disponibili per l'intervallo selezionato.",
+      "baselineDialog": {
+        "title": "Blocca baseline",
+        "description": "Seleziona una finestra storica da usare come riferimento per il confronto energetico.",
+        "label": "Etichetta",
+        "periodFrom": "Da",
+        "periodTo": "A",
+        "justification": "Nota operativa",
+        "justificationPlaceholder": "Motivazione o note opzionali",
+        "submit": "Blocca baseline",
+        "success": "Baseline bloccata",
+        "validationLabel": "Inserisci un'etichetta per la baseline.",
+        "validationRange": "La data finale deve essere successiva a quella iniziale.",
+        "validationWindow": "La baseline deve coprire almeno 14 giorni.",
+        "warnings": {
+          "lowCycleCount": "Baseline bloccata con pochi cicli nel periodo selezionato.",
+          "highDataGapRatio": "Baseline bloccata con una quota elevata di gap dati nel periodo selezionato."
+        }
+      }
     },
     "reconciliation": {
       "kicker": "Accounting",

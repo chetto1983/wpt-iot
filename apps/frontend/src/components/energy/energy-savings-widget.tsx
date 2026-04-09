@@ -3,21 +3,30 @@
 import { useTranslations } from 'next-intl';
 import { formatItEur, formatItKgCO2, formatItKwh, type IEnergyDashboardSummary } from '@wpt/types';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 
 interface EnergySavingsWidgetProps {
   summary: IEnergyDashboardSummary | null;
   loading: boolean;
+  canManageBaseline?: boolean;
+  onCreateBaseline?: () => void;
 }
 
 function formatDeltaPct(value: number): string {
   return `${Math.abs(value).toFixed(1)}%`;
 }
 
-export function EnergySavingsWidget({ summary, loading }: EnergySavingsWidgetProps) {
+export function EnergySavingsWidget({
+  summary,
+  loading,
+  canManageBaseline = false,
+  onCreateBaseline,
+}: EnergySavingsWidgetProps) {
   const t = useTranslations('energy');
   const savings = summary?.savings ?? null;
+  const showCreateBaseline = summary?.savingsUnavailableReason === 'NO_ACTIVE_BASELINE' && canManageBaseline && onCreateBaseline;
   const status =
     savings == null
       ? 'empty'
@@ -48,6 +57,11 @@ export function EnergySavingsWidget({ summary, loading }: EnergySavingsWidgetPro
                 ? t('savings.noBaseline')
                 : t('savings.unavailable')}
             </p>
+            {showCreateBaseline ? (
+              <Button type="button" variant="outline" onClick={onCreateBaseline} className="w-full sm:w-auto">
+                {t('savings.createAction')}
+              </Button>
+            ) : null}
           </div>
         ) : (
           <>

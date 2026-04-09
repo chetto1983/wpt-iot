@@ -24,9 +24,9 @@ import {
   EnergyReconciliationQuerySchema,
   SavingsQuerySchema,
   type EnergyBucket,
-  type UserRole,
+  UserRole,
 } from '@wpt/types';
-import { requireAuth } from '../auth/authHooks.js';
+import { requireAuth, requireRole } from '../auth/authHooks.js';
 import { EnergyDashboardService } from '../services/energyDashboardService.js';
 
 /**
@@ -501,9 +501,8 @@ export const energyRoutes: FastifyPluginAsync = async (server) => {
   // Phase 20 — POST /api/energy/baseline/lock
   //
   // Insert a new baseline row + freeze evidence snapshot. No UPDATE/PUT/PATCH.
-  // AUTH CAVEAT (Phase 19 inherited): no requireAuth preHandler — T-19-26/T-19-28.
   // =========================================================================
-  server.post('/api/energy/baseline/lock', async (request, reply) => {
+  server.post('/api/energy/baseline/lock', { preHandler: requireRole(UserRole.SUPER_ADMIN) }, async (request, reply) => {
     const parsed = BaselineLockRequestSchema.safeParse(request.body);
     if (!parsed.success) {
       return reply
@@ -551,6 +550,7 @@ export const energyRoutes: FastifyPluginAsync = async (server) => {
   // =========================================================================
   server.post<{ Params: { id: string } }>(
     '/api/energy/baseline/:id/retire',
+    { preHandler: requireRole(UserRole.SUPER_ADMIN) },
     async (request, reply) => {
       const baselineId = Number(request.params.id);
       if (!Number.isFinite(baselineId) || baselineId <= 0) {

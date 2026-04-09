@@ -776,6 +776,7 @@
     "savings": {
       "kicker": "Baseline",
       "title": "Savings versus baseline",
+      "createAction": "Set baseline",
       "below": "Below baseline consumption",
       "above": "Above baseline consumption",
       "flat": "Aligned with baseline",
@@ -787,7 +788,25 @@
       "impactCo2": "Impact CO2",
       "noBaselineBadge": "No active baseline",
       "noBaseline": "Lock an active baseline to compare this range with an ISO 50001 reference window.",
-      "unavailable": "Savings data is currently unavailable for the selected window."
+      "unavailable": "Savings data is currently unavailable for the selected window.",
+      "baselineDialog": {
+        "title": "Lock baseline",
+        "description": "Select a historical window to use as the reference for energy comparison.",
+        "label": "Label",
+        "periodFrom": "From",
+        "periodTo": "To",
+        "justification": "Operational note",
+        "justificationPlaceholder": "Optional reason or notes",
+        "submit": "Lock baseline",
+        "success": "Baseline locked",
+        "validationLabel": "Enter a label for the baseline.",
+        "validationRange": "The end date must be later than the start date.",
+        "validationWindow": "The baseline window must cover at least 14 days.",
+        "warnings": {
+          "lowCycleCount": "Baseline locked with a low cycle count in the selected window.",
+          "highDataGapRatio": "Baseline locked with a high data gap ratio in the selected window."
+        }
+      }
     },
     "reconciliation": {
       "kicker": "Accounting",

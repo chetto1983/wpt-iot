@@ -37,7 +37,13 @@ export async function apiFetch<T>(
   }
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
-    throw new Error((body as Record<string, string>).error ?? `Request failed: ${res.status}`);
+    const errorMessage =
+      typeof (body as { error?: unknown }).error === 'string'
+        ? (body as { error: string }).error
+        : typeof (body as { error?: { message?: unknown } }).error?.message === 'string'
+          ? (body as { error: { message: string } }).error.message
+          : `Request failed: ${res.status}`;
+    throw new Error(errorMessage);
   }
   if (res.status === 204) return undefined as T;
   return res.json() as Promise<T>;

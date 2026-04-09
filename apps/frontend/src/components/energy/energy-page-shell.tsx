@@ -11,8 +11,10 @@ import {
   type IEnergyReconciliationResponse,
 } from '@wpt/types';
 import { apiFetch } from '@/lib/api';
+import { useAuth } from '@/lib/auth-context';
 import { useWsData } from '@/lib/ws-context';
 import { Badge } from '@/components/ui/badge';
+import { BaselineLockDialog } from './baseline-lock-dialog';
 import { EnergyCyclesTable, buildEnergyCyclesPath } from './energy-cycles-table';
 import { EnergyKpiGrid } from './energy-kpi-grid';
 import { EnergyRangeControls } from './energy-range-controls';
@@ -21,11 +23,25 @@ import { EnergySavingsWidget } from './energy-savings-widget';
 import { EnergyTrendCard, buildEnergyAggregatePath } from './energy-trend-card';
 
 type EnergyPreset = 'last7d' | 'last30d' | 'last12mo' | 'custom';
+const MIN_BASELINE_WINDOW_MS = 14 * 24 * 60 * 60 * 1000;
 
 function getDefaultRange(): { from: Date; to: Date } {
   const to = new Date();
   const from = new Date(to.getTime() - 7 * 24 * 60 * 60 * 1000);
   return { from, to };
+}
+
+function getSuggestedBaselineWindow(from: Date, to: Date): { from: Date; to: Date } {
+  const now = new Date();
+  const safeTo = to.getTime() > now.getTime() ? now : to;
+  if (safeTo.getTime() - from.getTime() >= MIN_BASELINE_WINDOW_MS && from.getTime() < now.getTime()) {
+    return { from, to: safeTo };
+  }
+
+  return {
+    from: new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000),
+    to: now,
+  };
 }
 
 function buildEnergyDashboardPath(from: Date, to: Date): string {
@@ -38,6 +54,7 @@ function buildEnergyDashboardPath(from: Date, to: Date): string {
 
 export function EnergyPageShell() {
   const t = useTranslations('energy');
+  const { user } = useAuth();
   const { machineData, connected, lastUpdate } = useWsData();
   const initialRange = getDefaultRange();
   const [from, setFrom] = useState(initialRange.from);
@@ -59,6 +76,7 @@ export function EnergyPageShell() {
   const [reconciliationError, setReconciliationError] = useState<string | null>(null);
   const [lastFetchedAt, setLastFetchedAt] = useState<Date | null>(null);
   const [refreshTick, setRefreshTick] = useState(0);
+  const [baselineDialogOpen, setBaselineDialogOpen] = useState(false);
   const summaryAbortRef = useRef<AbortController | null>(null);
   const widgetsAbortRef = useRef<AbortController | null>(null);
   const showSummaryLoading = summaryLoading && summary == null;
@@ -68,6 +86,8 @@ export function EnergyPageShell() {
 
   const liveSignal = `${connected}:${lastUpdate?.getTime() ?? 0}:${machineData?.energyConsumption ?? 0}:${machineData?.completedCycles ?? 0}`;
   const deferredLiveSignal = useDeferredValue(liveSignal);
+  const canManageBaseline = user?.role === 'SUPER_ADMIN';
+  const baselineWindow = getSuggestedBaselineWindow(from, to);
 
   useEffect(() => {
     if (refreshInterval === 0) return;
@@ -219,7 +239,12 @@ export function EnergyPageShell() {
         lastUpdate={lastUpdate}
       />
 
-      <EnergySavingsWidget summary={summary} loading={showSummaryLoading} />
+      <EnergySavingsWidget
+        summary={summary}
+        loading={showSummaryLoading}
+        canManageBaseline={canManageBaseline}
+        onCreateBaseline={() => setBaselineDialogOpen(true)}
+      />
 
       <EnergyTrendCard
         aggregate={aggregate}
@@ -239,6 +264,16 @@ export function EnergyPageShell() {
         data={cycles}
         loading={showCyclesLoading}
         error={cyclesError}
+      />
+
+      <BaselineLockDialog
+        open={baselineDialogOpen}
+        onOpenChange={setBaselineDialogOpen}
+        suggestedFrom={baselineWindow.from}
+        suggestedTo={baselineWindow.to}
+        onLocked={() => {
+          setRefreshTick((value) => value + 1);
+        }}
       />
     </div>
   );
