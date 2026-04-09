@@ -121,12 +121,105 @@ export interface IValidationInput {
   measurementTo: Date;
 }
 
-export function _validateSavingsWindows(_input: IValidationInput): void {
-  throw new Error('TODO Plan 02 — _validateSavingsWindows');
+/**
+ * Hard-reject savings computation when the input windows are invalid (ENBL-03).
+ *
+ * Rules enforced here:
+ *  - No overlap: `baselinePeriodTo < measurementFrom` required (Pitfall 5b)
+ *  - Measurement window must be at least 7 days long
+ *
+ * NOT enforced here (lives in `lockBaseline` — Plan 03):
+ *  - Baseline window >= 14 days (this function does not receive `baselinePeriodFrom`)
+ *
+ * @throws {BaselineOverlapError} when windows overlap
+ * @throws {MeasurementTooShortError} when measurement window < 7 days
+ */
+export function _validateSavingsWindows(input: IValidationInput): void {
+  if (input.baselinePeriodTo.getTime() >= input.measurementFrom.getTime()) {
+    throw new BaselineOverlapError(
+      'Measurement window overlaps baseline window — required: baseline.period_to < measurement_from',
+      {
+        baselinePeriodTo: input.baselinePeriodTo.toISOString(),
+        measurementFrom: input.measurementFrom.toISOString(),
+      },
+    );
+  }
+  const measurementMs = input.measurementTo.getTime() - input.measurementFrom.getTime();
+  const sevenDaysMs = 7 * 86_400_000;
+  if (measurementMs < sevenDaysMs) {
+    throw new MeasurementTooShortError(
+      'Measurement window must be at least 7 days',
+      {
+        measurementFrom: input.measurementFrom.toISOString(),
+        measurementTo: input.measurementTo.toISOString(),
+        daysRequired: 7,
+        daysProvided: measurementMs / 86_400_000,
+      },
+    );
+  }
 }
 
-export function _computeSavingsFromScalars(_input: IScalarsInput): ISavingsResponse {
-  throw new Error('TODO Plan 02 — _computeSavingsFromScalars');
+/**
+ * Pure synchronous savings math. No DB, no Date.now(), no side effects.
+ *
+ * Formula:
+ *   measurementEnpi = measurement.totalKwh / measurement.totalKg
+ *   deltaPct        = ((measurementEnpi - baseline.enpi) / baseline.enpi) * 100
+ *   deltaKwh        = measurement.totalKwh - (baseline.enpi * measurement.totalKg)
+ *   deltaEur        = deltaKwh * baselineEurPerKwh  (tariff frozen at lock time)
+ *   deltaKgco2      = deltaKwh * baselineKgCO2PerKwh (factor frozen at lock time)
+ *
+ * Sign convention: NEGATIVE means better than baseline (consumption went down).
+ * ENBL-05 — the route handler/frontend renders positive/negative coloring,
+ * NEVER a bare minus sign.
+ *
+ * Pitfall 5d guard: `measurement.totalKg <= 0` throws `MeasurementTooShortError`
+ * deterministically. The ATTRIBUTED filter in `sumAttributedKgInWindow` should
+ * prevent this in practice, but the guard is belt-and-suspenders.
+ *
+ * confidence='LOW' when baseline.normalizationVariables is empty (ENBL-04).
+ *
+ * @throws {MeasurementTooShortError} on zero/negative denominator or zero baseline EnPI
+ */
+export function _computeSavingsFromScalars(input: IScalarsInput): ISavingsResponse {
+  if (input.measurement.totalKg <= 0) {
+    throw new MeasurementTooShortError(
+      'No attributed production in measurement window',
+      {
+        totalKg: input.measurement.totalKg,
+        totalKwh: input.measurement.totalKwh,
+      },
+    );
+  }
+  if (input.baseline.enpi <= 0) {
+    throw new MeasurementTooShortError(
+      'Baseline EnPI is zero — cannot compute percentage delta',
+      { baselineEnpi: input.baseline.enpi, baselineId: input.baseline.baselineId },
+    );
+  }
+
+  const measurementEnpi = input.measurement.totalKwh / input.measurement.totalKg;
+  const deltaPct = ((measurementEnpi - input.baseline.enpi) / input.baseline.enpi) * 100;
+  const deltaKwh = input.measurement.totalKwh - input.baseline.enpi * input.measurement.totalKg;
+  const deltaEur = deltaKwh * input.baselineEurPerKwh;
+  const deltaKgco2 = deltaKwh * input.baselineKgCO2PerKwh;
+  const confidence: 'HIGH' | 'LOW' =
+    Object.keys(input.baseline.normalizationVariables).length === 0 ? 'LOW' : 'HIGH';
+
+  return {
+    baselineId: input.baseline.baselineId,
+    baselineLabel: input.baseline.label,
+    baselineEnpi: input.baseline.enpi,
+    measurementEnpi,
+    deltaPct,
+    deltaKwh,
+    deltaEur,
+    deltaKgco2,
+    confidence,
+    windowFrom: input.windowFrom.toISOString(),
+    windowTo: input.windowTo.toISOString(),
+    excludedStatuses: ['ABORTED', 'TOO_SHORT', 'DATA_GAP', 'UNKNOWN'],
+  };
 }
 
 export function _computeSoftWarnings(_input: {
