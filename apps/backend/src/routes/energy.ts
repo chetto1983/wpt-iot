@@ -114,6 +114,33 @@ export const energyRoutes: FastifyPluginAsync = async (server) => {
   });
 
   // =========================================================================
+  // Phase 20 ENBL-07 — startup baseline data-preservation gate.
+  //
+  // Runs AFTER EnergyBaselineService.ensureSchema() (fired from index.ts
+  // before server.listen()), so by onReady time both tables exist.
+  //
+  // If the active baseline's period_from predates the oldest available
+  // energy_1d bucket, log fatal AND throw — but the hook SWALLOWS the
+  // BaselinePredatesDataError so the backend still boots. /api/energy/savings
+  // will return 422 BASELINE_PREDATES_DATA for that baseline until a new one
+  // is locked. First-boot (no active baseline) is the null-return path.
+  // =========================================================================
+  server.addHook('onReady', async () => {
+    try {
+      const active = await EnergyBaselineService.getActiveBaseline();
+      if (!active) return; // no baseline yet — first-boot path
+      await EnergyBaselineService.validateOldestDataAvailability(active, server.log);
+    } catch (err) {
+      if (err instanceof BaselinePredatesDataError) {
+        // The .fatal() log already fired inside validateOldestDataAvailability.
+        // Swallow so the backend still boots.
+        return;
+      }
+      throw err;
+    }
+  });
+
+  // =========================================================================
   // Phase 20 — baseline error-to-HTTP mapper.
   //
   // D-10: 422 for the four validation classes, 404 for NoActiveBaselineError
