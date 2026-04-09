@@ -1,11 +1,11 @@
 import { createRequire } from 'node:module';
 import { formatEnumValue } from '../i18n/enumLabels.js';
+import { createDeterministicPdfBuffer } from './pdfDocumentFactory.js';
 import { ensurePdfFonts } from './pdfFonts.js';
 
-// pdfmake is CJS-only; use createRequire for ESM interop
-const _require = createRequire(import.meta.url);
-// eslint-disable-next-line @typescript-eslint/consistent-type-imports
-const pdfmake = _require('pdfmake') as typeof import('pdfmake');
+const LEGACY_REPORT_METADATA_DATE = '2026-04-09T00:00:00.000Z';
+const require = createRequire(import.meta.url);
+const pdfmake = require('pdfmake') as typeof import('pdfmake');
 
 // ---------------------------------------------------------------------------
 // PdfService — static-only class, separated from ReportService (500-line rule)
@@ -61,7 +61,14 @@ export class PdfService {
       ],
     };
 
-    const pdf = pdfmake.createPdf(docDefinition);
-    return pdf.getBuffer();
+    return createDeterministicPdfBuffer(docDefinition, {
+      title,
+      author: 'WPT',
+      subject: title,
+      creator: 'WPT IoT Backend',
+      producer: 'WPT IoT Backend',
+      creationDate: new Date(LEGACY_REPORT_METADATA_DATE),
+      modDate: new Date(LEGACY_REPORT_METADATA_DATE),
+    });
   }
 }
