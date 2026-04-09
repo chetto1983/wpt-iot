@@ -98,7 +98,7 @@ export function AppSidebar() {
           isActive={isActive}
           tooltip={item.label}
           className={cn(
-            'h-10 rounded-lg transition-colors duration-100',
+            'min-h-11 rounded-lg transition-colors duration-100 md:h-10 md:min-h-10',
             isActive
               ? 'bg-muted text-foreground font-medium'
               : 'text-muted-foreground hover:bg-muted hover:text-foreground/80',
@@ -190,7 +190,7 @@ export function AppSidebar() {
           <SidebarMenuItem>
             <SidebarMenuButton
               tooltip={tAuth('changePassword.title')}
-              className="h-10 text-muted-foreground hover:bg-muted hover:text-foreground/70"
+              className="min-h-11 text-muted-foreground hover:bg-muted hover:text-foreground/70 md:h-10 md:min-h-10"
               onClick={() => setChangePasswordOpen(true)}
             >
               <KeyRound className="!size-5 shrink-0" />
@@ -200,7 +200,7 @@ export function AppSidebar() {
           <SidebarMenuItem>
             <SidebarMenuButton
               tooltip={t('signOut')}
-              className="h-10 text-muted-foreground hover:bg-red-500/10 hover:text-red-400"
+              className="min-h-11 text-muted-foreground hover:bg-red-500/10 hover:text-red-400 md:h-10 md:min-h-10"
               disabled={loggingOut}
               onClick={async () => {
                 setLoggingOut(true);

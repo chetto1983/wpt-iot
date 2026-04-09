@@ -14,11 +14,11 @@ export function LanguageSelector() {
   }
 
   return (
-    <div className="flex items-center rounded-md border border-border text-xs">
+    <div className="flex items-center overflow-hidden rounded-md border border-border text-xs">
       <button
         onClick={() => switchLocale('it')}
         className={cn(
-          'px-2 py-1 rounded-l-md transition-colors',
+          'min-h-11 min-w-11 rounded-l-md px-3 py-2 transition-colors sm:min-h-8 sm:min-w-0 sm:px-2 sm:py-1',
           locale === 'it'
             ? 'bg-primary text-primary-foreground'
             : 'text-muted-foreground hover:text-foreground',
@@ -29,7 +29,7 @@ export function LanguageSelector() {
       <button
         onClick={() => switchLocale('en')}
         className={cn(
-          'px-2 py-1 rounded-r-md transition-colors',
+          'min-h-11 min-w-11 rounded-r-md px-3 py-2 transition-colors sm:min-h-8 sm:min-w-0 sm:px-2 sm:py-1',
           locale === 'en'
             ? 'bg-primary text-primary-foreground'
             : 'text-muted-foreground hover:text-foreground',

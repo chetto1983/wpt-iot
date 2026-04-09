@@ -55,20 +55,20 @@ export function AppHeader() {
   });
 
   return (
-    <header className="flex h-14 items-center gap-4 border-b border-border px-4">
+    <header className="flex flex-wrap items-center gap-2 border-b border-border px-4 py-2 sm:h-14 sm:flex-nowrap sm:gap-4 sm:py-0">
       {/* Left: sidebar trigger + page title */}
-      <div className="flex items-center gap-3">
-        <SidebarTrigger />
+      <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+        <SidebarTrigger className="size-11 sm:size-7" />
         <h1 className="text-sm font-semibold">{t(getPageTitleKey(pathname))}</h1>
       </div>
 
       {/* Spacer */}
-      <div className="flex-1" />
+      <div className="hidden flex-1 sm:block" />
 
       {/* Right: connection status, language, theme, user */}
-      <div className="flex items-center gap-3">
+      <div className="flex w-full items-center justify-between gap-2 sm:w-auto sm:justify-start sm:gap-3">
         {/* Connection badge + last update timer */}
-        <div className="flex items-center gap-2">
+        <div className="flex min-w-0 items-center gap-2">
           <Badge
             className={cn(
               'text-xs px-2 py-0.5 rounded-full font-medium flex items-center gap-1',
@@ -84,7 +84,7 @@ export function AppHeader() {
             const ageSeconds = Math.round((now.getTime() - lastUpdate.getTime()) / 1000);
             const isStale = ageSeconds > 30;
             return (
-              <span className={cn('text-xs tabular-nums', isStale ? 'text-wpt-gold' : 'text-muted-foreground')}>
+              <span className={cn('hidden text-xs tabular-nums md:inline', isStale ? 'text-wpt-gold' : 'text-muted-foreground')}>
                 {tDash('staleData', { seconds: ageSeconds })}
               </span>
             );
@@ -92,26 +92,28 @@ export function AppHeader() {
           <span className="text-xs text-muted-foreground tabular-nums">
             {timeStr}
           </span>
-          <span className="text-xs text-muted-foreground">
+          <span className="hidden text-xs text-muted-foreground sm:inline">
             {dateStr}
           </span>
         </div>
 
-        <LanguageSelector />
-        <ModeToggle />
+        <div className="flex shrink-0 items-center gap-2">
+          <LanguageSelector />
+          <ModeToggle />
 
-        {/* User avatar */}
-        {user && (
-          <Avatar className="size-8">
-            <AvatarImage
-              src={user.avatar ? `${API_BASE}${user.avatar}` : '/logo.png'}
-              alt={user.username}
-            />
-            <AvatarFallback className="bg-wpt-teal text-xs font-bold text-primary-foreground">
-              {user.username.charAt(0).toUpperCase()}
-            </AvatarFallback>
-          </Avatar>
-        )}
+          {/* User avatar */}
+          {user && (
+            <Avatar className="size-8">
+              <AvatarImage
+                src={user.avatar ? `${API_BASE}${user.avatar}` : '/logo.png'}
+                alt={user.username}
+              />
+              <AvatarFallback className="bg-wpt-teal text-xs font-bold text-primary-foreground">
+                {user.username.charAt(0).toUpperCase()}
+              </AvatarFallback>
+            </Avatar>
+          )}
+        </div>
       </div>
     </header>
   );
