@@ -1,19 +1,10 @@
 /**
- * EnergyBaselineMath
+ * EnergyBaselineMath — Phase 20 pure / read-only helpers for EnergyBaselineService.
  *
- * Phase 20 — Pure / read-only helpers for EnergyBaselineService.
- *
- * Split out of `energyBaselineService.ts` to keep that file under the
- * 500-line CLAUDE.md cap. This file contains:
- *
- *  1. `mapRowToBaseline` — pg row → IEnergyBaseline coercion
- *  2. `mapRowToEvidence` — pg row → IBaselineEvidence coercion
- *  3. `freezeBaselineEvidence` — read-only daily-series + scalar totals +
- *     data_gap_ratio (BLOCKER-01 Option B) snapshot for a baseline window.
- *
- * No writes happen here — all DB writes for Phase 20 stay in
- * `energyBaselineService.ts` (`lockBaseline` is the only writer, and its
- * BEGIN/COMMIT TX wraps the retire+inserts).
+ * Split out of `energyBaselineService.ts` to keep that file under the 500-line
+ * CLAUDE.md cap. Contains row mappers, `freezeBaselineEvidence` (BLOCKER-01
+ * Option B), Plan 04 savings-side read helpers, and Plan 02 pure-math helpers.
+ * No writes — all DB writes for Phase 20 stay in `energyBaselineService.ts`.
  *
  * @see .planning/phases/20-energy-baseline-savings/20-RESEARCH.md
  * @see .planning/phases/20-energy-baseline-savings/20-CONTEXT.md D-07 (cost/CO2 freeze)
@@ -23,25 +14,26 @@ import { sql } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import { EnergyConfigService } from './energyConfigService.js';
 import { EnergyTariffService } from './energyTariffService.js';
+// Circular import safety: `energyBaselineService.ts` re-exports the helpers
+// below for back-compat. The cycle is fine because the imported error classes
+// are referenced only inside function bodies, not at module top-level.
+import {
+  BaselineOverlapError,
+  MeasurementTooShortError,
+} from './energyBaselineService.js';
 import type {
+  BaselineWarning,
   IBaselineDailyPoint,
   IBaselineEvidence,
   IEnergyBaseline,
   IEnergyConfigPeriod,
+  ISavingsResponse,
 } from '@wpt/types';
 
-// =============================================================================
-// Row mappers — coerce raw pg rows (with potential bigint-as-string from the
-// driver) into typed Phase 20 interfaces. Mirrors the pattern in
-// `energyConfigService.getActivePeriod` where REAL columns are also coerced
-// via Number() at the read boundary.
-// =============================================================================
+// Row mappers — pg row → typed Phase 20 interfaces. Number() coerces BIGSERIAL
+// (sometimes string from the driver) and REAL columns at the read boundary.
 
-/**
- * Coerce a raw pg row (where BIGSERIAL arrives as string in some driver versions)
- * into IEnergyBaseline. Uses `Number()` for bigint coerce, matching the
- * energyConfigService.ts REAL-column pattern.
- */
+/** Coerce a raw pg row into IEnergyBaseline. */
 export function mapRowToBaseline(row: Record<string, unknown>): IEnergyBaseline {
   return {
     baselineId: Number(row.baseline_id),
@@ -66,10 +58,7 @@ export function mapRowToBaseline(row: Record<string, unknown>): IEnergyBaseline 
   };
 }
 
-/**
- * Coerce a raw pg row into IBaselineEvidence. REAL columns may arrive as
- * strings; bigint baseline_id may arrive as string.
- */
+/** Coerce a raw pg row into IBaselineEvidence. REAL/bigint columns coerced via Number(). */
 export function mapRowToEvidence(row: Record<string, unknown>): IBaselineEvidence {
   return {
     baselineId: Number(row.baseline_id),
@@ -86,12 +75,10 @@ export function mapRowToEvidence(row: Record<string, unknown>): IBaselineEvidenc
   };
 }
 
-// =============================================================================
-// freezeBaselineEvidence — read-only snapshot builder for the baseline
-// evidence row. Walks the union of energy_1d daily buckets and cycle_records
-// daily rollups (Europe/Rome local days), then per-day computes EUR / kgCO2
-// via the energy_config_periods row in force that day (D-07 cost/CO2 freeze).
-// =============================================================================
+// freezeBaselineEvidence — read-only snapshot builder. Walks the union of
+// energy_1d daily buckets and cycle_records daily rollups (Europe/Rome local
+// days), then per-day computes EUR / kgCO2 via the energy_config_periods row
+// in force that day (D-07 cost/CO2 freeze).
 
 export interface IFrozenBaselineEvidence {
   dailySeries: IBaselineDailyPoint[];
@@ -105,23 +92,15 @@ export interface IFrozenBaselineEvidence {
 
 /**
  * Build the frozen daily_series + scalar totals + data_gap_ratio for a
- * baseline window. Does not write to any table — the only writes for
- * Phase 20 stay inside `lockBaseline`'s atomic transaction.
+ * baseline window. Read-only — Phase 20 writes stay inside `lockBaseline`'s TX.
  *
- * BLOCKER-01 resolution: data_gap_ratio is computed via Option B (missing-bucket
- * proxy):
- *   expectedBuckets = ceil((period_to - period_from) / 86_400_000)
- *   actualBuckets   = energy_1d row count (NOT outer-joined day count)
- *   dataGapRatio    = clamp(0, 1, 1 - actualBuckets/expectedBuckets)
+ * BLOCKER-01 (data_gap_ratio Option B): expectedBuckets = ceil(window / 1d);
+ * actualBuckets = energy_1d row count; dataGapRatio = clamp(0,1, 1 - actual/expected).
  *
- * WARNING 1 (cycles-only-day symmetry): the calendar-day iterator below
- * walks the UNION of energy_1d days AND cycle_records days. Days with
- * cycles-only (energy_1d gap from totalizer CA lag or PLC outage) still
- * contribute their cycle.kg / cycle.cyclesCount. Without this symmetry the
- * baseline EnPI denominator under-counts kg vs the measurement-side
- * sumAttributedKgInWindow (which has NO energy_1d filter), making the
- * baseline EnPI artificially HIGH and future measurements look artificially
- * WORSE — the opposite of the ISO 50001 auditability intent.
+ * WARNING 1 (cycles-only-day symmetry): the iterator below walks the UNION of
+ * energy_1d days AND cycle_records days, so days with cycles-only (energy_1d
+ * gap from CA lag / PLC outage) still contribute their cycle.kg, keeping the
+ * baseline EnPI denominator symmetric with measurement-side sumAttributedKgInWindow.
  */
 export async function freezeBaselineEvidence(
   periodFrom: Date,
@@ -256,4 +235,241 @@ export async function freezeBaselineEvidence(
     totalKgco2,
     dataGapRatio,
   };
+}
+
+// Plan 04 — savings-side read helpers backing EnergyBaselineService.computeSavings.
+// `_` prefix is the Phase 19 unit-test convention.
+
+/** Read the baseline_evidence row for a given baseline_id. Null if not found. */
+export async function _fetchEvidenceByBaselineId(
+  baselineId: number,
+): Promise<IBaselineEvidence | null> {
+  const result = await db.execute(sql`
+    SELECT baseline_id, total_kwh, total_kg, total_cycles, enpi,
+           total_eur, total_kgco2, daily_series, locked_at
+    FROM baseline_evidence
+    WHERE baseline_id = ${baselineId}::bigint
+  `);
+  if (result.rows.length === 0) return null;
+  return mapRowToEvidence(result.rows[0] as Record<string, unknown>);
+}
+
+/** Sum energy_1d.kwh_delta over [from, to). Phase 20-private. */
+export async function _sumEnergy1dKwhInWindow(
+  from: Date,
+  to: Date,
+): Promise<number> {
+  const result = await db.execute(sql`
+    SELECT COALESCE(SUM(kwh_delta), 0)::float8 AS total
+    FROM energy_1d
+    WHERE bucket_1d >= ${from.toISOString()}::timestamptz
+      AND bucket_1d <  ${to.toISOString()}::timestamptz
+  `);
+  const row = result.rows[0] as { total: number | string } | undefined;
+  return Number(row?.total ?? 0);
+}
+
+/**
+ * Build the detail=1 measurement daily series with the constant baseline
+ * reference line (RESEARCH Open Question 3: flat horizontal at baseline.enpi).
+ * Each entry is a Europe/Rome calendar day with the per-day measurement
+ * EnPI (kwh/kg) and the constant baseline EnPI for the chart.
+ */
+export async function _buildMeasurementDailySeries(
+  from: Date,
+  to: Date,
+  baselineEnpi: number,
+): Promise<
+  Array<{ date: string; baselineKwhPerKg: number; measurementKwhPerKg: number }>
+> {
+  const energyRows = await db.execute(sql`
+    SELECT to_char(bucket_1d AT TIME ZONE 'Europe/Rome', 'YYYY-MM-DD') AS day,
+           COALESCE(kwh_delta, 0)::float8 AS kwh
+    FROM energy_1d
+    WHERE bucket_1d >= ${from.toISOString()}::timestamptz
+      AND bucket_1d <  ${to.toISOString()}::timestamptz
+    ORDER BY bucket_1d
+  `);
+  const cycleRows = await db.execute(sql`
+    SELECT to_char(date_trunc('day', started_at AT TIME ZONE 'Europe/Rome'), 'YYYY-MM-DD') AS day,
+           COALESCE(SUM(material_output_kg), 0)::float8 AS kg
+    FROM cycle_records
+    WHERE attribution_status = 'ATTRIBUTED'
+      AND material_output_kg > 0
+      AND started_at >= ${from.toISOString()}::timestamptz
+      AND started_at <  ${to.toISOString()}::timestamptz
+    GROUP BY 1
+    ORDER BY 1
+  `);
+  const kgByDay = new Map<string, number>();
+  for (const r of cycleRows.rows as Array<{ day: string; kg: number | string }>) {
+    kgByDay.set(r.day, Number(r.kg));
+  }
+  const series: Array<{
+    date: string;
+    baselineKwhPerKg: number;
+    measurementKwhPerKg: number;
+  }> = [];
+  for (const r of energyRows.rows as Array<{ day: string; kwh: number | string }>) {
+    const kg = kgByDay.get(r.day) ?? 0;
+    const kwh = Number(r.kwh);
+    const measurementKwhPerKg = kg > 0 ? kwh / kg : 0;
+    series.push({
+      date: r.day,
+      baselineKwhPerKg: baselineEnpi, // constant reference line
+      measurementKwhPerKg,
+    });
+  }
+  return series;
+}
+
+// Pure-math helpers (Plan 02) — moved here from energyBaselineService.ts after
+// Plan 04 added the full computeSavings flow (500-line cap). Error classes
+// stay in the service module (route mapper `instanceof` checks); these helpers
+// `throw new` them via the circular import at the top.
+
+export interface IScalarsInput {
+  baseline: {
+    enpi: number;
+    totalKwh: number;
+    totalKg: number;
+    normalizationVariables: Record<string, unknown>;
+    periodFrom: Date;
+    periodTo: Date;
+    baselineId: number;
+    label: string;
+  };
+  measurement: { totalKwh: number; totalKg: number };
+  baselineEurPerKwh: number;
+  baselineKgCO2PerKwh: number;
+  windowFrom: Date;
+  windowTo: Date;
+}
+
+export interface IValidationInput {
+  baselinePeriodTo: Date;
+  measurementFrom: Date;
+  measurementTo: Date;
+}
+
+/**
+ * Hard-reject savings computation when the input windows are invalid (ENBL-03).
+ *
+ * Rules enforced here:
+ *  - No overlap: `baselinePeriodTo < measurementFrom` required (Pitfall 5b)
+ *  - Measurement window must be at least 7 days long
+ *
+ * NOT enforced here (lives in `lockBaseline` — Plan 03):
+ *  - Baseline window >= 14 days (this function does not receive `baselinePeriodFrom`)
+ *
+ * @throws {BaselineOverlapError} when windows overlap
+ * @throws {MeasurementTooShortError} when measurement window < 7 days
+ */
+export function _validateSavingsWindows(input: IValidationInput): void {
+  if (input.baselinePeriodTo.getTime() >= input.measurementFrom.getTime()) {
+    throw new BaselineOverlapError(
+      'Measurement window overlaps baseline window — required: baseline.period_to < measurement_from',
+      {
+        baselinePeriodTo: input.baselinePeriodTo.toISOString(),
+        measurementFrom: input.measurementFrom.toISOString(),
+      },
+    );
+  }
+  const measurementMs = input.measurementTo.getTime() - input.measurementFrom.getTime();
+  const sevenDaysMs = 7 * 86_400_000;
+  if (measurementMs < sevenDaysMs) {
+    throw new MeasurementTooShortError(
+      'Measurement window must be at least 7 days',
+      {
+        measurementFrom: input.measurementFrom.toISOString(),
+        measurementTo: input.measurementTo.toISOString(),
+        daysRequired: 7,
+        daysProvided: measurementMs / 86_400_000,
+      },
+    );
+  }
+}
+
+/**
+ * Pure synchronous savings math. No DB, no Date.now(), no side effects.
+ *
+ * Formula:
+ *   measurementEnpi = measurement.totalKwh / measurement.totalKg
+ *   deltaPct        = ((measurementEnpi - baseline.enpi) / baseline.enpi) * 100
+ *   deltaKwh        = measurement.totalKwh - (baseline.enpi * measurement.totalKg)
+ *   deltaEur        = deltaKwh * baselineEurPerKwh  (tariff frozen at lock time)
+ *   deltaKgco2      = deltaKwh * baselineKgCO2PerKwh (factor frozen at lock time)
+ *
+ * Sign convention: NEGATIVE means better than baseline (consumption went down).
+ * ENBL-05 — the route handler/frontend renders positive/negative coloring,
+ * NEVER a bare minus sign.
+ *
+ * Pitfall 5d guard: `measurement.totalKg <= 0` throws `MeasurementTooShortError`
+ * deterministically. The ATTRIBUTED filter in `sumAttributedKgInWindow` should
+ * prevent this in practice, but the guard is belt-and-suspenders.
+ *
+ * confidence='LOW' when baseline.normalizationVariables is empty (ENBL-04).
+ *
+ * @throws {MeasurementTooShortError} on zero/negative denominator or zero baseline EnPI
+ */
+export function _computeSavingsFromScalars(input: IScalarsInput): ISavingsResponse {
+  if (input.measurement.totalKg <= 0) {
+    throw new MeasurementTooShortError(
+      'No attributed production in measurement window',
+      {
+        totalKg: input.measurement.totalKg,
+        totalKwh: input.measurement.totalKwh,
+      },
+    );
+  }
+  if (input.baseline.enpi <= 0) {
+    throw new MeasurementTooShortError(
+      'Baseline EnPI is zero — cannot compute percentage delta',
+      { baselineEnpi: input.baseline.enpi, baselineId: input.baseline.baselineId },
+    );
+  }
+
+  const measurementEnpi = input.measurement.totalKwh / input.measurement.totalKg;
+  const deltaPct = ((measurementEnpi - input.baseline.enpi) / input.baseline.enpi) * 100;
+  const deltaKwh = input.measurement.totalKwh - input.baseline.enpi * input.measurement.totalKg;
+  const deltaEur = deltaKwh * input.baselineEurPerKwh;
+  const deltaKgco2 = deltaKwh * input.baselineKgCO2PerKwh;
+  const confidence: 'HIGH' | 'LOW' =
+    Object.keys(input.baseline.normalizationVariables).length === 0 ? 'LOW' : 'HIGH';
+
+  return {
+    baselineId: input.baseline.baselineId,
+    baselineLabel: input.baseline.label,
+    baselineEnpi: input.baseline.enpi,
+    measurementEnpi,
+    deltaPct,
+    deltaKwh,
+    deltaEur,
+    deltaKgco2,
+    confidence,
+    windowFrom: input.windowFrom.toISOString(),
+    windowTo: input.windowTo.toISOString(),
+    excludedStatuses: ['ABORTED', 'TOO_SHORT', 'DATA_GAP', 'UNKNOWN'],
+  };
+}
+
+/**
+ * Compute soft quality warnings for a baseline lock (D-11).
+ * NON-blocking — the lock succeeds regardless. Warnings surface in the
+ * response body for the SUPER_ADMIN UI to render as a yellow banner.
+ *
+ * Thresholds:
+ *  - cycle_count < 20      → LOW_CYCLE_COUNT  (Pitfall 5c — non-representative sample)
+ *  - data_gap_ratio > 0.05 → HIGH_DATA_GAP_RATIO (>5% unaccounted buckets)
+ *
+ * Pure synchronous — no DB, no Date.now(), no side effects.
+ */
+export function _computeSoftWarnings(input: {
+  cycleCount: number;
+  dataGapRatio: number;
+}): BaselineWarning[] {
+  const warnings: BaselineWarning[] = [];
+  if (input.cycleCount < 20) warnings.push('LOW_CYCLE_COUNT');
+  if (input.dataGapRatio > 0.05) warnings.push('HIGH_DATA_GAP_RATIO');
+  return warnings;
 }

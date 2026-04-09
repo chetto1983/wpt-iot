@@ -14,18 +14,40 @@
 import { sql } from 'drizzle-orm';
 import { db, pool } from '../db/index.js';
 import {
+  _buildMeasurementDailySeries,
+  _computeSavingsFromScalars,
+  _computeSoftWarnings,
+  _fetchEvidenceByBaselineId,
+  _sumEnergy1dKwhInWindow,
+  _validateSavingsWindows,
   freezeBaselineEvidence,
   mapRowToBaseline,
   mapRowToEvidence,
 } from './energyBaselineMath.js';
+import { EnergyAttributionService } from './energyAttributionService.js';
 import type {
-  BaselineWarning,
   IBaselineLockRequest,
   IBaselineLockResponse,
   IEnergyBaseline,
   ISavingsResponse,
   ISavingsDetailResponse,
 } from '@wpt/types';
+
+// Re-export math helpers for back-compat — older Plan 02/03 tests / imports
+// reference these names from `energyBaselineService.js`. New code should
+// import directly from `energyBaselineMath.js`.
+export {
+  _computeSavingsFromScalars,
+  _computeSoftWarnings,
+  _validateSavingsWindows,
+  freezeBaselineEvidence,
+  mapRowToBaseline,
+  mapRowToEvidence,
+} from './energyBaselineMath.js';
+export type {
+  IScalarsInput,
+  IValidationInput,
+} from './energyBaselineMath.js';
 
 // =============================================================================
 // Error class taxonomy — flat siblings extending Error, matching Phase 19 flatness.
@@ -92,155 +114,13 @@ export class NoActiveBaselineError extends Error {
 }
 
 // =============================================================================
-// Pure-math helper stubs — Plan 02 implements bodies.
-// Exported with `_` prefix for unit test access (convention from RESEARCH.md §386).
+// Pure-math helpers — moved to `energyBaselineMath.ts` (Plan 04 cap-driven
+// extension of the WARNING 5 split). The error classes above stay here so the
+// route mapper can `instanceof`-check them; the math module imports those
+// classes via a circular import, which is ESM-safe because the references
+// are inside function bodies (not module-top-level). Re-exports for back-compat
+// live at the top of this file alongside the value imports.
 // =============================================================================
-
-export interface IScalarsInput {
-  baseline: {
-    enpi: number;
-    totalKwh: number;
-    totalKg: number;
-    normalizationVariables: Record<string, unknown>;
-    periodFrom: Date;
-    periodTo: Date;
-    baselineId: number;
-    label: string;
-  };
-  measurement: { totalKwh: number; totalKg: number };
-  baselineEurPerKwh: number;
-  baselineKgCO2PerKwh: number;
-  windowFrom: Date;
-  windowTo: Date;
-}
-
-export interface IValidationInput {
-  baselinePeriodTo: Date;
-  measurementFrom: Date;
-  measurementTo: Date;
-}
-
-/**
- * Hard-reject savings computation when the input windows are invalid (ENBL-03).
- *
- * Rules enforced here:
- *  - No overlap: `baselinePeriodTo < measurementFrom` required (Pitfall 5b)
- *  - Measurement window must be at least 7 days long
- *
- * NOT enforced here (lives in `lockBaseline` — Plan 03):
- *  - Baseline window >= 14 days (this function does not receive `baselinePeriodFrom`)
- *
- * @throws {BaselineOverlapError} when windows overlap
- * @throws {MeasurementTooShortError} when measurement window < 7 days
- */
-export function _validateSavingsWindows(input: IValidationInput): void {
-  if (input.baselinePeriodTo.getTime() >= input.measurementFrom.getTime()) {
-    throw new BaselineOverlapError(
-      'Measurement window overlaps baseline window — required: baseline.period_to < measurement_from',
-      {
-        baselinePeriodTo: input.baselinePeriodTo.toISOString(),
-        measurementFrom: input.measurementFrom.toISOString(),
-      },
-    );
-  }
-  const measurementMs = input.measurementTo.getTime() - input.measurementFrom.getTime();
-  const sevenDaysMs = 7 * 86_400_000;
-  if (measurementMs < sevenDaysMs) {
-    throw new MeasurementTooShortError(
-      'Measurement window must be at least 7 days',
-      {
-        measurementFrom: input.measurementFrom.toISOString(),
-        measurementTo: input.measurementTo.toISOString(),
-        daysRequired: 7,
-        daysProvided: measurementMs / 86_400_000,
-      },
-    );
-  }
-}
-
-/**
- * Pure synchronous savings math. No DB, no Date.now(), no side effects.
- *
- * Formula:
- *   measurementEnpi = measurement.totalKwh / measurement.totalKg
- *   deltaPct        = ((measurementEnpi - baseline.enpi) / baseline.enpi) * 100
- *   deltaKwh        = measurement.totalKwh - (baseline.enpi * measurement.totalKg)
- *   deltaEur        = deltaKwh * baselineEurPerKwh  (tariff frozen at lock time)
- *   deltaKgco2      = deltaKwh * baselineKgCO2PerKwh (factor frozen at lock time)
- *
- * Sign convention: NEGATIVE means better than baseline (consumption went down).
- * ENBL-05 — the route handler/frontend renders positive/negative coloring,
- * NEVER a bare minus sign.
- *
- * Pitfall 5d guard: `measurement.totalKg <= 0` throws `MeasurementTooShortError`
- * deterministically. The ATTRIBUTED filter in `sumAttributedKgInWindow` should
- * prevent this in practice, but the guard is belt-and-suspenders.
- *
- * confidence='LOW' when baseline.normalizationVariables is empty (ENBL-04).
- *
- * @throws {MeasurementTooShortError} on zero/negative denominator or zero baseline EnPI
- */
-export function _computeSavingsFromScalars(input: IScalarsInput): ISavingsResponse {
-  if (input.measurement.totalKg <= 0) {
-    throw new MeasurementTooShortError(
-      'No attributed production in measurement window',
-      {
-        totalKg: input.measurement.totalKg,
-        totalKwh: input.measurement.totalKwh,
-      },
-    );
-  }
-  if (input.baseline.enpi <= 0) {
-    throw new MeasurementTooShortError(
-      'Baseline EnPI is zero — cannot compute percentage delta',
-      { baselineEnpi: input.baseline.enpi, baselineId: input.baseline.baselineId },
-    );
-  }
-
-  const measurementEnpi = input.measurement.totalKwh / input.measurement.totalKg;
-  const deltaPct = ((measurementEnpi - input.baseline.enpi) / input.baseline.enpi) * 100;
-  const deltaKwh = input.measurement.totalKwh - input.baseline.enpi * input.measurement.totalKg;
-  const deltaEur = deltaKwh * input.baselineEurPerKwh;
-  const deltaKgco2 = deltaKwh * input.baselineKgCO2PerKwh;
-  const confidence: 'HIGH' | 'LOW' =
-    Object.keys(input.baseline.normalizationVariables).length === 0 ? 'LOW' : 'HIGH';
-
-  return {
-    baselineId: input.baseline.baselineId,
-    baselineLabel: input.baseline.label,
-    baselineEnpi: input.baseline.enpi,
-    measurementEnpi,
-    deltaPct,
-    deltaKwh,
-    deltaEur,
-    deltaKgco2,
-    confidence,
-    windowFrom: input.windowFrom.toISOString(),
-    windowTo: input.windowTo.toISOString(),
-    excludedStatuses: ['ABORTED', 'TOO_SHORT', 'DATA_GAP', 'UNKNOWN'],
-  };
-}
-
-/**
- * Compute soft quality warnings for a baseline lock (D-11).
- * NON-blocking — the lock succeeds regardless. Warnings surface in the
- * response body for the SUPER_ADMIN UI to render as a yellow banner.
- *
- * Thresholds:
- *  - cycle_count < 20     → LOW_CYCLE_COUNT  (Pitfall 5c — non-representative sample)
- *  - data_gap_ratio > 0.05 → HIGH_DATA_GAP_RATIO (>5% unaccounted buckets)
- *
- * Pure synchronous — no DB, no Date.now(), no side effects.
- */
-export function _computeSoftWarnings(input: {
-  cycleCount: number;
-  dataGapRatio: number;
-}): BaselineWarning[] {
-  const warnings: BaselineWarning[] = [];
-  if (input.cycleCount < 20) warnings.push('LOW_CYCLE_COUNT');
-  if (input.dataGapRatio > 0.05) warnings.push('HIGH_DATA_GAP_RATIO');
-  return warnings;
-}
 
 // =============================================================================
 // EnergyBaselineService — static class (no instantiation).
@@ -474,13 +354,114 @@ export class EnergyBaselineService {
     return mapRowToBaseline(result.rows[0] as Record<string, unknown>);
   }
 
-  static async computeSavings(_req: {
+  /**
+   * Compute savings for a measurement window against a frozen baseline (D-09).
+   *
+   * Flow:
+   *  1. Fetch baseline + evidence (404 if baseline missing)
+   *  2. Validate windows (422 on overlap / too-short measurement)
+   *  3. Query measurement totals (energy_1d kWh + ATTRIBUTED cycle_records kg)
+   *  4. Belt-and-suspenders zero-kg guard
+   *  5. Compute pure math via _computeSavingsFromScalars
+   *  6. Optionally attach detail=1 dailySeries
+   *
+   * NOTE: ENBL-07 `validateOldestDataAvailability` is NOT called here. Plan 05
+   * wires it in via the startup onReady hook + an internal pre-computeSavings
+   * call. Plan 04 ships without that check.
+   *
+   * @throws {NoActiveBaselineError} when baseline_id is not found
+   * @throws {BaselineOverlapError | MeasurementTooShortError} on window violations
+   */
+  static async computeSavings(req: {
     baselineId: number;
     measurementFrom: Date;
     measurementTo: Date;
     detail: 0 | 1;
   }): Promise<ISavingsResponse | ISavingsDetailResponse> {
-    throw new Error('TODO Plan 02/04 — computeSavings');
+    // ---- Step 1: fetch baseline + evidence ----
+    const baseline = await EnergyBaselineService.getBaselineById(req.baselineId);
+    if (!baseline) {
+      throw new NoActiveBaselineError(
+        `No baseline with id ${req.baselineId}`,
+        { baselineId: req.baselineId },
+      );
+    }
+    const evidence = await _fetchEvidenceByBaselineId(req.baselineId);
+    if (!evidence) {
+      // FK guarantees this never happens — but throw a deterministic error
+      // instead of a null-dereference if partial state somehow escapes.
+      throw new NoActiveBaselineError(
+        `Baseline ${req.baselineId} has no evidence row — data integrity failure`,
+        { baselineId: req.baselineId },
+      );
+    }
+
+    // ---- Step 2: validate windows ----
+    _validateSavingsWindows({
+      baselinePeriodTo: baseline.periodTo,
+      measurementFrom: req.measurementFrom,
+      measurementTo: req.measurementTo,
+    });
+
+    // ---- Step 3: query measurement scalars ----
+    const measurementTotalKwh = await _sumEnergy1dKwhInWindow(
+      req.measurementFrom,
+      req.measurementTo,
+    );
+    const { totalKg: measurementTotalKg } =
+      await EnergyAttributionService.sumAttributedKgInWindow({
+        from: req.measurementFrom,
+        to: req.measurementTo,
+      });
+
+    // ---- Step 4: belt-and-suspenders zero-kg guard ----
+    if (measurementTotalKg === 0) {
+      throw new MeasurementTooShortError(
+        'No attributed production in measurement window',
+        {
+          measurementFrom: req.measurementFrom.toISOString(),
+          measurementTo: req.measurementTo.toISOString(),
+          measurementTotalKwh,
+        },
+      );
+    }
+
+    // ---- Step 5: pure math (frozen lock-time tariff & CO2 factor) ----
+    const baselineEurPerKwh =
+      evidence.totalKwh > 0 ? evidence.totalEur / evidence.totalKwh : 0;
+    const baselineKgCO2PerKwh =
+      evidence.totalKwh > 0 ? evidence.totalKgco2 / evidence.totalKwh : 0;
+    const scalarResult = _computeSavingsFromScalars({
+      baseline: {
+        enpi: evidence.enpi,
+        totalKwh: evidence.totalKwh,
+        totalKg: evidence.totalKg,
+        normalizationVariables: baseline.normalizationVariables,
+        periodFrom: baseline.periodFrom,
+        periodTo: baseline.periodTo,
+        baselineId: baseline.baselineId,
+        label: baseline.label,
+      },
+      measurement: {
+        totalKwh: measurementTotalKwh,
+        totalKg: measurementTotalKg,
+      },
+      baselineEurPerKwh,
+      baselineKgCO2PerKwh,
+      windowFrom: req.measurementFrom,
+      windowTo: req.measurementTo,
+    });
+
+    // ---- Step 6: attach detail=1 dailySeries if requested ----
+    if (req.detail === 1) {
+      const dailySeries = await _buildMeasurementDailySeries(
+        req.measurementFrom,
+        req.measurementTo,
+        evidence.enpi,
+      );
+      return { ...scalarResult, dailySeries };
+    }
+    return scalarResult;
   }
 
   static async validateOldestDataAvailability(_baseline: IEnergyBaseline): Promise<void> {
