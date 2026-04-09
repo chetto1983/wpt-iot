@@ -360,8 +360,11 @@ export class EnergyBaselineService {
     }
 
     // ---- ENBL-07 belt-and-suspenders: retention may have run between boot
-    // hook and this request. No logger — startup hook already screams. ----
-    await EnergyBaselineService.validateOldestDataAvailability(baseline);
+    // hook and this request. `assertNotStale` hard-codes NOOP_LOGGER in the
+    // type signature (WR-04 — contract in code, not in a comment) so a
+    // future refactor cannot accidentally pipe `request.log` into the
+    // per-request path and spam .fatal() on every savings request. ----
+    await EnergyBaselineService.assertNotStale(baseline);
 
     // ---- Step 2: validate windows ----
     _validateSavingsWindows({
@@ -432,12 +435,30 @@ export class EnergyBaselineService {
   }
 
   /**
+   * Per-request ENBL-07 belt check WITHOUT logging (WR-04). Hard-coded
+   * NOOP_LOGGER — the contract "don't spam fatal on every savings request"
+   * lives in the type signature here, not in a free-form comment at the
+   * call site. `computeSavings` must call THIS method, not
+   * `validateOldestDataAvailability` directly, so a future refactor cannot
+   * accidentally pipe `request.log` in and page on-call on every request
+   * against a stale baseline.
+   * @throws {BaselinePredatesDataError}
+   */
+  static async assertNotStale(baseline: IEnergyBaseline): Promise<void> {
+    return EnergyBaselineService.validateOldestDataAvailability(
+      baseline,
+      NOOP_LOGGER,
+    );
+  }
+
+  /**
    * ENBL-07 data preservation gate. Queries `MIN(bucket_1d) FROM energy_1d`;
    * if oldest bucket is newer than `baseline.periodFrom`, retention has eaten
    * the baseline's backing data — log fatal + throw. Called from the onReady
-   * hook at boot (with server.log) AND from computeSavings per request
-   * (NOOP_LOGGER — only startup hook screams). The optional `log` param is
-   * DI for test capture (RESEARCH BLOCKER-03 Option 2).
+   * hook at boot (with server.log). Per-request callers MUST use
+   * `assertNotStale` (WR-04) instead of passing NOOP_LOGGER directly — that
+   * keeps the no-logging contract in the type system. The optional `log`
+   * param is DI for test capture (RESEARCH BLOCKER-03 Option 2).
    * @throws {BaselinePredatesDataError}
    */
   static async validateOldestDataAvailability(
