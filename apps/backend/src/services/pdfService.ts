@@ -1,24 +1,11 @@
 import { createRequire } from 'node:module';
-import path from 'node:path';
 import { formatEnumValue } from '../i18n/enumLabels.js';
+import { ensurePdfFonts } from './pdfFonts.js';
 
 // pdfmake is CJS-only; use createRequire for ESM interop
 const _require = createRequire(import.meta.url);
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 const pdfmake = _require('pdfmake') as typeof import('pdfmake');
-
-// Resolve font files from pdfmake's build directory (Docker-portable)
-const pdfmakePath = path.dirname(_require.resolve('pdfmake/package.json'));
-const fontsDir = path.join(pdfmakePath, 'build', 'fonts', 'Roboto');
-
-pdfmake.setFonts({
-  Roboto: {
-    normal: path.join(fontsDir, 'Roboto-Regular.ttf'),
-    bold: path.join(fontsDir, 'Roboto-Medium.ttf'),
-    italics: path.join(fontsDir, 'Roboto-Italic.ttf'),
-    bolditalics: path.join(fontsDir, 'Roboto-MediumItalic.ttf'),
-  },
-});
 
 // ---------------------------------------------------------------------------
 // PdfService — static-only class, separated from ReportService (500-line rule)
@@ -36,6 +23,8 @@ export class PdfService {
     title: string,
     locale: 'it' | 'en' = 'it',
   ): Promise<Buffer> {
+    ensurePdfFonts(pdfmake);
+
     // Build table body: header row + data rows
     const headerRow = headers.map((h) => ({
       text: h,
