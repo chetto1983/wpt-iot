@@ -1,14 +1,9 @@
 /**
  * EnergyBaselineService — Phase 20 ISO 50001 EnB + Savings math.
- *
- * Schema (ensureSchema), append-only lockBaseline (ENBL-02), evidence freeze
- * (ENBL-06), hard-reject + soft-warning savings math (ENBL-03/04/05/D-11),
- * boot data-availability validator (ENBL-07). Row mappers + read-only
- * freezeBaselineEvidence helper live in `energyBaselineMath.ts` to keep this
- * file under the 500-line CLAUDE.md cap.
- *
+ * Schema, lockBaseline, evidence freeze, savings math, boot data-availability
+ * validator (ENBL-07). Row mappers + read-only helpers live in
+ * `energyBaselineMath.ts` to stay under the 500-line CLAUDE.md cap.
  * @see .planning/phases/20-energy-baseline-savings/20-CONTEXT.md D-01..D-12
- * @see .planning/phases/20-energy-baseline-savings/20-RESEARCH.md
  */
 
 import { sql } from 'drizzle-orm';
@@ -49,11 +44,27 @@ export type {
   IValidationInput,
 } from './energyBaselineMath.js';
 
-// =============================================================================
-// Error class taxonomy — flat siblings extending Error, matching Phase 19 flatness.
-// The route handler catches these with `instanceof` and maps to HTTP 422
-// (or 404 for NoActiveBaselineError with explicit baseline_id — RESEARCH Q1).
-// =============================================================================
+// Error taxonomy — flat Error siblings. Route handler `instanceof`-maps to
+// 422 (validation) / 404 (NoActiveBaselineError with explicit baseline_id).
+
+/**
+ * Minimal logger interface for DI in tests (RESEARCH BLOCKER-03 Option 2).
+ * Mirrors `energyAttributionService.ts`. Pino / Fastify `server.log` satisfies
+ * this via duck typing.
+ */
+export interface IServiceLogger {
+  info(obj: Record<string, unknown>, msg: string): void;
+  warn(obj: Record<string, unknown>, msg: string): void;
+  error(obj: Record<string, unknown>, msg: string): void;
+  fatal(obj: Record<string, unknown>, msg: string): void;
+}
+
+const NOOP_LOGGER: IServiceLogger = {
+  info: () => undefined,
+  warn: () => undefined,
+  error: () => undefined,
+  fatal: () => undefined,
+};
 
 export class BaselineOverlapError extends Error {
   readonly code = 'BASELINE_OVERLAP' as const;
@@ -113,31 +124,13 @@ export class NoActiveBaselineError extends Error {
   }
 }
 
-// =============================================================================
-// Pure-math helpers — moved to `energyBaselineMath.ts` (Plan 04 cap-driven
-// extension of the WARNING 5 split). The error classes above stay here so the
-// route mapper can `instanceof`-check them; the math module imports those
-// classes via a circular import, which is ESM-safe because the references
-// are inside function bodies (not module-top-level). Re-exports for back-compat
-// live at the top of this file alongside the value imports.
-// =============================================================================
-
-// =============================================================================
-// EnergyBaselineService — static class (no instantiation).
-//
-// Row mappers (`mapRowToBaseline`, `mapRowToEvidence`) and the read-only
-// snapshot builder (`freezeBaselineEvidence`) live in `energyBaselineMath.ts`
-// to keep this file under the 500-line CLAUDE.md cap. The only DB writes for
-// Phase 20 are the BEGIN/COMMIT/ROLLBACK transaction inside `lockBaseline`
-// below, plus the idempotent `retired_at = NOW()` UPDATE in `retireBaseline`.
-// =============================================================================
+// Pure-math helpers live in `energyBaselineMath.ts` (Plan 04 cap-driven split).
+// Error classes stay here so the route mapper can `instanceof`-check them;
+// the math module imports them via a circular value import (ESM-safe: references
+// are inside function bodies). Re-exports for back-compat live at the top.
 
 export class EnergyBaselineService {
-  /**
-   * Idempotent schema creation for `energy_baselines` + `baseline_evidence`.
-   * Direct SQL — NOT `drizzle-kit push`. Mirrors `EnergyConfigService.ensureTable()`.
-   * Called from `apps/backend/src/index.ts` at boot, after `EnergyConfigService.ensureTable()`.
-   */
+  /** Idempotent schema creation. Direct SQL — NOT drizzle-kit push. */
   static async ensureSchema(): Promise<void> {
     await db.execute(sql`
       CREATE TABLE IF NOT EXISTS energy_baselines (
@@ -181,14 +174,9 @@ export class EnergyBaselineService {
   }
 
   /**
-   * Lock a new ISO 50001 EnB (method b, period-fixed baseline). Atomic TX
-   * (BEGIN/COMMIT/ROLLBACK on a dedicated pg client) wraps: retire previous
-   * active baseline → insert energy_baselines → insert baseline_evidence.
-   * Uses `pool.connect()` directly (Drizzle 0.45 transaction API differs
-   * from the BEGIN/COMMIT pattern Phase 19 uses).
-   *
-   * @throws {BaselineTooShortError} window < 14 days, period_from in future,
-   *                                 or total_kg === 0
+   * Lock a new ISO 50001 EnB (method b). Atomic BEGIN/COMMIT/ROLLBACK TX:
+   * retire previous active → insert energy_baselines → insert baseline_evidence.
+   * @throws {BaselineTooShortError} window<14d, period_from in future, or total_kg===0
    */
   static async lockBaseline(req: IBaselineLockRequest): Promise<IBaselineLockResponse> {
     // ---- Step 1: validate window ----
@@ -307,12 +295,7 @@ export class EnergyBaselineService {
     }
   }
 
-  /**
-   * Sets `retired_at = NOW()` on the baseline. Idempotent — silent on
-   * "not found" or "already retired". The route handler owns the 404 check.
-   * No body fields (D-05). No cascade to baseline_evidence (retired baselines
-   * remain queryable forever).
-   */
+  /** Idempotent `retired_at = NOW()` UPDATE. Route handler owns the 404 check. */
   static async retireBaseline(baselineId: number): Promise<void> {
     await db.execute(sql`
       UPDATE energy_baselines
@@ -322,11 +305,7 @@ export class EnergyBaselineService {
     `);
   }
 
-  /**
-   * Returns the most recent un-retired baseline, or null if none exists.
-   * D-04: used by the route handler when `baseline_id` query param is absent.
-   * Hits the composite index energy_baselines_active_lookup_idx.
-   */
+  /** Most recent un-retired baseline or null. Hits active_lookup composite idx. */
   static async getActiveBaseline(): Promise<IEnergyBaseline | null> {
     const result = await db.execute(sql`
       SELECT *
@@ -339,11 +318,7 @@ export class EnergyBaselineService {
     return mapRowToBaseline(result.rows[0] as Record<string, unknown>);
   }
 
-  /**
-   * Returns the baseline with the given id, or null if not found.
-   * Retired baselines remain queryable forever (D-05). Never throws on
-   * not-found — the route handler owns the 404.
-   */
+  /** Baseline by id or null. Retired baselines remain queryable (D-05). */
   static async getBaselineById(baselineId: number): Promise<IEnergyBaseline | null> {
     const result = await db.execute(sql`
       SELECT *
@@ -355,22 +330,10 @@ export class EnergyBaselineService {
   }
 
   /**
-   * Compute savings for a measurement window against a frozen baseline (D-09).
-   *
-   * Flow:
-   *  1. Fetch baseline + evidence (404 if baseline missing)
-   *  2. Validate windows (422 on overlap / too-short measurement)
-   *  3. Query measurement totals (energy_1d kWh + ATTRIBUTED cycle_records kg)
-   *  4. Belt-and-suspenders zero-kg guard
-   *  5. Compute pure math via _computeSavingsFromScalars
-   *  6. Optionally attach detail=1 dailySeries
-   *
-   * NOTE: ENBL-07 `validateOldestDataAvailability` is NOT called here. Plan 05
-   * wires it in via the startup onReady hook + an internal pre-computeSavings
-   * call. Plan 04 ships without that check.
-   *
-   * @throws {NoActiveBaselineError} when baseline_id is not found
-   * @throws {BaselineOverlapError | MeasurementTooShortError} on window violations
+   * Compute savings against a frozen baseline (D-09). Flow: fetch baseline+
+   * evidence → ENBL-07 belt check → validate windows → query measurement →
+   * zero-kg guard → pure math → optional detail=1 dailySeries.
+   * @throws {NoActiveBaselineError | BaselineOverlapError | MeasurementTooShortError | BaselinePredatesDataError}
    */
   static async computeSavings(req: {
     baselineId: number;
@@ -395,6 +358,10 @@ export class EnergyBaselineService {
         { baselineId: req.baselineId },
       );
     }
+
+    // ---- ENBL-07 belt-and-suspenders: retention may have run between boot
+    // hook and this request. No logger — startup hook already screams. ----
+    await EnergyBaselineService.validateOldestDataAvailability(baseline);
 
     // ---- Step 2: validate windows ----
     _validateSavingsWindows({
@@ -464,7 +431,49 @@ export class EnergyBaselineService {
     return scalarResult;
   }
 
-  static async validateOldestDataAvailability(_baseline: IEnergyBaseline): Promise<void> {
-    throw new Error('TODO Plan 05 — validateOldestDataAvailability');
+  /**
+   * ENBL-07 data preservation gate. Queries `MIN(bucket_1d) FROM energy_1d`;
+   * if oldest bucket is newer than `baseline.periodFrom`, retention has eaten
+   * the baseline's backing data — log fatal + throw. Called from the onReady
+   * hook at boot (with server.log) AND from computeSavings per request
+   * (NOOP_LOGGER — only startup hook screams). The optional `log` param is
+   * DI for test capture (RESEARCH BLOCKER-03 Option 2).
+   * @throws {BaselinePredatesDataError}
+   */
+  static async validateOldestDataAvailability(
+    baseline: IEnergyBaseline,
+    log: IServiceLogger = NOOP_LOGGER,
+  ): Promise<void> {
+    const result = await db.execute(sql`
+      SELECT MIN(bucket_1d) AS oldest_bucket
+      FROM energy_1d
+    `);
+    const row = result.rows[0] as { oldest_bucket: string | Date | null } | undefined;
+    if (!row || row.oldest_bucket == null) {
+      // No energy_1d data yet — first-boot / empty-database path. Skip silently.
+      return;
+    }
+    const oldestBucket = row.oldest_bucket instanceof Date
+      ? row.oldest_bucket
+      : new Date(row.oldest_bucket);
+    if (oldestBucket.getTime() > baseline.periodFrom.getTime()) {
+      log.fatal(
+        {
+          name: 'EnergyBaseline',
+          baselineId: baseline.baselineId,
+          oldestBucket: oldestBucket.toISOString(),
+          baselinePeriodFrom: baseline.periodFrom.toISOString(),
+        },
+        'baseline_predates_available_data',
+      );
+      throw new BaselinePredatesDataError(
+        'Active baseline period_from predates the oldest available energy_1d bucket',
+        {
+          baselineId: baseline.baselineId,
+          oldestBucket: oldestBucket.toISOString(),
+          baselinePeriodFrom: baseline.periodFrom.toISOString(),
+        },
+      );
+    }
   }
 }
