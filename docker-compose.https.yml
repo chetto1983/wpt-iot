@@ -1,0 +1,40 @@
+services:
+  frontend:
+    ports: !override []
+
+  nginx:
+    image: nginx:1.28.3-alpine
+    depends_on:
+      backend:
+        condition: service_healthy
+      frontend:
+        condition: service_healthy
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOLLAR: "$"
+      FRONTEND_SERVER_NAME: ${WPT_FRONTEND_HOST:-wpt.local}
+      API_SERVER_NAME: ${WPT_API_HOST:-api.wpt.local}
+      FRONTEND_UPSTREAM: frontend:3001
+      BACKEND_UPSTREAM: host.docker.internal:${PORT:-3000}
+      TLS_CERT_PATH: /etc/nginx/certs/server.crt
+      TLS_KEY_PATH: /etc/nginx/certs/server.key
+      NGINX_ENTRYPOINT_QUIET_LOGS: "1"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./docker/nginx/templates:/etc/nginx/templates:ro
+      - ${WPT_TLS_CERT_DIR:-./certs}:/etc/nginx/certs:ro
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1/nginx-health || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"

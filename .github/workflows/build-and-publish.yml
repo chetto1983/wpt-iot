@@ -69,10 +69,10 @@ jobs:
           cache-from: type=gha,scope=${{ matrix.app }}
           cache-to: type=gha,mode=max,scope=${{ matrix.app }}
           # Frontend bundle bakes the API URL at build time. Customer machines
-          # all use http://wpt.local:3000 because every install configures
-          # avahi to publish wpt.local on the LAN.
+          # all use the same HTTPS API origin once the nginx TLS overlay is
+          # installed on the edge machine.
           build-args: |
-            NEXT_PUBLIC_API_URL=http://wpt.local:3000
+            NEXT_PUBLIC_API_URL=https://api.wpt.local
 
       - name: Image digest
         run: echo "${{ matrix.app }} digest = ${{ steps.meta.outputs.json && fromJSON(steps.meta.outputs.json).tags[0] }}"

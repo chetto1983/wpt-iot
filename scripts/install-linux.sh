@@ -2,26 +2,16 @@
 set -euo pipefail
 
 # =============================================================================
-# WPT IoT — Linux Install Script (dev / staging VM)
+# WPT IoT - Linux Install Script (dev / staging VM)
 # =============================================================================
-# One-shot, idempotent installer for any Linux host (Ubuntu/Debian tested).
-# Different from setup-onlogic.sh: this script is for non-production VMs that
-# need to talk to a real PLC. It uses host networking on the backend so PLC
-# UDP frames reach the listener sockets directly, but builds images locally
-# instead of pulling from GHCR (no auth required).
-#
-# Usage:
-#   cd wpt-iot
-#   bash scripts/install-linux.sh
-#
-# Re-running is safe — every step checks current state before acting.
+# One-shot, idempotent installer for Linux hosts that need the real PLC UDP
+# path plus the HTTPS/PWA frontend surface.
 # =============================================================================
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 cd "$PROJECT_DIR"
 
-# --- Colors ---
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -34,30 +24,38 @@ ok()    { echo -e "${GREEN}[ OK ]${NC} $1"; }
 fail()  { echo -e "${RED}[FAIL]${NC} $1"; exit 1; }
 step()  { echo ""; echo -e "${CYAN}========== $1 ==========${NC}"; }
 
-# --- Sanity checks ---
-[[ "$(uname -s)" == "Linux" ]] || fail "This script targets Linux only. For Windows/Mac dev, use 'pnpm dev' instead."
-[[ $EUID -ne 0 ]] || fail "Do NOT run as root. Run as your normal user — the script uses sudo where needed."
-command -v docker >/dev/null 2>&1 || fail "Docker not installed. Install via: curl -fsSL https://get.docker.com | sh"
-docker compose version >/dev/null 2>&1 || fail "Docker Compose v2 plugin not available."
-[[ -f docker-compose.yml ]] || fail "docker-compose.yml not found in $PROJECT_DIR. Run from inside the wpt-iot/ directory."
+upsert_env() {
+  local key="$1"
+  local value="$2"
+  if grep -q "^${key}=" .env; then
+    sed -i "s|^${key}=.*|${key}=${value}|" .env
+  else
+    echo "${key}=${value}" >> .env
+  fi
+}
 
-# Detect LAN IP (first non-loopback IPv4)
+[[ "$(uname -s)" == "Linux" ]] || fail "This script targets Linux only."
+[[ $EUID -ne 0 ]] || fail "Do not run as root. Run as your normal user."
+command -v docker >/dev/null 2>&1 || fail "Docker not installed."
+docker compose version >/dev/null 2>&1 || fail "Docker Compose v2 not available."
+command -v openssl >/dev/null 2>&1 || fail "openssl not installed."
+[[ -f docker-compose.yml ]] || fail "docker-compose.yml not found in $PROJECT_DIR."
+[[ -f docker-compose.https.yml ]] || fail "docker-compose.https.yml not found."
+
 LAN_IP="$(hostname -I | awk '{print $1}')"
 [[ -n "$LAN_IP" ]] || fail "Could not detect LAN IP via 'hostname -I'."
 
 step "WPT IoT Linux Installer"
 info "Project dir: $PROJECT_DIR"
 info "Detected LAN IP: $LAN_IP"
-info "Backend will bind: 0.0.0.0:3000 (host networking)"
-info "Frontend bundle will point browser at: http://${LAN_IP}:3000"
+info "Frontend URL: https://wpt.local"
+info "API URL: https://api.wpt.local"
+info "Backend UDP path: host networking"
 
-# =============================================================================
-# 1. Free conflicting ports (legacy host services)
-# =============================================================================
-step "Step 1/8  Stop conflicting host services"
+step "Step 1/9  Stop conflicting host services"
 
 if systemctl is-active --quiet grafana-server 2>/dev/null; then
-  warn "Found grafana-server bound on :3000 — purging (frees backend port)."
+  warn "Found grafana-server bound on :3000 - stopping it."
   sudo systemctl stop grafana-server
   sudo systemctl disable grafana-server 2>/dev/null || true
   sudo apt purge -y grafana 2>/dev/null || sudo apt purge -y grafana-server 2>/dev/null || true
@@ -67,11 +65,11 @@ else
 fi
 
 if snap list mosquitto >/dev/null 2>&1; then
-  warn "Found snap mosquitto — removing (containerised mosquitto will replace it)."
+  warn "Found snap mosquitto - removing it."
   sudo snap remove --purge mosquitto
   ok "snap mosquitto removed."
 elif systemctl is-active --quiet mosquitto 2>/dev/null; then
-  warn "Found systemd mosquitto — stopping (does NOT uninstall)."
+  warn "Found systemd mosquitto - stopping it."
   sudo systemctl stop mosquitto
   sudo systemctl disable mosquitto 2>/dev/null || true
   ok "systemd mosquitto stopped."
@@ -79,22 +77,10 @@ else
   ok "Port 1883 not held by host mosquitto."
 fi
 
-# Note: we don't pre-check ports because Docker itself will fail loudly if a
-# real conflict remains, and the explicit grafana/mosquitto checks above
-# already handle the only known host services that grab our ports.
-ok "Conflicting host services handled."
-
-# =============================================================================
-# 2. avahi-daemon + wpt.local mDNS alias
-# =============================================================================
-# Publishes `wpt.local` on the LAN so browsers can reach the frontend via a
-# stable hostname even if the VM's DHCP lease changes. The alias is resolved
-# at systemd-service start time (not install time) so IP changes are picked
-# up on `systemctl restart wpt-local-alias` with no installer re-run.
-step "Step 2/8  Install avahi-daemon and publish wpt.local"
+step "Step 2/9  Install avahi-daemon and publish mDNS aliases"
 
 if ! command -v avahi-publish >/dev/null 2>&1; then
-  warn "avahi-utils not installed — installing (sudo apt)."
+  warn "avahi-utils not installed - installing."
   sudo apt-get update -qq
   sudo apt-get install -y -qq avahi-daemon avahi-utils libnss-mdns >/dev/null
   ok "avahi-daemon + avahi-utils + libnss-mdns installed."
@@ -102,26 +88,16 @@ else
   ok "avahi-utils already present."
 fi
 
-# Ensure avahi-daemon is running (idempotent; noop if already active).
 if ! systemctl is-active --quiet avahi-daemon; then
   sudo systemctl enable --now avahi-daemon
 fi
 ok "avahi-daemon active."
 
-# Deploy wrapper script (resolves LAN_IP at runtime, execs avahi-publish).
-WRAPPER_SRC="${SCRIPT_DIR}/wpt-local-alias.sh"
-WRAPPER_DST="/usr/local/sbin/wpt-local-alias.sh"
-[[ -f "${WRAPPER_SRC}" ]] || fail "Missing ${WRAPPER_SRC} — check repo integrity."
-sudo install -m 0755 "${WRAPPER_SRC}" "${WRAPPER_DST}"
-ok "Installed ${WRAPPER_DST}."
+sudo install -m 0755 "${SCRIPT_DIR}/wpt-local-alias.sh" /usr/local/sbin/wpt-local-alias.sh
 
-# Write systemd unit. ExecStart calls the wrapper, which re-resolves LAN_IP
-# on every start — so a DHCP lease change is picked up by `systemctl restart
-# wpt-local-alias` without re-running this installer.
-SERVICE_DST="/etc/systemd/system/wpt-local-alias.service"
-sudo tee "${SERVICE_DST}" > /dev/null << 'UNITEOF'
+sudo tee /etc/systemd/system/wpt-local-alias.service > /dev/null << 'UNITEOF'
 [Unit]
-Description=Publish wpt.local mDNS alias for WPT IoT
+Description=Publish wpt.local and api.wpt.local mDNS aliases for WPT IoT
 After=avahi-daemon.service network-online.target
 Requires=avahi-daemon.service
 Wants=network-online.target
@@ -135,63 +111,38 @@ RestartSec=5
 [Install]
 WantedBy=multi-user.target
 UNITEOF
-ok "Wrote ${SERVICE_DST}."
 
 sudo systemctl daemon-reload
-# Restart (not just enable) so a running instance picks up the current LAN_IP
-# instead of whatever it was bound to on the previous boot.
 sudo systemctl enable wpt-local-alias.service >/dev/null 2>&1
 sudo systemctl restart wpt-local-alias.service
 sleep 2
 
 if avahi-resolve-host-name wpt.local >/dev/null 2>&1; then
-  RESOLVED="$(avahi-resolve-host-name wpt.local 2>/dev/null | awk '{print $2}')"
-  if [[ "${RESOLVED}" == "${LAN_IP}" ]]; then
-    ok "wpt.local resolves to ${RESOLVED} (matches detected LAN IP)."
-  else
-    warn "wpt.local resolves to ${RESOLVED} but detected LAN IP is ${LAN_IP} — stale cache on LAN?"
-    warn "This is usually transient; other mDNS publishers on the LAN converge within ~30s."
-  fi
+  ok "wpt.local resolves on the local machine."
 else
-  warn "wpt.local did not resolve immediately — may take a few seconds for LAN mDNS cache to refresh."
+  warn "wpt.local did not resolve immediately. mDNS may need a few seconds."
 fi
 
-# =============================================================================
-# 3. .env file
-# =============================================================================
-step "Step 3/8  Configure .env"
+step "Step 3/9  Configure .env"
 
 if [[ ! -f .env ]]; then
-  if [[ -f .env.example ]]; then
-    cp .env.example .env
-    info "Created .env from .env.example."
-  else
-    fail "No .env and no .env.example to copy from."
-  fi
+  [[ -f .env.example ]] || fail "No .env and no .env.example to copy from."
+  cp .env.example .env
+  info "Created .env from .env.example."
 else
-  info ".env already exists — updating LAN-specific values only."
+  info ".env already exists - updating HTTPS-specific values only."
 fi
 
-# CORS_ORIGIN must include the LAN frontend URL AND wpt.local so browsers can
-# reach the API from either the raw IP or the mDNS hostname (set up later).
-sed -i "s|^CORS_ORIGIN=.*|CORS_ORIGIN=http://wpt.local:3001,http://${LAN_IP}:3001,http://localhost:3001|" .env
-sed -i "s|^NEXT_PUBLIC_API_URL=.*|NEXT_PUBLIC_API_URL=http://${LAN_IP}:3000|" .env
-ok "CORS_ORIGIN and NEXT_PUBLIC_API_URL set to LAN IP $LAN_IP + wpt.local."
+upsert_env "CORS_ORIGIN" "https://wpt.local"
+upsert_env "NEXT_PUBLIC_API_URL" "https://api.wpt.local"
+upsert_env "SESSION_COOKIE_SECURE" "true"
+upsert_env "TRUST_PROXY" "true"
+ok ".env updated for HTTPS + secure cookies."
 
-# =============================================================================
-# 4. Host networking override
-# =============================================================================
-step "Step 4/8  Generate docker-compose.host.yml"
+step "Step 4/9  Generate docker-compose.host.yml"
 
 cat > docker-compose.host.yml << EOF
-# Auto-generated by scripts/install-linux.sh — DO NOT EDIT BY HAND.
-# Re-run install-linux.sh to regenerate with the current LAN IP.
-#
-# This override puts the backend on host networking so the real PLC's UDP
-# frames reach the listener sockets directly (Docker bridge port mapping
-# silently drops PLC UDP on Windows/Mac and is unreliable on Linux for
-# multi-NIC hosts). Frontend stays on bridge networking; its bundled
-# NEXT_PUBLIC_API_URL is overridden so the browser fetches from the LAN URL.
+# Auto-generated by scripts/install-linux.sh - do not edit by hand.
 
 services:
   backend:
@@ -200,49 +151,41 @@ services:
     environment:
       MQTT_HOST: 127.0.0.1
       PG_HOST: 127.0.0.1
-      CORS_ORIGIN: http://${LAN_IP}:3001,http://wpt.local:3001,http://localhost:3001
+      CORS_ORIGIN: https://wpt.local
+      SESSION_COOKIE_SECURE: "true"
+      TRUST_PROXY: "true"
 
   frontend:
-    # Bake the frontend bundle to call the API at the raw LAN IP. Earlier
-    # versions baked http://wpt.local:3000 to keep the cookie SameSite=Lax
-    # path clean, but that strategy is fragile in the field: any stale
-    # mDNS cache (router DNS, Windows DNS Client, another VM still
-    # advertising the old IP) silently routes the browser at the wrong
-    # host and the auth POST surfaces as ERR_CONNECTION_REFUSED with no
-    # signal that wpt.local is the culprit. Raw IP always reaches THIS
-    # host. SameSite=Lax is fine because the page itself is also served
-    # from the same raw-IP origin (frontend on http://${LAN_IP}:3001),
-    # so the cookie stays first-party.
     build:
       args:
-        NEXT_PUBLIC_API_URL: http://${LAN_IP}:3000
+        NEXT_PUBLIC_API_URL: https://api.wpt.local
     environment:
-      NEXT_PUBLIC_API_URL: http://${LAN_IP}:3000
+      NEXT_PUBLIC_API_URL: https://api.wpt.local
 EOF
 ok "docker-compose.host.yml written."
 
-# =============================================================================
-# 5. Docker group membership (so future runs don't need sudo)
-# =============================================================================
-step "Step 5/8  Ensure user is in docker group"
+step "Step 5/9  Generate local TLS certificates"
+
+mkdir -p certs
+bash scripts/generate-local-tls.sh certs "${LAN_IP}"
+ok "TLS assets ready in ${PROJECT_DIR}/certs."
+
+step "Step 6/9  Ensure user is in docker group"
 
 if id -nG "$USER" | grep -qw docker; then
   ok "$USER is already in the docker group."
+  DOCKER="docker"
 else
   warn "Adding $USER to docker group (sudo)."
   sudo usermod -aG docker "$USER"
-  warn "You must log out and back in for docker group to take effect in NEW sessions."
-  warn "For THIS run we will continue using sudo for docker commands."
+  warn "You must log out and back in for docker group membership to apply in new sessions."
   DOCKER="sudo docker"
 fi
-DOCKER="${DOCKER:-docker}"
 
-# =============================================================================
-# 6. Bring up db + mosquitto first, wait healthy, then run migration
-# =============================================================================
-step "Step 6/8  Start db + mosquitto"
+COMPOSE_FILES=(-f docker-compose.yml -f docker-compose.host.yml -f docker-compose.https.yml)
 
-COMPOSE_FILES=(-f docker-compose.yml -f docker-compose.host.yml)
+step "Step 7/9  Start db + mosquitto"
+
 $DOCKER compose "${COMPOSE_FILES[@]}" up -d db mosquitto
 
 info "Waiting for db to become healthy..."
@@ -255,12 +198,9 @@ for i in {1..30}; do
   [[ $i -eq 30 ]] && fail "db failed to become healthy in 60s."
 done
 
-# =============================================================================
-# 7. Run drizzle db:push via one-shot Node container (no host pnpm needed)
-# =============================================================================
-step "Step 7/8  Migrate database schema (drizzle-kit push)"
+step "Step 8/9  Migrate schema"
 
-info "Running migration in throwaway node:22-alpine container..."
+info "Running migration in a throwaway node:22-alpine container..."
 $DOCKER run --rm \
   --network host \
   -v "$PROJECT_DIR:/src:ro" \
@@ -271,52 +211,54 @@ $DOCKER run --rm \
   -e PG_PASSWORD="${PG_PASSWORD:-wpt_dev_password}" \
   node:22-alpine \
   sh -c "set -e && apk add --no-cache rsync >/dev/null && rsync -a --exclude=node_modules --exclude='apps/*/node_modules' --exclude='packages/*/node_modules' --exclude=.git /src/ /app/ && cd /app && corepack enable && pnpm install --frozen-lockfile --filter @wpt/backend --filter @wpt/types >/dev/null 2>&1 && pnpm -r --filter @wpt/backend run db:push"
-
 ok "Schema migration complete."
 
-# =============================================================================
-# 8. Bring up backend + frontend (build if needed)
-# =============================================================================
-step "Step 8/8  Build and start backend + frontend"
+step "Step 9/9  Build and start backend + frontend + nginx"
 
-$DOCKER compose "${COMPOSE_FILES[@]}" up -d --build backend frontend
+$DOCKER compose "${COMPOSE_FILES[@]}" up -d --build backend frontend nginx
 
-info "Waiting for backend health..."
+info "Waiting for backend /health..."
 for i in {1..30}; do
   if curl -fsS -m 2 "http://127.0.0.1:3000/health" >/dev/null 2>&1; then
     ok "backend /health responds."
     break
   fi
   sleep 2
-  [[ $i -eq 30 ]] && fail "backend /health did not respond in 60s. Check: $DOCKER logs wpt-iot-backend-1"
+  [[ $i -eq 30 ]] && fail "backend /health did not respond in 60s."
 done
 
-info "Waiting for frontend..."
+info "Waiting for nginx health..."
 for i in {1..30}; do
-  if curl -fsS -m 2 -o /dev/null "http://127.0.0.1:3001/" 2>/dev/null; then
-    ok "frontend / responds."
+  if curl -fsS -m 2 "http://127.0.0.1/nginx-health" >/dev/null 2>&1; then
+    ok "nginx /nginx-health responds."
     break
   fi
   sleep 2
-  [[ $i -eq 30 ]] && warn "frontend / did not respond in 60s — check: $DOCKER logs wpt-iot-frontend-1"
+  [[ $i -eq 30 ]] && fail "nginx /nginx-health did not respond in 60s."
 done
 
-# =============================================================================
-# Done
-# =============================================================================
+info "Waiting for HTTPS frontend..."
+for i in {1..30}; do
+  if curl --silent --show-error --fail --cacert "${PROJECT_DIR}/certs/wpt-local-ca.crt" --resolve wpt.local:443:127.0.0.1 "https://wpt.local/" >/dev/null 2>&1; then
+    ok "HTTPS frontend responds."
+    break
+  fi
+  sleep 2
+  [[ $i -eq 30 ]] && fail "HTTPS frontend did not respond in 60s."
+done
+
 echo ""
 echo -e "${GREEN}=========================================="
 echo "  WPT IoT installed and running"
 echo -e "==========================================${NC}"
 echo ""
-echo "  Frontend:    http://${LAN_IP}:3001"
-echo "  Backend:     http://${LAN_IP}:3000/health"
-echo "  DB:          127.0.0.1:5432 (user wpt)"
-echo "  MQTT broker: 127.0.0.1:1883"
+echo "  Frontend:    https://wpt.local"
+echo "  API:         https://api.wpt.local/health"
+echo "  Local CA:    ${PROJECT_DIR}/certs/wpt-local-ca.crt"
+echo "  Backend:     http://127.0.0.1:3000/health (maintenance only)"
 echo ""
 echo "Next steps:"
-echo "  1. In CODESYS V2, set GVL_WPT.sTargetIp := '${LAN_IP}' so the PLC streams here."
-echo "  2. Set xStreamData := TRUE and xStreamAlarms := TRUE."
-echo "  3. Watch packets land:"
-echo "       curl -s http://${LAN_IP}:3000/health | jq"
+echo "  1. Trust ${PROJECT_DIR}/certs/wpt-local-ca.crt on the client devices that open the app."
+echo "  2. Open https://wpt.local in a browser."
+echo "  3. In CODESYS V2, set GVL_WPT.sTargetIp := '${LAN_IP}' so the PLC streams here."
 echo ""

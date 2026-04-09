@@ -2,27 +2,9 @@
 set -euo pipefail
 
 # =============================================================================
-# WPT IoT — Production Bootstrap Installer
-# =============================================================================
-# Brings up a fresh Ubuntu (22.04 / 24.04) machine in production mode:
-#   - Installs Docker + Compose v2 if missing
-#   - Pulls pre-built images from GHCR (no source code needed on the machine)
-#   - Sets up avahi-daemon to publish wpt.local on the LAN
-#   - Starts watchtower to auto-pull image updates every 5 minutes
-#   - Persists state in /opt/wpt-iot
-#
-# Usage on a fresh machine:
-#   curl -fsSL https://raw.githubusercontent.com/chetto1983/wpt-iot/master/scripts/install-prod.sh | sudo bash
-#
-# Or with a custom branch:
-#   curl -fsSL https://raw.githubusercontent.com/chetto1983/wpt-iot/master/scripts/install-prod.sh | sudo BRANCH=master bash
-#
-# This is intentionally separate from install-linux.sh:
-#   install-linux.sh   - DEV/STAGING: builds images locally from source
-#   install-prod.sh    - PRODUCTION:  pulls pre-built images from GHCR
+# WPT IoT - Production Bootstrap Installer
 # =============================================================================
 
-# --- Config (override via env) ---
 REPO_OWNER="${REPO_OWNER:-chetto1983}"
 REPO_NAME="${REPO_NAME:-wpt-iot}"
 BRANCH="${BRANCH:-master}"
@@ -31,7 +13,6 @@ ADMIN_PASSWORD="${ADMIN_PASSWORD:-}"
 
 RAW_URL="https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/${BRANCH}"
 
-# --- Colors ---
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -44,7 +25,17 @@ ok()    { echo -e "${GREEN}[ OK ]${NC} $1"; }
 fail()  { echo -e "${RED}[FAIL]${NC} $1" >&2; exit 1; }
 step()  { echo ""; echo -e "${CYAN}========== $1 ==========${NC}"; }
 
-# --- Sanity ---
+upsert_env() {
+  local file="$1"
+  local key="$2"
+  local value="$3"
+  if grep -q "^${key}=" "$file"; then
+    sed -i "s|^${key}=.*|${key}=${value}|" "$file"
+  else
+    echo "${key}=${value}" >> "$file"
+  fi
+}
+
 [[ "$(uname -s)" == "Linux" ]] || fail "Linux only."
 [[ $EUID -eq 0 ]] || fail "Run as root: curl ... | sudo bash"
 command -v curl >/dev/null 2>&1 || fail "curl is required."
@@ -56,10 +47,9 @@ step "WPT IoT Production Installer"
 info "Repo:     ${REPO_OWNER}/${REPO_NAME}@${BRANCH}"
 info "Install:  ${INSTALL_DIR}"
 info "LAN IP:   ${LAN_IP}"
+info "Frontend: https://wpt.local"
+info "API:      https://api.wpt.local"
 
-# =============================================================================
-# 1. Install Docker if missing
-# =============================================================================
 step "Step 1/7  Docker Engine + Compose v2"
 
 if command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; then
@@ -71,9 +61,6 @@ else
   ok "Docker installed and started."
 fi
 
-# =============================================================================
-# 2. Stop conflicting host services (legacy mosquitto, grafana on :3000, etc.)
-# =============================================================================
 step "Step 2/7  Free conflicting host services"
 
 if systemctl is-active --quiet grafana-server 2>/dev/null; then
@@ -83,7 +70,7 @@ if systemctl is-active --quiet grafana-server 2>/dev/null; then
 fi
 
 if snap list mosquitto >/dev/null 2>&1; then
-  warn "Removing snap mosquitto (will be replaced by container)..."
+  warn "Removing snap mosquitto..."
   snap remove --purge mosquitto
 elif systemctl is-active --quiet mosquitto 2>/dev/null; then
   warn "Stopping host mosquitto..."
@@ -92,94 +79,23 @@ elif systemctl is-active --quiet mosquitto 2>/dev/null; then
 fi
 ok "Host services cleared."
 
-# =============================================================================
-# 3. avahi-daemon for wpt.local
-# =============================================================================
-step "Step 3/7  avahi-daemon (mDNS wpt.local)"
+step "Step 3/7  Install dir + runtime files"
 
 apt-get update -qq
-apt-get install -y -qq avahi-daemon avahi-utils libnss-mdns >/dev/null
-systemctl enable --now avahi-daemon
+apt-get install -y -qq avahi-daemon avahi-utils libnss-mdns openssl >/dev/null
 
-# Restrict avahi to the primary LAN interface (skip docker bridges)
-PRIMARY_IFACE="$(ip -o -4 route show to default | awk '{print $5}' | head -1)"
-[[ -n "$PRIMARY_IFACE" ]] || fail "Could not detect primary network interface."
-
-cat > /etc/avahi/avahi-daemon.conf << AVCONF
-[server]
-use-ipv4=yes
-use-ipv6=no
-allow-interfaces=${PRIMARY_IFACE}
-ratelimit-interval-usec=1000000
-ratelimit-burst=1000
-
-[wide-area]
-enable-wide-area=yes
-
-[publish]
-publish-hinfo=no
-publish-workstation=no
-publish-aaaa-on-ipv4=no
-publish-a-on-ipv6=no
-
-[reflector]
-
-[rlimits]
-rlimit-core=0
-rlimit-data=4194304
-rlimit-fsize=0
-rlimit-nofile=768
-rlimit-stack=4194304
-rlimit-nproc=3
-AVCONF
-
-systemctl restart avahi-daemon
-
-# Publish wpt.local as an alias of this host (separate from system hostname)
-cat > /etc/systemd/system/avahi-publish-wpt.service << SVCEOF
-[Unit]
-Description=Publish wpt.local mDNS alias for WPT IoT
-After=avahi-daemon.service network-online.target
-Requires=avahi-daemon.service
-Wants=network-online.target
-
-[Service]
-Type=simple
-ExecStart=/usr/bin/avahi-publish -a -R wpt.local ${LAN_IP}
-Restart=on-failure
-RestartSec=5
-
-[Install]
-WantedBy=multi-user.target
-SVCEOF
-
-systemctl daemon-reload
-systemctl enable --now avahi-publish-wpt.service
-sleep 2
-if avahi-resolve -n wpt.local >/dev/null 2>&1; then
-  ok "wpt.local resolves to $(avahi-resolve -n wpt.local | awk '{print $2}')"
-else
-  warn "wpt.local did not resolve immediately — may take a few seconds."
-fi
-
-# =============================================================================
-# 4. Install dir + compose files (pulled from GitHub raw, NOT the full repo)
-# =============================================================================
-step "Step 4/7  Compose files from GitHub raw"
-
-mkdir -p "${INSTALL_DIR}"
+mkdir -p "${INSTALL_DIR}/docker/nginx/templates" "${INSTALL_DIR}/certs"
 cd "${INSTALL_DIR}"
 
 curl -fsSL "${RAW_URL}/docker-compose.yml" -o docker-compose.yml
 curl -fsSL "${RAW_URL}/docker-compose.prod.yml" -o docker-compose.prod.yml
+curl -fsSL "${RAW_URL}/docker-compose.https.yml" -o docker-compose.https.yml
+curl -fsSL "${RAW_URL}/docker/nginx/templates/wpt.conf.template" -o docker/nginx/templates/wpt.conf.template
+curl -fsSL "${RAW_URL}/scripts/generate-local-tls.sh" -o generate-local-tls.sh
+curl -fsSL "${RAW_URL}/scripts/wpt-local-alias.sh" -o wpt-local-alias.sh
+chmod +x generate-local-tls.sh wpt-local-alias.sh
 
-# Generate the host-networking override locally — NOT pulled from the repo
-# because LAN_IP varies per machine. Pin NEXT_PUBLIC_API_URL to wpt.local so
-# the baked frontend bundle calls the API same-site (SameSite=Lax cookies).
-cat > docker-compose.host.yml << HOSTEOF
-# Auto-generated by install-prod.sh — DO NOT EDIT BY HAND.
-# Re-run install-prod.sh to regenerate with the current LAN IP.
-
+cat > docker-compose.host.yml <<'HOSTEOF'
 services:
   backend:
     network_mode: host
@@ -187,23 +103,50 @@ services:
     environment:
       MQTT_HOST: 127.0.0.1
       PG_HOST: 127.0.0.1
-      CORS_ORIGIN: http://wpt.local:3001,http://${LAN_IP}:3001,http://localhost:3001
+      CORS_ORIGIN: https://wpt.local
+      SESSION_COOKIE_SECURE: "true"
+      TRUST_PROXY: "true"
 
   frontend:
     environment:
-      NEXT_PUBLIC_API_URL: http://wpt.local:3000
+      NEXT_PUBLIC_API_URL: https://api.wpt.local
 HOSTEOF
+ok "Compose files and helpers downloaded."
 
-ok "Compose files in place."
+step "Step 4/7  avahi-daemon (mDNS aliases)"
 
-# =============================================================================
-# 5. Generate .env with secure defaults if missing
-# =============================================================================
-step "Step 5/7  .env"
+systemctl enable --now avahi-daemon
+install -m 0755 "${INSTALL_DIR}/wpt-local-alias.sh" /usr/local/sbin/wpt-local-alias.sh
 
-if [[ -f .env ]]; then
-  ok ".env already exists — preserving."
+cat > /etc/systemd/system/wpt-local-alias.service <<'UNITEOF'
+[Unit]
+Description=Publish wpt.local and api.wpt.local mDNS aliases for WPT IoT
+After=avahi-daemon.service network-online.target
+Requires=avahi-daemon.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/sbin/wpt-local-alias.sh
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+UNITEOF
+
+systemctl daemon-reload
+systemctl enable --now wpt-local-alias.service
+sleep 2
+if avahi-resolve -n wpt.local >/dev/null 2>&1; then
+  ok "wpt.local resolves to $(avahi-resolve -n wpt.local | awk '{print $2}')"
 else
+  warn "wpt.local did not resolve immediately. mDNS may need a few seconds."
+fi
+
+step "Step 5/7  .env + TLS certificates"
+
+if [[ ! -f .env ]]; then
   if [[ -z "${ADMIN_PASSWORD}" ]]; then
     ADMIN_PASSWORD="$(head -c 16 /dev/urandom | base64 | tr -d '/+=' | head -c 18)"
     info "Generated random ADMIN_PASSWORD (printed at the end)."
@@ -211,94 +154,95 @@ else
   SESSION_SECRET="$(head -c 32 /dev/urandom | base64 | tr -d '/+=' | head -c 32)"
   PG_PASSWORD="$(head -c 24 /dev/urandom | base64 | tr -d '/+=' | head -c 24)"
 
-  cat > .env << ENVEOF
-# Auto-generated by install-prod.sh
-# Regeneration is destructive — back this file up before re-running.
-
+  cat > .env <<ENVEOF
 PG_HOST=db
 PG_PORT=5432
 PG_DB=wpt
 PG_USERNAME=wpt
 PG_PASSWORD=${PG_PASSWORD}
-
 PORT=3000
 HOST=0.0.0.0
-
 UDP_PORT_DATA=9090
 UDP_PORT_ALARMS=9091
 UDP_PORT_USERS=9092
 UDP_PORT_ACK=9093
 UDP_ADDRESS=0.0.0.0
-
 SIM_ACK_PORT=9093
 SIM_DATA_PORT=9090
 SIM_USERS_PORT=9092
-
 SESSION_SECRET=${SESSION_SECRET}
 ADMIN_PASSWORD=${ADMIN_PASSWORD}
-
-CORS_ORIGIN=http://wpt.local:3001,http://${LAN_IP}:3001,http://localhost:3001
-NEXT_PUBLIC_API_URL=http://wpt.local:3000
+CORS_ORIGIN=https://wpt.local
+NEXT_PUBLIC_API_URL=https://api.wpt.local
+SESSION_COOKIE_SECURE=true
+TRUST_PROXY=true
 ENVEOF
   chmod 600 .env
   ok ".env generated with random secrets."
+else
+  upsert_env .env "CORS_ORIGIN" "https://wpt.local"
+  upsert_env .env "NEXT_PUBLIC_API_URL" "https://api.wpt.local"
+  upsert_env .env "SESSION_COOKIE_SECURE" "true"
+  upsert_env .env "TRUST_PROXY" "true"
+  ok ".env preserved and updated for HTTPS."
 fi
 
-# =============================================================================
-# 6. Bring up the stack from GHCR
-# =============================================================================
-step "Step 6/7  docker compose pull + up (production)"
+bash ./generate-local-tls.sh ./certs "${LAN_IP}"
+ok "TLS assets ready in ${INSTALL_DIR}/certs."
 
-docker compose -f docker-compose.yml -f docker-compose.host.yml -f docker-compose.prod.yml pull
-docker compose -f docker-compose.yml -f docker-compose.host.yml -f docker-compose.prod.yml up -d
+step "Step 6/7  docker compose pull + up"
 
-info "Waiting for backend health..."
+docker compose -f docker-compose.yml -f docker-compose.host.yml -f docker-compose.https.yml -f docker-compose.prod.yml pull
+docker compose -f docker-compose.yml -f docker-compose.host.yml -f docker-compose.https.yml -f docker-compose.prod.yml up -d
+
+info "Waiting for backend /health..."
 for i in {1..30}; do
   if curl -fsS -m 2 "http://127.0.0.1:3000/health" >/dev/null 2>&1; then
     ok "backend /health responds."
     break
   fi
   sleep 2
-  [[ $i -eq 30 ]] && fail "backend /health did not respond in 60s. Check: docker logs wpt-iot-backend-1"
+  [[ $i -eq 30 ]] && fail "backend /health did not respond in 60s."
 done
 
-info "Waiting for frontend..."
+info "Waiting for nginx /nginx-health..."
 for i in {1..30}; do
-  if curl -fsS -m 2 -o /dev/null "http://127.0.0.1:3001/" 2>/dev/null; then
-    ok "frontend / responds."
+  if curl -fsS -m 2 "http://127.0.0.1/nginx-health" >/dev/null 2>&1; then
+    ok "nginx /nginx-health responds."
     break
   fi
   sleep 2
-  [[ $i -eq 30 ]] && warn "frontend / did not respond in 60s — check: docker logs wpt-iot-frontend-1"
+  [[ $i -eq 30 ]] && fail "nginx /nginx-health did not respond in 60s."
 done
 
-# =============================================================================
-# 7. Done
-# =============================================================================
-step "Done"
+info "Waiting for HTTPS frontend..."
+for i in {1..30}; do
+  if curl --silent --show-error --fail --cacert "${INSTALL_DIR}/certs/wpt-local-ca.crt" --resolve wpt.local:443:127.0.0.1 "https://wpt.local/" >/dev/null 2>&1; then
+    ok "HTTPS frontend responds."
+    break
+  fi
+  sleep 2
+  [[ $i -eq 30 ]] && fail "HTTPS frontend did not respond in 60s."
+done
+
+step "Step 7/7  Done"
 echo ""
 echo -e "${GREEN}=========================================="
 echo "  WPT IoT installed and running"
 echo -e "==========================================${NC}"
 echo ""
-echo "  Frontend:    http://wpt.local:3001  (and http://${LAN_IP}:3001)"
-echo "  Backend:     http://wpt.local:3000/health"
+echo "  Frontend:    https://wpt.local"
+echo "  API:         https://api.wpt.local/health"
+echo "  Local CA:    ${INSTALL_DIR}/certs/wpt-local-ca.crt"
 echo "  Install dir: ${INSTALL_DIR}"
 echo ""
 if [[ -n "${ADMIN_PASSWORD}" ]]; then
-  echo "  ─────────────────────────────────────────"
   echo "  Admin login: admin / ${ADMIN_PASSWORD}"
-  echo "  (Save this — it's stored only in ${INSTALL_DIR}/.env)"
-  echo "  ─────────────────────────────────────────"
 fi
 echo ""
 echo "Next steps:"
-echo "  1. Open http://wpt.local:3001 in a browser (any LAN client with mDNS support)"
-echo "  2. Login as admin → /plc → set PLC Address to your ABB AC500 IP → Save"
-echo "  3. In CODESYS, set GVL_WPT.sTargetIp := '${LAN_IP}' so the PLC streams here"
-echo "  4. Watchtower auto-updates every 5 minutes from GHCR — no manual updates needed"
-echo ""
-echo "To roll back to a specific image version:"
-echo "  cd ${INSTALL_DIR}"
-echo "  docker compose -f docker-compose.yml -f docker-compose.host.yml -f docker-compose.prod.yml pull <image>:<sha>"
+echo "  1. Trust ${INSTALL_DIR}/certs/wpt-local-ca.crt on the client devices."
+echo "  2. Open https://wpt.local in a browser."
+echo "  3. Login as admin and set the PLC Address under /plc."
+echo "  4. In CODESYS, set GVL_WPT.sTargetIp := '${LAN_IP}' so the PLC streams here."
 echo ""

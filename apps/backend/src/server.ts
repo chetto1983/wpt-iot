@@ -28,6 +28,7 @@ const isDev = process.env.NODE_ENV !== 'production';
 
 export function buildServer(): ReturnType<typeof Fastify> {
   const server = Fastify({
+    trustProxy: config.trustProxy,
     logger: isDev
       ? {
           level: 'info',
@@ -58,7 +59,7 @@ export function buildServer(): ReturnType<typeof Fastify> {
     store: new DrizzleSessionStore(),
     cookie: {
       httpOnly: true,
-      secure: false, // LAN over HTTP (wpt.local), not HTTPS
+      secure: config.sessionCookieSecure,
       sameSite: 'lax',
       maxAge: 86400000, // 24h per D-02
       path: '/',

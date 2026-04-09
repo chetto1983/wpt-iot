@@ -1,6 +1,14 @@
 import dotenv from 'dotenv';
 dotenv.config({ path: '../../.env' });
 
+function parseBoolean(value: string | undefined, fallback: boolean): boolean {
+  if (value == null) return fallback;
+  const normalized = value.trim().toLowerCase();
+  if (['1', 'true', 'yes', 'on'].includes(normalized)) return true;
+  if (['0', 'false', 'no', 'off'].includes(normalized)) return false;
+  return fallback;
+}
+
 export const config = {
   port: Number(process.env.PORT ?? 3000),
   host: process.env.HOST ?? '0.0.0.0',
@@ -22,7 +30,9 @@ export const config = {
   // Operators change it from the frontend UI (SUPER_ADMIN only).
   handshakeTimeoutMs: Number(process.env.HANDSHAKE_TIMEOUT_MS ?? 5000),
   sessionSecret: process.env.SESSION_SECRET ?? 'dev-only-session-secret-minimum-32-chars!!',
+  sessionCookieSecure: parseBoolean(process.env.SESSION_COOKIE_SECURE, false),
   adminPassword: process.env.ADMIN_PASSWORD ?? '',
+  trustProxy: parseBoolean(process.env.TRUST_PROXY, false),
   // Permissive dev/LAN default: wpt.local (mDNS alias), raw localhost, and
   // a wildcard for any http://<anything>:3001 origin. Production deployments
   // OVERRIDE this via CORS_ORIGIN in .env (install-linux.sh / install-prod.sh

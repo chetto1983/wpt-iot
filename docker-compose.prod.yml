@@ -18,7 +18,7 @@ services:
     # only works for dev on the OnLogic itself.
     environment:
       MQTT_HOST: 127.0.0.1
-      CORS_ORIGIN: ${CORS_ORIGIN:-http://wpt.local:3001}
+      CORS_ORIGIN: ${CORS_ORIGIN:-https://wpt.local}
     labels:
       - "com.centurylinklabs.watchtower.enable=true"
 

@@ -187,8 +187,10 @@ else
 
   # Apply production overrides
   sed -i 's/^PG_HOST=.*/PG_HOST=127.0.0.1/' "$ENV_FILE"
-  sed -i 's/^CORS_ORIGIN=.*/CORS_ORIGIN=http:\/\/wpt.local:3001/' "$ENV_FILE"
-  sed -i 's/^NEXT_PUBLIC_API_URL=.*/NEXT_PUBLIC_API_URL=http:\/\/wpt.local:3000/' "$ENV_FILE"
+  sed -i 's/^CORS_ORIGIN=.*/CORS_ORIGIN=https:\/\/wpt.local/' "$ENV_FILE"
+  sed -i 's/^NEXT_PUBLIC_API_URL=.*/NEXT_PUBLIC_API_URL=https:\/\/api.wpt.local/' "$ENV_FILE"
+  sed -i 's/^SESSION_COOKIE_SECURE=.*/SESSION_COOKIE_SECURE=true/' "$ENV_FILE" || true
+  sed -i 's/^TRUST_PROXY=.*/TRUST_PROXY=true/' "$ENV_FILE" || true
 
   # Remove simulator config (not used in production)
   sed -i '/^SIM_HOST=/d' "$ENV_FILE"
@@ -227,5 +229,5 @@ echo "       cd ${PROJECT_DIR}"
 echo "       docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d"
 echo "  4. Verify wpt.local resolves:"
 echo "       avahi-resolve -n wpt.local"
-echo "  5. Open browser: http://wpt.local:3001"
+echo "  5. Open browser: https://wpt.local"
 echo ""

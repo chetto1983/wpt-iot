@@ -22,6 +22,11 @@ After setup:
 | Simulator  | http://localhost:3002   |
 | Database   | localhost:5432          |
 
+For Linux installs that use the compose HTTPS overlay, the user-facing URLs are:
+- `https://wpt.local` for the app shell
+- `https://api.wpt.local` for API + websocket traffic
+- trust the generated local CA before testing PWA installability
+
 Login: `admin` / password in `.env` (`ADMIN_PASSWORD`)
 
 ## Architecture
@@ -160,7 +165,9 @@ Copy `.env.example` to `.env` (done automatically by `setup.sh`):
 | `PG_PASSWORD`     | `wpt_dev_password` | PostgreSQL password            |
 | `ADMIN_PASSWORD`  | `changeme`         | Dashboard admin login          |
 | `SESSION_SECRET`  | (generate random)  | Auth session signing key       |
-| `CORS_ORIGIN`     | `http://localhost:3001` | Allowed CORS origins      |
+| `CORS_ORIGIN`     | `http://localhost:3001` or `https://wpt.local` | Allowed CORS origins |
+| `SESSION_COOKIE_SECURE` | `false` | Set `true` behind HTTPS |
+| `TRUST_PROXY`     | `false` | Set `true` when TLS terminates at nginx |
 | `PORT`            | `3000`             | Backend HTTP port              |
 
 ## Roles

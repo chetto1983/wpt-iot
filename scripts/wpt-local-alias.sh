@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-# wpt-local-alias.sh — publishes wpt.local as an mDNS A-record alias
+# wpt-local-alias.sh - publishes wpt.local + api.wpt.local mDNS aliases
 # =============================================================================
 # Invoked by the wpt-local-alias.service systemd unit (installed by
 # scripts/install-linux.sh). Resolves the current primary LAN IP at start
@@ -8,7 +8,7 @@
 # service restart without re-running the installer.
 #
 # Why a wrapper and not ExecStart=/usr/bin/avahi-publish directly?
-# Because the LAN IP must be resolved AT START TIME, not at install time.
+# Because the LAN IP must be resolved at start time, not at install time.
 # install-prod.sh bakes the IP into the unit file, which breaks if the VM
 # gets a new DHCP lease. This wrapper re-resolves on every restart.
 #
@@ -16,9 +16,6 @@
 # =============================================================================
 set -euo pipefail
 
-# Resolve the primary LAN IPv4 (first non-loopback). Excludes docker bridges
-# because they come later in the `hostname -I` ordering on Linux kernels with
-# the default `ip -4 route` behaviour — first entry is the default-route iface.
 LAN_IP="$(hostname -I | awk '{print $1}')"
 
 if [[ -z "${LAN_IP}" ]]; then
@@ -26,10 +23,16 @@ if [[ -z "${LAN_IP}" ]]; then
   exit 1
 fi
 
-echo "[wpt-local-alias] Publishing wpt.local -> ${LAN_IP}"
+echo "[wpt-local-alias] Publishing wpt.local + api.wpt.local -> ${LAN_IP}"
 
-# -a: publish an A record (hostname -> IP)
-# -R: allow multiple records for same name (safe if another service is also
-#     publishing wpt.local on a different interface)
-# Runs foreground so systemd can monitor + restart on failure.
-exec /usr/bin/avahi-publish -a -R wpt.local "${LAN_IP}"
+/usr/bin/avahi-publish -a -R wpt.local "${LAN_IP}" &
+PUBLISH_WPT_PID=$!
+/usr/bin/avahi-publish -a -R api.wpt.local "${LAN_IP}" &
+PUBLISH_API_PID=$!
+
+cleanup() {
+  kill "${PUBLISH_WPT_PID}" "${PUBLISH_API_PID}" 2>/dev/null || true
+}
+
+trap cleanup EXIT INT TERM
+wait -n "${PUBLISH_WPT_PID}" "${PUBLISH_API_PID}"
