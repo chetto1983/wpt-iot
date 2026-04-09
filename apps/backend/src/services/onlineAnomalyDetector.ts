@@ -86,6 +86,7 @@ export class OnlineAnomalyDetector {
       scoreThreshold?: number;
       updateRate?: number;
       quarantineThreshold?: number;
+      maxFeatureZScore?: number;
     } = {},
   ) {}
 
@@ -105,6 +106,10 @@ export class OnlineAnomalyDetector {
     return this.opts.quarantineThreshold ?? this.scoreThreshold * 1.5;
   }
 
+  private get maxFeatureZScore(): number {
+    return this.opts.maxFeatureZScore ?? 25;
+  }
+
   score(input: IAnomalyInput): IAnomalyResult {
     const modeKey = toModeKey(input);
     const mode = this.modes.get(modeKey) ?? {
@@ -122,7 +127,10 @@ export class OnlineAnomalyDetector {
       if (!state?.initialized) continue;
 
       const sigma = Math.sqrt(Math.max(state.variance, EPSILON));
-      const zScore = Math.abs((value - state.mean) / sigma);
+      const rawZScore = Math.abs((value - state.mean) / sigma);
+      const zScore = Number.isFinite(rawZScore)
+        ? Math.min(rawZScore, this.maxFeatureZScore)
+        : this.maxFeatureZScore;
       contributors.push({ feature, zScore });
     }
 

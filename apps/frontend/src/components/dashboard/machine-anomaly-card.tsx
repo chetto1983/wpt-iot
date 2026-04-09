@@ -1,7 +1,7 @@
 'use client';
 
 import { memo, startTransition, useCallback, useEffect, useMemo, useState } from 'react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { AlertTriangle, BrainCircuit, Loader2, Radar, RefreshCw } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
@@ -71,18 +71,39 @@ interface MachineAnomalyCardProps {
   eventLimit?: number;
 }
 
-function formatDateTime(value: string): string {
-  return new Date(value).toLocaleString();
+function formatDateTime(value: string, locale: string): string {
+  return new Intl.DateTimeFormat(locale, {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  }).format(new Date(value));
 }
 
-function formatScore(score: number): string {
-  return score.toFixed(2);
+function formatNumber(value: number, locale: string, maximumFractionDigits = 2): string {
+  if (!Number.isFinite(value)) return '—';
+
+  return new Intl.NumberFormat(locale, {
+    minimumFractionDigits: maximumFractionDigits,
+    maximumFractionDigits,
+  }).format(value);
+}
+
+function formatInteger(value: number, locale: string): string {
+  if (!Number.isFinite(value)) return '—';
+
+  return new Intl.NumberFormat(locale, {
+    maximumFractionDigits: 0,
+  }).format(value);
 }
 
 export const MachineAnomalyCard = memo(function MachineAnomalyCard({
   eventLimit = 5,
 }: MachineAnomalyCardProps) {
   const t = useTranslations('dashboard');
+  const locale = useLocale();
   const [live, setLive] = useState<IAnomalyLiveResponse | null>(null);
   const [events, setEvents] = useState<IAnomalyEvent[]>([]);
   const [loading, setLoading] = useState(true);
@@ -93,8 +114,8 @@ export const MachineAnomalyCard = memo(function MachineAnomalyCard({
   const loadCard = useCallback(async (signal?: AbortSignal) => {
     try {
       const [liveData, eventsData] = await Promise.all([
-        apiFetch<IAnomalyLiveResponse>('/api/energy/anomaly/live', { signal }),
-        apiFetch<IAnomalyEventsResponse>(`/api/energy/anomaly/events?limit=${eventLimit}&flaggedOnly=1`, {
+        apiFetch<IAnomalyLiveResponse>('/energy/anomaly/live', { signal }),
+        apiFetch<IAnomalyEventsResponse>(`/energy/anomaly/events?limit=${eventLimit}&flaggedOnly=1`, {
           signal,
         }),
       ]);
@@ -138,7 +159,7 @@ export const MachineAnomalyCard = memo(function MachineAnomalyCard({
       const from = new Date(
         now.getTime() - (preset === '6h' ? 6 : 24) * 60 * 60 * 1000,
       );
-      const result = await apiFetch<IAnomalyReplayResponse>('/api/energy/anomaly/replay', {
+      const result = await apiFetch<IAnomalyReplayResponse>('/energy/anomaly/replay', {
         method: 'POST',
         body: JSON.stringify({
           from: from.toISOString(),
@@ -204,7 +225,7 @@ export const MachineAnomalyCard = memo(function MachineAnomalyCard({
                   {t('anomaly.liveScore')}
                 </p>
                 <p className="mt-1 text-2xl font-semibold tabular-nums">
-                  {live?.latest ? formatScore(live.latest.score) : t('noData')}
+                  {live?.latest ? formatNumber(live.latest.score, locale) : t('noData')}
                 </p>
               </div>
               <div className="rounded-lg border border-border/60 bg-background/60 p-3">
@@ -212,7 +233,7 @@ export const MachineAnomalyCard = memo(function MachineAnomalyCard({
                   {t('anomaly.observations')}
                 </p>
                 <p className="mt-1 text-2xl font-semibold tabular-nums">
-                  {live?.tracking.observationCount ?? 0}
+                  {formatInteger(live?.tracking.observationCount ?? 0, locale)}
                 </p>
               </div>
               <div className="rounded-lg border border-border/60 bg-background/60 p-3">
@@ -247,7 +268,7 @@ export const MachineAnomalyCard = memo(function MachineAnomalyCard({
                     <span className="text-muted-foreground">{t('anomaly.lastObservation')}</span>
                     <span className="text-right">
                       {live?.tracking.lastObservedAt
-                        ? formatDateTime(live.tracking.lastObservedAt)
+                        ? formatDateTime(live.tracking.lastObservedAt, locale)
                         : t('states.notAvailable')}
                     </span>
                   </div>
@@ -259,7 +280,7 @@ export const MachineAnomalyCard = memo(function MachineAnomalyCard({
                     <span className="text-muted-foreground">{t('anomaly.topDriver')}</span>
                     <span className="max-w-[60%] text-right">
                       {topContributor
-                        ? `${topContributor.feature} (${formatScore(topContributor.zScore)})`
+                        ? `${topContributor.feature} (${formatNumber(topContributor.zScore, locale)})`
                         : t('states.notAvailable')}
                     </span>
                   </div>
@@ -297,15 +318,21 @@ export const MachineAnomalyCard = memo(function MachineAnomalyCard({
                   <div className="mt-3 space-y-2 text-sm">
                     <div className="flex items-center justify-between gap-3">
                       <span className="text-muted-foreground">{t('anomaly.flaggedRows')}</span>
-                      <span className="font-semibold tabular-nums">{replaySummary.summary.flaggedRows}</span>
+                      <span className="font-semibold tabular-nums">
+                        {formatInteger(replaySummary.summary.flaggedRows, locale)}
+                      </span>
                     </div>
                     <div className="flex items-center justify-between gap-3">
                       <span className="text-muted-foreground">{t('anomaly.maxScore')}</span>
-                      <span className="font-semibold tabular-nums">{formatScore(replaySummary.summary.maxScore)}</span>
+                      <span className="font-semibold tabular-nums">
+                        {formatNumber(replaySummary.summary.maxScore, locale)}
+                      </span>
                     </div>
                     <div className="flex items-center justify-between gap-3">
                       <span className="text-muted-foreground">{t('anomaly.alarmContext')}</span>
-                      <span className="font-semibold tabular-nums">{replaySummary.tracking.activeAlarmCount}</span>
+                      <span className="font-semibold tabular-nums">
+                        {formatInteger(replaySummary.tracking.activeAlarmCount, locale)}
+                      </span>
                     </div>
                   </div>
                 )}
@@ -339,11 +366,11 @@ export const MachineAnomalyCard = memo(function MachineAnomalyCard({
                             {event.flagged ? t('anomaly.state.flagged') : t('anomaly.state.normal')}
                           </Badge>
                           <span className="text-sm font-semibold tabular-nums">
-                            {t('anomaly.scoreLabel', { score: formatScore(event.score) })}
+                            {t('anomaly.scoreLabel', { score: formatNumber(event.score, locale) })}
                           </span>
                         </div>
                         <span className="text-xs text-muted-foreground">
-                          {formatDateTime(event.observedAt)}
+                          {formatDateTime(event.observedAt, locale)}
                         </span>
                       </div>
                       <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
