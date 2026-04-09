@@ -53,12 +53,26 @@ const UNITS: Record<string, FieldUnit> = {
   rmsCurrL3:             { unit: 'A',   category: 'current', aggregate: 'avg', decimals: 1 },
   rmsCurrN:              { unit: 'A',   category: 'current', aggregate: 'avg', decimals: 1 },
 
+  // V03 — Three-phase line voltages (line-to-line + line-to-neutral) and power factor
+  lineVoltL1L2:          { unit: 'V',   category: 'voltage', aggregate: 'avg', decimals: 1 },
+  lineVoltL2L3:          { unit: 'V',   category: 'voltage', aggregate: 'avg', decimals: 1 },
+  lineVoltL3L1:          { unit: 'V',   category: 'voltage', aggregate: 'avg', decimals: 1 },
+  lineNeutralVoltL1:     { unit: 'V',   category: 'voltage', aggregate: 'avg', decimals: 1 },
+  lineNeutralVoltL2:     { unit: 'V',   category: 'voltage', aggregate: 'avg', decimals: 1 },
+  lineNeutralVoltL3:     { unit: 'V',   category: 'voltage', aggregate: 'avg', decimals: 1 },
+  pfTotal:               { unit: '',    category: 'power',   aggregate: 'avg', decimals: 3 },
+
+  // V03 — Cycle status verdict + container slot (state-like, not chartable as numeric)
+  cycleStatus:           { unit: '',    category: 'state',   aggregate: 'last', decimals: 0 },
+  container:             { unit: '',    category: 'state',   aggregate: 'last', decimals: 0 },
+
   // Weights / consumption — counters/totals, sum makes sense for pie
   materialInputWeight:   { unit: 'kg',  category: 'weight', aggregate: 'last', decimals: 1 },
   materialOutputWeight:  { unit: 'kg',  category: 'weight', aggregate: 'last', decimals: 1 },
   energyConsumption:     { unit: 'kWh', category: 'energy', aggregate: 'last', decimals: 2 },
   waterConsumption:      { unit: 'L',   category: 'water',  aggregate: 'last', decimals: 1 },
   spareReal01:           { unit: '',    category: 'misc',   aggregate: 'avg',  decimals: 2 },
+  spareReal02:           { unit: '',    category: 'misc',   aggregate: 'avg',  decimals: 2 },
 
   // Counters
   completedCycles:       { unit: '',    category: 'count',  aggregate: 'last', decimals: 0 },

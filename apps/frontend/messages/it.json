@@ -176,6 +176,8 @@
       "selectedCycle": "Ciclo selezionato",
       "currentPhase": "Fase corrente",
       "machineStatus": "Stato macchina",
+      "cycleStatus": "Stato ciclo",
+      "container": "Contenitore",
       "materialInputWeight": "Peso materiale ingresso",
       "completedCycles": "Cicli completati",
       "user": "Utente",
@@ -183,11 +185,20 @@
       "orderNumber": "Numero ordine",
       "serialNumber": "Numero di serie"
     },
+    "cycleStatus": {
+      "nothing": "—",
+      "Cycle_START": "Ciclo avviato",
+      "COMPLETED": "Completato",
+      "FAILED": "Fallito",
+      "ABORTED": "Interrotto",
+      "reserved": "Riservato ({value})"
+    },
     "technical": {
       "groups": {
         "thermalZones": "Zone termiche",
         "driveAndVacuum": "Motore e vuoto",
         "electricalLoad": "Carico elettrico",
+        "lineVoltages": "Tensioni trifase",
         "selectorBytes": "Byte selettori",
         "reservedSignal": "Segnale riservato"
       },
@@ -209,13 +220,21 @@
         "rmsCurrL2": "Corrente RMS L2",
         "rmsCurrL3": "Corrente RMS L3",
         "rmsCurrN": "Corrente RMS N",
+        "lineVoltL1L2": "Tensione di linea L1-L2",
+        "lineVoltL2L3": "Tensione di linea L2-L3",
+        "lineVoltL3L1": "Tensione di linea L3-L1",
+        "lineNeutralVoltL1": "Tensione fase-neutro L1",
+        "lineNeutralVoltL2": "Tensione fase-neutro L2",
+        "lineNeutralVoltL3": "Tensione fase-neutro L3",
+        "pfTotal": "Fattore di potenza (totale)",
         "thermoLeftLowSel": "Sel termo sinistra basso",
         "thermoLeftMedSel": "Sel termo sinistra medio",
         "thermoLeftHighSel": "Sel termo sinistra alto",
         "thermoRightLowSel": "Sel termo destra basso",
         "thermoRightMedSel": "Sel termo destra medio",
         "thermoRightHighSel": "Sel termo destra alto",
-        "spareReal01": "Riserva Real 01"
+        "spareReal01": "Riserva Real 01",
+        "spareReal02": "Riserva Real 02"
       }
     },
     "cycleTypes": {
@@ -460,6 +479,7 @@
       "pressures": "Pressioni",
       "motors": "Motori e Pompe",
       "electrical": "Elettrico",
+      "lineVoltages": "Tensioni trifase",
       "weights": "Pesi e Consumi",
       "timers": "Timer e Contatori"
     }

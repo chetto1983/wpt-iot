@@ -24,6 +24,8 @@ export const ProcessSnapshotCard = memo(function ProcessSnapshotCard({ machineDa
         return formatters.phaseLabel(machineData?.currentPhase);
       case 'machineStatus':
         return formatters.statusLabel(machineData?.machineStatus);
+      case 'cycleStatus':
+        return formatters.cycleStatusLabel(machineData?.cycleStatus);
       default:
         return formatters.fieldValue(machineData?.[field]);
     }

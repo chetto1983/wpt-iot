@@ -176,6 +176,8 @@
       "selectedCycle": "Selected Cycle",
       "currentPhase": "Current Phase",
       "machineStatus": "Machine Status",
+      "cycleStatus": "Cycle Status",
+      "container": "Container",
       "materialInputWeight": "Material Input Weight",
       "completedCycles": "Completed Cycles",
       "user": "User",
@@ -183,11 +185,20 @@
       "orderNumber": "Order Number",
       "serialNumber": "Serial Number"
     },
+    "cycleStatus": {
+      "nothing": "—",
+      "Cycle_START": "Cycle started",
+      "COMPLETED": "Completed",
+      "FAILED": "Failed",
+      "ABORTED": "Aborted",
+      "reserved": "Reserved ({value})"
+    },
     "technical": {
       "groups": {
         "thermalZones": "Thermal Zones",
         "driveAndVacuum": "Drive and Vacuum",
         "electricalLoad": "Electrical Load",
+        "lineVoltages": "Three-Phase Voltages",
         "selectorBytes": "Selector Bytes",
         "reservedSignal": "Reserved Signal"
       },
@@ -209,13 +220,21 @@
         "rmsCurrL2": "RMS Current L2",
         "rmsCurrL3": "RMS Current L3",
         "rmsCurrN": "RMS Current N",
+        "lineVoltL1L2": "Line Voltage L1-L2",
+        "lineVoltL2L3": "Line Voltage L2-L3",
+        "lineVoltL3L1": "Line Voltage L3-L1",
+        "lineNeutralVoltL1": "Phase-Neutral L1",
+        "lineNeutralVoltL2": "Phase-Neutral L2",
+        "lineNeutralVoltL3": "Phase-Neutral L3",
+        "pfTotal": "Power Factor (Total)",
         "thermoLeftLowSel": "Thermo Left Low Sel",
         "thermoLeftMedSel": "Thermo Left Med Sel",
         "thermoLeftHighSel": "Thermo Left High Sel",
         "thermoRightLowSel": "Thermo Right Low Sel",
         "thermoRightMedSel": "Thermo Right Med Sel",
         "thermoRightHighSel": "Thermo Right High Sel",
-        "spareReal01": "Spare Real 01"
+        "spareReal01": "Spare Real 01",
+        "spareReal02": "Spare Real 02"
       }
     },
     "cycleTypes": {
@@ -460,6 +479,7 @@
       "pressures": "Pressures",
       "motors": "Motors & Pumps",
       "electrical": "Electrical",
+      "lineVoltages": "Three-Phase Voltages",
       "weights": "Weights & Consumption",
       "timers": "Timers & Counters"
     }

@@ -22,6 +22,9 @@ const NON_CHARTABLE = new Set([
   'selectedCycle',
   'currentPhase',
   'machineStatus',
+  // V03 — state-like INTs, not meaningful as time-series numbers
+  'cycleStatus',
+  'container',
 ]);
 
 const FIELD_CATEGORIES: Record<string, string[]> = {
@@ -48,12 +51,19 @@ const FIELD_CATEGORIES: Record<string, string[]> = {
     'vacuumPumpSpeed02',
   ],
   electrical: ['rmsCurrL1', 'rmsCurrL2', 'rmsCurrL3', 'rmsCurrN'],
+  // V03 — three-phase line voltages + power factor
+  lineVoltages: [
+    'lineVoltL1L2', 'lineVoltL2L3', 'lineVoltL3L1',
+    'lineNeutralVoltL1', 'lineNeutralVoltL2', 'lineNeutralVoltL3',
+    'pfTotal',
+  ],
   weights: [
     'materialInputWeight',
     'materialOutputWeight',
     'energyConsumption',
     'waterConsumption',
     'spareReal01',
+    'spareReal02',
   ],
   timers: ['completedCycles'],
 };
