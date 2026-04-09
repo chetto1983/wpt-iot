@@ -728,11 +728,25 @@ describe('energyBaselineService integration', () => {
 
   // --- Plan 05: startup validator + predates-data ---
   it('startup validator fatal log', async () => {
-    // Seed a baseline row directly (bypassing lockBaseline's validation) with
-    // period_from EARLIER than any energy_1d data — simulates retention having
-    // eaten the backing raw data between lock and this call.
-    const BASELINE_STARTS_EARLY = new Date('2099-03-01T00:00:00Z');
-    const BASELINE_ENDS_EARLY = new Date('2099-04-01T00:00:00Z');
+    // First seed fresh data so energy_1d has a known MIN bucket. The CAGG may
+    // have stale buckets from prior tests (1999-*, other 2024-*, 2099-*) that
+    // we cannot DELETE directly — we must pick a baseline period_from EARLIER
+    // than the CURRENT MIN(bucket_1d) at runtime. Seeding first is just a
+    // safety: guarantees energy_1d is non-empty so the first-boot skip path
+    // does not fire.
+    await seedEnergyDayBuckets({ from: BASELINE_FROM, to: BASELINE_TO, totalKwh: 300 });
+
+    // Query the current MIN(bucket_1d) and pin the baseline's period_from ONE
+    // DAY EARLIER. That makes the "predates" check deterministic regardless
+    // of what stale CAGG chunks survive between test runs.
+    const minRes = await db.execute(sql`
+      SELECT MIN(bucket_1d) AS oldest FROM energy_1d
+    `);
+    const oldestRaw = (minRes.rows[0] as { oldest: string | Date | null } | undefined)?.oldest;
+    expect(oldestRaw).not.toBeNull();
+    const oldestBucket = oldestRaw instanceof Date ? oldestRaw : new Date(oldestRaw as string);
+    const BASELINE_STARTS_EARLY = new Date(oldestBucket.getTime() - 86_400_000);
+    const BASELINE_ENDS_EARLY = new Date(BASELINE_STARTS_EARLY.getTime() + 20 * 86_400_000);
 
     const insertRes = await db.execute(sql`
       INSERT INTO energy_baselines (label, period_from, period_to, locked_at, normalization_variables)
@@ -748,39 +762,41 @@ describe('energyBaselineService integration', () => {
       VALUES (${baselineId}, 1, 1, 1, 1, 0.25, 0.279, '[]'::jsonb)
     `);
 
-    // Seed energy_1d with data starting LATER than the baseline's period_from
-    // in the 2024 window (retention scenario — the real 2099-03 buckets never
-    // existed or have been dropped). The validator compares MIN(bucket_1d)
-    // across the whole energy_1d hypertable, so it will pick up the 2024 row.
-    await seedEnergyDayBuckets({ from: BASELINE_FROM, to: BASELINE_TO, totalKwh: 300 });
+    try {
+      const baseline = await EnergyBaselineService.getBaselineById(baselineId);
+      expect(baseline).not.toBeNull();
 
-    const baseline = await EnergyBaselineService.getBaselineById(baselineId);
-    expect(baseline).not.toBeNull();
+      // Capturing mock logger (RESEARCH BLOCKER-03 Option 2)
+      const captured: Array<{ level: string; obj: Record<string, unknown>; msg: string }> = [];
+      const testLog = {
+        info: (obj: Record<string, unknown>, msg: string) =>
+          captured.push({ level: 'info', obj, msg }),
+        warn: (obj: Record<string, unknown>, msg: string) =>
+          captured.push({ level: 'warn', obj, msg }),
+        error: (obj: Record<string, unknown>, msg: string) =>
+          captured.push({ level: 'error', obj, msg }),
+        fatal: (obj: Record<string, unknown>, msg: string) =>
+          captured.push({ level: 'fatal', obj, msg }),
+      };
 
-    // Capturing mock logger (RESEARCH BLOCKER-03 Option 2)
-    const captured: Array<{ level: string; obj: Record<string, unknown>; msg: string }> = [];
-    const testLog = {
-      info: (obj: Record<string, unknown>, msg: string) =>
-        captured.push({ level: 'info', obj, msg }),
-      warn: (obj: Record<string, unknown>, msg: string) =>
-        captured.push({ level: 'warn', obj, msg }),
-      error: (obj: Record<string, unknown>, msg: string) =>
-        captured.push({ level: 'error', obj, msg }),
-      fatal: (obj: Record<string, unknown>, msg: string) =>
-        captured.push({ level: 'fatal', obj, msg }),
-    };
+      // Expect a throw AND a fatal log with the RESEARCH.md payload shape
+      await expect(
+        EnergyBaselineService.validateOldestDataAvailability(baseline!, testLog),
+      ).rejects.toThrow(/predates/i);
 
-    // Expect a throw AND a fatal log with the RESEARCH.md payload shape
-    await expect(
-      EnergyBaselineService.validateOldestDataAvailability(baseline!, testLog),
-    ).rejects.toThrow(/predates/i);
-
-    const fatals = captured.filter((c) => c.level === 'fatal');
-    expect(fatals.length).toBe(1);
-    expect(fatals[0]?.msg).toBe('baseline_predates_available_data');
-    expect(fatals[0]?.obj.baselineId).toBe(baselineId);
-    expect(fatals[0]?.obj.oldestBucket).toBeDefined();
-    expect(fatals[0]?.obj.baselinePeriodFrom).toBe(BASELINE_STARTS_EARLY.toISOString());
+      const fatals = captured.filter((c) => c.level === 'fatal');
+      expect(fatals.length).toBe(1);
+      expect(fatals[0]?.msg).toBe('baseline_predates_available_data');
+      expect(fatals[0]?.obj.baselineId).toBe(baselineId);
+      expect(fatals[0]?.obj.oldestBucket).toBeDefined();
+      expect(fatals[0]?.obj.baselinePeriodFrom).toBe(BASELINE_STARTS_EARLY.toISOString());
+    } finally {
+      // Explicit cleanup — period_from may be outside the beforeEach cleanup
+      // walls (depends on the stale CAGG MIN at runtime). Order matters:
+      // evidence first (FK ON DELETE RESTRICT), then baseline.
+      await db.execute(sql`DELETE FROM baseline_evidence WHERE baseline_id = ${baselineId}`);
+      await db.execute(sql`DELETE FROM energy_baselines WHERE baseline_id = ${baselineId}`);
+    }
   });
 
   it('BASELINE_PREDATES_DATA via computeSavings returns 422', async () => {
@@ -814,10 +830,19 @@ describe('energyBaselineService integration', () => {
     });
     const baselineId = lockRes.baseline.baselineId;
 
-    // Manually rewind period_from to a date earlier than the oldest energy_1d
-    // bucket (within the cleanup wall so isolation stays intact). This
-    // simulates retention having dropped the earliest data AFTER the lock.
-    const EARLIER = new Date('2024-04-05T00:00:00Z');
+    // Manually rewind period_from to a date EARLIER than the oldest energy_1d
+    // bucket. Read the current MIN(bucket_1d) at runtime so the test is
+    // resilient to stale CAGG chunks that survive between test runs (the
+    // beforeEach wall deletes machine_snapshots inside 2024-04..2024-07 and
+    // 2099+, but cannot DELETE the CAGG directly). One day earlier makes the
+    // "predates" check deterministic.
+    const minRes = await db.execute(sql`
+      SELECT MIN(bucket_1d) AS oldest FROM energy_1d
+    `);
+    const oldestRaw = (minRes.rows[0] as { oldest: string | Date | null } | undefined)?.oldest;
+    expect(oldestRaw).not.toBeNull();
+    const oldestBucket = oldestRaw instanceof Date ? oldestRaw : new Date(oldestRaw as string);
+    const EARLIER = new Date(oldestBucket.getTime() - 86_400_000);
     await db.execute(sql`
       UPDATE energy_baselines
       SET period_from = ${EARLIER.toISOString()}::timestamptz
@@ -843,6 +868,10 @@ describe('energyBaselineService integration', () => {
       expect(body.error.code).toBe('BASELINE_PREDATES_DATA');
     } finally {
       await app.close();
+      // Explicit cleanup — period_from may be outside the beforeEach cleanup
+      // walls after the rewind.
+      await db.execute(sql`DELETE FROM baseline_evidence WHERE baseline_id = ${baselineId}`);
+      await db.execute(sql`DELETE FROM energy_baselines WHERE baseline_id = ${baselineId}`);
     }
   });
 });
