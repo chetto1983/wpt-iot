@@ -6,6 +6,8 @@
  * Changes here ripple through the whole phase — modify with care.
  */
 
+import { z } from 'zod/v4';
+
 // =============================================================================
 // ENERGY_VERIFICATION_GATE — pin Q1-Q7 from PITFALLS.md §Open Questions.
 // Per CONTEXT D-01/D-02, the simulator-derived hypothesis is TENTATIVE pending
@@ -244,3 +246,164 @@ export type StageEnergyProfile = readonly [
   IStageEnergyEntry, IStageEnergyEntry, IStageEnergyEntry,
   IStageEnergyEntry, IStageEnergyEntry, IStageEnergyEntry
 ];
+
+// =============================================================================
+// Phase 20 — Energy Baseline & Savings
+// =============================================================================
+
+/**
+ * ISO 50001-compatible energy baseline row.
+ * Multi-row, lock-once, append-new, retire-old — no UPDATE endpoint.
+ * Active baseline = most recent un-retired row (highest `lockedAt` with `retiredAt IS NULL`).
+ *
+ * @see .planning/phases/20-energy-baseline-savings/20-CONTEXT.md D-01 through D-05
+ * @see REQUIREMENTS.md ENBL-01, ENBL-02
+ */
+export interface IEnergyBaseline {
+  baselineId: number;
+  label: string;
+  periodFrom: Date;
+  periodTo: Date;
+  lockedAt: Date;
+  retiredAt: Date | null;
+  justification: string | null;
+  normalizationVariables: Record<string, unknown>;
+  createdBy: string | null;
+}
+
+/**
+ * One entry in the frozen `daily_series` JSONB column on `baseline_evidence`.
+ * Europe/Rome local date, ascending order. Cost and CO₂ are frozen at lock time
+ * from the `energy_config_periods` row(s) in force that day (D-07).
+ */
+export interface IBaselineDailyPoint {
+  date: string;       // YYYY-MM-DD, Europe/Rome local day
+  kwh: number;
+  kg: number;
+  cyclesCount: number;
+  eur: number;
+  kgco2: number;
+}
+
+/**
+ * Frozen baseline evidence snapshot — 1:1 with `energy_baselines` via FK.
+ * Survives the 30-day retention on `machine_snapshots` so a baseline stays
+ * verifiable after the raw snapshots drop (ENBL-06).
+ *
+ * `daily_series` serves audit plotting; scalars serve fast dashboard queries.
+ * Phase 22 PDF reads the scalars, NEVER re-sums `daily_series` (precision drift).
+ */
+export interface IBaselineEvidence {
+  baselineId: number;
+  totalKwh: number;
+  totalKg: number;
+  totalCycles: number;
+  enpi: number;       // total_kwh / total_kg
+  totalEur: number;   // frozen at lock time from energy_config_periods
+  totalKgco2: number; // frozen at lock time from energy_config_periods
+  dailySeries: IBaselineDailyPoint[];
+  lockedAt: Date;
+}
+
+/**
+ * POST /api/energy/baseline/lock request body.
+ * Dates arrive as ISO strings on the wire and are coerced to Date in the route handler.
+ */
+export interface IBaselineLockRequest {
+  label: string;
+  periodFrom: Date;
+  periodTo: Date;
+  justification?: string;
+  normalizationVariables: Record<string, unknown>;
+}
+
+/**
+ * Soft quality warnings emitted by `lockBaseline` — non-blocking (D-11).
+ * The lock always succeeds; these are advisory flags for the SUPER_ADMIN UI.
+ */
+export const BaselineWarning = z.enum([
+  'LOW_CYCLE_COUNT',      // cycle_count < 20 in baseline window
+  'HIGH_DATA_GAP_RATIO',  // data_gap_ratio > 0.05 in baseline window
+]);
+export type BaselineWarning = z.infer<typeof BaselineWarning>;
+
+/**
+ * POST /api/energy/baseline/lock response body (201 Created).
+ */
+export interface IBaselineLockResponse {
+  baseline: IEnergyBaseline;
+  evidence: IBaselineEvidence;
+  warnings: BaselineWarning[];
+}
+
+/**
+ * Error code enum — single source of truth for frontend i18n (Phase 21).
+ * D-10: 4 codes map to HTTP 422, NO_ACTIVE_BASELINE maps to HTTP 404
+ * when baseline_id is explicit (RESEARCH Open Question 1).
+ */
+export const BaselineErrorCode = z.enum([
+  'BASELINE_OVERLAP',
+  'MEASUREMENT_TOO_SHORT',
+  'BASELINE_TOO_SHORT',
+  'BASELINE_PREDATES_DATA',
+  'NO_ACTIVE_BASELINE',
+]);
+export type BaselineErrorCode = z.infer<typeof BaselineErrorCode>;
+
+/**
+ * GET /api/energy/savings default response (`detail` absent or `0`).
+ * `deltaPct` sign convention: NEGATIVE means better than baseline (consumption down).
+ * Frontend renders signed text explicitly per ENBL-05 — never a bare minus sign.
+ */
+export interface ISavingsResponse {
+  baselineId: number;
+  baselineLabel: string;
+  baselineEnpi: number;      // kWh/kg
+  measurementEnpi: number;   // kWh/kg
+  deltaPct: number;          // negative = better
+  deltaKwh: number;
+  deltaEur: number;
+  deltaKgco2: number;
+  confidence: 'HIGH' | 'LOW';
+  windowFrom: string;        // ISO
+  windowTo: string;          // ISO
+  excludedStatuses: Array<'ABORTED' | 'TOO_SHORT' | 'DATA_GAP' | 'UNKNOWN'>;
+}
+
+/**
+ * GET /api/energy/savings `detail=1` response. Extends `ISavingsResponse`
+ * with a per-day measurement series + a constant baseline reference line
+ * (D-09 interpretation, RESEARCH Open Question 3).
+ */
+export interface ISavingsDetailResponse extends ISavingsResponse {
+  dailySeries: Array<{
+    date: string;                 // YYYY-MM-DD, Europe/Rome
+    baselineKwhPerKg: number;     // constant = baseline.enpi
+    measurementKwhPerKg: number;  // per-day measurement EnPI
+  }>;
+}
+
+/**
+ * Zod schema for `POST /api/energy/baseline/lock` request validation.
+ * Dates are ISO strings on the wire; the route handler coerces to Date
+ * before passing to `EnergyBaselineService.lockBaseline()`.
+ */
+export const BaselineLockRequestSchema = z.object({
+  label: z.string().min(1).max(200),
+  periodFrom: z.string().datetime(),
+  periodTo: z.string().datetime(),
+  justification: z.string().optional(),
+  normalizationVariables: z.record(z.string(), z.unknown()).default({}),
+});
+
+/**
+ * Zod schema for `GET /api/energy/savings` query-string validation.
+ * `baseline_id` is optional — absence triggers default-baseline resolution (D-04).
+ * `detail` is `'0'` or `'1'` (query strings are strings, not numbers).
+ */
+export const SavingsQuerySchema = z.object({
+  from: z.string().datetime(),
+  to: z.string().datetime(),
+  baseline_id: z.string().optional(),
+  detail: z.enum(['0', '1']).optional().default('0'),
+});
