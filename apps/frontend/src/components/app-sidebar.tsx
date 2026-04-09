@@ -19,6 +19,7 @@ import {
   LogOut,
   Loader2,
   KeyRound,
+  BrainCircuit,
 } from 'lucide-react';
 
 import { useAuth } from '@/lib/auth-context';
@@ -73,6 +74,7 @@ export function AppSidebar() {
   // Reports link visible to ALL authenticated roles
   const allRoleReportItems: NavItem[] = [
     { label: t('nav.reports'), href: '/reports', icon: FileText },
+    { label: t('nav.anomaly'), href: '/anomaly', icon: BrainCircuit },
   ];
 
   // Alarms + Charts visible to WPT/SUPER_ADMIN only

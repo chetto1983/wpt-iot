@@ -19,6 +19,7 @@
       "rfid": "Utenti RFID",
       "jobs": "Commesse",
       "reports": "Report",
+      "anomaly": "Anomalia",
       "alarms": "Allarmi",
       "charts": "Grafici",
       "dashboards": "Dashboard",
@@ -368,6 +369,10 @@
       "noFieldsSelected": "Seleziona almeno un campo",
       "pieMixedUnits": "I campi selezionati hanno unita' di misura diverse. Il grafico a torta ha senso solo con campi omogenei (es. tutte temperature, o tutte correnti)."
     }
+  },
+  "anomalyPage": {
+    "title": "Anomalia macchina",
+    "subtitle": "Monitora lo score anomalia live, controlla gli eventi salvati e riesegui la storia recente della macchina contro il detector ad apprendimento continuo."
   },
   "rfid": {
     "title": "Utenti RFID",

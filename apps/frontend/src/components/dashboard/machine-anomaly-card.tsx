@@ -67,6 +67,10 @@ interface IAnomalyReplayResponse {
 
 type ReplayPreset = '6h' | '24h';
 
+interface MachineAnomalyCardProps {
+  eventLimit?: number;
+}
+
 function formatDateTime(value: string): string {
   return new Date(value).toLocaleString();
 }
@@ -75,7 +79,9 @@ function formatScore(score: number): string {
   return score.toFixed(2);
 }
 
-export const MachineAnomalyCard = memo(function MachineAnomalyCard() {
+export const MachineAnomalyCard = memo(function MachineAnomalyCard({
+  eventLimit = 5,
+}: MachineAnomalyCardProps) {
   const t = useTranslations('dashboard');
   const [live, setLive] = useState<IAnomalyLiveResponse | null>(null);
   const [events, setEvents] = useState<IAnomalyEvent[]>([]);
@@ -88,7 +94,7 @@ export const MachineAnomalyCard = memo(function MachineAnomalyCard() {
     try {
       const [liveData, eventsData] = await Promise.all([
         apiFetch<IAnomalyLiveResponse>('/api/energy/anomaly/live', { signal }),
-        apiFetch<IAnomalyEventsResponse>('/api/energy/anomaly/events?limit=5&flaggedOnly=1', {
+        apiFetch<IAnomalyEventsResponse>(`/api/energy/anomaly/events?limit=${eventLimit}&flaggedOnly=1`, {
           signal,
         }),
       ]);
@@ -108,7 +114,7 @@ export const MachineAnomalyCard = memo(function MachineAnomalyCard() {
         setLoading(false);
       });
     }
-  }, []);
+  }, [eventLimit]);
 
   useEffect(() => {
     const controller = new AbortController();

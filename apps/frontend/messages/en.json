@@ -19,6 +19,7 @@
       "rfid": "RFID Users",
       "jobs": "Jobs",
       "reports": "Reports",
+      "anomaly": "Anomaly",
       "alarms": "Alarms",
       "charts": "Charts",
       "dashboards": "Dashboards",
@@ -368,6 +369,10 @@
       "noFieldsSelected": "Select at least one field",
       "pieMixedUnits": "Selected fields have different units. Pie charts only make sense with homogeneous fields (e.g., all temperatures, or all currents)."
     }
+  },
+  "anomalyPage": {
+    "title": "Machine anomaly",
+    "subtitle": "Track the live anomaly score, review persisted events, and replay recent machine history against the continuously learning detector."
   },
   "rfid": {
     "title": "RFID Users",
