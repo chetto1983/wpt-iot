@@ -208,7 +208,18 @@ export const energyRoutes: FastifyPluginAsync = async (server) => {
         },
       };
     }
-    return { status: 500, body: { error: 'Internal error' } };
+    // WR-02: normalize 500 branch to the same { error: { code, message } }
+    // envelope used by 422/404 so frontend consumers can switch on
+    // body.error.code without a TypeError on a bare-string .code access.
+    return {
+      status: 500,
+      body: {
+        error: {
+          code: 'INTERNAL_ERROR',
+          message: 'Internal error',
+        },
+      },
+    };
   }
 
   /**
