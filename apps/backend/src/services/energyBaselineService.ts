@@ -28,9 +28,7 @@ import type {
   ISavingsDetailResponse,
 } from '@wpt/types';
 
-// Re-export math helpers for back-compat — older Plan 02/03 tests / imports
-// reference these names from `energyBaselineService.js`. New code should
-// import directly from `energyBaselineMath.js`.
+// Re-exports for back-compat with Plan 02/03 call sites.
 export {
   _computeSavingsFromScalars,
   _computeSoftWarnings,
@@ -44,14 +42,10 @@ export type {
   IValidationInput,
 } from './energyBaselineMath.js';
 
-// Error taxonomy — flat Error siblings. Route handler `instanceof`-maps to
-// 422 (validation) / 404 (NoActiveBaselineError with explicit baseline_id).
+// Error taxonomy — flat Error siblings. Route handler instanceof-maps
+// to 422 (validation) / 404 (NoActiveBaselineError).
 
-/**
- * Minimal logger interface for DI in tests (RESEARCH BLOCKER-03 Option 2).
- * Mirrors `energyAttributionService.ts`. Pino / Fastify `server.log` satisfies
- * this via duck typing.
- */
+/** Minimal logger for DI (BLOCKER-03 Option 2). Pino satisfies this via duck typing. */
 export interface IServiceLogger {
   info(obj: Record<string, unknown>, msg: string): void;
   warn(obj: Record<string, unknown>, msg: string): void;
@@ -124,10 +118,9 @@ export class NoActiveBaselineError extends Error {
   }
 }
 
-// Pure-math helpers live in `energyBaselineMath.ts` (Plan 04 cap-driven split).
-// Error classes stay here so the route mapper can `instanceof`-check them;
-// the math module imports them via a circular value import (ESM-safe: references
-// are inside function bodies). Re-exports for back-compat live at the top.
+// Pure-math helpers live in energyBaselineMath.ts (500-line cap split).
+// Error classes stay here; math imports them via a circular value import
+// (ESM-safe — references are inside function bodies). Re-exports at top.
 
 export class EnergyBaselineService {
   /** Idempotent schema creation. Direct SQL — NOT drizzle-kit push. */
@@ -359,11 +352,8 @@ export class EnergyBaselineService {
       );
     }
 
-    // ---- ENBL-07 belt-and-suspenders: retention may have run between boot
-    // hook and this request. `assertNotStale` hard-codes NOOP_LOGGER in the
-    // type signature (WR-04 — contract in code, not in a comment) so a
-    // future refactor cannot accidentally pipe `request.log` into the
-    // per-request path and spam .fatal() on every savings request. ----
+    // ENBL-07 per-request belt. assertNotStale hard-codes NOOP_LOGGER
+    // (WR-04: no .fatal() spam on every savings request).
     await EnergyBaselineService.assertNotStale(baseline);
 
     // ---- Step 2: validate windows ----
@@ -434,31 +424,15 @@ export class EnergyBaselineService {
     return scalarResult;
   }
 
-  /**
-   * Per-request ENBL-07 belt check WITHOUT logging (WR-04). Hard-coded
-   * NOOP_LOGGER — the contract "don't spam fatal on every savings request"
-   * lives in the type signature here, not in a free-form comment at the
-   * call site. `computeSavings` must call THIS method, not
-   * `validateOldestDataAvailability` directly, so a future refactor cannot
-   * accidentally pipe `request.log` in and page on-call on every request
-   * against a stale baseline.
-   * @throws {BaselinePredatesDataError}
-   */
+  /** WR-04: per-request belt. Hard-codes NOOP_LOGGER so computeSavings cannot page on-call. */
   static async assertNotStale(baseline: IEnergyBaseline): Promise<void> {
-    return EnergyBaselineService.validateOldestDataAvailability(
-      baseline,
-      NOOP_LOGGER,
-    );
+    return EnergyBaselineService.validateOldestDataAvailability(baseline, NOOP_LOGGER);
   }
 
   /**
-   * ENBL-07 data preservation gate. Queries `MIN(bucket_1d) FROM energy_1d`;
-   * if oldest bucket is newer than `baseline.periodFrom`, retention has eaten
-   * the baseline's backing data — log fatal + throw. Called from the onReady
-   * hook at boot (with server.log). Per-request callers MUST use
-   * `assertNotStale` (WR-04) instead of passing NOOP_LOGGER directly — that
-   * keeps the no-logging contract in the type system. The optional `log`
-   * param is DI for test capture (RESEARCH BLOCKER-03 Option 2).
+   * ENBL-07 gate. If MIN(bucket_1d) > baseline.periodFrom, retention has
+   * eaten the backing data — log fatal + throw. `log` is DI for test capture
+   * (BLOCKER-03 Option 2). Per-request callers use assertNotStale (WR-04).
    * @throws {BaselinePredatesDataError}
    */
   static async validateOldestDataAvailability(
@@ -471,8 +445,28 @@ export class EnergyBaselineService {
     `);
     const row = result.rows[0] as { oldest_bucket: string | Date | null } | undefined;
     if (!row || row.oldest_bucket == null) {
-      // No energy_1d data yet — first-boot / empty-database path. Skip silently.
-      return;
+      // WR-06: empty energy_1d + baseline passed in = catastrophic purge.
+      // Callers only reach this function AFTER resolving a concrete baseline
+      // (onReady early-returns on null; assertNotStale runs post-getBaselineById).
+      // "Everything predates the oldest bucket" when no bucket exists — fire
+      // the gate. Earlier silent-return path conflated first-boot with purge.
+      log.fatal(
+        {
+          name: 'EnergyBaseline',
+          baselineId: baseline.baselineId,
+          oldestBucket: null,
+          baselinePeriodFrom: baseline.periodFrom.toISOString(),
+        },
+        'baseline_predates_available_data',
+      );
+      throw new BaselinePredatesDataError(
+        'Active baseline exists but energy_1d is empty — retention or CAGG refresh has wiped the backing data',
+        {
+          baselineId: baseline.baselineId,
+          oldestBucket: null,
+          baselinePeriodFrom: baseline.periodFrom.toISOString(),
+        },
+      );
     }
     const oldestBucket = row.oldest_bucket instanceof Date
       ? row.oldest_bucket
