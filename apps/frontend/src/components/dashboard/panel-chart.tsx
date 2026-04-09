@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ResponsiveContainer,
   LineChart,
@@ -17,11 +17,13 @@ import {
   CartesianGrid,
   Tooltip,
   Legend,
+  Brush,
+  ReferenceArea,
 } from 'recharts';
 import { format } from 'date-fns';
 import { ErrorBoundary } from 'react-error-boundary';
 import { useTranslations } from 'next-intl';
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle, AlertTriangle, RotateCcw } from 'lucide-react';
 import type { ChartType, IPanelConfig } from '@wpt/types';
 import { CHART_COLORS } from '@/lib/chart-colors';
 import { getFieldLabel } from '@/lib/field-labels';
@@ -33,7 +35,6 @@ import {
 } from '@/lib/field-units';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
-import { AlertTriangle } from 'lucide-react';
 
 /* ========================================================================
  * Grafana-style chart constants
@@ -315,6 +316,59 @@ function TimeSeriesRenderer({
       (a, b) => Number(a['timestamp']) - Number(b['timestamp']),
     );
   }, [data]);
+  const tCharts = useTranslations('charts');
+
+  const [zoomLeft, setZoomLeft] = useState<number | null>(null);
+  const [zoomRight, setZoomRight] = useState<number | null>(null);
+  const [xDomain, setXDomain] = useState<[number, number] | null>(null);
+
+  const resetZoom = useCallback(() => {
+    setXDomain(null);
+    setZoomLeft(null);
+    setZoomRight(null);
+  }, []);
+
+  const handleMouseDown = useCallback(
+    (e: { activeLabel?: string | number }) => {
+      if (e?.activeLabel != null) setZoomLeft(Number(e.activeLabel));
+    },
+    [],
+  );
+
+  const handleMouseMove = useCallback(
+    (e: { activeLabel?: string | number }) => {
+      if (zoomLeft != null && e?.activeLabel != null) {
+        setZoomRight(Number(e.activeLabel));
+      }
+    },
+    [zoomLeft],
+  );
+
+  const handleMouseUp = useCallback(() => {
+    if (zoomLeft != null && zoomRight != null && zoomLeft !== zoomRight) {
+      const left = Math.min(zoomLeft, zoomRight);
+      const right = Math.max(zoomLeft, zoomRight);
+      setXDomain([left, right]);
+    }
+    setZoomLeft(null);
+    setZoomRight(null);
+  }, [zoomLeft, zoomRight]);
+
+  useEffect(() => {
+    if (!xDomain || sortedData.length === 0) return;
+
+    const first = Number(sortedData[0]?.['timestamp']);
+    const last = Number(sortedData[sortedData.length - 1]?.['timestamp']);
+
+    if (!Number.isFinite(first) || !Number.isFinite(last)) {
+      resetZoom();
+      return;
+    }
+
+    if (xDomain[1] < first || xDomain[0] > last) {
+      resetZoom();
+    }
+  }, [sortedData, xDomain, resetZoom]);
 
   const sharedAxes = (
     <>
@@ -329,13 +383,14 @@ function TimeSeriesRenderer({
         dataKey="timestamp"
         type="number"
         scale="time"
-        domain={['dataMin', 'dataMax']}
+        domain={xDomain ?? ['dataMin', 'dataMax']}
         tickFormatter={(v: number) => formatTick(v, resolution)}
         tick={AXIS_TICK}
         tickLine={{ stroke: 'var(--color-border)' }}
         axisLine={{ stroke: 'var(--color-border)' }}
         minTickGap={48}
         height={20}
+        allowDataOverflow={!!xDomain}
       />
       <YAxis
         domain={yDomain}
@@ -366,25 +421,60 @@ function TimeSeriesRenderer({
 
   if (chartType === 'line') {
     return (
-      <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={sortedData} margin={CHART_MARGIN}>
-          {sharedAxes}
-          {config.fields.map((field, i) => (
-            <Line
-              key={field}
-              type="monotone"
-              dataKey={field}
-              stroke={CHART_COLORS[i % CHART_COLORS.length]}
-              dot={false}
-              activeDot={{ r: 4, strokeWidth: 0 }}
-              strokeWidth={2}
-              name={getFieldLabel(field, locale)}
-              isAnimationActive={false}
-              connectNulls
+      <div className="relative h-full w-full">
+        {xDomain && (
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={resetZoom}
+            className="absolute top-1 right-1 z-10 h-8 gap-1.5 px-2.5 text-[11px] shadow-sm"
+          >
+            <RotateCcw className="size-3.5" />
+            {tCharts('resetZoom')}
+          </Button>
+        )}
+        <ResponsiveContainer width="100%" height="100%">
+          <LineChart
+            data={sortedData}
+            margin={CHART_MARGIN}
+            onMouseDown={handleMouseDown}
+            onMouseMove={handleMouseMove}
+            onMouseUp={handleMouseUp}
+          >
+            {sharedAxes}
+            {config.fields.map((field, i) => (
+              <Line
+                key={field}
+                type="monotone"
+                dataKey={field}
+                stroke={CHART_COLORS[i % CHART_COLORS.length]}
+                dot={false}
+                activeDot={{ r: 4, strokeWidth: 0 }}
+                strokeWidth={2}
+                name={getFieldLabel(field, locale)}
+                isAnimationActive={false}
+                connectNulls
+              />
+            ))}
+            {zoomLeft != null && zoomRight != null && (
+              <ReferenceArea
+                x1={zoomLeft}
+                x2={zoomRight}
+                strokeOpacity={0.3}
+                fill="var(--color-primary)"
+                fillOpacity={0.1}
+              />
+            )}
+            <Brush
+              dataKey="timestamp"
+              height={20}
+              stroke="var(--color-primary)"
+              travellerWidth={10}
+              tickFormatter={(v: number) => formatTick(v, resolution)}
             />
-          ))}
-        </LineChart>
-      </ResponsiveContainer>
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
     );
   }
 

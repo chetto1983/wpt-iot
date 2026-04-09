@@ -170,9 +170,9 @@ export default function DashboardsListPage() {
                     {t('open')}
                   </Button>
                   <Button
-                    size="sm"
+                    size="icon"
                     variant="ghost"
-                    className="text-destructive hover:text-destructive"
+                    className="min-w-11 text-destructive hover:text-destructive"
                     aria-label={t('deleteDashboard.title')}
                     onClick={() => setDeleteId(dashboard.id)}
                   >
