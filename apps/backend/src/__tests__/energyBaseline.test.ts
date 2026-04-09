@@ -18,6 +18,7 @@ import { describe, it, expect } from 'vitest';
 import {
   EnergyBaselineService,
   _computeSavingsFromScalars,
+  _computeSoftWarnings,
   _validateSavingsWindows,
   BaselineOverlapError,
   MeasurementTooShortError,
@@ -151,7 +152,30 @@ describe('_validateSavingsWindows extra rules', () => {
 });
 
 describe('lockBaseline soft warnings', () => {
-  it.todo('lockBaseline: cycle_count=19 in window returns warnings=[LOW_CYCLE_COUNT]');
-  it.todo('lockBaseline: data_gap_ratio=0.051 returns warnings=[HIGH_DATA_GAP_RATIO]');
-  it.todo('lockBaseline: cycle_count=20 AND data_gap_ratio=0.0499 returns warnings=[]');
+  it('lockBaseline: cycle_count=19 in window returns warnings=[LOW_CYCLE_COUNT]', () => {
+    expect(_computeSoftWarnings({ cycleCount: 19, dataGapRatio: 0 })).toEqual([
+      'LOW_CYCLE_COUNT',
+    ]);
+    // Boundary check: exactly 20 should clear
+    expect(_computeSoftWarnings({ cycleCount: 20, dataGapRatio: 0 })).toEqual([]);
+  });
+
+  it('lockBaseline: data_gap_ratio=0.051 returns warnings=[HIGH_DATA_GAP_RATIO]', () => {
+    expect(_computeSoftWarnings({ cycleCount: 100, dataGapRatio: 0.051 })).toEqual([
+      'HIGH_DATA_GAP_RATIO',
+    ]);
+    // Boundary check: exactly 0.05 should clear (strict > comparison)
+    expect(_computeSoftWarnings({ cycleCount: 100, dataGapRatio: 0.05 })).toEqual([]);
+  });
+
+  it('lockBaseline: cycle_count=20 AND data_gap_ratio=0.0499 returns warnings=[]', () => {
+    expect(_computeSoftWarnings({ cycleCount: 20, dataGapRatio: 0.0499 })).toEqual([]);
+  });
+
+  it('lockBaseline: cycle_count=5 AND data_gap_ratio=0.1 returns both warnings', () => {
+    expect(_computeSoftWarnings({ cycleCount: 5, dataGapRatio: 0.1 })).toEqual([
+      'LOW_CYCLE_COUNT',
+      'HIGH_DATA_GAP_RATIO',
+    ]);
+  });
 });
