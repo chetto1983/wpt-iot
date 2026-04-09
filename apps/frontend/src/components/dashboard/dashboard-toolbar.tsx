@@ -44,12 +44,12 @@ export function DashboardToolbar({
   const t = useTranslations('dashboards');
 
   return (
-    <div className="flex flex-wrap items-center gap-4">
+    <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-4">
       {/* LEFT: Dashboard name */}
-      <h1 className="text-xl font-semibold shrink-0">{dashboardName}</h1>
+      <h1 className="shrink-0 text-xl font-semibold">{dashboardName}</h1>
 
       {/* CENTER: Time range picker (grows to fill) */}
-      <div className="flex flex-1 items-center justify-center">
+      <div className="flex w-full flex-1 items-center justify-start sm:w-auto sm:justify-center">
         <TimeRangePicker
           from={from}
           to={to}
@@ -64,12 +64,13 @@ export function DashboardToolbar({
       </div>
 
       {/* RIGHT: Edit/View + Add Panel + Save */}
-      <div className="flex items-center gap-2 shrink-0">
+      <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:shrink-0">
         <Button
           variant="outline"
           size="sm"
           onClick={() => onEditModeChange(!editMode)}
           title={editMode ? t('lockLayout') : t('unlockLayout')}
+          className="flex-1 sm:flex-none"
         >
           {editMode ? (
             <Unlock className="mr-1.5 h-4 w-4" />
@@ -80,11 +81,21 @@ export function DashboardToolbar({
         </Button>
         {editMode && (
           <>
-            <Button variant="outline" size="sm" onClick={onAddPanel}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onAddPanel}
+              className="flex-1 sm:flex-none"
+            >
               <Plus className="mr-1.5 h-4 w-4" />
               {t('addPanel')}
             </Button>
-            <Button size="sm" onClick={onSave} disabled={saving}>
+            <Button
+              size="sm"
+              onClick={onSave}
+              disabled={saving}
+              className="flex-1 sm:flex-none"
+            >
               <Save className="mr-1.5 h-4 w-4" />
               {saving ? t('saving') : t('save')}
             </Button>

@@ -109,19 +109,20 @@ export default function DashboardsListPage() {
 
   return (
     <div className="space-y-6 p-6">
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-xl font-semibold">{t('title')}</h1>
-        <form onSubmit={handleCreate} className="flex items-center gap-2">
+        <form onSubmit={handleCreate} className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
           <Input
             value={createName}
             onChange={(e) => setCreateName(e.target.value)}
             placeholder={t('namePlaceholder')}
-            className="w-48"
+            className="w-full sm:w-48"
           />
           <Button
             type="submit"
             size="sm"
             disabled={!createName.trim() || creating}
+            className="w-full sm:w-auto"
           >
             <Plus className="mr-1.5 h-4 w-4" />
             {t('createNew')}
@@ -172,6 +173,7 @@ export default function DashboardsListPage() {
                     size="sm"
                     variant="ghost"
                     className="text-destructive hover:text-destructive"
+                    aria-label={t('deleteDashboard.title')}
                     onClick={() => setDeleteId(dashboard.id)}
                   >
                     <Trash2 className="h-4 w-4" />

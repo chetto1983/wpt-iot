@@ -14,6 +14,7 @@ import {
 import { apiFetch } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
 import { usePlcWriteLock } from '@/hooks/use-plc-write-lock';
+import { clearSessionDraft, readSessionDraft, writeSessionDraft } from '@/lib/session-draft';
 import { PlcStatusBar } from '@/components/plc-status-bar';
 import { PlcWriteConfirm } from '@/components/plc-write-confirm';
 import { Button } from '@/components/ui/button';
@@ -50,6 +51,14 @@ const emptyJob: IJobData = {
   spareInt02: 0,  // V03 (Phase 19.1 Wave 1) — bare int, no semantics yet
   spareInt03: 0,  // V03 (Phase 19.1 Wave 1) — bare int, no semantics yet
 };
+
+const JOBS_DRAFT_KEY = 'jobs-page';
+
+interface JobsDraft {
+  job: IJobData;
+  hasRead: boolean;
+  lockRemainingSeconds: number;
+}
 
 /**
  * Wraps a disabled form control with a tooltip explaining why it's disabled.
@@ -96,6 +105,7 @@ export default function JobsPage() {
   const [isWriting, setIsWriting] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const lock = usePlcWriteLock();
+  const hydratedDraft = useRef(false);
 
   // Role gate: CLIENT cannot access this page
   if (user?.role === 'CLIENT') {
@@ -109,10 +119,38 @@ export default function JobsPage() {
   // Auto-read from PLC on page load (like the legacy system)
   const didAutoRead = useRef(false);
   useEffect(() => {
+    if (hydratedDraft.current) return;
+    hydratedDraft.current = true;
+
+    const draft = readSessionDraft<JobsDraft>(JOBS_DRAFT_KEY);
+    if (!draft) return;
+
+    setJob(draft.job);
+    setHasRead(draft.hasRead);
+    didAutoRead.current = true;
+    if (draft.lockRemainingSeconds > 0) {
+      lock.restoreLoadedState(draft.lockRemainingSeconds);
+    }
+  }, [lock]);
+
+  useEffect(() => {
     if (user?.role === 'CLIENT' || didAutoRead.current) return;
     didAutoRead.current = true;
     handleRead();
   }, []);
+
+  useEffect(() => {
+    if (!hasRead) {
+      clearSessionDraft(JOBS_DRAFT_KEY);
+      return;
+    }
+
+    writeSessionDraft(JOBS_DRAFT_KEY, {
+      job,
+      hasRead,
+      lockRemainingSeconds: lock.canWrite ? lock.remainingSeconds : 0,
+    });
+  }, [job, hasRead, lock.canWrite, lock.remainingSeconds]);
 
   const handleRead = async () => {
     setIsReading(true);
@@ -193,6 +231,12 @@ export default function JobsPage() {
           </p>
         </div>
       )}
+
+      {!hasRead && !isReading ? (
+        <p className="rounded-lg border border-dashed px-4 py-3 text-sm text-muted-foreground">
+          {readFirstTooltip}
+        </p>
+      ) : null}
 
       {/* Card 1: Job Identity */}
       <Card>
@@ -366,8 +410,12 @@ export default function JobsPage() {
       </Card>
 
       {/* Button row */}
-      <div className="flex justify-end gap-4">
-        <Button onClick={handleRead} disabled={isReading || isWriting}>
+      <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
+        <Button
+          onClick={handleRead}
+          disabled={isReading || isWriting}
+          className="w-full sm:w-auto"
+        >
           {isReading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
           {isReading ? t('actions.reading') : t('actions.readFromPlc')}
         </Button>
@@ -376,6 +424,7 @@ export default function JobsPage() {
             variant={lock.canWrite ? 'default' : 'outline'}
             onClick={handleWriteClick}
             disabled={!lock.canWrite || isReading || isWriting}
+            className="w-full sm:w-auto"
           >
             {isWriting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             {isWriting ? t('actions.writing') : t('actions.writeToPlc')}

@@ -1,11 +1,12 @@
 'use client';
 
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { apiFetch } from '@/lib/api';
+import { clearSessionDraft, readSessionDraft, writeSessionDraft } from '@/lib/session-draft';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -38,6 +39,8 @@ interface MqttConfigFormProps {
   onSaved: () => void;
 }
 
+const MQTT_CONFIG_DRAFT_KEY = 'mqtt-config-form';
+
 export function MqttConfigForm({ config, onSaved }: MqttConfigFormProps) {
   const t = useTranslations('mqtt');
   const tCommon = useTranslations('common');
@@ -58,6 +61,98 @@ export function MqttConfigForm({ config, onSaved }: MqttConfigFormProps) {
   const [useTls, setUseTls] = useState(config.useTls);
   const [caCert, setCaCert] = useState(config.caCert ?? '');
   const [saving, setSaving] = useState(false);
+  const restoredDraftRef = useRef(false);
+
+  const applyConfig = useCallback((next: MqttConfig) => {
+    setEnabled(next.enabled);
+    setBrokerHost(next.brokerHost);
+    setBrokerPort(next.brokerPort);
+    setUsername(next.username);
+    setPassword('');
+    setSiteId(next.siteId);
+    setMachineId(next.machineId);
+    setPublishMachine(next.publishMachine);
+    setPublishAlarms(next.publishAlarms);
+    setPublishRfid(next.publishRfid);
+    setPublishJobs(next.publishJobs);
+    setUseTls(next.useTls);
+    setCaCert(next.caCert ?? '');
+  }, []);
+
+  useEffect(() => {
+    const draft = readSessionDraft<Omit<MqttConfig, 'passwordSet'>>(MQTT_CONFIG_DRAFT_KEY);
+    if (!draft) return;
+
+    restoredDraftRef.current = true;
+    setEnabled(draft.enabled);
+    setBrokerHost(draft.brokerHost);
+    setBrokerPort(draft.brokerPort);
+    setUsername(draft.username);
+    setSiteId(draft.siteId);
+    setMachineId(draft.machineId);
+    setPublishMachine(draft.publishMachine);
+    setPublishAlarms(draft.publishAlarms);
+    setPublishRfid(draft.publishRfid);
+    setPublishJobs(draft.publishJobs);
+    setUseTls(draft.useTls);
+    setCaCert(draft.caCert ?? '');
+  }, []);
+
+  useEffect(() => {
+    if (!restoredDraftRef.current) {
+      applyConfig(config);
+    }
+  }, [applyConfig, config]);
+
+  useEffect(() => {
+    const hasDraftChanges =
+      enabled !== config.enabled ||
+      brokerHost !== config.brokerHost ||
+      brokerPort !== config.brokerPort ||
+      username !== config.username ||
+      siteId !== config.siteId ||
+      machineId !== config.machineId ||
+      publishMachine !== config.publishMachine ||
+      publishAlarms !== config.publishAlarms ||
+      publishRfid !== config.publishRfid ||
+      publishJobs !== config.publishJobs ||
+      useTls !== config.useTls ||
+      caCert !== (config.caCert ?? '');
+
+    if (!hasDraftChanges) {
+      clearSessionDraft(MQTT_CONFIG_DRAFT_KEY);
+      return;
+    }
+
+    writeSessionDraft(MQTT_CONFIG_DRAFT_KEY, {
+      enabled,
+      brokerHost,
+      brokerPort,
+      username,
+      siteId,
+      machineId,
+      publishMachine,
+      publishAlarms,
+      publishRfid,
+      publishJobs,
+      useTls,
+      caCert: caCert || null,
+    });
+  }, [
+    caCert,
+    config,
+    enabled,
+    brokerHost,
+    brokerPort,
+    username,
+    siteId,
+    machineId,
+    publishMachine,
+    publishAlarms,
+    publishRfid,
+    publishJobs,
+    useTls,
+  ]);
 
   const handleSave = useCallback(async () => {
     setSaving(true);
@@ -87,6 +182,8 @@ export function MqttConfigForm({ config, onSaved }: MqttConfigFormProps) {
       // Clear the password input after a successful save so the field
       // remains blank ("keep current") for the next edit.
       setPassword('');
+      restoredDraftRef.current = false;
+      clearSessionDraft(MQTT_CONFIG_DRAFT_KEY);
       onSaved();
     } catch (err) {
       const msg = err instanceof Error ? err.message : tCommon('error');
@@ -113,8 +210,8 @@ export function MqttConfigForm({ config, onSaved }: MqttConfigFormProps) {
         </div>
 
         {/* Broker Host + Port */}
-        <div className="grid grid-cols-3 gap-3">
-          <div className="col-span-2 grid gap-2">
+        <div className="grid gap-3 sm:grid-cols-3">
+          <div className="grid gap-2 sm:col-span-2">
             <Label htmlFor="mqtt-broker-host">{t('config.brokerHost')}</Label>
             <Input
               id="mqtt-broker-host"

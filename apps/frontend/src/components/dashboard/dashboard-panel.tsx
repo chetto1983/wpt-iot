@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom';
 import type { ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
 import { MoreVertical, Settings, Maximize2, Minimize2, Trash2, GripVertical, X } from 'lucide-react';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import {
@@ -42,6 +43,7 @@ export function DashboardPanel({
 }: DashboardPanelProps) {
   const t = useTranslations('dashboards');
   const [mounted, setMounted] = useState(false);
+  const isMobile = useIsMobile();
 
   // Wait for mount before allowing portal (SSR safety)
   useEffect(() => {
@@ -81,7 +83,7 @@ export function DashboardPanel({
         <div
           className={cn(
             'drag-handle flex shrink-0 items-center gap-1 border-b border-border/40 px-2',
-            fullscreen ? 'h-10 cursor-default' : 'h-7',
+            fullscreen ? 'h-12 cursor-default sm:h-10' : 'h-10 sm:h-7',
             !fullscreen && editMode ? 'cursor-move' : !fullscreen && 'cursor-default',
           )}
         >
@@ -101,7 +103,7 @@ export function DashboardPanel({
             <Button
               variant="ghost"
               size="icon"
-              className="size-6 rounded-sm"
+              className="size-11 rounded-sm sm:size-6"
               aria-label={t('panelActions.restore')}
               onClick={onMaximize}
               title={t('panelActions.restore')}
@@ -113,7 +115,7 @@ export function DashboardPanel({
           <div
             className={cn(
               'flex items-center transition-opacity duration-150',
-              editMode || fullscreen
+              editMode || fullscreen || isMobile
                 ? 'opacity-100'
                 : 'opacity-0 group-hover/panel:opacity-100',
             )}
@@ -124,7 +126,7 @@ export function DashboardPanel({
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="size-5 rounded-sm"
+                    className="size-11 rounded-sm sm:size-8"
                     aria-label={t('panelActions.settings')}
                   />
                 }

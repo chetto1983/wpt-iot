@@ -67,9 +67,9 @@ export function ReportFilters({
 
   return (
     <Card className="p-0">
-      <div className="flex flex-wrap items-end justify-between gap-4 p-4">
+      <div className="flex flex-col gap-4 p-4 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
         {/* Left side: filter controls */}
-        <div className="flex flex-wrap items-end gap-4">
+        <div className="grid gap-4 sm:flex sm:flex-wrap sm:items-end">
           <div className="flex flex-col gap-1.5">
             <Label className="text-xs font-medium text-muted-foreground">
               {translations.dateRangeLabel}
@@ -87,7 +87,7 @@ export function ReportFilters({
             </Label>
             <Input
               type="time"
-              className="w-[120px]"
+              className="w-full sm:w-[120px]"
               value={fromTime}
               onChange={(e) => onFromTimeChange(e.target.value)}
             />
@@ -99,7 +99,7 @@ export function ReportFilters({
             </Label>
             <Input
               type="time"
-              className="w-[120px]"
+              className="w-full sm:w-[120px]"
               value={toTime}
               onChange={(e) => onToTimeChange(e.target.value)}
             />
@@ -112,7 +112,7 @@ export function ReportFilters({
               </Label>
               <Input
                 type="number"
-                className="w-[140px]"
+                className="w-full sm:w-[140px]"
                 value={cycleNumber ?? ''}
                 onChange={(e) => onCycleNumberChange(e.target.value)}
                 placeholder={translations.cyclePlaceholder}
@@ -125,64 +125,75 @@ export function ReportFilters({
         </div>
 
         {/* Right side: format toggle + download */}
-        <div className="flex items-end gap-2">
-          <Button
-            variant={exportFormat === 'csv' ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => onFormatChange('csv')}
-          >
-            CSV
-          </Button>
-          <Button
-            variant={exportFormat === 'pdf' ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => onFormatChange('pdf')}
-          >
-            PDF
-          </Button>
-          {!canDownload && translations.disabledTooltip ? (
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger
-                  render={<span tabIndex={0} className="inline-flex" />}
-                >
-                  <Button
-                    variant="default"
-                    disabled
-                    onClick={onDownload}
+        <div className="flex flex-col gap-2 sm:items-end">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+            <Button
+              variant={exportFormat === 'csv' ? 'default' : 'outline'}
+              size="sm"
+              className="sm:min-w-14"
+              onClick={() => onFormatChange('csv')}
+            >
+              CSV
+            </Button>
+            <Button
+              variant={exportFormat === 'pdf' ? 'default' : 'outline'}
+              size="sm"
+              className="sm:min-w-14"
+              onClick={() => onFormatChange('pdf')}
+            >
+              PDF
+            </Button>
+            {!canDownload && translations.disabledTooltip ? (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger
+                    render={<span tabIndex={0} className="inline-flex w-full sm:w-auto" />}
                   >
+                    <Button
+                      variant="default"
+                      disabled
+                      onClick={onDownload}
+                      className="w-full sm:w-auto"
+                    >
+                      <Download className="mr-2 h-4 w-4" />
+                      {exportFormat === 'csv'
+                        ? translations.downloadCsv
+                        : translations.downloadPdf}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>{translations.disabledTooltip}</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            ) : (
+              <Button
+                variant="default"
+                disabled={!canDownload}
+                onClick={onDownload}
+                className="w-full sm:w-auto"
+              >
+                {downloading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    {translations.downloading}
+                  </>
+                ) : (
+                  <>
                     <Download className="mr-2 h-4 w-4" />
                     {exportFormat === 'csv'
                       ? translations.downloadCsv
                       : translations.downloadPdf}
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>{translations.disabledTooltip}</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          ) : (
-            <Button
-              variant="default"
-              disabled={!canDownload}
-              onClick={onDownload}
-            >
-              {downloading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  {translations.downloading}
-                </>
-              ) : (
-                <>
-                  <Download className="mr-2 h-4 w-4" />
-                  {exportFormat === 'csv'
-                    ? translations.downloadCsv
-                    : translations.downloadPdf}
-                </>
-              )}
-            </Button>
-          )}
+                  </>
+                )}
+              </Button>
+            )}
+          </div>
+          {!canDownload && translations.disabledTooltip ? (
+            <p className="text-xs text-muted-foreground sm:max-w-56 sm:text-right">
+              {translations.disabledTooltip}
+            </p>
+          ) : null}
         </div>
       </div>
     </Card>

@@ -113,7 +113,7 @@ export function TimeRangePicker({
     REFRESH_INTERVALS.find((r) => r.ms === refreshInterval)?.label ?? 'off';
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex flex-wrap items-center gap-2">
       {/* Time range button + popover */}
       <Popover
         open={popoverOpen}
@@ -135,14 +135,16 @@ export function TimeRangePicker({
 
         <PopoverContent
           className={cn(
-            'flex w-auto max-w-none p-0',
-            showCustom ? 'min-w-[600px]' : 'min-w-[200px]',
+            'flex max-w-none flex-col p-0 sm:flex-row',
+            showCustom
+              ? 'w-[min(calc(100vw-2rem),22rem)] sm:w-auto sm:min-w-[600px]'
+              : 'w-[min(calc(100vw-2rem),18rem)] sm:w-auto sm:min-w-[200px]',
           )}
           align="start"
           side="bottom"
         >
           {/* Left column: presets */}
-          <div className="w-48 border-r border-border p-2">
+          <div className="w-full border-b border-border p-2 sm:w-48 sm:border-r sm:border-b-0">
             {PRESET_GROUPS.map((group) => (
               <div key={group.heading} className="mb-2">
                 <div className="px-2 py-1 text-[11px] uppercase tracking-wider text-muted-foreground/60">
@@ -153,7 +155,7 @@ export function TimeRangePicker({
                     key={presetLabel}
                     type="button"
                     className={cn(
-                      'w-full rounded-md px-2 py-1.5 text-left text-sm transition-colors',
+                      'min-h-11 w-full rounded-md px-3 py-2 text-left text-sm transition-colors sm:min-h-0 sm:px-2 sm:py-1.5',
                       activePreset === presetLabel
                         ? 'bg-accent text-accent-foreground font-medium'
                         : 'hover:bg-muted text-foreground/80',
@@ -170,8 +172,7 @@ export function TimeRangePicker({
           {/* Right column: custom calendar (only when custom mode) */}
           {showCustom ? (
             <div className="flex flex-col gap-3 p-3">
-              {/* From row */}
-              <div className="flex items-start gap-3">
+              <div className="grid gap-3 sm:grid-cols-2">
                 <div className="flex flex-col gap-1">
                   <Label className="text-xs text-muted-foreground">
                     {t('timeRange.from')}
@@ -186,7 +187,7 @@ export function TimeRangePicker({
                     type="time"
                     value={customFromTime}
                     onChange={(e) => setCustomFromTime(e.target.value)}
-                    className="h-8 w-full text-xs"
+                    className="w-full text-xs"
                   />
                 </div>
                 <div className="flex flex-col gap-1">
@@ -203,13 +204,13 @@ export function TimeRangePicker({
                     type="time"
                     value={customToTime}
                     onChange={(e) => setCustomToTime(e.target.value)}
-                    className="h-8 w-full text-xs"
+                    className="w-full text-xs"
                   />
                 </div>
               </div>
               {/* Apply button */}
-              <div className="flex justify-end">
-                <Button size="sm" onClick={handleApplyCustom}>
+              <div className="flex justify-stretch sm:justify-end">
+                <Button size="sm" onClick={handleApplyCustom} className="w-full sm:w-auto">
                   {t('timeRange.apply')}
                 </Button>
               </div>

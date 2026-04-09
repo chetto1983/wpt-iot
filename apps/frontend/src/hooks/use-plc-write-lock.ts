@@ -60,6 +60,39 @@ export function usePlcWriteLock() {
     setRemainingSeconds(0);
   }, [clearTimer]);
 
+  const restoreLoadedState = useCallback((remaining: number) => {
+    const normalized = Math.max(0, Math.ceil(remaining));
+    if (normalized <= 0) {
+      clearTimer();
+      setState('expired');
+      setRemainingSeconds(0);
+      return;
+    }
+
+    clearTimer();
+
+    const deadline = Date.now() + normalized * 1000;
+    deadlineRef.current = deadline;
+    setState('loaded');
+    setRemainingSeconds(normalized);
+
+    intervalRef.current = setInterval(() => {
+      const nextRemaining = Math.max(
+        0,
+        Math.ceil((deadlineRef.current - Date.now()) / 1000),
+      );
+      setRemainingSeconds(nextRemaining);
+
+      if (nextRemaining <= 0) {
+        setState('expired');
+        if (intervalRef.current !== null) {
+          clearInterval(intervalRef.current);
+          intervalRef.current = null;
+        }
+      }
+    }, 1000);
+  }, [clearTimer]);
+
   const reset = useCallback(() => {
     clearTimer();
     setState('idle');
@@ -77,6 +110,7 @@ export function usePlcWriteLock() {
     canWrite: state === 'loaded',
     markReadSuccess,
     markWriteSuccess,
+    restoreLoadedState,
     reset,
   };
 }

@@ -122,10 +122,10 @@ export function FieldSelector({
   return (
     <Card>
       <CardContent className="p-4">
-        <h2 className="text-sm font-semibold mb-3">{t('selectFields')}</h2>
+        <h2 className="mb-3 text-sm font-semibold">{t('selectFields')}</h2>
 
         {atMax && (
-          <p className="text-xs text-wpt-gold px-3 py-1.5 mb-2 rounded-md bg-wpt-gold/10 sticky top-0 z-10">
+          <p className="sticky top-0 z-10 mb-2 rounded-md bg-wpt-gold/10 px-3 py-2 text-xs text-wpt-gold">
             {t('fieldCountMax')}
           </p>
         )}
@@ -134,26 +134,26 @@ export function FieldSelector({
           const selectedInGroup = fields.filter((f) =>
             selected.includes(f),
           ).length;
-          return (
-            <Collapsible key={key} className="mb-2 last:mb-0">
-              <CollapsibleTrigger className="flex w-full items-center gap-1.5 py-1.5 group cursor-pointer">
-                <ChevronRight className="size-3.5 text-muted-foreground transition-transform duration-200 group-data-[panel-open]:rotate-90" />
-                <span className="text-xs font-semibold text-muted-foreground">
+            return (
+              <Collapsible key={key} className="mb-2 last:mb-0">
+              <CollapsibleTrigger className="group flex min-h-11 w-full items-center gap-1.5 py-2.5 sm:min-h-0 sm:py-1.5">
+                <ChevronRight className="size-4 text-muted-foreground transition-transform duration-200 group-data-[panel-open]:rotate-90 sm:size-3.5" />
+                <span className="text-sm font-semibold text-muted-foreground sm:text-xs">
                   {t(`categories.${key}`)}
                 </span>
                 {selectedInGroup > 0 && (
-                  <span className="ml-auto text-[10px] font-medium text-primary bg-primary/10 px-1.5 py-0.5 rounded-full">
+                  <span className="ml-auto rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary sm:text-[10px]">
                     {selectedInGroup}
                   </span>
                 )}
               </CollapsibleTrigger>
               <CollapsibleContent>
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 pb-2 pt-1">
+                <div className="grid grid-cols-1 gap-3 pb-2 pt-1 sm:grid-cols-2 lg:grid-cols-4">
                   {fields.map((field) => {
                     const isSelected = selected.includes(field);
                     const isDisabled = atMax && !isSelected;
                     return (
-                      <div key={field} className="flex items-center gap-2">
+                      <div key={field} className="flex items-center gap-3 rounded-md border border-transparent px-1 py-1 sm:gap-2 sm:px-0 sm:py-0">
                         <Checkbox
                           id={`field-${field}`}
                           checked={isSelected}
@@ -177,7 +177,7 @@ export function FieldSelector({
           );
         })}
 
-        <p className="text-xs text-muted-foreground mt-3">
+        <p className="mt-3 text-xs text-muted-foreground">
           {selected.length === 0
             ? t('fieldCountNone')
             : selected.length === MAX_FIELDS

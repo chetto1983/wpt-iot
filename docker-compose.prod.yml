@@ -8,7 +8,7 @@
 
 services:
   backend:
-    image: ghcr.io/dvdmarchetto/wpt-backend:latest
+    image: ghcr.io/chetto1983/wpt-backend:latest
     pull_policy: always
     network_mode: host
     ports: []
@@ -39,7 +39,7 @@ services:
       - "127.0.0.1:9001:9001"
 
   frontend:
-    image: ghcr.io/dvdmarchetto/wpt-frontend:latest
+    image: ghcr.io/chetto1983/wpt-frontend:latest
     pull_policy: always
     labels:
       - "com.centurylinklabs.watchtower.enable=true"

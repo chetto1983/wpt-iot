@@ -224,7 +224,7 @@ export default function MqttPage() {
   };
 
   return (
-    <div className="mx-auto w-full max-w-6xl space-y-6 p-6">
+    <div className="mx-auto w-full max-w-6xl space-y-6 p-4 sm:p-6">
       <h1 className="text-2xl font-semibold">{t('title')}</h1>
 
       <div className="grid gap-6 lg:grid-cols-2">
@@ -232,14 +232,15 @@ export default function MqttPage() {
         <div className="space-y-6">
           {/* Broker Status */}
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
+            <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <CardTitle>{t('status.title')}</CardTitle>
-              <div className="flex gap-2">
+              <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={handleTestConnection}
                   disabled={testing}
+                  className="w-full sm:w-auto"
                 >
                   {testing ? (
                     <Loader2 className="mr-1 size-4 animate-spin" />
@@ -251,6 +252,7 @@ export default function MqttPage() {
                   size="icon"
                   onClick={handleRefresh}
                   disabled={refreshing}
+                  className="self-end sm:self-auto"
                 >
                   <RefreshCw
                     className={`size-4 ${refreshing ? 'animate-spin' : ''}`}
@@ -318,10 +320,11 @@ export default function MqttPage() {
         {/* Right Column - Users */}
         <div className="space-y-6">
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
+            <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <CardTitle>{t('users.title')}</CardTitle>
               <Button
                 size="sm"
+                className="w-full sm:w-auto"
                 onClick={() => {
                   setEditTarget(null);
                   setUserDialogOpen(true);
@@ -337,32 +340,25 @@ export default function MqttPage() {
                   {t('users.noUsers')}
                 </p>
               ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>{t('users.username')}</TableHead>
-                      <TableHead>{t('users.role')}</TableHead>
-                      <TableHead className="w-16" />
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
+                <>
+                  <div className="grid gap-3 md:hidden">
                     {users.map((u) => {
                       const role = primaryRole(u);
                       const isSystem = u.username === 'wpt-backend';
                       return (
-                        <TableRow key={u.username}>
-                          <TableCell className="font-medium">
-                            {u.username}
-                            {isSystem ? (
-                              <Badge
-                                variant="outline"
-                                className="ml-2 text-xs"
-                              >
-                                {t('users.systemAccount')}
-                              </Badge>
-                            ) : null}
-                          </TableCell>
-                          <TableCell>
+                        <div key={u.username} className="rounded-lg border p-4">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <p className="font-medium">{u.username}</p>
+                              {isSystem ? (
+                                <Badge
+                                  variant="outline"
+                                  className="mt-2 text-xs"
+                                >
+                                  {t('users.systemAccount')}
+                                </Badge>
+                              ) : null}
+                            </div>
                             <Badge
                               variant={
                                 ROLE_BADGE_VARIANT[role] ?? 'secondary'
@@ -370,35 +366,102 @@ export default function MqttPage() {
                             >
                               {role}
                             </Badge>
-                          </TableCell>
-                          <TableCell>
-                            {!isSystem ? (
-                              <div className="flex items-center gap-1">
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => {
-                                    setEditTarget(u);
-                                    setUserDialogOpen(true);
-                                  }}
-                                >
-                                  <Pencil className="size-4" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => setDeleteTarget(u.username)}
-                                >
-                                  <Trash2 className="size-4 text-red-500" />
-                                </Button>
-                              </div>
-                            ) : null}
-                          </TableCell>
-                        </TableRow>
+                          </div>
+                          {!isSystem ? (
+                            <div className="mt-4 flex flex-wrap gap-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="flex-1"
+                                onClick={() => {
+                                  setEditTarget(u);
+                                  setUserDialogOpen(true);
+                                }}
+                              >
+                                <Pencil className="size-4" />
+                                {t('users.edit')}
+                              </Button>
+                              <Button
+                                variant="destructive"
+                                size="sm"
+                                className="flex-1"
+                                onClick={() => setDeleteTarget(u.username)}
+                              >
+                                <Trash2 className="size-4" />
+                                {t('users.delete')}
+                              </Button>
+                            </div>
+                          ) : null}
+                        </div>
                       );
                     })}
-                  </TableBody>
-                </Table>
+                  </div>
+
+                  <div className="hidden md:block">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>{t('users.username')}</TableHead>
+                          <TableHead>{t('users.role')}</TableHead>
+                          <TableHead className="w-16" />
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {users.map((u) => {
+                          const role = primaryRole(u);
+                          const isSystem = u.username === 'wpt-backend';
+                          return (
+                            <TableRow key={u.username}>
+                              <TableCell className="font-medium">
+                                {u.username}
+                                {isSystem ? (
+                                  <Badge
+                                    variant="outline"
+                                    className="ml-2 text-xs"
+                                  >
+                                    {t('users.systemAccount')}
+                                  </Badge>
+                                ) : null}
+                              </TableCell>
+                              <TableCell>
+                                <Badge
+                                  variant={
+                                    ROLE_BADGE_VARIANT[role] ?? 'secondary'
+                                  }
+                                >
+                                  {role}
+                                </Badge>
+                              </TableCell>
+                              <TableCell>
+                                {!isSystem ? (
+                                  <div className="flex items-center gap-1">
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() => {
+                                        setEditTarget(u);
+                                        setUserDialogOpen(true);
+                                      }}
+                                    >
+                                      <Pencil className="size-4" />
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() => setDeleteTarget(u.username)}
+                                    >
+                                      <Trash2 className="size-4 text-red-500" />
+                                    </Button>
+                                  </div>
+                                ) : null}
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </>
               )}
             </CardContent>
           </Card>

@@ -40,7 +40,7 @@ export default function PlcPage() {
   if (!user || user.role !== 'SUPER_ADMIN') return null;
 
   return (
-    <div className="mx-auto w-full max-w-2xl space-y-6 p-6">
+    <div className="mx-auto w-full max-w-2xl space-y-6 p-4 sm:p-6">
       <h1 className="text-2xl font-semibold">{t('pageTitle')}</h1>
 
       {config ? (

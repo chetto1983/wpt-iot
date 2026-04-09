@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, memo } from 'react';
+import { useEffect, useRef, useState, memo } from 'react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import { Loader2 } from 'lucide-react';
@@ -9,10 +9,12 @@ import { RfidUserGroup } from '@wpt/types';
 import { apiFetch } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
 import { usePlcWriteLock } from '@/hooks/use-plc-write-lock';
+import { clearSessionDraft, readSessionDraft, writeSessionDraft } from '@/lib/session-draft';
 import { PlcStatusBar } from '@/components/plc-status-bar';
 import { PlcWriteConfirm } from '@/components/plc-write-confirm';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
   Select,
   SelectContent,
@@ -38,6 +40,13 @@ function createEmptyUsers(): IRfidUser[] {
     group: RfidUserGroup.OPERATOR,
     enabled: false,
   }));
+}
+
+const RFID_DRAFT_KEY = 'rfid-page';
+
+interface RfidDraft {
+  users: IRfidUser[];
+  lockRemainingSeconds: number;
 }
 
 interface RfidUserRowProps {
@@ -97,6 +106,65 @@ const RfidUserRow = memo(function RfidUserRow({ user, onUpdate, t }: RfidUserRow
   );
 });
 
+const RfidUserCard = memo(function RfidUserCard({ user, onUpdate, t }: RfidUserRowProps) {
+  return (
+    <div className="rounded-lg border bg-card p-4">
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <div>
+          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            {t('columns.tagId')}
+          </p>
+          <p className="font-mono text-sm">{user.tagId}</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Label className="text-xs text-muted-foreground">
+            {t('columns.enabled')}
+          </Label>
+          <Switch
+            checked={user.enabled}
+            onCheckedChange={(v) => onUpdate(user.tagId, 'enabled', v)}
+          />
+        </div>
+      </div>
+
+      <div className="grid gap-3">
+        <div className="grid gap-1.5">
+          <Label htmlFor={`rfid-name-${user.tagId}`}>{t('columns.name')}</Label>
+          <Input
+            id={`rfid-name-${user.tagId}`}
+            value={user.name}
+            onChange={(e) => {
+              const sanitized = e.target.value.replace(/[^\x20-\x7E]/g, '').slice(0, 20);
+              onUpdate(user.tagId, 'name', sanitized);
+            }}
+            placeholder="---"
+            maxLength={20}
+          />
+        </div>
+
+        <div className="grid gap-1.5">
+          <Label>{t('columns.group')}</Label>
+          <Select
+            value={String(user.group)}
+            onValueChange={(v) => onUpdate(user.tagId, 'group', Number(v))}
+          >
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder={t(`groups.${GROUP_KEYS[user.group] ?? 'OPERATOR'}`)}>
+                {t(`groups.${GROUP_KEYS[user.group] ?? 'OPERATOR'}`)}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="0">{t('groups.OPERATOR')}</SelectItem>
+              <SelectItem value="1">{t('groups.MAINTENANCE')}</SelectItem>
+              <SelectItem value="2">{t('groups.ADMIN')}</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+    </div>
+  );
+});
+
 export default function RfidPage() {
   const { user } = useAuth();
   const t = useTranslations('rfid');
@@ -108,6 +176,7 @@ export default function RfidPage() {
   const [isWriting, setIsWriting] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const lock = usePlcWriteLock();
+  const hydratedDraft = useRef(false);
 
   // Role gate: CLIENT cannot access this page
   if (user?.role === 'CLIENT') {
@@ -121,6 +190,33 @@ export default function RfidPage() {
   const updateUser = (tagId: number, field: keyof IRfidUser, value: unknown) => {
     setUsers(prev => prev.map(u => u.tagId === tagId ? { ...u, [field]: value } : u));
   };
+
+  useEffect(() => {
+    if (hydratedDraft.current) return;
+    hydratedDraft.current = true;
+
+    const draft = readSessionDraft<RfidDraft>(RFID_DRAFT_KEY);
+    if (!draft) return;
+
+    setUsers(draft.users);
+    if (draft.lockRemainingSeconds > 0) {
+      lock.restoreLoadedState(draft.lockRemainingSeconds);
+    }
+  }, [lock]);
+
+  useEffect(() => {
+    const hasNonEmptyDraft = users.some((u) => u.name || u.enabled || u.group !== RfidUserGroup.OPERATOR);
+
+    if (!hasNonEmptyDraft) {
+      clearSessionDraft(RFID_DRAFT_KEY);
+      return;
+    }
+
+    writeSessionDraft(RFID_DRAFT_KEY, {
+      users,
+      lockRemainingSeconds: lock.canWrite ? lock.remainingSeconds : 0,
+    });
+  }, [users, lock.canWrite, lock.remainingSeconds]);
 
   const handleRead = async () => {
     setIsReading(true);
@@ -181,14 +277,24 @@ export default function RfidPage() {
 
       <Card>
         <CardContent className="p-0">
-          <div className="overflow-auto" style={{ maxHeight: 'calc(100vh - 280px)' }}>
+          <div className="grid gap-3 p-4 md:hidden">
+            {users.map(u => (
+              <RfidUserCard
+                key={u.tagId}
+                user={u}
+                onUpdate={updateUser}
+                t={t}
+              />
+            ))}
+          </div>
+          <div className="hidden overflow-auto md:block md:max-h-[calc(100dvh-280px)]">
             <Table>
               <TableHeader className="sticky top-0 z-10 bg-card">
                 <TableRow>
-                  <TableHead className="w-16 py-2 px-4">{t('columns.tagId')}</TableHead>
-                  <TableHead className="min-w-[200px] py-2 px-4">{t('columns.name')}</TableHead>
-                  <TableHead className="w-40 py-2 px-4">{t('columns.group')}</TableHead>
-                  <TableHead className="w-24 py-2 px-4">{t('columns.enabled')}</TableHead>
+                  <TableHead className="w-16 px-4 py-2">{t('columns.tagId')}</TableHead>
+                  <TableHead className="min-w-[200px] px-4 py-2">{t('columns.name')}</TableHead>
+                  <TableHead className="w-40 px-4 py-2">{t('columns.group')}</TableHead>
+                  <TableHead className="w-24 px-4 py-2">{t('columns.enabled')}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -206,10 +312,11 @@ export default function RfidPage() {
         </CardContent>
       </Card>
 
-      <div className="flex justify-end gap-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
         <Button
           onClick={handleRead}
           disabled={isReading || isWriting}
+          className="w-full sm:w-auto"
         >
           {isReading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
           {isReading ? t('actions.reading') : t('actions.readFromPlc')}
@@ -218,6 +325,7 @@ export default function RfidPage() {
           variant={lock.canWrite ? 'default' : 'outline'}
           onClick={handleWriteClick}
           disabled={!lock.canWrite || isReading || isWriting}
+          className="w-full sm:w-auto"
         >
           {isWriting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
           {isWriting ? t('actions.writing') : t('actions.writeToPlc')}
