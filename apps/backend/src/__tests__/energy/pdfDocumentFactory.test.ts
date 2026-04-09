@@ -1,5 +1,6 @@
 import { createRequire } from 'node:module';
 import { describe, expect, it } from 'vitest';
+import { createDeterministicPdfBuffer } from '../../services/pdfDocumentFactory.js';
 import { ensurePdfFonts } from '../../services/pdfFonts.js';
 
 const require = createRequire(import.meta.url);
@@ -16,5 +17,27 @@ describe('ensurePdfFonts', () => {
     const buffer = await pdf.getBuffer();
     expect(Buffer.isBuffer(buffer)).toBe(true);
     expect(buffer.length).toBeGreaterThan(1000);
+  });
+});
+
+describe('createDeterministicPdfBuffer', () => {
+  it('renders byte-identical buffers when metadata is fixed', async () => {
+    const docDefinition = {
+      content: [{ text: 'Deterministic PDF con àèìòù' }],
+    };
+    const info = {
+      title: 'Energy PDF',
+      author: 'WPT',
+      subject: 'Energy report',
+      creator: 'phase-22-test',
+      producer: 'phase-22-test',
+      creationDate: new Date('2026-04-09T00:00:00.000Z'),
+      modDate: new Date('2026-04-09T00:00:00.000Z'),
+    };
+
+    const first = await createDeterministicPdfBuffer(docDefinition, info);
+    const second = await createDeterministicPdfBuffer(docDefinition, info);
+
+    expect(first.equals(second)).toBe(true);
   });
 });
