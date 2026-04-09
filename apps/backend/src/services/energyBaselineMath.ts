@@ -377,9 +377,22 @@ export function _validateSavingsWindows(input: IValidationInput): void {
       },
     );
   }
+  // DST-aware day count (WR-05):
+  // A wall-clock 7-day window crossing the spring-forward DST boundary is
+  // only 167 h of elapsed time (6 days 23 h = 601_200_000 ms), which trips
+  // a naive `measurementMs >= 7 * 86_400_000` check even though the user
+  // picked two wall-clock midnights 7 calendar days apart. Add a 1-hour
+  // slack before floor-dividing so the spring-forward window rounds up to
+  // 7 calendar days. The slack is precisely the DST skew — a genuine
+  // flat-6-day window (6 * 86_400_000 = 518_400_000 ms) still floors to
+  // 6 and is rejected. A fall-back 7-day window (7 * 86_400_000 +
+  // 3_600_000 ms) is trivially accepted. Symmetric with the `+01:00` WR-01
+  // DST fix in `freezeBaselineEvidence`.
   const measurementMs = input.measurementTo.getTime() - input.measurementFrom.getTime();
-  const sevenDaysMs = 7 * 86_400_000;
-  if (measurementMs < sevenDaysMs) {
+  const measurementDays = Math.floor(
+    (measurementMs + 3_600_000) / 86_400_000,
+  );
+  if (measurementDays < 7) {
     throw new MeasurementTooShortError(
       'Measurement window must be at least 7 days',
       {
