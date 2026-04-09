@@ -13,20 +13,23 @@
  * Imports are intentionally commented out until Plan 01 ships the types + service shell.
  */
 
-import { describe, it } from 'vitest';
+import { describe, it, expect } from 'vitest';
+import { EnergyBaselineService } from '../services/energyBaselineService.js';
 
-// TODO Plan 01: uncomment once packages/types/src/energy.ts + energyBaselineService.ts shell land
+// TODO Plan 02/03: uncomment once pure-math and lockBaseline impls land
 // import {
 //   _computeSavingsFromScalars,
 //   _computeSoftWarnings,
 //   _validateSavingsWindows,
 //   BaselineOverlapError,
 //   MeasurementTooShortError,
-//   EnergyBaselineService,
 // } from '../services/energyBaselineService.js';
 
 describe('EnergyBaselineService.ensureSchema', () => {
-  it.todo('ensureSchema idempotent — calling twice succeeds');
+  it('ensureSchema idempotent — calling twice succeeds', async () => {
+    await expect(EnergyBaselineService.ensureSchema()).resolves.not.toThrow();
+    await expect(EnergyBaselineService.ensureSchema()).resolves.not.toThrow();
+  });
 });
 
 describe('computeSavings pure math', () => {
