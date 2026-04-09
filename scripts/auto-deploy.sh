@@ -14,7 +14,7 @@
 #   3. Otherwise: git pull --ff-only
 #   4. bash scripts/build-bundle.sh → /var/lib/wpt-deploy/bundles/wpt-iot-bundle-<sha>-<ts>.tar.gz
 #   5. For each customer in CUSTOMERS_CONF:
-#        scp the bundle → tar xz on remote → sudo bash install-offline.sh
+#        scp the bundle → tar xz on remote → sudo bash install.sh
 #        Log success/failure per customer
 #   6. Symlink /var/lib/wpt-deploy/latest.tar.gz to the freshest bundle
 #   7. Prune older bundles (keep KEEP_BUNDLES = last 5 by default)
@@ -42,7 +42,7 @@ LOG_FILE="${LOG_FILE:-/var/log/wpt-auto-deploy.log}"
 CUSTOMERS_CONF="${CUSTOMERS_CONF:-/etc/wpt-auto-deploy/customers.conf}"
 KEEP_BUNDLES="${KEEP_BUNDLES:-5}"
 SKIP_SHIP="${SKIP_SHIP:-0}"          # 1 = build only, do not ship to customers
-NEXT_PUBLIC_API_URL="${NEXT_PUBLIC_API_URL:-http://wpt.local:3000}"
+NEXT_PUBLIC_API_URL="${NEXT_PUBLIC_API_URL:-https://wpt.local/api}"
 
 # --- Logging helpers ---
 log() {
@@ -193,15 +193,15 @@ while IFS=' ' read -r CUST_NAME CUST_TARGET CUST_REMOTE_DIR; do
     continue
   fi
 
-  # Extract + run install-offline.sh on the remote
+  # Extract + run the canonical installer on the remote
   REMOTE_BUNDLE_NAME="${NEW_BUNDLE_NAME%.tar.gz}"
   if ! ssh -p "${CUST_PORT}" "${CUST_HOST}" "
     set -e
     cd ${CUST_REMOTE_DIR}
     tar xzf ${NEW_BUNDLE_NAME}
-    sudo bash ${REMOTE_BUNDLE_NAME}/install-offline.sh
+    sudo bash ${REMOTE_BUNDLE_NAME}/install.sh
   " 2>>"${LOG_FILE}"; then
-    log_err "ship: ${CUST_NAME} remote install-offline.sh failed"
+    log_err "ship: ${CUST_NAME} remote install.sh failed"
     SHIP_FAIL=$((SHIP_FAIL + 1))
     continue
   fi

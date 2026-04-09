@@ -43,7 +43,7 @@ a fresh offline bundle, and ships it to every customer edge PC listed in
 
 The customer edge PCs only need:
 - Outbound SSH (port 22) reachable from the golden master
-- `sudo` for the deploy user (NOPASSWD or sudoers entry for `install-offline.sh`)
+- `sudo` for the deploy user (NOPASSWD or sudoers entry for `install.sh`)
 - Docker Engine + Compose v2 already installed (one-time prereq)
 
 They do NOT need GitHub access, npm registry access, Docker Hub access, or
@@ -112,12 +112,12 @@ Host wpt-*
 On EACH customer edge PC:
 
 ```bash
-echo 'sacchi ALL=(ALL) NOPASSWD: /usr/bin/bash /home/sacchi/wpt-deploy/wpt-iot-bundle-*/install-offline.sh' \
+echo 'sacchi ALL=(ALL) NOPASSWD: /usr/bin/bash /home/sacchi/wpt-deploy/wpt-iot-bundle-*/install.sh' \
   | sudo tee /etc/sudoers.d/wpt-auto-deploy
 sudo chmod 440 /etc/sudoers.d/wpt-auto-deploy
 ```
 
-This lets the auto-deploy ssh session run `sudo bash install-offline.sh`
+This lets the auto-deploy ssh session run `sudo bash install.sh`
 without a password prompt, but DOESN'T grant the deploy user blanket sudo.
 
 ### Step 6 — Optional config overrides
@@ -131,7 +131,7 @@ without a password prompt, but DOESN'T grant the deploy user blanket sudo.
 # LOG_FILE=/var/log/wpt-auto-deploy.log
 # CUSTOMERS_CONF=/etc/wpt-auto-deploy/customers.conf
 # KEEP_BUNDLES=10
-# NEXT_PUBLIC_API_URL=http://wpt.local:3000
+# NEXT_PUBLIC_API_URL=https://wpt.local/api
 # SKIP_SHIP=1   # build only, do not ship to customers (useful for staging)
 ```
 
@@ -197,7 +197,7 @@ scp -i /root/.ssh/wpt-deploy "${OLD}" sacchi@<customer>:/home/sacchi/wpt-deploy/
 ssh -i /root/.ssh/wpt-deploy sacchi@<customer> "
   cd /home/sacchi/wpt-deploy
   tar xzf $(basename ${OLD})
-  sudo bash $(basename ${OLD} .tar.gz)/install-offline.sh
+  sudo bash $(basename ${OLD} .tar.gz)/install.sh
 "
 ```
 
@@ -214,8 +214,8 @@ credentials. Database schema migrations run idempotently at backend boot
 | `git fetch failed` in log | Golden master lost internet | Check `curl https://github.com` works as the deploy user |
 | `build-bundle.sh failed` | Docker Hub unreachable / disk full | Check `docker pull hello-world` works; check `df -h /var/lib/wpt-deploy` |
 | `ship: <customer> unreachable via ssh` | Customer offline / network changed | Ping the customer; if back, the next 5-min tick reships automatically |
-| `ship: <customer> remote install-offline.sh failed` | sudoers rule missing or Docker not running on customer | Re-do Step 5 on that customer; check `systemctl status docker` on the customer |
-| Customer applies bundle but data is gone | Likely the customer's `pgdata` volume was wiped — `install-offline.sh` does NOT touch volumes, so check the customer manually | Restore from backup |
+| `ship: <customer> remote install.sh failed` | sudoers rule missing or Docker not running on customer | Re-do Step 5 on that customer; check `systemctl status docker` on the customer |
+| Customer applies bundle but data is gone | Likely the customer's `pgdata` volume was wiped — `install.sh` does NOT touch volumes, so check the customer manually | Restore from backup |
 
 ## What this does NOT cover
 

@@ -11,9 +11,9 @@ chmod +x setup.sh
 ./setup.sh --dev    # + PLC simulator
 ```
 
-The setup script handles everything: environment generation, container builds, database initialization, and TimescaleDB retention policies.
+The `setup.sh` flow is for local development and lab use. It handles environment generation, container builds, database initialization, and TimescaleDB retention policies.
 
-After setup:
+After local setup:
 
 | Service    | URL                    |
 |------------|------------------------|
@@ -27,6 +27,12 @@ For Linux installs that use the compose HTTPS overlay, the user-facing URL is:
 - API traffic is same-origin under `https://wpt.local/api`
 - first access on a new device must trust the generated local CA before PWA installability will work cleanly
 - the CA is exposed by nginx at `https://wpt.local/setup/wpt-local-ca.crt` after the operator proceeds past the initial browser warning once
+
+For customer edge installs, use the single installer entrypoint:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/chetto1983/wpt-iot/master/scripts/install.sh | sudo bash
+```
 
 Login: `admin` / password in `.env` (`ADMIN_PASSWORD`)
 
@@ -166,7 +172,7 @@ Copy `.env.example` to `.env` (done automatically by `setup.sh`):
 | `PG_PASSWORD`     | `wpt_dev_password` | PostgreSQL password            |
 | `ADMIN_PASSWORD`  | `changeme`         | Dashboard admin login          |
 | `SESSION_SECRET`  | (generate random)  | Auth session signing key       |
-| `CORS_ORIGIN`     | `http://localhost:3001` or `https://wpt.local` | Allowed CORS origins |
+| `CORS_ORIGIN`     | `http://localhost:3001` in dev, `https://wpt.local` on edge | Allowed CORS origins |
 | `SESSION_COOKIE_SECURE` | `false` | Set `true` behind HTTPS |
 | `TRUST_PROXY`     | `false` | Set `true` when TLS terminates at nginx |
 | `PORT`            | `3000`             | Backend HTTP port              |

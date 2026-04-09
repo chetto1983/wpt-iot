@@ -20,10 +20,10 @@
 # Lines starting with # and blank lines are ignored.
 #
 # Each customer must have:
-#   - sudo without a TTY password (or NOPASSWD for the install-offline.sh path)
+#   - sudo without a TTY password (or NOPASSWD for the install.sh path)
 #   - Docker Engine + Compose v2 installed (one-time prereq, NOT shipped here)
-#   - The bundle .tar.gz unpacked + sudo bash install-offline.sh executed by
-#     the auto-deploy script (sudo install-offline.sh handles everything else)
+#   - The bundle .tar.gz unpacked + sudo bash install.sh executed by
+#     the auto-deploy script (install.sh dispatches to the right mode)
 #
 # After deploy:
 #   - .env on the customer is preserved (DB password + admin password kept)

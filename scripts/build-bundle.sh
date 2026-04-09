@@ -12,7 +12,7 @@
 #   - All 5 Docker images (db, mosquitto, backend, frontend, nginx)
 #   - docker-compose.yml + docker-compose.https.yml
 #   - nginx template + init-timescaledb.sql + mosquitto config
-#   - install-offline.sh + generate-local-tls.sh + wpt-local-alias.sh
+#   - install.sh + internal helpers (install-offline.sh, generate-local-tls.sh, wpt-local-alias.sh)
 #   - VERSION file with the source git SHA + build timestamp
 # =============================================================================
 
@@ -93,10 +93,12 @@ cp docker/nginx/templates/wpt.conf.template "${BUNDLE_DIR}/docker/nginx/template
 mkdir -p "${BUNDLE_DIR}/mosquitto/config"
 cp -r mosquitto/config/. "${BUNDLE_DIR}/mosquitto/config/"
 
+cp scripts/install.sh "${BUNDLE_DIR}/"
 cp scripts/install-offline.sh "${BUNDLE_DIR}/"
 cp scripts/generate-local-tls.sh "${BUNDLE_DIR}/"
 cp scripts/wpt-local-alias.sh "${BUNDLE_DIR}/"
 chmod +x \
+  "${BUNDLE_DIR}/install.sh" \
   "${BUNDLE_DIR}/install-offline.sh" \
   "${BUNDLE_DIR}/generate-local-tls.sh" \
   "${BUNDLE_DIR}/wpt-local-alias.sh"
@@ -172,5 +174,5 @@ echo "  1. Transfer to the edge PC (USB stick, scp, sneakernet)"
 echo "  2. On the edge PC, as root or via sudo:"
 echo "       tar xzf ${BUNDLE_NAME}.tar.gz"
 echo "       cd ${BUNDLE_NAME}"
-echo "       sudo bash install-offline.sh"
+echo "       sudo bash install.sh"
 echo ""
