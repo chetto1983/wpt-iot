@@ -14,6 +14,7 @@ import {
   VALID_SORT_COLUMNS,
 } from '@wpt/types';
 import { CycleService } from '../services/cycleService.js';
+import { CycleExportService } from '../services/cycleExportService.js';
 import { requireAuth, requireRole } from '../auth/authHooks.js';
 
 /**
@@ -184,23 +185,25 @@ export const cycleRoutes: FastifyPluginAsync = async (server) => {
       }
 
       try {
-        const exportRequest = { from, to, format };
+        // Generate filename
+        const filename = CycleExportService.generateFilename(fromDate, format);
 
-        let result;
         if (format === 'csv') {
-          result = await CycleService.exportCsv(exportRequest);
+          const csv = await CycleExportService.generateCsv(fromDate, toDate);
+          return reply
+            .header('Content-Type', 'text/csv; charset=utf-8')
+            .header('Content-Disposition', `attachment; filename="${filename}"`)
+            .send(csv);
         } else {
-          result = await CycleService.exportPdf(exportRequest);
+          const pdf = await CycleExportService.generatePdf(fromDate, toDate);
+          return reply
+            .header('Content-Type', 'application/pdf')
+            .header('Content-Disposition', `attachment; filename="${filename}"`)
+            .send(pdf);
         }
-
-        // Set appropriate headers for file download
-        return reply
-          .header('Content-Type', result.contentType)
-          .header('Content-Disposition', `attachment; filename="${result.filename}"`)
-          .send(result.content);
       } catch (err) {
         server.log.error(
-          { name: 'CycleService', err: (err as Error).message, format },
+          { name: 'CycleExportService', err: (err as Error).message, format },
           'Failed to export cycle records',
         );
         return reply.code(500).send({ error: 'Internal error' });
