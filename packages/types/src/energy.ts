@@ -136,18 +136,45 @@ export interface ICycleClosedEvent {
   startWaterL: number | null;
   /** Absolute water meter reading at cycle end (S1_R_DATO_14 snapshot) */
   endWaterL: number | null;
-  /** Bidoni count (S1_I_DATO_72, V03 Container) */
+  /** Computed energy delta (end - start) in kWh */
+  energyKwh: number | null;
+  /** Computed water delta (end - start) in liters */
+  waterL: number | null;
+  /** Bidoni count (S1_I_DATO_72, V03 Container) - plural alias for ICycleClosedEvent */
   containers: number | null;
   /** RFID user name (S1_S_DATO_1) */
   operator: string | null;
-  /** Gross input weight including infectious waste (reserved for future distinction from materialInputKg) */
+  /** Order number (S1_S_DATO_3) */
+  orderNumber: string | null;
+  /** Gross input weight including infectious waste (S1_I_DATO_57, mapped from materialInputWeight) */
   grossInputKg: number | null;
+  /** Material input weight alias */
+  materialInputKg: number | null;
   /**
    * Optional hint set by cycleTracker when it observes a cycle
    * window that opened and closed WITHOUT completedCycles having incremented
    * during the window. Kept for backward compat with classifyAttribution().
    */
   attributionStatusHint?: 'ABORTED';
+  /** Flag set when cycle start was skipped (data gap) */
+  dataGap?: boolean;
+}
+
+/** Cycle start event payload — emitted by dataHub.emitCycleStart (Phase 24) */
+export interface ICycleStartEvent {
+  cycleNumber: number;
+  /** Absolute energy meter reading at cycle start (S1_R_DATO_1 snapshot) */
+  startEnergyKwh: number | null;
+  /** Absolute water meter reading at cycle start (S1_R_DATO_14 snapshot) */
+  startWaterL: number | null;
+  /** RFID user name (S1_S_DATO_1) */
+  operator: string;
+  /** Order number (S1_S_DATO_3) */
+  orderNumber: string;
+  /** Bidoni count (S1_I_DATO_72, V03 Container) */
+  containers: number;
+  /** Cycle start timestamp */
+  startedAt: Date;
 }
 
 // =============================================================================

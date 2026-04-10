@@ -1,4 +1,4 @@
-import type { IMachineSnapshot, IAlarmWords, IRfidUser, IJobData, ICycleClosedEvent } from '@wpt/types';
+import type { IMachineSnapshot, IAlarmWords, IRfidUser, IJobData, ICycleClosedEvent, ICycleStartEvent } from '@wpt/types';
 
 /** Alarm state transition detected by XOR diff */
 export interface IAlarmTransition {
@@ -17,6 +17,7 @@ export const DATA_EVENTS = {
   USER_DATA: 'user:data',
   JOB_DATA: 'job:data',
   CYCLE_CLOSED: 'cycle:closed',
+  CYCLE_START: 'cycle:start',
 } as const;
 
 /** Payload types for each event */
@@ -27,4 +28,5 @@ export interface IDataHubEventMap {
   'user:data': [users: IRfidUser[]];
   'job:data': [job: IJobData];
   'cycle:closed': [event: ICycleClosedEvent];
+  'cycle:start': [event: ICycleStartEvent];
 }

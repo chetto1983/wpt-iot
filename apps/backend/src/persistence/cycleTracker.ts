@@ -120,6 +120,19 @@ export function startCycleTracker(log: IStoreLogger): void {
       endedAt,
       cycleType: cycleSelectedCycleType,
       machineStatus: cycleLastMachineStatus,
+      // Phase 24: V03 cycle register fields (defaults for old tracker)
+      cycleStatusLabel: 'UNKNOWN',
+      startEnergyKwh: null,
+      endEnergyKwh: null,
+      startWaterL: null,
+      endWaterL: null,
+      containers: null,
+      operator: null,
+      orderNumber: null,
+      grossInputKg: null,
+      materialInputKg: null,
+      energyKwh: null,
+      waterL: null,
     };
     if (!incremented) {
       // D-13 reformulation: no completedCycles increment during the active

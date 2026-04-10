@@ -1,5 +1,5 @@
 import { EventEmitter } from 'node:events';
-import type { IMachineSnapshot, IAlarmWords, IRfidUser, IJobData, ICycleClosedEvent } from '@wpt/types';
+import type { IMachineSnapshot, IAlarmWords, IRfidUser, IJobData, ICycleClosedEvent, ICycleStartEvent } from '@wpt/types';
 import type { IAlarmTransition } from './types.js';
 import { DATA_EVENTS } from './types.js';
 
@@ -55,6 +55,14 @@ class DataHub extends EventEmitter {
 
   onCycleClosed(handler: (event: ICycleClosedEvent) => void): this {
     return this.on(DATA_EVENTS.CYCLE_CLOSED, handler);
+  }
+
+  emitCycleStart(event: ICycleStartEvent): boolean {
+    return this.emit(DATA_EVENTS.CYCLE_START, event);
+  }
+
+  onCycleStart(handler: (event: ICycleStartEvent) => void): this {
+    return this.on(DATA_EVENTS.CYCLE_START, handler);
   }
 }
 
