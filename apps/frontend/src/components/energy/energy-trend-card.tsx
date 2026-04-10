@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { format } from 'date-fns';
 import {
   CartesianGrid,
@@ -66,6 +67,12 @@ export function EnergyTrendCard({
   onMetricChange,
 }: EnergyTrendCardProps) {
   const t = useTranslations('energy');
+  const [chartReady, setChartReady] = useState(false);
+
+  useEffect(() => {
+    setChartReady(true);
+  }, []);
+
   const rows =
     aggregate?.rows.map((row) => {
       const bucketDate = new Date(row.bucket);
@@ -118,7 +125,7 @@ export function EnergyTrendCard({
         </CardDescription>
       </CardHeader>
       <CardContent className="min-w-0 space-y-4">
-        {loading ? (
+        {loading || !chartReady ? (
           <Skeleton className="h-[280px] w-full" />
         ) : error ? (
           <div className="rounded-lg border border-destructive/20 bg-destructive/5 p-4 text-sm text-destructive">
