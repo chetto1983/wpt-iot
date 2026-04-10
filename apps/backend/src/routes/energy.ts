@@ -19,16 +19,19 @@ import { startCycleTracker } from '../persistence/cycleTracker.js';
 import { startCyclePersister } from '../persistence/cyclePersister.js';
 import {
   BaselineLockRequestSchema,
+  EnergyConfigUpdateSchema,
   EnergyCyclesQuerySchema,
   EnergyDashboardSummaryQuerySchema,
   EnergyPdfReportQuerySchema,
   EnergyReconciliationQuerySchema,
   SavingsQuerySchema,
+  type IEnergyAdminConfigResponse,
   type EnergyBucket,
   UserRole,
 } from '@wpt/types';
 import { requireAuth, requireRole } from '../auth/authHooks.js';
 import { EnergyDashboardService } from '../services/energyDashboardService.js';
+import { EnergyConfigService } from '../services/energyConfigService.js';
 import { EnergyPdfService } from '../services/energyPdfService.js';
 
 /**
@@ -282,6 +285,74 @@ export const energyRoutes: FastifyPluginAsync = async (server) => {
       server.log.error(
         { name: 'EnergyAggregate', err: (err as Error).message },
         'getAggregate failed',
+      );
+      return reply.code(500).send({ error: 'Internal error' });
+    }
+  });
+
+  server.get('/api/energy/config', { preHandler: requireRole(UserRole.SUPER_ADMIN) }, async (_request, reply) => {
+    try {
+      const [config, activePeriod] = await Promise.all([
+        EnergyConfigService.getConfig(),
+        EnergyConfigService.getActivePeriod(new Date()),
+      ]);
+      const payload: IEnergyAdminConfigResponse = {
+        config,
+        activePeriod,
+      };
+      return reply.send(payload);
+    } catch (err) {
+      server.log.error(
+        { name: 'EnergyConfig', err: (err as Error).message },
+        'get energy config failed',
+      );
+      return reply.code(500).send({ error: 'Internal error' });
+    }
+  });
+
+  server.put('/api/energy/config', { preHandler: requireRole(UserRole.SUPER_ADMIN) }, async (request, reply) => {
+    const parsed = EnergyConfigUpdateSchema.safeParse(request.body);
+    if (!parsed.success) {
+      return reply
+        .code(400)
+        .send({ error: 'Invalid request body', issues: parsed.error.issues });
+    }
+
+    try {
+      const data = parsed.data;
+      const effectiveFrom = new Date(data.effectiveFrom);
+
+      const config = await EnergyConfigService.updateConfig({
+        customerName: data.customerName,
+        machineSerial: data.machineSerial,
+        machineModel: data.machineModel,
+        installSite: data.installSite,
+        cosphi: data.cosphi,
+        shiftStartHour: data.shiftStartHour,
+      });
+
+      await EnergyConfigService.insertNewPeriod({
+        validFrom: effectiveFrom,
+        validTo: null,
+        emissionFactorKgPerKwh: data.emissionFactorKgPerKwh,
+        emissionFactorYear: data.emissionFactorYear,
+        emissionFactorSource: data.emissionFactorSource,
+        tariffMode: data.tariffMode,
+        tariffSingleEurPerKwh: data.tariffSingleEurPerKwh,
+        tariffBandsJson: data.tariffBandsJson,
+        customHolidays: [],
+      });
+
+      const activePeriod = await EnergyConfigService.getActivePeriod(effectiveFrom);
+      const payload: IEnergyAdminConfigResponse = {
+        config,
+        activePeriod,
+      };
+      return reply.send(payload);
+    } catch (err) {
+      server.log.error(
+        { name: 'EnergyConfig', err: (err as Error).message },
+        'update energy config failed',
       );
       return reply.code(500).send({ error: 'Internal error' });
     }

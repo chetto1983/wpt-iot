@@ -25,7 +25,8 @@
       "charts": "Charts",
       "dashboards": "Dashboards",
       "mqtt": "MQTT Gateway",
-      "plc": "PLC Settings"
+      "plc": "PLC Settings",
+      "energySettings": "Energy Settings"
     },
     "brandSubtitle": "IoT System",
     "signOut": "Sign Out",
@@ -837,6 +838,83 @@
       "totalKg": "Total kg",
       "avgKwhPerKg": "Avg kWh/kg",
       "empty": "No completed cycles are available for this range."
+    }
+  },
+  "energySettings": {
+    "title": "Energy settings",
+    "subtitle": "Configure the customer header, tariff model, baseline workflow, and sample report entry point for the energy module.",
+    "banner": {
+      "missingConfig": "Energy configuration not set yet. Complete the customer, tariff, and emission data before using the milestone workflow.",
+      "pending": "The form is validating the admin contract locally until the backend config routes are wired.",
+      "ready": "The local draft is valid and ready for backend wiring."
+    },
+    "sections": {
+      "customer": "Customer header",
+      "tariff": "Tariffs and emission factor",
+      "baseline": "Baseline declaration",
+      "sampleReport": "Sample report"
+    },
+    "descriptions": {
+      "customer": "Customer-facing identifiers used in the PDF header and milestone flow.",
+      "tariff": "Versioned tariff and emission values. Italian decimal-comma input is normalized before validation.",
+      "baseline": "The existing baseline lock flow will be reused here once backend wiring lands.",
+      "sampleReport": "This button will reuse the existing PDF route for a last-24-hours smoke test."
+    },
+    "fields": {
+      "customerName": "Customer name",
+      "machineSerial": "Machine serial",
+      "machineModel": "Machine model",
+      "installSite": "Install site",
+      "effectiveFrom": "Effective from",
+      "emissionFactorKgPerKwh": "Emission factor (kg CO2 / kWh)",
+      "emissionFactorYear": "Emission factor year",
+      "emissionFactorSource": "Emission factor source",
+      "tariffMode": "Tariff mode",
+      "tariffSingleEurPerKwh": "Single tariff (EUR / kWh)",
+      "tariffBandF1": "F1 tariff (EUR / kWh)",
+      "tariffBandF2": "F2 tariff (EUR / kWh)",
+      "tariffBandF3": "F3 tariff (EUR / kWh)"
+    },
+    "tariffModes": {
+      "single": "Single rate",
+      "tou3": "F1/F2/F3 time-of-use"
+    },
+    "helpers": {
+      "decimalPreview": "Canonical value: {value}",
+      "invalidPreview": "Enter a valid number",
+      "submitHint": "Submitting keeps numeric payloads canonical even when the visible input uses a comma decimal."
+    },
+    "validation": {
+      "required": "This field is required.",
+      "invalidNumber": "Enter a valid number.",
+      "emissionFactorRange": "Emission factor must stay between 0.05 and 2.0.",
+      "tariffRange": "Tariff values must stay between 0.001 and 2.0.",
+      "yearNumeric": "Emission factor year must be numeric.",
+      "sourceRequired": "Emission factor source is required.",
+      "tariffBandsRequired": "F1, F2, and F3 values are required when the 3-band tariff is selected."
+    },
+    "actions": {
+      "saveDraft": "Validate draft",
+      "saveSettings": "Save settings",
+      "openBaseline": "Open baseline dialog",
+      "generateSampleReport": "Generate sample report"
+    },
+    "placeholders": {
+      "baseline": "This action reuses the existing baseline lock dialog instead of creating a second baseline workflow.",
+      "sampleReport": "This action reuses the existing PDF endpoint with a deterministic last-24-hours window."
+    },
+    "toast": {
+      "draftValidated": "Energy settings draft validated.",
+      "saved": "Energy settings saved.",
+      "sampleReportReady": "Sample report downloaded."
+    },
+    "errors": {
+      "loadConfig": "Unable to load the energy settings configuration.",
+      "sampleReport": "Unable to generate the sample report."
+    },
+    "states": {
+      "loading": "Loading the energy settings workspace...",
+      "unauthorized": "Only SuperAdmin can manage energy settings."
     }
   }
 }

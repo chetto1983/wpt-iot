@@ -171,6 +171,52 @@ export interface ITariffBands {
   f3?: { eurPerKwh: number };
 }
 
+export const ENERGY_TARIFF_BAND_KEYS = ['f1', 'f2', 'f3'] as const;
+export type EnergyTariffBandKey = (typeof ENERGY_TARIFF_BAND_KEYS)[number];
+
+export const EnergyTariffModeSchema = z.enum(['single', 'tou3']);
+export type EnergyTariffMode = z.infer<typeof EnergyTariffModeSchema>;
+
+export const EnergyTariffBandValueSchema = z.object({
+  eurPerKwh: z.number().min(0.001).max(2.0),
+});
+
+export const EnergyTariffBandsSchema = z.object({
+  f1: EnergyTariffBandValueSchema.optional(),
+  f2: EnergyTariffBandValueSchema.optional(),
+  f3: EnergyTariffBandValueSchema.optional(),
+});
+
+export const EnergyConfigUpdateSchema = z.object({
+  customerName: z.string().trim().min(1).max(200),
+  machineSerial: z.string().trim().min(1).max(100),
+  machineModel: z.string().trim().min(1).max(100),
+  installSite: z.string().trim().min(1).max(200),
+  cosphi: z.number().min(0).max(1),
+  shiftStartHour: z.number().int().min(0).max(23),
+  effectiveFrom: z.string().datetime(),
+  emissionFactorKgPerKwh: z.number().min(0.05).max(2.0),
+  emissionFactorYear: z.number().int().min(2000).max(9999),
+  emissionFactorSource: z.string().trim().min(1).max(200),
+  tariffMode: EnergyTariffModeSchema,
+  tariffSingleEurPerKwh: z.number().min(0.001).max(2.0),
+  tariffBandsJson: EnergyTariffBandsSchema,
+});
+
+export interface IEnergyConfigUpdateRequest
+  extends z.infer<typeof EnergyConfigUpdateSchema> {}
+
+export interface IEnergyAdminConfigResponse {
+  config: IEnergyConfig;
+  activePeriod: IEnergyConfigPeriod;
+}
+
+export const EnergySampleReportQuerySchema = z.object({
+  from: z.string().datetime(),
+  to: z.string().datetime(),
+  lang: z.enum(['it', 'en']).optional().default('it'),
+});
+
 export interface ICycleRecord {
   cycleNumber: number;
   resetEpoch: number;        // composite cycle ID (resetEpoch, cycleNumber) per ENRG-04

@@ -70,6 +70,14 @@ The workflow now bakes `NEXT_PUBLIC_API_URL=https://wpt.local/api` into the publ
 
 Watchtower updates the labelled backend/frontend containers automatically.
 
+## Post-Deploy Energy Step
+
+TODO before declaring the v1.1 energy module live on a machine:
+
+```bash
+docker compose exec db psql -U wpt -d wpt -c "SELECT setup_energy_aggregates();"
+```
+
 ## Roll Back a Machine
 
 Pin the backend or frontend image to a known-good tag:

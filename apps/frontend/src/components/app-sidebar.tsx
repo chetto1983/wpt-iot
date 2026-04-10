@@ -89,6 +89,7 @@ export function AppSidebar() {
     { label: t('nav.users'), href: '/users', icon: UserCog },
     { label: t('nav.mqtt'), href: '/mqtt', icon: Radio },
     { label: t('nav.plc'), href: '/plc', icon: Cpu },
+    { label: t('nav.energySettings'), href: '/settings/energy', icon: Bolt },
   ];
 
   const isWptOrAdmin = user.role === 'SUPER_ADMIN' || user.role === 'WPT';
