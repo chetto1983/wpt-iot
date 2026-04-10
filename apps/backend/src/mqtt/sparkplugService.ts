@@ -136,16 +136,34 @@ export class SparkplugService {
     const cfg = await CloudConfigService.getConfig();
     if (!cfg.enabled || !cfg.publishCycleRecords) return;
 
-    const topic = `spBv1.0/${cfg.groupId}/DDATA/${cfg.edgeNodeId}/machine`;
+    // Topic: spBv1.0/{groupId}/DDATA/{edgeNodeId}/cycle (per WPT-SISTEMA-IOT-SPEC.md §14)
+    const topic = `spBv1.0/${cfg.groupId}/DDATA/${cfg.edgeNodeId}/cycle`;
+
+    // 14-field DDATA payload per Base_registro_mensile_cicli.xls format
+    // Field order: order_number, cycles, date, start_time, end_time, cycle_status_label,
+    //              weight_input_kg, weight_output_kg, containers, gross_input_kg,
+    //              start_energy_kwh, end_energy_kwh, start_water_l, end_water_l, operator
     const payload = spb.encodePayload({
       timestamp: Date.now(),
       seq: this.nextSeq(),
       metrics: [
-        { name: 'Cycle/Last/Number', type: 'Int32', value: record.cycleNumber },
-        { name: 'Cycle/Last/Energy', type: 'Float', value: record.energyKwh },
-        { name: 'Cycle/Last/Water', type: 'Float', value: record.waterL },
-        { name: 'Cycle/Last/Status', type: 'String', value: record.attributionStatus },
-        { name: 'Cycle/Last/Duration', type: 'Int32', value: record.durationSeconds },
+        // Original 5 fields
+        { name: 'cycle/order_number', type: 'String', value: record.orderNumber ?? '' },
+        { name: 'cycle/cycles', type: 'Int32', value: record.cycleNumber ?? 0 },
+        { name: 'cycle/date', type: 'DateTime', value: record.startedAt?.getTime?.() ?? Date.now() },
+        { name: 'cycle/start_time', type: 'DateTime', value: record.startedAt?.getTime?.() ?? Date.now() },
+        { name: 'cycle/end_time', type: 'DateTime', value: record.endedAt?.getTime?.() ?? Date.now() },
+        // Phase 24: New 9 fields
+        { name: 'cycle/cycle_status_label', type: 'String', value: record.cycleStatusLabel ?? 'UNKNOWN' },
+        { name: 'cycle/weight_input_kg', type: 'Float', value: record.materialInputKg ?? 0 },
+        { name: 'cycle/weight_output_kg', type: 'Float', value: record.materialOutputKg ?? 0 },
+        { name: 'cycle/containers', type: 'Int32', value: record.containers ?? 0 },
+        { name: 'cycle/gross_input_kg', type: 'Float', value: record.grossInputKg ?? 0 },
+        { name: 'cycle/start_energy_kwh', type: 'Float', value: record.startEnergyKwh ?? 0 },
+        { name: 'cycle/end_energy_kwh', type: 'Float', value: record.endEnergyKwh ?? 0 },
+        { name: 'cycle/start_water_l', type: 'Float', value: record.startWaterL ?? 0 },
+        { name: 'cycle/end_water_l', type: 'Float', value: record.endWaterL ?? 0 },
+        { name: 'cycle/operator', type: 'String', value: record.operator ?? '' },
       ]
     });
 

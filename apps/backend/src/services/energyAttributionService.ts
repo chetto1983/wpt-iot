@@ -212,21 +212,34 @@ export class EnergyAttributionService {
       }
     }
 
+    // Phase 24: Insert with full 14 register fields
     await db.execute(sql`
       INSERT INTO cycle_records (
         reset_epoch, cycle_number,
         started_at, ended_at,
         cycle_type, duration_seconds,
         material_input_kg, material_output_kg,
-        energy_kwh, avg_rms_current,
-        kwh_per_kg, attribution_status
+        energy_kwh, water_l, avg_rms_current,
+        kwh_per_kg, attribution_status,
+        serial_number, order_number,
+        start_energy_kwh, end_energy_kwh,
+        start_water_l, end_water_l,
+        containers, operator,
+        cycle_status_label, gross_input_kg,
+        published_at
       ) VALUES (
         ${event.resetEpoch}, ${event.cycleNumber},
         ${event.startedAt}::timestamptz, ${event.endedAt}::timestamptz,
         ${event.cycleType}, ${durationSeconds},
         ${window.material_input_kg}, ${window.material_output_kg},
-        ${window.kwh_delta}, ${window.avg_rms_current},
-        ${kwhPerKg}, ${status}
+        ${window.kwh_delta}, ${event.waterL ?? window.material_input_kg}, ${window.avg_rms_current},
+        ${kwhPerKg}, ${status},
+        ${event.orderNumber ?? null}, ${event.orderNumber ?? null},
+        ${event.startEnergyKwh}, ${event.endEnergyKwh},
+        ${event.startWaterL}, ${event.endWaterL},
+        ${event.containers}, ${event.operator},
+        ${event.cycleStatusLabel}, ${event.grossInputKg ?? window.material_input_kg},
+        NULL
       )
     `);
     log.info(
