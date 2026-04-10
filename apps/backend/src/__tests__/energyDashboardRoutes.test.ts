@@ -9,6 +9,16 @@ const requireAuthMock = vi.fn(async (request: any, reply: any) => {
   }
   request.session = { role };
 });
+const requireRoleMock = vi.fn(
+  (...roles: string[]) =>
+    async (request: any, reply: any) => {
+      await requireAuthMock(request, reply);
+      if (reply.sent) return;
+      if (!roles.includes(request.session.role)) {
+        reply.code(403).send({ error: 'Forbidden' });
+      }
+    },
+);
 
 const getDashboardSummaryMock = vi.fn();
 const getCyclesMock = vi.fn();
@@ -16,6 +26,7 @@ const getReconciliationMock = vi.fn();
 
 vi.mock('../auth/authHooks.js', () => ({
   requireAuth: requireAuthMock,
+  requireRole: requireRoleMock,
 }));
 
 vi.mock('../persistence/cycleTracker.js', () => ({
