@@ -157,7 +157,10 @@ describe('energy pdf service task 02.1', () => {
       'enpiTable',
       'enbDeclaration',
       'energyByPeriod',
+      'perCycleEfficiency',
+      'costAndCo2',
       'savingsIndicator',
+      'footer',
     ]);
     expect(getAggregateMock).toHaveBeenCalledWith({
       from: new Date('2026-04-01T00:00:00.000Z'),
@@ -217,9 +220,81 @@ describe('energy pdf service task 02.1', () => {
       'enpiTable',
       'enbDeclaration',
       'energyByPeriod',
+      'perCycleEfficiency',
+      'costAndCo2',
       'savingsIndicator',
+      'footer',
     ]);
     expect((definition.defaultStyle as { fontSize?: number }).fontSize).toBe(10);
+  });
+
+  it('builds the real per-cycle table node and footer source labels', async () => {
+    const { ENERGY_PDF_COPY } = await import('../i18n/energyPdfCopy.js');
+    const { EnergyPdfService } = await import('../services/energyPdfService.js');
+
+    const model = await EnergyPdfService.buildReportModel({
+      from: new Date('2026-04-01T00:00:00.000Z'),
+      to: new Date('2026-04-08T00:00:00.000Z'),
+      lang: 'it',
+      baselineId: 7,
+    });
+    const definition = EnergyPdfService.buildDocumentDefinition(model);
+    const perCycleNode = ((definition.content as unknown[]) ?? []).find((item) => {
+      if (!item || typeof item !== 'object') {
+        return false;
+      }
+      const candidate = item as {
+        table?: { body?: unknown[]; keepWithHeaderRows?: number };
+      };
+      const firstRow = candidate.table?.body?.[0];
+      return Array.isArray(firstRow) && firstRow.includes(ENERGY_PDF_COPY.it.perCycleEfficiency.cycleLabel);
+    }) as {
+      fontSize?: number;
+      table: {
+        headerRows: number;
+        dontBreakRows: boolean;
+        keepWithHeaderRows: number;
+        body: unknown[][];
+      };
+    } | undefined;
+
+    expect(perCycleNode).toBeDefined();
+    expect(perCycleNode?.table.headerRows).toBe(1);
+    expect(perCycleNode?.table.dontBreakRows).toBe(true);
+    expect(perCycleNode?.table.keepWithHeaderRows).toBe(1);
+    expect(perCycleNode?.fontSize).toBeLessThan(10);
+    expect(perCycleNode?.table.body[1]).toEqual([
+      'Dry Mixed',
+      '8',
+      '120 kWh',
+      '96,2 kg',
+      '1,3',
+    ]);
+
+    const footer = (definition as { footer?: (currentPage: number, pageCount: number) => unknown })
+      .footer;
+    expect(typeof footer).toBe('function');
+
+    const footerNode = footer?.(1, 3) as { columns?: Array<{ text?: string }>; margin?: number[] };
+    const footerText = footerNode.columns
+      ?.map((column) => column.text ?? '')
+      .join(' ') ?? '';
+
+    expect(footerText).toContain(ENERGY_PDF_COPY.it.footer.emissionFactorSourceLabel);
+    expect(footerText).toContain(ENERGY_PDF_COPY.it.footer.emissionFactorYearLabel);
+    expect(footerText).toContain(ENERGY_PDF_COPY.it.footer.tariffSourceLabel);
+    expect(footerText).toContain('1 / 3');
+    expect(footerNode.margin).toEqual([40, 8, 40, 0]);
+  });
+
+  it('exposes accented Italian footer/source copy', async () => {
+    const { ENERGY_PDF_COPY } = await import('../i18n/energyPdfCopy.js');
+
+    expect(ENERGY_PDF_COPY.it.executiveSummary.totalCo2Label).toContain('CO₂');
+    expect(ENERGY_PDF_COPY.it.costAndCo2.title).toBe('Costi e CO₂');
+    expect(ENERGY_PDF_COPY.it.footer.note).toContain('dell’energia');
+    expect(ENERGY_PDF_COPY.en.footer.emissionFactorSourceLabel).toBe('Emission factor source');
+    expect(ENERGY_PDF_COPY.en.footer.tariffSourceLabel).toBe('Tariff source');
   });
 
   it('uses formatItKwh, formatItEur, formatItKgCO2, and explicit above baseline / below baseline wording', async () => {
