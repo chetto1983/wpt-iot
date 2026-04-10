@@ -5,6 +5,8 @@ import { MachineAnomalyEventService } from './machineAnomalyEventService.js';
 import {
   OnlineAnomalyDetector,
   type IAnomalyResult,
+  type IDetectorMetrics,
+  type ISerializedDetector,
 } from './onlineAnomalyDetector.js';
 
 interface ILogger {
@@ -19,10 +21,11 @@ export interface ILiveAnomalyState extends IAnomalyResult {
 export interface IAnomalyTrackingStatus {
   active: boolean;
   continuousLearning: true;
-  persistsAcrossRestart: false;
+  persistsAcrossRestart: boolean;
   startedAt: string | null;
   observationCount: number;
   lastObservedAt: string | null;
+  detectorMetrics: IDetectorMetrics;
 }
 
 export function mapSnapshotToDetectorInput(snapshot: IMachineSnapshot) {
@@ -93,11 +96,27 @@ export class MachineAnomalyService {
     return {
       active: this.handler !== null,
       continuousLearning: true,
-      persistsAcrossRestart: false,
+      persistsAcrossRestart: true,
       startedAt: this.startedAt?.toISOString() ?? null,
       observationCount: this.observationCount,
       lastObservedAt: this.latest?.observedAt ?? null,
+      detectorMetrics: this.detector.getMetrics(),
     };
+  }
+
+  /** Serialize detector state for persistence across restarts (Phase 4.1). */
+  serializeDetector(): ISerializedDetector {
+    return this.detector.toJSON();
+  }
+
+  /** Restore detector state from a previously serialized snapshot. */
+  restoreDetector(data: ISerializedDetector): void {
+    this.detector = OnlineAnomalyDetector.fromJSON(data);
+  }
+
+  /** Expose detector metrics for monitoring (Phase 4.2). */
+  getDetectorMetrics(): IDetectorMetrics {
+    return this.detector.getMetrics();
   }
 
   private get persistCooldownMs(): number {
