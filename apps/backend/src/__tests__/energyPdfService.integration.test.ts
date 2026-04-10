@@ -1,6 +1,9 @@
 import { readFile } from 'node:fs/promises';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { extractPdfText } from './energy/pdfReportTestUtils.js';
+import {
+  assertReportReproducible,
+  extractPdfText,
+} from './energy/pdfReportTestUtils.js';
 
 const getAggregateMock = vi.fn();
 const getBaselineByIdMock = vi.fn();
@@ -13,6 +16,18 @@ const BANNED_TERMS = [
   'iper-ammortamento',
   'GSE',
   'MIMIT',
+] as const;
+
+const REQUIRED_ITALIAN_HEADINGS = [
+  'Rapporto energetico ISO 50001',
+  'Executive summary',
+  'Tabella EnPI',
+  'Dichiarazione EnB',
+  'Energia per periodo',
+  'Efficienza per ciclo',
+  'Costi e CO₂',
+  'Indicatore di risparmio',
+  'Fonti',
 ] as const;
 
 vi.mock('../services/energyAggregateService.js', () => ({
@@ -136,7 +151,7 @@ describe('energy pdf integration rendering', () => {
     });
   });
 
-  it('renders italian text with accents, footer source labels, and no banned terms', async () => {
+  it('renders italian text with all section headings, footer source labels, and no banned terms', async () => {
     const { EnergyPdfService } = await import('../services/energyPdfService.js');
 
     const pdf = await EnergyPdfService.generateIso50001Pdf({
@@ -151,35 +166,44 @@ describe('energy pdf integration rendering', () => {
     expect(extractedText).toContain('Fonte fattore emissivo');
     expect(extractedText).toContain('Anno fattore emissivo');
     expect(extractedText).toContain('Fonte tariffa');
+    for (const heading of REQUIRED_ITALIAN_HEADINGS) {
+      expect(extractedText).toContain(heading);
+    }
 
     for (const bannedTerm of BANNED_TERMS) {
       expect(extractedText).not.toContain(bannedTerm);
     }
   });
 
-  it('keeps the 1000-row service render above the size gate and pins keepWithHeaderRows', async () => {
+  it('keeps the 1000-row render reproducible above the size gate and pins keepWithHeaderRows', async () => {
     const serviceSource = await readFile(
       new URL('../services/energyPdfService.ts', import.meta.url),
       'utf8',
     );
     const { EnergyPdfService } = await import('../services/energyPdfService.js');
 
-    getCyclesMock.mockResolvedValueOnce({
+    const reportArgs = {
+      from: new Date('2026-04-01T00:00:00.000Z'),
+      to: new Date('2026-04-08T00:00:00.000Z'),
+      lang: 'en',
+      baselineId: 7,
+    } as const;
+
+    getCyclesMock.mockResolvedValue({
       from: '2026-04-01T00:00:00.000Z',
       to: '2026-04-08T00:00:00.000Z',
       limit: 1000,
       rows: buildCycleRows(1000),
     });
 
-    const pdf = await EnergyPdfService.generateIso50001Pdf({
-      from: new Date('2026-04-01T00:00:00.000Z'),
-      to: new Date('2026-04-08T00:00:00.000Z'),
-      lang: 'en',
-      baselineId: 7,
-    });
+    const pdfA = await EnergyPdfService.generateIso50001Pdf(reportArgs);
+    const pdfB = await EnergyPdfService.generateIso50001Pdf(reportArgs);
 
     expect(serviceSource).toContain('keepWithHeaderRows: 1');
-    expect(Buffer.isBuffer(pdf)).toBe(true);
-    expect(pdf.length).toBeGreaterThan(50000);
+    expect(Buffer.isBuffer(pdfA)).toBe(true);
+    expect(Buffer.isBuffer(pdfB)).toBe(true);
+    expect(pdfA.length).toBeGreaterThan(50000);
+    expect(pdfB.length).toBeGreaterThan(50000);
+    assertReportReproducible(pdfA, pdfB);
   });
 });
