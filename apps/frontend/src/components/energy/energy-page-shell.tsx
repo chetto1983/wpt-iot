@@ -80,7 +80,6 @@ export function EnergyPageShell() {
   const [refreshTick, setRefreshTick] = useState(0);
   const [baselineDialogOpen, setBaselineDialogOpen] = useState(false);
   const [exportingPdf, setExportingPdf] = useState(false);
-  const [pendingPdfExport, setPendingPdfExport] = useState(false);
   const summaryAbortRef = useRef<AbortController | null>(null);
   const widgetsAbortRef = useRef<AbortController | null>(null);
   const showSummaryLoading = summaryLoading && summary == null;
@@ -196,15 +195,17 @@ export function EnergyPageShell() {
     return () => controller.abort();
   }, [from, to, preset, refreshTick, t]);
 
-  async function exportPdf(baselineId: number) {
+  async function exportPdf(baselineId?: number) {
     setExportingPdf(true);
     try {
       const params = new URLSearchParams({
         from: from.toISOString(),
         to: to.toISOString(),
         lang: pdfLang,
-        baseline_id: String(baselineId),
       });
+      if (baselineId != null) {
+        params.set('baseline_id', String(baselineId));
+      }
 
       const res = await fetch(`${API_BASE}/energy/reports/iso50001/pdf?${params.toString()}`, {
         method: 'POST',
@@ -243,19 +244,7 @@ export function EnergyPageShell() {
   }
 
   async function handleExportPdf() {
-    if (activeBaselineId != null) {
-      setPendingPdfExport(false);
-      await exportPdf(activeBaselineId);
-      return;
-    }
-
-    if (canManageBaseline) {
-      setPendingPdfExport(true);
-      setBaselineDialogOpen(true);
-      return;
-    }
-
-    toast.error(t('export.noBaseline'));
+    await exportPdf(activeBaselineId ?? undefined);
   }
 
   return (
@@ -285,8 +274,6 @@ export function EnergyPageShell() {
         lastUpdated={lastFetchedAt}
         loading={showSummaryLoading || showAggregateLoading}
         exportingPdf={exportingPdf}
-        hasActiveBaseline={activeBaselineId != null}
-        canManageBaseline={canManageBaseline}
         onRangeChange={(nextFrom, nextTo) => {
           startTransition(() => {
             setFrom(nextFrom);
@@ -345,10 +332,6 @@ export function EnergyPageShell() {
         suggestedTo={baselineWindow.to}
         onLocked={(result) => {
           setRefreshTick((value) => value + 1);
-          if (pendingPdfExport) {
-            setPendingPdfExport(false);
-            void exportPdf(result.baseline.baselineId);
-          }
         }}
       />
     </div>

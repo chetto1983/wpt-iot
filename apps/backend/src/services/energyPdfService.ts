@@ -81,11 +81,11 @@ export interface IEnergyPdfReportModel {
   copy: IEnergyPdfCopyBranch;
   from: Date;
   to: Date;
-  baseline: IEnergyBaseline;
+  baseline: IEnergyBaseline | null;
   activePeriod: IEnergyConfigPeriod;
   aggregate: IEnergyAggregateResponse;
   cycles: IEnergyCyclesResponse;
-  savings: ISavingsDetailResponse;
+  savings: ISavingsDetailResponse | null;
   sectionOrder: ReadonlyArray<EnergyPdfSectionKey>;
   implementedSectionKeys: ReadonlyArray<EnergyPdfSectionKey>;
   headerRows: IEnergyPdfMetricRow[];
@@ -249,7 +249,7 @@ function assertSavingsDetail(
 
 function buildHeaderRows(
   copy: IEnergyPdfCopyBranch,
-  baseline: IEnergyBaseline,
+  baseline: IEnergyBaseline | null,
   from: Date,
   to: Date,
 ): IEnergyPdfMetricRow[] {
@@ -260,7 +260,7 @@ function buildHeaderRows(
     },
     {
       label: copy.header.baselineLabel,
-      value: baseline.label,
+      value: baseline?.label ?? copy.header.noBaselineLabel,
     },
     {
       label: copy.header.referenceLabel,
@@ -313,8 +313,25 @@ function buildExecutiveSummaryRows(
 
 function buildEnpiRows(
   copy: IEnergyPdfCopyBranch,
-  savings: ISavingsDetailResponse,
+  savings: ISavingsDetailResponse | null,
 ): IEnergyPdfMetricRow[] {
+  if (!savings) {
+    return [
+      {
+        label: copy.enpiTable.baselineEnpiLabel,
+        value: copy.enpiTable.notAvailableValue,
+      },
+      {
+        label: copy.enpiTable.measurementEnpiLabel,
+        value: copy.enpiTable.notAvailableValue,
+      },
+      {
+        label: copy.enpiTable.deltaLabel,
+        value: copy.enpiTable.notAvailableValue,
+      },
+    ];
+  }
+
   return [
     {
       label: copy.enpiTable.baselineEnpiLabel,
@@ -333,8 +350,29 @@ function buildEnpiRows(
 
 function buildEnbRows(
   copy: IEnergyPdfCopyBranch,
-  baseline: IEnergyBaseline,
+  baseline: IEnergyBaseline | null,
 ): IEnergyPdfMetricRow[] {
+  if (!baseline) {
+    return [
+      {
+        label: copy.enbDeclaration.labelLabel,
+        value: copy.header.noBaselineLabel,
+      },
+      {
+        label: copy.enbDeclaration.baselineWindowLabel,
+        value: copy.enbDeclaration.unavailableWindow,
+      },
+      {
+        label: copy.enbDeclaration.lockedAtLabel,
+        value: copy.enpiTable.notAvailableValue,
+      },
+      {
+        label: copy.enbDeclaration.justificationLabel,
+        value: copy.enbDeclaration.defaultJustification,
+      },
+    ];
+  }
+
   return [
     {
       label: copy.enbDeclaration.labelLabel,
@@ -369,7 +407,7 @@ function buildEnergyByPeriodRows(
 function buildCostAndCo2Rows(
   copy: IEnergyPdfCopyBranch,
   aggregate: IEnergyAggregateResponse,
-  savingsSummary: IEnergyPdfSavingsSummary,
+  savingsSummary: IEnergyPdfSavingsSummary | null,
 ): IEnergyPdfMetricRow[] {
   return [
     {
@@ -382,19 +420,30 @@ function buildCostAndCo2Rows(
     },
     {
       label: copy.costAndCo2.deltaCostLabel,
-      value: savingsSummary.deltaEur,
+      value: savingsSummary?.deltaEur ?? copy.costAndCo2.notAvailableValue,
     },
     {
       label: copy.costAndCo2.deltaCo2Label,
-      value: savingsSummary.deltaKgCo2,
+      value: savingsSummary?.deltaKgCo2 ?? copy.costAndCo2.notAvailableValue,
     },
   ];
 }
 
 function buildSavingsSummary(
   copy: IEnergyPdfCopyBranch,
-  savings: ISavingsDetailResponse,
+  savings: ISavingsDetailResponse | null,
 ): IEnergyPdfSavingsSummary {
+  if (!savings) {
+    return {
+      directionText: copy.savingsIndicator.noBaseline,
+      deltaPct: copy.savingsIndicator.notAvailableValue,
+      deltaKwh: copy.savingsIndicator.notAvailableValue,
+      deltaEur: copy.savingsIndicator.notAvailableValue,
+      deltaKgCo2: copy.savingsIndicator.notAvailableValue,
+      confidence: copy.savingsIndicator.notAvailableValue,
+    };
+  }
+
   return {
     directionText: buildSavingsDirectionText(copy, savings),
     deltaPct: formatSignedPercent(savings.deltaPct),
@@ -472,23 +521,16 @@ export class EnergyPdfService {
     from: Date;
     to: Date;
     lang: EnergyPdfLang;
-    baselineId: number;
+    baselineId?: number;
   }): Promise<IEnergyPdfReportModel> {
     const copy = ENERGY_PDF_COPY[args.lang];
     assertNoBannedTerms(copy);
 
-    const [aggregate, baseline, rawSavings, cycles, activePeriod] = await Promise.all([
+    const [aggregate, cycles, activePeriod, baseline, rawSavings] = await Promise.all([
       EnergyAggregateService.getAggregate({
         from: args.from,
         to: args.to,
         bucket: 'day',
-      }),
-      EnergyBaselineService.getBaselineById(args.baselineId),
-      EnergyBaselineService.computeSavings({
-        baselineId: args.baselineId,
-        measurementFrom: args.from,
-        measurementTo: args.to,
-        detail: 1,
       }),
       EnergyDashboardService.getCycles({
         from: args.from,
@@ -497,13 +539,24 @@ export class EnergyPdfService {
         limit: 1000,
       }),
       EnergyConfigService.getActivePeriod(args.to),
+      args.baselineId != null
+        ? EnergyBaselineService.getBaselineById(args.baselineId)
+        : Promise.resolve(null),
+      args.baselineId != null
+        ? EnergyBaselineService.computeSavings({
+            baselineId: args.baselineId,
+            measurementFrom: args.from,
+            measurementTo: args.to,
+            detail: 1,
+          })
+        : Promise.resolve(null),
     ]);
 
-    if (!baseline) {
+    if (args.baselineId != null && !baseline) {
       throw new Error(`Baseline ${args.baselineId} not found`);
     }
 
-    const savings = assertSavingsDetail(rawSavings);
+    const savings = rawSavings ? assertSavingsDetail(rawSavings) : null;
     const savingsSummary = buildSavingsSummary(copy, savings);
 
     return {
@@ -595,7 +648,7 @@ export class EnergyPdfService {
     from: Date;
     to: Date;
     lang: EnergyPdfLang;
-    baselineId: number;
+    baselineId?: number;
   }): Promise<Buffer> {
     const model = await EnergyPdfService.buildReportModel(args);
     const docDefinition = EnergyPdfService.buildDocumentDefinition(model);

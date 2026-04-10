@@ -16,8 +16,6 @@ interface EnergyRangeControlsProps {
   lastUpdated: Date | null;
   loading: boolean;
   exportingPdf: boolean;
-  hasActiveBaseline: boolean;
-  canManageBaseline: boolean;
   onRangeChange: (from: Date, to: Date) => void;
   onPresetChange: (preset: 'last7d' | 'last30d' | 'last12mo' | 'custom') => void;
   onRefreshIntervalChange: (ms: number) => void;
@@ -39,16 +37,12 @@ export function EnergyRangeControls({
   lastUpdated,
   loading,
   exportingPdf,
-  hasActiveBaseline,
-  canManageBaseline,
   onRangeChange,
   onPresetChange,
   onRefreshIntervalChange,
   onExportPdf,
 }: EnergyRangeControlsProps) {
   const t = useTranslations('energy');
-  const showCreateBaselineCta = !hasActiveBaseline && canManageBaseline;
-  const exportDisabled = exportingPdf || (!hasActiveBaseline && !canManageBaseline);
 
   function applyPreset(nextPreset: 'last7d' | 'last30d' | 'last12mo') {
     const range =
@@ -108,7 +102,7 @@ export function EnergyRangeControls({
           size="sm"
           variant="outline"
           className="gap-2"
-          disabled={exportDisabled}
+          disabled={exportingPdf}
           onClick={onExportPdf}
         >
           {exportingPdf ? (
@@ -116,11 +110,7 @@ export function EnergyRangeControls({
           ) : (
             <Download className="size-3.5" />
           )}
-          {exportingPdf
-            ? t('export.downloading')
-            : showCreateBaselineCta
-              ? t('export.createBaseline')
-              : t('export.action')}
+          {exportingPdf ? t('export.downloading') : t('export.action')}
         </Button>
       </div>
     </div>

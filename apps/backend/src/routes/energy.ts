@@ -644,37 +644,37 @@ export const energyRoutes: FastifyPluginAsync = async (server) => {
         return reply.code(400).send({ error: 'from must be strictly before to' });
       }
 
-      let baselineId: number;
-      if (baseline_id != null) {
-        const parsedId = Number(baseline_id);
-        if (!Number.isInteger(parsedId) || parsedId <= 0) {
-          return reply.code(400).send({ error: 'Invalid baseline_id' });
+        let baselineId: number | undefined;
+        if (baseline_id != null) {
+          const parsedId = Number(baseline_id);
+          if (!Number.isInteger(parsedId) || parsedId <= 0) {
+            return reply.code(400).send({ error: 'Invalid baseline_id' });
+          }
+          baselineId = parsedId;
+        } else {
+          const active = await EnergyBaselineService.getActiveBaseline();
+          baselineId = active?.baselineId;
         }
-        baselineId = parsedId;
-      } else {
-        const active = await EnergyBaselineService.getActiveBaseline();
-        if (!active) {
-          return reply.code(204).send();
-        }
-        baselineId = active.baselineId;
-      }
 
-      try {
-        const pdf = await EnergyPdfService.generateIso50001Pdf({
-          from: fromDate,
-          to: toDate,
-          lang,
-          baselineId,
-        });
-        const filename = `energy-iso50001-baseline-${baselineId}-${from}-${to}-${lang}.pdf`;
+        try {
+          const pdf = await EnergyPdfService.generateIso50001Pdf({
+            from: fromDate,
+            to: toDate,
+            lang,
+            baselineId,
+          });
+          const filename =
+            baselineId != null
+              ? `energy-iso50001-baseline-${baselineId}-${from}-${to}-${lang}.pdf`
+              : `energy-iso50001-${from}-${to}-${lang}.pdf`;
 
-        return reply
-          .header('Content-Type', 'application/pdf')
-          .header('Content-Disposition', `attachment; filename=\"${filename}\"`)
-          .send(pdf);
-      } catch (err) {
-        server.log.error(
-          { name: 'EnergyPdfReport', err: (err as Error).message, baselineId },
+          return reply
+            .header('Content-Type', 'application/pdf')
+            .header('Content-Disposition', `attachment; filename=\"${filename}\"`)
+            .send(pdf);
+        } catch (err) {
+          server.log.error(
+            { name: 'EnergyPdfReport', err: (err as Error).message, baselineId },
           'generateIso50001Pdf failed',
         );
         return reply.code(500).send({ error: 'Internal error' });
