@@ -1,12 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { format } from 'date-fns';
 import {
   CartesianGrid,
   Line,
   LineChart,
-  ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
@@ -67,10 +66,31 @@ export function EnergyTrendCard({
   onMetricChange,
 }: EnergyTrendCardProps) {
   const t = useTranslations('energy');
-  const [chartReady, setChartReady] = useState(false);
+  const chartContainerRef = useRef<HTMLDivElement | null>(null);
+  const [chartSize, setChartSize] = useState({ width: 0, height: 0 });
 
   useEffect(() => {
-    setChartReady(true);
+    const node = chartContainerRef.current;
+    if (!node) return;
+
+    const measure = () => {
+      const { width, height } = node.getBoundingClientRect();
+      setChartSize({
+        width: Math.max(0, Math.floor(width)),
+        height: Math.max(0, Math.floor(height)),
+      });
+    };
+
+    measure();
+
+    const observer = new ResizeObserver(() => {
+      measure();
+    });
+    observer.observe(node);
+
+    return () => {
+      observer.disconnect();
+    };
   }, []);
 
   const rows =
@@ -125,7 +145,7 @@ export function EnergyTrendCard({
         </CardDescription>
       </CardHeader>
       <CardContent className="min-w-0 space-y-4">
-        {loading || !chartReady ? (
+        {loading || chartSize.width === 0 || chartSize.height === 0 ? (
           <Skeleton className="h-[280px] w-full" />
         ) : error ? (
           <div className="rounded-lg border border-destructive/20 bg-destructive/5 p-4 text-sm text-destructive">
@@ -138,46 +158,49 @@ export function EnergyTrendCard({
         ) : (
           <>
             <p className="text-sm text-muted-foreground">{metricLabel}</p>
-            <div className="min-w-0 h-[280px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={rows} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                  <XAxis
-                    dataKey="timestamp"
-                    type="number"
-                    domain={['dataMin', 'dataMax']}
-                    tickFormatter={(value: number) => {
-                      const point = rows.find((row) => row.timestamp === value);
-                      return point?.label ?? '';
-                    }}
-                    tick={{ fill: 'var(--color-muted-foreground)', fontSize: 12 }}
-                  />
-                  <YAxis
-                    tick={{ fill: 'var(--color-muted-foreground)', fontSize: 12 }}
-                    width={56}
-                  />
-                  <Tooltip
-                    labelFormatter={(value) => {
-                      const point = rows.find((row) => row.timestamp === value);
-                      return point?.label ?? String(value);
-                    }}
-                    formatter={(value) => [String(Number(value).toFixed(metric === 'eur' ? 2 : 1)), metricLabel]}
-                    contentStyle={{
-                      backgroundColor: 'var(--color-card)',
-                      border: '1px solid var(--color-border)',
-                      borderRadius: '12px',
-                    }}
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey={metric}
-                    stroke={CHART_COLORS[0]}
-                    strokeWidth={2.5}
-                    dot={false}
-                    isAnimationActive={false}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
+            <div ref={chartContainerRef} className="min-w-0 h-[280px]">
+              <LineChart
+                width={chartSize.width}
+                height={chartSize.height}
+                data={rows}
+                margin={{ top: 8, right: 12, left: 0, bottom: 0 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                <XAxis
+                  dataKey="timestamp"
+                  type="number"
+                  domain={['dataMin', 'dataMax']}
+                  tickFormatter={(value: number) => {
+                    const point = rows.find((row) => row.timestamp === value);
+                    return point?.label ?? '';
+                  }}
+                  tick={{ fill: 'var(--color-muted-foreground)', fontSize: 12 }}
+                />
+                <YAxis
+                  tick={{ fill: 'var(--color-muted-foreground)', fontSize: 12 }}
+                  width={56}
+                />
+                <Tooltip
+                  labelFormatter={(value) => {
+                    const point = rows.find((row) => row.timestamp === value);
+                    return point?.label ?? String(value);
+                  }}
+                  formatter={(value) => [String(Number(value).toFixed(metric === 'eur' ? 2 : 1)), metricLabel]}
+                  contentStyle={{
+                    backgroundColor: 'var(--color-card)',
+                    border: '1px solid var(--color-border)',
+                    borderRadius: '12px',
+                  }}
+                />
+                <Line
+                  type="monotone"
+                  dataKey={metric}
+                  stroke={CHART_COLORS[0]}
+                  strokeWidth={2.5}
+                  dot={false}
+                  isAnimationActive={false}
+                />
+              </LineChart>
             </div>
           </>
         )}
