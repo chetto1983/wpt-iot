@@ -22,6 +22,7 @@ import { dashboardRoutes } from './routes/dashboards.js';
 import { mqttRoutes } from './routes/mqtt.js';
 import { plcConfigRoutes } from './routes/plcConfig.js';
 import { energyRoutes } from './routes/energy.js';
+import { cycleRoutes } from './routes/cycles.js';
 import { wsRoute } from './ws/route.js';
 
 const isDev = process.env.NODE_ENV !== 'production';
@@ -138,6 +139,11 @@ export function buildServer(): ReturnType<typeof Fastify> {
   // filtering (currently open per threat register T-19-26
   // accept-for-now).
   server.register(energyRoutes);
+
+  // 21. Cycle register routes (Phase 24 Plan 24-03a) — /cycles page API
+  // GET /api/cycles — paginated cycle records with filtering
+  // GET /api/cycles/export — CSV/PDF export (SUPER_ADMIN only)
+  server.register(cycleRoutes);
 
   return server;
 }

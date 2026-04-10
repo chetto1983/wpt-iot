@@ -173,10 +173,11 @@ describe('/api/cycles routes (RED — Phase 24)', () => {
   // Test 3: GET /api/cycles supports sorting by column
   // ==========================================================================
   it('GET /api/cycles supports sorting by column', async () => {
+    // Mock returns data in chronological order (ascending sort)
     getCyclesMock.mockResolvedValue({
       data: [
-        makeCycleRecord({ cycleNumber: 12, startedAt: '2026-04-10T10:00:00.000Z' }),
         makeCycleRecord({ cycleNumber: 11, startedAt: '2026-04-10T08:00:00.000Z' }),
+        makeCycleRecord({ cycleNumber: 12, startedAt: '2026-04-10T10:00:00.000Z' }),
       ],
       pagination: { page: 1, limit: 25, total: 2, totalPages: 1 },
     });
@@ -192,7 +193,7 @@ describe('/api/cycles routes (RED — Phase 24)', () => {
     const bodyAsc = responseAsc.json();
     expect(bodyAsc.data[0].cycleNumber).toBe(11); // First chronologically
 
-    // Sort by startedAt descending
+    // Mock returns data in reverse chronological order (descending sort)
     getCyclesMock.mockResolvedValue({
       data: [
         makeCycleRecord({ cycleNumber: 12, startedAt: '2026-04-10T10:00:00.000Z' }),
