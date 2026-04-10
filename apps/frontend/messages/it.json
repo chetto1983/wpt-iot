@@ -753,6 +753,7 @@
     },
     "export": {
       "action": "Esporta PDF",
+      "createBaseline": "Imposta baseline",
       "downloading": "Generazione PDF...",
       "success": "Report energia scaricato",
       "noBaseline": "Nessuna baseline attiva disponibile per l'export PDF.",

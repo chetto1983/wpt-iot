@@ -80,6 +80,7 @@ export function EnergyPageShell() {
   const [refreshTick, setRefreshTick] = useState(0);
   const [baselineDialogOpen, setBaselineDialogOpen] = useState(false);
   const [exportingPdf, setExportingPdf] = useState(false);
+  const [pendingPdfExport, setPendingPdfExport] = useState(false);
   const summaryAbortRef = useRef<AbortController | null>(null);
   const widgetsAbortRef = useRef<AbortController | null>(null);
   const showSummaryLoading = summaryLoading && summary == null;
@@ -92,6 +93,7 @@ export function EnergyPageShell() {
   const canManageBaseline = user?.role === 'SUPER_ADMIN';
   const baselineWindow = getSuggestedBaselineWindow(from, to);
   const pdfLang = user?.language === 'en' ? 'en' : 'it';
+  const activeBaselineId = summary?.savings?.baselineId ?? null;
 
   useEffect(() => {
     if (refreshInterval === 0) return;
@@ -194,13 +196,14 @@ export function EnergyPageShell() {
     return () => controller.abort();
   }, [from, to, preset, refreshTick, t]);
 
-  async function handleExportPdf() {
+  async function exportPdf(baselineId: number) {
     setExportingPdf(true);
     try {
       const params = new URLSearchParams({
         from: from.toISOString(),
         to: to.toISOString(),
         lang: pdfLang,
+        baseline_id: String(baselineId),
       });
 
       const res = await fetch(`${API_BASE}/energy/reports/iso50001/pdf?${params.toString()}`, {
@@ -239,6 +242,22 @@ export function EnergyPageShell() {
     }
   }
 
+  async function handleExportPdf() {
+    if (activeBaselineId != null) {
+      setPendingPdfExport(false);
+      await exportPdf(activeBaselineId);
+      return;
+    }
+
+    if (canManageBaseline) {
+      setPendingPdfExport(true);
+      setBaselineDialogOpen(true);
+      return;
+    }
+
+    toast.error(t('export.noBaseline'));
+  }
+
   return (
     <div className="space-y-6 p-6">
       <header className="flex flex-wrap items-start justify-between gap-4">
@@ -266,6 +285,8 @@ export function EnergyPageShell() {
         lastUpdated={lastFetchedAt}
         loading={showSummaryLoading || showAggregateLoading}
         exportingPdf={exportingPdf}
+        hasActiveBaseline={activeBaselineId != null}
+        canManageBaseline={canManageBaseline}
         onRangeChange={(nextFrom, nextTo) => {
           startTransition(() => {
             setFrom(nextFrom);
@@ -322,8 +343,12 @@ export function EnergyPageShell() {
         onOpenChange={setBaselineDialogOpen}
         suggestedFrom={baselineWindow.from}
         suggestedTo={baselineWindow.to}
-        onLocked={() => {
+        onLocked={(result) => {
           setRefreshTick((value) => value + 1);
+          if (pendingPdfExport) {
+            setPendingPdfExport(false);
+            void exportPdf(result.baseline.baselineId);
+          }
         }}
       />
     </div>
