@@ -20,6 +20,7 @@
       "jobs": "Commesse",
       "reports": "Report",
       "energy": "Energia",
+      "cycles": "Registro Cicli",
       "anomaly": "Anomalia",
       "alarms": "Allarmi",
       "charts": "Grafici",
@@ -915,6 +916,43 @@
     "states": {
       "loading": "Caricamento area impostazioni energia...",
       "unauthorized": "Solo SuperAdmin puo gestire le impostazioni energia."
+    }
+  },
+  "cycles": {
+    "title": "Registro Mensile Cicli",
+    "subtitle": "Visualizzazione e esportazione del registro cicli mensile conforme al formato cliente",
+    "view": {
+      "register": "Registro",
+      "detail": "Dettaglio"
+    },
+    "columns": {
+      "cycleNumber": "Ciclo",
+      "date": "Data",
+      "startTime": "Inizio",
+      "endTime": "Fine",
+      "status": "Stato",
+      "inputWeight": "Ingresso kg",
+      "outputWeight": "Uscita kg",
+      "containers": "Bidoni",
+      "grossInput": "Lordo kg",
+      "startEnergy": "Energia inizio",
+      "endEnergy": "Energia fine",
+      "startWater": "Acqua inizio",
+      "endWater": "Acqua fine",
+      "operator": "Operatore"
+    },
+    "export": {
+      "csv": "Esporta CSV",
+      "pdf": "Esporta PDF",
+      "success": "Esportazione completata",
+      "error": "Errore durante l'esportazione"
+    },
+    "empty": "Nessun ciclo trovato",
+    "emptyDescription": "Nessun ciclo completato nel periodo selezionato",
+    "loading": "Caricamento cicli...",
+    "error": "Impossibile caricare i dati dei cicli. Riprova o contatta l'assistenza se il problema persiste.",
+    "pagination": {
+      "showing": "Mostrando {from}-{to} di {total} cicli"
     }
   }
 }

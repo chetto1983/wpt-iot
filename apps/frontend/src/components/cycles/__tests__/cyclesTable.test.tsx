@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+// Test file scaffold - imports available when tests are uncommented:
+// import { render, screen, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom';
 
 /**
@@ -64,7 +65,7 @@ describe('CyclesTable component (RED — Phase 24)', () => {
   // Test 1: Renders table with Registro view columns
   // ==========================================================================
   it('Renders table with Registro view columns', () => {
-    const cycles = [makeCycleRecord(), makeCycleRecord({ cycleNumber: 12 })];
+    const _cycles = [makeCycleRecord(), makeCycleRecord({ cycleNumber: 12 })];
 
     // Placeholder: Component to be implemented
     // const { container } = render(
@@ -90,7 +91,7 @@ describe('CyclesTable component (RED — Phase 24)', () => {
   // Test 2: Renders table with Dettaglio view columns
   // ==========================================================================
   it('Renders table with Dettaglio view columns', () => {
-    const cycles = [makeCycleRecord()];
+    const _cycles = [makeCycleRecord()];
 
     // Placeholder: Component to be implemented
     // render(
@@ -115,7 +116,7 @@ describe('CyclesTable component (RED — Phase 24)', () => {
   // Test 3: Status badges show correct colors (OK=green, FAILED=red, ABORTED=amber)
   // ==========================================================================
   it('Status badges show correct colors (OK=green, FAILED=red, ABORTED=amber)', () => {
-    const cycles = [
+    const _cycles = [
       makeCycleRecord({ cycleNumber: 10, cycleStatusLabel: 'OK' }),
       makeCycleRecord({ cycleNumber: 11, cycleStatusLabel: 'FAILED' }),
       makeCycleRecord({ cycleNumber: 12, cycleStatusLabel: 'ABORTED' }),
@@ -147,7 +148,7 @@ describe('CyclesTable component (RED — Phase 24)', () => {
   // ==========================================================================
   it('Clicking column header triggers onSort callback', () => {
     const onSortMock = vi.fn();
-    const cycles = [makeCycleRecord(), makeCycleRecord({ cycleNumber: 12 })];
+    const _cycles = [makeCycleRecord(), makeCycleRecord({ cycleNumber: 12 })];
 
     // Placeholder: Component to be implemented
     // render(
@@ -207,7 +208,7 @@ describe('CyclesTable component (RED — Phase 24)', () => {
   // Test 7: Date format matches Italian locale (DD/MM/YYYY)
   // ==========================================================================
   it('Date format matches Italian locale (DD/MM/YYYY)', () => {
-    const cycles = [makeCycleRecord({ startedAt: '2026-04-10T08:00:00.000Z' })];
+    const _cycles = [makeCycleRecord({ startedAt: '2026-04-10T08:00:00.000Z' })];
 
     // Placeholder: Component to be implemented
     // render(
@@ -223,7 +224,7 @@ describe('CyclesTable component (RED — Phase 24)', () => {
   // Test 8: Time format matches Italian locale (HH:MM)
   // ==========================================================================
   it('Time format matches Italian locale (HH:MM)', () => {
-    const cycles = [makeCycleRecord({
+    const _cycles = [makeCycleRecord({
       startedAt: '2026-04-10T08:30:00.000Z',
       endedAt: '2026-04-10T09:00:00.000Z',
     })];
@@ -243,7 +244,7 @@ describe('CyclesTable component (RED — Phase 24)', () => {
   // Test 9: Weight values formatted with kg suffix
   // ==========================================================================
   it('Weight values formatted with kg suffix', () => {
-    const cycles = [makeCycleRecord({
+    const _cycles = [makeCycleRecord({
       materialInputKg: 100,
       materialOutputKg: 80.5,
     })];
@@ -264,7 +265,7 @@ describe('CyclesTable component (RED — Phase 24)', () => {
   // ==========================================================================
   it('Pagination controls work correctly', () => {
     const onPageChangeMock = vi.fn();
-    const cycles = [makeCycleRecord()];
+    const _cycles = [makeCycleRecord()];
 
     // Placeholder: Component with pagination
     // render(

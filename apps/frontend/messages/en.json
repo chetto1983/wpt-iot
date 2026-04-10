@@ -20,6 +20,7 @@
       "jobs": "Jobs",
       "reports": "Reports",
       "energy": "Energy",
+      "cycles": "Cycle Register",
       "anomaly": "Anomaly",
       "alarms": "Alarms",
       "charts": "Charts",
@@ -915,6 +916,43 @@
     "states": {
       "loading": "Loading the energy settings workspace...",
       "unauthorized": "Only SuperAdmin can manage energy settings."
+    }
+  },
+  "cycles": {
+    "title": "Monthly Cycle Register",
+    "subtitle": "View and export monthly cycle register matching customer format",
+    "view": {
+      "register": "Register",
+      "detail": "Detail"
+    },
+    "columns": {
+      "cycleNumber": "Cycle",
+      "date": "Date",
+      "startTime": "Start",
+      "endTime": "End",
+      "status": "Status",
+      "inputWeight": "Input kg",
+      "outputWeight": "Output kg",
+      "containers": "Containers",
+      "grossInput": "Gross kg",
+      "startEnergy": "Energy start",
+      "endEnergy": "Energy end",
+      "startWater": "Water start",
+      "endWater": "Water end",
+      "operator": "Operator"
+    },
+    "export": {
+      "csv": "Export CSV",
+      "pdf": "Export PDF",
+      "success": "Export completed",
+      "error": "Export failed"
+    },
+    "empty": "No cycles found",
+    "emptyDescription": "No completed cycles in the selected period",
+    "loading": "Loading cycles...",
+    "error": "Unable to load cycle data. Please retry or contact support if the problem persists.",
+    "pagination": {
+      "showing": "Showing {from}-{to} of {total} cycles"
     }
   }
 }

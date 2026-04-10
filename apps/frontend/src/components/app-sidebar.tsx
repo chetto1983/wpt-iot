@@ -21,6 +21,7 @@ import {
   Loader2,
   KeyRound,
   BrainCircuit,
+  RotateCcw,
 } from 'lucide-react';
 
 import { useAuth } from '@/lib/auth-context';
@@ -76,6 +77,7 @@ export function AppSidebar() {
   const allRoleReportItems: NavItem[] = [
     { label: t('nav.reports'), href: '/reports', icon: FileText },
     { label: t('nav.energy'), href: '/energy', icon: Bolt },
+    { label: t('nav.cycles'), href: '/cycles', icon: RotateCcw },
     { label: t('nav.anomaly'), href: '/anomaly', icon: BrainCircuit },
   ];
 
