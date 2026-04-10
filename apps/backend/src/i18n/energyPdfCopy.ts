@@ -124,7 +124,7 @@ export const ENERGY_PDF_COPY: Record<EnergyPdfLang, IEnergyPdfCopyBranch> = {
       title: 'Executive summary',
       totalEnergyLabel: 'Energia totale',
       totalCostLabel: 'Costo totale',
-      totalCo2Label: 'CO2 totale',
+      totalCo2Label: 'CO₂ totale',
       totalCyclesLabel: 'Cicli attribuiti',
     },
     enpiTable: {
@@ -163,7 +163,7 @@ export const ENERGY_PDF_COPY: Record<EnergyPdfLang, IEnergyPdfCopyBranch> = {
       notAvailableLabel: 'n.d.',
     },
     costAndCo2: {
-      title: 'Costi e CO2',
+      title: 'Costi e CO₂',
       totalCostLabel: 'Costo totale del periodo',
       totalCo2Label: 'CO2 totale del periodo',
       deltaCostLabel: 'Delta costo vs baseline',
@@ -190,7 +190,7 @@ export const ENERGY_PDF_COPY: Record<EnergyPdfLang, IEnergyPdfCopyBranch> = {
       configuredTariffValueLabel: 'Configurazione energia WPT',
       singleTariffModeLabel: 'monoraria',
       tou3TariffModeLabel: 'fasce F1/F2/F3',
-      note: 'Il costo dell energia e stimato dalla tariffa configurata e la CO2 e calcolata dal fattore emissivo selezionato.',
+      note: 'Il costo dell’energia è stimato dalla tariffa configurata e la CO₂ è calcolata dal fattore emissivo selezionato.',
     },
   },
   en: {

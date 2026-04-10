@@ -262,11 +262,17 @@ export class EnergyConfigService {
     // pg driver may return it as a string on some driver versions; coerce
     // defensively so downstream numeric math does not silently concat.
     const normalized = row as unknown as IEnergyConfigPeriod & {
+      validFrom: string | Date;
+      validTo: string | Date | null;
+      createdAt: string | Date;
       tariffSingleEurPerKwh: number | string;
       emissionFactorKgPerKwh: number | string;
     };
     return {
       ...normalized,
+      validFrom: normalized.validFrom instanceof Date ? normalized.validFrom : new Date(normalized.validFrom),
+      validTo: normalized.validTo == null ? null : (normalized.validTo instanceof Date ? normalized.validTo : new Date(normalized.validTo)),
+      createdAt: normalized.createdAt instanceof Date ? normalized.createdAt : new Date(normalized.createdAt),
       tariffSingleEurPerKwh: Number(normalized.tariffSingleEurPerKwh),
       emissionFactorKgPerKwh: Number(normalized.emissionFactorKgPerKwh),
     };
