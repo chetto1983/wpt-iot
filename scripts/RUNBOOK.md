@@ -72,11 +72,13 @@ Watchtower updates the labelled backend/frontend containers automatically.
 
 ## Post-Deploy Energy Step
 
-TODO before declaring the v1.1 energy module live on a machine:
+Run this once after a deploy or database restore before declaring the v1.1 energy module live on a machine:
 
 ```bash
 docker compose exec db psql -U wpt -d wpt -c "SELECT setup_energy_aggregates();"
 ```
+
+This installs the TimescaleDB continuous aggregates and helper objects that back `/energy`, `/settings/energy`, reconciliation, and the ISO 50001 PDF route.
 
 ## Roll Back a Machine
 

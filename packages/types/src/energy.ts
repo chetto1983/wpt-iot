@@ -123,13 +123,29 @@ export interface ICycleClosedEvent {
   cycleType: number;         // raw selectedCycle value from snapshot
   machineStatus: number;     // raw machineStatus value at endedAt
   /**
-   * Optional hint set by cycleTracker FSM (Plan 05) when it observes a cycle
+   * V03 Cycle_Status decoded label: OK, FAILED, ABORTED.
+   * Set by cycleTracker from S1_I_DATO_71 rising-edge detection.
+   * Supersedes attributionStatusHint for the cycle register.
+   */
+  cycleStatusLabel: string;
+  /** Absolute energy meter reading at cycle start (S1_R_DATO_1 snapshot) */
+  startEnergyKwh: number | null;
+  /** Absolute energy meter reading at cycle end (S1_R_DATO_1 snapshot) */
+  endEnergyKwh: number | null;
+  /** Absolute water meter reading at cycle start (S1_R_DATO_14 snapshot) */
+  startWaterL: number | null;
+  /** Absolute water meter reading at cycle end (S1_R_DATO_14 snapshot) */
+  endWaterL: number | null;
+  /** Bidoni count (S1_I_DATO_72, V03 Container) */
+  containers: number | null;
+  /** RFID user name (S1_S_DATO_1) */
+  operator: string | null;
+  /** Gross input weight including infectious waste (reserved for future distinction from materialInputKg) */
+  grossInputKg: number | null;
+  /**
+   * Optional hint set by cycleTracker when it observes a cycle
    * window that opened and closed WITHOUT completedCycles having incremented
-   * during the window. Per CONTEXT D-13 (reformulated) — see Note blocks in
-   * Plans 01, 05, and 07.
-   *
-   * Plan 07's classifyAttribution() honors this hint AFTER window-quality
-   * checks (TOO_SHORT, DATA_GAP) take precedence.
+   * during the window. Kept for backward compat with classifyAttribution().
    */
   attributionStatusHint?: 'ABORTED';
 }
@@ -233,6 +249,15 @@ export interface ICycleRecord {
   attributionStatus: AttributionStatus;
   serialNumber: string | null;
   orderNumber: string | null;
+  // Phase 24: V03 cycle register fields (matching Base_registro_mensile_cicli.xls "Elab marzo")
+  startEnergyKwh: number | null;
+  endEnergyKwh: number | null;
+  startWaterL: number | null;
+  endWaterL: number | null;
+  containers: number | null;
+  operator: string | null;
+  cycleStatusLabel: string | null;
+  grossInputKg: number | null;
 }
 
 export interface ICycleReset {

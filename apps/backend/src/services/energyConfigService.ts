@@ -158,6 +158,42 @@ export class EnergyConfigService {
       CREATE INDEX IF NOT EXISTS cycle_resets_observed_at_idx
         ON cycle_resets (observed_at)
     `);
+
+    // ─── Phase 24: ALTER TABLE cycle_records — add V03 cycle register columns ─
+    // Idempotent: ADD COLUMN IF NOT EXISTS is not supported in PG <12,
+    // so we use a DO block that checks information_schema.
+    await db.execute(sql`
+      DO $$
+      BEGIN
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'cycle_records' AND column_name = 'start_energy_kwh') THEN
+          ALTER TABLE cycle_records ADD COLUMN start_energy_kwh REAL;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'cycle_records' AND column_name = 'end_energy_kwh') THEN
+          ALTER TABLE cycle_records ADD COLUMN end_energy_kwh REAL;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'cycle_records' AND column_name = 'start_water_l') THEN
+          ALTER TABLE cycle_records ADD COLUMN start_water_l REAL;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'cycle_records' AND column_name = 'end_water_l') THEN
+          ALTER TABLE cycle_records ADD COLUMN end_water_l REAL;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'cycle_records' AND column_name = 'containers') THEN
+          ALTER TABLE cycle_records ADD COLUMN containers INTEGER;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'cycle_records' AND column_name = 'operator') THEN
+          ALTER TABLE cycle_records ADD COLUMN operator VARCHAR(20);
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'cycle_records' AND column_name = 'cycle_status_label') THEN
+          ALTER TABLE cycle_records ADD COLUMN cycle_status_label VARCHAR(16);
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'cycle_records' AND column_name = 'gross_input_kg') THEN
+          ALTER TABLE cycle_records ADD COLUMN gross_input_kg REAL;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'cycle_records' AND column_name = 'published_at') THEN
+          ALTER TABLE cycle_records ADD COLUMN published_at TIMESTAMPTZ;
+        END IF;
+      END $$;
+    `);
   }
 
   /**

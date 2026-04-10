@@ -108,6 +108,15 @@ export const cycleRecords = pgTable(
     orderNumber: varchar('order_number', { length: 20 }),
     publishedAt: timestamp('published_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    // Phase 24: V03 cycle register fields (matching Base_registro_mensile_cicli.xls)
+    startEnergyKwh: real('start_energy_kwh'),
+    endEnergyKwh: real('end_energy_kwh'),
+    startWaterL: real('start_water_l'),
+    endWaterL: real('end_water_l'),
+    containers: integer('containers'),
+    operator: varchar('operator', { length: 20 }),
+    cycleStatusLabel: varchar('cycle_status_label', { length: 16 }),
+    grossInputKg: real('gross_input_kg'),
   },
   (t) => [
     index('cycle_records_started_at_idx').on(t.startedAt),

@@ -37,6 +37,27 @@ export enum MachineStatus {
   DISCHARGE = 8,
 }
 
+/** V03 Cycle_Status (S1_I_DATO_71) — lifecycle marker for cycle register.
+ * 0=nothing (idle), 1=Cycle_START (snapshot start counters),
+ * 2=COMPLETED (alias OK), 3=FAILED, 4=ABORTED, 5+=reserved.
+ * See .planning/reference/cycle-register-export.md §Status enum */
+export enum CycleStatus {
+  NONE = 0,
+  CYCLE_START = 1,
+  COMPLETED = 2,
+  FAILED = 3,
+  ABORTED = 4,
+}
+
+/** Human-readable labels for cycle register export */
+export const CycleStatusLabel: Record<number, string> = {
+  [CycleStatus.NONE]: '',
+  [CycleStatus.CYCLE_START]: 'CYCLE_START',
+  [CycleStatus.COMPLETED]: 'OK',
+  [CycleStatus.FAILED]: 'FAILED',
+  [CycleStatus.ABORTED]: 'ABORTED',
+};
+
 /** IoT login user roles (local auth, not RFID PLC users) */
 export enum UserRole {
   SUPER_ADMIN = 'SUPER_ADMIN',

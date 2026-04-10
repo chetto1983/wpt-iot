@@ -41,7 +41,7 @@ Login: `admin` / password in `.env` (`ADMIN_PASSWORD`)
 ```
 ABB AC500 PLC (or simulator)
   |
-  |-- UDP 9090 --> Backend: machine data (286 bytes, every 15s)
+  |-- UDP 9090 --> Backend: machine data (326-byte logical payload, PLC pads frames to 328)
   |-- UDP 9091 --> Backend: alarm words (80 bytes, every 1s)
   |-- UDP 9092 <-> Backend: RFID users (handshake)
   |-- UDP 9093 <-> Backend: handshake control
@@ -53,7 +53,7 @@ Backend (Fastify 5) --> TimescaleDB (PostgreSQL 17)
   |                         |-- snapshots_1h (continuous aggregate)
   |                         |-- alarm_events, rfid_users, jobs
   |
-  +--> WebSocket --> Frontend (Next.js 15)
+  +--> WebSocket --> Frontend (Next.js 16)
 ```
 
 ## Tech Stack
@@ -62,7 +62,7 @@ Backend (Fastify 5) --> TimescaleDB (PostgreSQL 17)
 |-----------|-----------------------------------------|
 | Runtime   | Node.js 22+, pnpm 9+                   |
 | Backend   | Fastify 5, Drizzle ORM, Zod, Pino      |
-| Frontend  | Next.js 15 (App Router), React 19       |
+| Frontend  | Next.js 16 (App Router), React 19       |
 | Database  | TimescaleDB (PostgreSQL 17)             |
 | Simulator | Fastify 5, dgram UDP, Vitest            |
 | Types     | Shared Zod schemas + TypeScript 5.8     |
@@ -150,15 +150,22 @@ To manually trigger retention setup (runs automatically via `setup.sh`):
 docker compose exec db psql -U wpt -d wpt -c "SELECT setup_timescaledb_retention();"
 ```
 
+To install the v1.1 energy aggregates used by `/energy`, `/settings/energy`, reconciliation, and the ISO 50001 PDF report:
+
+```bash
+docker compose exec db psql -U wpt -d wpt -c "SELECT setup_energy_aggregates();"
+```
+
 ## UDP Protocol
 
 All values are **Big Endian**. The PLC is master.
 
 | Port | Direction  | Payload     | Interval  |
 |------|------------|-------------|-----------|
-| 9090 | PLC -> IoT | 286 bytes: 72 INT + 2 DINT + 5 STRING[20] + 7 REAL + 6 BYTE | 15s |
+| 9090 | PLC -> IoT | 326-byte logical payload: 72 INT + 2 DINT + 5 STRING[20]=21B + 3-byte pad + 15 REAL + 6 BYTE; the real PLC pads frames to 328 bytes | 5-15s |
 | 9091 | PLC -> IoT | 80 bytes: 40 INT16 alarm words (640 alarms) | 1s |
-| 9092 | PLC <> IoT | 1056 bytes: 48 RFID users | Handshake |
+| 9090 | IoT -> PLC | 96 bytes: job packet with 4 STRING[20]=21B fields plus 6 INT | Handshake |
+| 9092 | PLC <> IoT | 1104 bytes both directions: 48 names as STRING[20]=21B + 48 group bytes + 48 enabled bytes | Handshake |
 | 9093 | PLC <> IoT | 2 bytes: handshake control | On demand |
 
 Handshake FSM: `IDLE(2) -> REQUEST(255/254) -> ACK(100) -> IDLE(2)`
