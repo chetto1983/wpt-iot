@@ -21,6 +21,7 @@ import {
   BaselineLockRequestSchema,
   EnergyCyclesQuerySchema,
   EnergyDashboardSummaryQuerySchema,
+  EnergyPdfReportQuerySchema,
   EnergyReconciliationQuerySchema,
   SavingsQuerySchema,
   type EnergyBucket,
@@ -28,6 +29,7 @@ import {
 } from '@wpt/types';
 import { requireAuth, requireRole } from '../auth/authHooks.js';
 import { EnergyDashboardService } from '../services/energyDashboardService.js';
+import { EnergyPdfService } from '../services/energyPdfService.js';
 
 /**
  * /api/energy/* route plugin — Phase 19 Plan 19-10 scaffold.
@@ -620,4 +622,63 @@ export const energyRoutes: FastifyPluginAsync = async (server) => {
       return reply.code(mapped.status).send(mapped.body);
     }
   });
+
+  server.post(
+    '/api/energy/reports/iso50001/pdf',
+    { preHandler: requireAuth },
+    async (request, reply) => {
+      const parsed = EnergyPdfReportQuerySchema.safeParse(request.query);
+      if (!parsed.success) {
+        return reply
+          .code(400)
+          .send({ error: 'Invalid query parameters', issues: parsed.error.issues });
+      }
+
+      const { from, to, lang, baseline_id } = parsed.data;
+      const fromDate = new Date(from);
+      const toDate = new Date(to);
+      if (!Number.isFinite(fromDate.getTime()) || !Number.isFinite(toDate.getTime())) {
+        return reply.code(400).send({ error: 'Invalid from/to datetime' });
+      }
+      if (fromDate >= toDate) {
+        return reply.code(400).send({ error: 'from must be strictly before to' });
+      }
+
+      let baselineId: number;
+      if (baseline_id != null) {
+        const parsedId = Number(baseline_id);
+        if (!Number.isInteger(parsedId) || parsedId <= 0) {
+          return reply.code(400).send({ error: 'Invalid baseline_id' });
+        }
+        baselineId = parsedId;
+      } else {
+        const active = await EnergyBaselineService.getActiveBaseline();
+        if (!active) {
+          return reply.code(204).send();
+        }
+        baselineId = active.baselineId;
+      }
+
+      try {
+        const pdf = await EnergyPdfService.generateIso50001Pdf({
+          from: fromDate,
+          to: toDate,
+          lang,
+          baselineId,
+        });
+        const filename = `energy-iso50001-baseline-${baselineId}-${from}-${to}-${lang}.pdf`;
+
+        return reply
+          .header('Content-Type', 'application/pdf')
+          .header('Content-Disposition', `attachment; filename=\"${filename}\"`)
+          .send(pdf);
+      } catch (err) {
+        server.log.error(
+          { name: 'EnergyPdfReport', err: (err as Error).message, baselineId },
+          'generateIso50001Pdf failed',
+        );
+        return reply.code(500).send({ error: 'Internal error' });
+      }
+    },
+  );
 };

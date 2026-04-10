@@ -408,6 +408,13 @@ export const SavingsQuerySchema = z.object({
   detail: z.enum(['0', '1']).optional().default('0'),
 });
 
+export const EnergyPdfReportQuerySchema = z.object({
+  from: z.string().datetime(),
+  to: z.string().datetime(),
+  lang: z.enum(['it', 'en']).optional().default('it'),
+  baseline_id: z.string().optional(),
+});
+
 // =============================================================================
 // Phase 21 - Energy KPI dashboard UI
 // =============================================================================
