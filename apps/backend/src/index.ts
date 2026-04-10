@@ -6,6 +6,9 @@ import { startUdpPipeline, stopUdpPipeline } from './udp/index.js';
 import { initBroadcaster, shutdownBroadcaster } from './ws/broadcaster.js';
 import { connectMqtt, disconnectMqtt } from './mqtt/connectionManager.js';
 import { MqttConfigService } from './mqtt/configService.js';
+import { CloudConfigService } from './mqtt/cloudConfigService.js';
+import { SparkplugService } from './mqtt/sparkplugService.js';
+import { CloudUplinkWorker } from './mqtt/cloudUplinkWorker.js';
 import { EnergyConfigService } from './services/energyConfigService.js';
 import { MachineAnomalyEventService } from './services/machineAnomalyEventService.js';
 import { EnergyBaselineService } from './services/energyBaselineService.js';
@@ -33,7 +36,9 @@ function setupGracefulShutdown(server: ReturnType<typeof buildServer>): void {
 
       // 3. Disconnect MQTT (publishes offline LWT, tears down publisher + command handler)
       await disconnectMqtt(server.log);
-      server.log.info({ name: 'Shutdown' }, 'MQTT disconnected');
+      await SparkplugService.stop();
+      CloudUplinkWorker.stop();
+      server.log.info({ name: 'Shutdown' }, 'MQTT and Sparkplug disconnected');
 
       // 4. Stop UDP pipeline (close sockets)
       stopUdpPipeline(server.log);
@@ -71,8 +76,9 @@ async function main(): Promise<void> {
     // Seed default admin account if auth_users table is empty
     await seedDefaultAdmin(server.log);
 
-    // Ensure MQTT config table exists with default row
+    // Ensure MQTT and Cloud MQTT config tables exist with default rows
     await MqttConfigService.ensureTable();
+    await CloudConfigService.ensureTable();
 
     // Ensure Phase 19 energy tables exist + seed the default tariff period
     // (energy_config singleton, energy_config_periods, cycle_records,
@@ -120,6 +126,10 @@ async function main(): Promise<void> {
     // command handler. Reads enabled / brokerHost / brokerPort / siteId /
     // machineId / useTls / caCert from the mqtt_config row.
     await connectMqtt(server.log);
+
+    // Initialize Cloud Uplink (Sparkplug B) and its Outbox worker
+    await SparkplugService.init(server.log);
+    CloudUplinkWorker.start(server.log);
 
     // Register graceful shutdown (must have server reference)
     setupGracefulShutdown(server);

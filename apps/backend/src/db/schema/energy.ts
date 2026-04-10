@@ -106,6 +106,7 @@ export const cycleRecords = pgTable(
       .default('UNKNOWN'),
     serialNumber: varchar('serial_number', { length: 20 }),
     orderNumber: varchar('order_number', { length: 20 }),
+    publishedAt: timestamp('published_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
