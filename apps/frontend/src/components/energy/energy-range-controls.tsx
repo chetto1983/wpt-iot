@@ -1,6 +1,7 @@
 'use client';
 
 import { startTransition } from 'react';
+import { Download, Loader2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { computePresetRange } from '@/lib/chart-colors';
 import { cn } from '@/lib/utils';
@@ -14,9 +15,11 @@ interface EnergyRangeControlsProps {
   refreshInterval: number;
   lastUpdated: Date | null;
   loading: boolean;
+  exportingPdf: boolean;
   onRangeChange: (from: Date, to: Date) => void;
   onPresetChange: (preset: 'last7d' | 'last30d' | 'last12mo' | 'custom') => void;
   onRefreshIntervalChange: (ms: number) => void;
+  onExportPdf: () => void;
 }
 
 function getLast12MonthsRange(): { from: Date; to: Date } {
@@ -33,9 +36,11 @@ export function EnergyRangeControls({
   refreshInterval,
   lastUpdated,
   loading,
+  exportingPdf,
   onRangeChange,
   onPresetChange,
   onRefreshIntervalChange,
+  onExportPdf,
 }: EnergyRangeControlsProps) {
   const t = useTranslations('energy');
 
@@ -68,28 +73,46 @@ export function EnergyRangeControls({
         ))}
       </div>
 
-      <TimeRangePicker
-        from={from}
-        to={to}
-        onRangeChange={(nextFrom, nextTo) => {
-          startTransition(() => {
-            onPresetChange('custom');
-            onRangeChange(nextFrom, nextTo);
-          });
-        }}
-        activePreset={preset === 'last12mo' ? null : preset === 'custom' ? null : preset}
-        onPresetChange={(nextPreset) => {
-          if (nextPreset === 'last7d' || nextPreset === 'last30d') {
-            onPresetChange(nextPreset);
-          } else if (nextPreset == null) {
-            onPresetChange('custom');
-          }
-        }}
-        refreshInterval={refreshInterval}
-        onRefreshIntervalChange={onRefreshIntervalChange}
-        lastUpdated={lastUpdated}
-        loading={loading}
-      />
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <TimeRangePicker
+          from={from}
+          to={to}
+          onRangeChange={(nextFrom, nextTo) => {
+            startTransition(() => {
+              onPresetChange('custom');
+              onRangeChange(nextFrom, nextTo);
+            });
+          }}
+          activePreset={preset === 'last12mo' ? null : preset === 'custom' ? null : preset}
+          onPresetChange={(nextPreset) => {
+            if (nextPreset === 'last7d' || nextPreset === 'last30d') {
+              onPresetChange(nextPreset);
+            } else if (nextPreset == null) {
+              onPresetChange('custom');
+            }
+          }}
+          refreshInterval={refreshInterval}
+          onRefreshIntervalChange={onRefreshIntervalChange}
+          lastUpdated={lastUpdated}
+          loading={loading}
+        />
+
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          className="gap-2"
+          disabled={exportingPdf}
+          onClick={onExportPdf}
+        >
+          {exportingPdf ? (
+            <Loader2 className="size-3.5 animate-spin" />
+          ) : (
+            <Download className="size-3.5" />
+          )}
+          {exportingPdf ? t('export.downloading') : t('export.action')}
+        </Button>
+      </div>
     </div>
   );
 }

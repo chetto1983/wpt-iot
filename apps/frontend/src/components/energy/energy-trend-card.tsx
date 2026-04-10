@@ -97,17 +97,17 @@ export function EnergyTrendCard({
     aggregate?.rows.map((row) => {
       const bucketDate = new Date(row.bucket);
       return {
-      timestamp: bucketDate.getTime(),
-      label:
-        aggregate.bucket === 'day'
-          ? format(bucketDate, 'dd/MM')
-          : aggregate.bucket === 'hour'
-            ? format(bucketDate, 'dd/MM HH:mm')
-            : format(bucketDate, 'HH:mm'),
-      kwh: row.kwhDelta,
-      eur: row.costEur,
-      kgco2: row.co2Kg,
-    };
+        timestamp: bucketDate.getTime(),
+        label:
+          aggregate.bucket === 'day'
+            ? format(bucketDate, 'dd/MM')
+            : aggregate.bucket === 'hour'
+              ? format(bucketDate, 'dd/MM HH:mm')
+              : format(bucketDate, 'HH:mm'),
+        kwh: row.kwhDelta,
+        eur: row.costEur,
+        kgco2: row.co2Kg,
+      };
     }) ?? [];
 
   const metricLabel = t(`trend.metrics.${metric}`);
@@ -145,20 +145,24 @@ export function EnergyTrendCard({
         </CardDescription>
       </CardHeader>
       <CardContent className="min-w-0 space-y-4">
-        {loading || chartSize.width === 0 || chartSize.height === 0 ? (
-          <Skeleton className="h-[280px] w-full" />
-        ) : error ? (
-          <div className="rounded-lg border border-destructive/20 bg-destructive/5 p-4 text-sm text-destructive">
-            {error}
-          </div>
-        ) : rows.length === 0 ? (
-          <div className="rounded-lg border border-dashed border-border/70 p-6 text-sm text-muted-foreground">
-            {t('trend.empty')}
-          </div>
-        ) : (
-          <>
-            <p className="text-sm text-muted-foreground">{metricLabel}</p>
-            <div ref={chartContainerRef} className="min-w-0 h-[280px]">
+        {!loading && !error && rows.length > 0 ? (
+          <p className="text-sm text-muted-foreground">{metricLabel}</p>
+        ) : null}
+        <div ref={chartContainerRef} className="min-w-0 h-[280px]">
+          {loading ? (
+            <Skeleton className="h-full w-full" />
+          ) : error ? (
+            <div className="flex h-full items-center rounded-lg border border-destructive/20 bg-destructive/5 p-4 text-sm text-destructive">
+              {error}
+            </div>
+          ) : rows.length === 0 ? (
+            <div className="flex h-full items-center rounded-lg border border-dashed border-border/70 p-6 text-sm text-muted-foreground">
+              {t('trend.empty')}
+            </div>
+          ) : chartSize.width === 0 || chartSize.height === 0 ? (
+            <Skeleton className="h-full w-full" />
+          ) : (
+            <>
               <LineChart
                 width={chartSize.width}
                 height={chartSize.height}
@@ -201,9 +205,9 @@ export function EnergyTrendCard({
                   isAnimationActive={false}
                 />
               </LineChart>
-            </div>
-          </>
-        )}
+            </>
+          )}
+        </div>
       </CardContent>
     </Card>
   );

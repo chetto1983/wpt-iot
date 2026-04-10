@@ -3,6 +3,7 @@
 import { startTransition, useDeferredValue, useEffect, useRef, useState } from 'react';
 import { Bolt, Wifi, WifiOff } from 'lucide-react';
 import { useTranslations } from 'next-intl';
+import { toast } from 'sonner';
 import {
   type EnergyMetric,
   type IEnergyAggregateResponse,
@@ -24,6 +25,7 @@ import { EnergyTrendCard, buildEnergyAggregatePath } from './energy-trend-card';
 
 type EnergyPreset = 'last7d' | 'last30d' | 'last12mo' | 'custom';
 const MIN_BASELINE_WINDOW_MS = 14 * 24 * 60 * 60 * 1000;
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || '';
 
 function getDefaultRange(): { from: Date; to: Date } {
   const to = new Date();
@@ -77,6 +79,7 @@ export function EnergyPageShell() {
   const [lastFetchedAt, setLastFetchedAt] = useState<Date | null>(null);
   const [refreshTick, setRefreshTick] = useState(0);
   const [baselineDialogOpen, setBaselineDialogOpen] = useState(false);
+  const [exportingPdf, setExportingPdf] = useState(false);
   const summaryAbortRef = useRef<AbortController | null>(null);
   const widgetsAbortRef = useRef<AbortController | null>(null);
   const showSummaryLoading = summaryLoading && summary == null;
@@ -88,6 +91,7 @@ export function EnergyPageShell() {
   const deferredLiveSignal = useDeferredValue(liveSignal);
   const canManageBaseline = user?.role === 'SUPER_ADMIN';
   const baselineWindow = getSuggestedBaselineWindow(from, to);
+  const pdfLang = user?.language === 'en' ? 'en' : 'it';
 
   useEffect(() => {
     if (refreshInterval === 0) return;
@@ -190,6 +194,51 @@ export function EnergyPageShell() {
     return () => controller.abort();
   }, [from, to, preset, refreshTick, t]);
 
+  async function handleExportPdf() {
+    setExportingPdf(true);
+    try {
+      const params = new URLSearchParams({
+        from: from.toISOString(),
+        to: to.toISOString(),
+        lang: pdfLang,
+      });
+
+      const res = await fetch(`${API_BASE}/energy/reports/iso50001/pdf?${params.toString()}`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+
+      if (res.status === 204) {
+        toast.error(t('export.noBaseline'));
+        return;
+      }
+
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(
+          typeof (body as { error?: unknown }).error === 'string'
+            ? (body as { error: string }).error
+            : `Request failed: ${res.status}`,
+        );
+      }
+
+      const blob = await res.blob();
+      const anchor = document.createElement('a');
+      anchor.href = URL.createObjectURL(blob);
+      anchor.download = `energy-iso50001-${from.toISOString().slice(0, 10)}-${to.toISOString().slice(0, 10)}.pdf`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      URL.revokeObjectURL(anchor.href);
+      anchor.remove();
+
+      toast.success(t('export.success'));
+    } catch (error) {
+      toast.error(t('export.error', { error: error instanceof Error ? error.message : t('errors.trend') }));
+    } finally {
+      setExportingPdf(false);
+    }
+  }
+
   return (
     <div className="space-y-6 p-6">
       <header className="flex flex-wrap items-start justify-between gap-4">
@@ -216,6 +265,7 @@ export function EnergyPageShell() {
         refreshInterval={refreshInterval}
         lastUpdated={lastFetchedAt}
         loading={showSummaryLoading || showAggregateLoading}
+        exportingPdf={exportingPdf}
         onRangeChange={(nextFrom, nextTo) => {
           startTransition(() => {
             setFrom(nextFrom);
@@ -224,6 +274,7 @@ export function EnergyPageShell() {
         }}
         onPresetChange={setPreset}
         onRefreshIntervalChange={setRefreshInterval}
+        onExportPdf={handleExportPdf}
       />
 
       {summaryError ? (

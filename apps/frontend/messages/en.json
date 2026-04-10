@@ -751,6 +751,13 @@
       "last30d": "30d",
       "last12mo": "12mo"
     },
+    "export": {
+      "action": "Export PDF",
+      "downloading": "Generating PDF...",
+      "success": "Energy report downloaded",
+      "noBaseline": "No active baseline is available for PDF export.",
+      "error": "Energy PDF export failed: {error}"
+    },
     "kpis": {
       "currentPower": "Current power",
       "dayKwh": "Today kWh",
