@@ -4,6 +4,7 @@ import {
   formatItEur,
   formatItKgCO2,
   formatItKwh,
+  type IEnergyConfigPeriod,
   type IEnergyAggregateResponse,
   type IEnergyBaseline,
   type IEnergyCyclesResponse,
@@ -19,11 +20,13 @@ import {
 } from '../i18n/energyPdfCopy.js';
 import { EnergyAggregateService } from './energyAggregateService.js';
 import { EnergyBaselineService } from './energyBaselineService.js';
+import { EnergyConfigService } from './energyConfigService.js';
 import { EnergyDashboardService } from './energyDashboardService.js';
 import { createDeterministicPdfBuffer } from './pdfDocumentFactory.js';
 
 type PdfDocumentDefinition = Parameters<typeof createDeterministicPdfBuffer>[0];
 type PdfContent = Record<string, unknown>;
+type PdfFooter = Exclude<PdfDocumentDefinition['footer'], undefined>;
 
 const IMPLEMENTED_WAVE_TWO_SECTIONS = [
   'header',
@@ -31,8 +34,18 @@ const IMPLEMENTED_WAVE_TWO_SECTIONS = [
   'enpiTable',
   'enbDeclaration',
   'energyByPeriod',
+  'perCycleEfficiency',
+  'costAndCo2',
   'savingsIndicator',
+  'footer',
 ] as const satisfies readonly EnergyPdfSectionKey[];
+
+const BANNED_REPORT_TERMS = [
+  'Transizione 5.0',
+  'iper-ammortamento',
+  'GSE',
+  'MIMIT',
+] as const;
 
 interface IEnergyPdfMetricRow {
   label: string;
@@ -55,12 +68,21 @@ interface IEnergyPdfSavingsSummary {
   confidence: string;
 }
 
+interface IEnergyPdfCycleRow {
+  cycle: string;
+  cycleCount: string;
+  energy: string;
+  outputKg: string;
+  efficiency: string;
+}
+
 export interface IEnergyPdfReportModel {
   lang: EnergyPdfLang;
   copy: IEnergyPdfCopyBranch;
   from: Date;
   to: Date;
   baseline: IEnergyBaseline;
+  activePeriod: IEnergyConfigPeriod;
   aggregate: IEnergyAggregateResponse;
   cycles: IEnergyCyclesResponse;
   savings: ISavingsDetailResponse;
@@ -71,7 +93,10 @@ export interface IEnergyPdfReportModel {
   enpiRows: IEnergyPdfMetricRow[];
   enbRows: IEnergyPdfMetricRow[];
   energyByPeriodRows: IEnergyPdfPeriodRow[];
+  perCycleRows: IEnergyPdfCycleRow[];
+  costAndCo2Rows: IEnergyPdfMetricRow[];
   savingsSummary: IEnergyPdfSavingsSummary;
+  footerRows: IEnergyPdfMetricRow[];
 }
 
 function formatEnpi(value: number): string {
@@ -103,11 +128,74 @@ function buildSectionHeading(text: string): PdfContent {
   } as PdfContent;
 }
 
+function formatKg(value: number): string {
+  return `${formatItKwh(value, { compact: true })} kg`;
+}
+
+function collectStrings(value: unknown): string[] {
+  if (typeof value === 'string') {
+    return [value];
+  }
+  if (Array.isArray(value)) {
+    return value.flatMap((item) => collectStrings(item));
+  }
+  if (value && typeof value === 'object') {
+    return Object.values(value).flatMap((item) => collectStrings(item));
+  }
+  return [];
+}
+
+function assertNoBannedTerms(value: unknown): void {
+  const haystack = collectStrings(value).join(' ');
+  const found = BANNED_REPORT_TERMS.find((term) => haystack.includes(term));
+
+  if (found) {
+    throw new Error(`Energy PDF contains banned term: ${found}`);
+  }
+}
+
 function buildKeyValueTable(rows: IEnergyPdfMetricRow[]): PdfContent {
   return {
     table: {
       widths: ['*', 'auto'],
       body: rows.map((row) => [row.label, row.value]),
+    },
+    layout: 'lightHorizontalLines',
+    margin: [0, 0, 0, 8],
+  } as PdfContent;
+}
+
+function buildPerCycleEfficiencyTable(
+  copy: IEnergyPdfCopyBranch,
+  rows: IEnergyPdfCycleRow[],
+): PdfContent {
+  const body = [
+    [
+      copy.perCycleEfficiency.cycleLabel,
+      copy.perCycleEfficiency.cycleCountLabel,
+      copy.perCycleEfficiency.energyLabel,
+      copy.perCycleEfficiency.outputKgLabel,
+      copy.perCycleEfficiency.efficiencyLabel,
+    ],
+    ...(rows.length > 0
+      ? rows.map((row) => [
+          row.cycle,
+          row.cycleCount,
+          row.energy,
+          row.outputKg,
+          row.efficiency,
+        ])
+      : [[copy.perCycleEfficiency.emptyLabel, '', '', '', '']]),
+  ];
+
+  return {
+    fontSize: 9,
+    table: {
+      headerRows: 1,
+      dontBreakRows: true,
+      keepWithHeaderRows: 1,
+      widths: ['*', 'auto', 'auto', 'auto', 'auto'],
+      body,
     },
     layout: 'lightHorizontalLines',
     margin: [0, 0, 0, 8],
@@ -179,6 +267,22 @@ function buildHeaderRows(
       value: formatItDateTime(to),
     },
   ];
+}
+
+function buildPerCycleRows(
+  copy: IEnergyPdfCopyBranch,
+  cycles: IEnergyCyclesResponse,
+): IEnergyPdfCycleRow[] {
+  return cycles.rows.map((row) => ({
+    cycle: row.cycleLabel,
+    cycleCount: String(row.cycleCount),
+    energy: formatItKwh(row.totalKwh),
+    outputKg: formatKg(row.totalKg),
+    efficiency:
+      row.avgKwhPerKg == null
+        ? copy.perCycleEfficiency.notAvailableLabel
+        : formatItKwh(row.avgKwhPerKg, { compact: true }),
+  }));
 }
 
 function buildExecutiveSummaryRows(
@@ -262,6 +366,31 @@ function buildEnergyByPeriodRows(
   }));
 }
 
+function buildCostAndCo2Rows(
+  copy: IEnergyPdfCopyBranch,
+  aggregate: IEnergyAggregateResponse,
+  savingsSummary: IEnergyPdfSavingsSummary,
+): IEnergyPdfMetricRow[] {
+  return [
+    {
+      label: copy.costAndCo2.totalCostLabel,
+      value: aggregate.display.totalCost,
+    },
+    {
+      label: copy.costAndCo2.totalCo2Label,
+      value: aggregate.display.totalCo2,
+    },
+    {
+      label: copy.costAndCo2.deltaCostLabel,
+      value: savingsSummary.deltaEur,
+    },
+    {
+      label: copy.costAndCo2.deltaCo2Label,
+      value: savingsSummary.deltaKgCo2,
+    },
+  ];
+}
+
 function buildSavingsSummary(
   copy: IEnergyPdfCopyBranch,
   savings: ISavingsDetailResponse,
@@ -276,6 +405,66 @@ function buildSavingsSummary(
   };
 }
 
+function buildTariffSourceValue(
+  copy: IEnergyPdfCopyBranch,
+  activePeriod: IEnergyConfigPeriod,
+): string {
+  const modeLabel =
+    activePeriod.tariffMode === 'single'
+      ? copy.footer.singleTariffModeLabel
+      : copy.footer.tou3TariffModeLabel;
+
+  return `${copy.footer.configuredTariffValueLabel} (${modeLabel}, ${formatItDate(activePeriod.validFrom)})`;
+}
+
+function buildFooterRows(
+  copy: IEnergyPdfCopyBranch,
+  activePeriod: IEnergyConfigPeriod,
+): IEnergyPdfMetricRow[] {
+  return [
+    {
+      label: copy.footer.emissionFactorSourceLabel,
+      value: activePeriod.emissionFactorSource,
+    },
+    {
+      label: copy.footer.emissionFactorYearLabel,
+      value: String(activePeriod.emissionFactorYear),
+    },
+    {
+      label: copy.footer.tariffSourceLabel,
+      value: buildTariffSourceValue(copy, activePeriod),
+    },
+  ];
+}
+
+function buildFooter(
+  model: IEnergyPdfReportModel,
+): PdfFooter {
+  const sourceText = model.footerRows
+    .map((row) => `${row.label}: ${row.value}`)
+    .join('  •  ');
+
+  return ((currentPage: number, pageCount: number) =>
+    ({
+      margin: [40, 8, 40, 0],
+      columns: [
+        {
+          width: '*',
+          text: sourceText,
+          fontSize: 8,
+          color: '#555555',
+        },
+        {
+          width: 'auto',
+          text: `${currentPage} / ${pageCount}`,
+          fontSize: 8,
+          color: '#555555',
+          alignment: 'right',
+        },
+      ],
+    })) as PdfFooter;
+}
+
 export { ENERGY_PDF_SECTION_ORDER };
 
 export class EnergyPdfService {
@@ -286,7 +475,9 @@ export class EnergyPdfService {
     baselineId: number;
   }): Promise<IEnergyPdfReportModel> {
     const copy = ENERGY_PDF_COPY[args.lang];
-    const [aggregate, baseline, rawSavings, cycles] = await Promise.all([
+    assertNoBannedTerms(copy);
+
+    const [aggregate, baseline, rawSavings, cycles, activePeriod] = await Promise.all([
       EnergyAggregateService.getAggregate({
         from: args.from,
         to: args.to,
@@ -305,6 +496,7 @@ export class EnergyPdfService {
         role: UserRole.WPT,
         limit: 1000,
       }),
+      EnergyConfigService.getActivePeriod(args.to),
     ]);
 
     if (!baseline) {
@@ -312,6 +504,7 @@ export class EnergyPdfService {
     }
 
     const savings = assertSavingsDetail(rawSavings);
+    const savingsSummary = buildSavingsSummary(copy, savings);
 
     return {
       lang: args.lang,
@@ -319,6 +512,7 @@ export class EnergyPdfService {
       from: args.from,
       to: args.to,
       baseline,
+      activePeriod,
       aggregate,
       cycles,
       savings,
@@ -329,7 +523,10 @@ export class EnergyPdfService {
       enpiRows: buildEnpiRows(copy, savings),
       enbRows: buildEnbRows(copy, baseline),
       energyByPeriodRows: buildEnergyByPeriodRows(aggregate),
-      savingsSummary: buildSavingsSummary(copy, savings),
+      perCycleRows: buildPerCycleRows(copy, cycles),
+      costAndCo2Rows: buildCostAndCo2Rows(copy, aggregate, savingsSummary),
+      savingsSummary,
+      footerRows: buildFooterRows(copy, activePeriod),
     };
   }
 
@@ -349,7 +546,9 @@ export class EnergyPdfService {
       buildSectionHeading(model.copy.energyByPeriod.title),
       buildEnergyByPeriodTable(model.copy, model.energyByPeriodRows),
       buildSectionHeading(model.copy.perCycleEfficiency.title),
+      buildPerCycleEfficiencyTable(model.copy, model.perCycleRows),
       buildSectionHeading(model.copy.costAndCo2.title),
+      buildKeyValueTable(model.costAndCo2Rows),
       buildSectionHeading(model.copy.savingsIndicator.title),
       buildKeyValueTable([
         { label: model.copy.savingsIndicator.confidenceLabel, value: model.savingsSummary.confidence },
@@ -360,8 +559,16 @@ export class EnergyPdfService {
       ]),
       { text: model.savingsSummary.directionText, margin: [0, 0, 0, 8] },
       buildSectionHeading(model.copy.footer.title),
+      buildKeyValueTable(model.footerRows),
       { text: model.copy.footer.note, margin: [0, 0, 0, 0] },
     );
+
+    assertNoBannedTerms({
+      content,
+      footerRows: model.footerRows,
+      footerNote: model.copy.footer.note,
+      savingsDirectionText: model.savingsSummary.directionText,
+    });
 
     return {
       compress: true,
@@ -369,6 +576,7 @@ export class EnergyPdfService {
         font: 'Roboto',
         fontSize: 10,
       },
+      footer: buildFooter(model),
       styles: {
         sectionHeading: {
           bold: true,

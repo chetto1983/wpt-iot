@@ -11,6 +11,7 @@ const getAggregateMock = vi.fn();
 const getBaselineByIdMock = vi.fn();
 const computeSavingsMock = vi.fn();
 const getCyclesMock = vi.fn();
+const getActivePeriodMock = vi.fn();
 
 vi.mock('../services/energyAggregateService.js', () => ({
   EnergyAggregateService: {
@@ -28,6 +29,12 @@ vi.mock('../services/energyBaselineService.js', () => ({
 vi.mock('../services/energyDashboardService.js', () => ({
   EnergyDashboardService: {
     getCycles: getCyclesMock,
+  },
+}));
+
+vi.mock('../services/energyConfigService.js', () => ({
+  EnergyConfigService: {
+    getActivePeriod: getActivePeriodMock,
   },
 }));
 
@@ -98,6 +105,20 @@ describe('energy pdf service task 02.1', () => {
           avgKwhPerKg: 1.251,
         },
       ],
+    });
+
+    getActivePeriodMock.mockResolvedValue({
+      id: 1,
+      validFrom: new Date('2024-01-01T00:00:00.000Z'),
+      validTo: null,
+      emissionFactorKgPerKwh: 0.279,
+      emissionFactorYear: 2024,
+      emissionFactorSource: 'ISPRA',
+      tariffMode: 'single',
+      tariffSingleEurPerKwh: 0.25,
+      tariffBandsJson: {},
+      customHolidays: [],
+      createdAt: new Date('2024-01-01T00:00:00.000Z'),
     });
   });
 

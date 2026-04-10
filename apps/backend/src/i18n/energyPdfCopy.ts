@@ -55,6 +55,23 @@ interface IEnergyPdfEnergyByPeriodCopy extends IEnergyPdfCopySectionTitle {
   co2Label: string;
 }
 
+interface IEnergyPdfPerCycleEfficiencyCopy extends IEnergyPdfCopySectionTitle {
+  cycleLabel: string;
+  cycleCountLabel: string;
+  energyLabel: string;
+  outputKgLabel: string;
+  efficiencyLabel: string;
+  emptyLabel: string;
+  notAvailableLabel: string;
+}
+
+interface IEnergyPdfCostAndCo2Copy extends IEnergyPdfCopySectionTitle {
+  totalCostLabel: string;
+  totalCo2Label: string;
+  deltaCostLabel: string;
+  deltaCo2Label: string;
+}
+
 interface IEnergyPdfSavingsIndicatorCopy extends IEnergyPdfCopySectionTitle {
   aboveBaseline: string;
   belowBaseline: string;
@@ -66,6 +83,12 @@ interface IEnergyPdfSavingsIndicatorCopy extends IEnergyPdfCopySectionTitle {
 }
 
 interface IEnergyPdfFooterCopy extends IEnergyPdfCopySectionTitle {
+  emissionFactorSourceLabel: string;
+  emissionFactorYearLabel: string;
+  tariffSourceLabel: string;
+  configuredTariffValueLabel: string;
+  singleTariffModeLabel: string;
+  tou3TariffModeLabel: string;
   note: string;
 }
 
@@ -75,8 +98,8 @@ export interface IEnergyPdfCopyBranch {
   enpiTable: IEnergyPdfEnpiTableCopy;
   enbDeclaration: IEnergyPdfEnbDeclarationCopy;
   energyByPeriod: IEnergyPdfEnergyByPeriodCopy;
-  perCycleEfficiency: IEnergyPdfCopySectionTitle;
-  costAndCo2: IEnergyPdfCopySectionTitle;
+  perCycleEfficiency: IEnergyPdfPerCycleEfficiencyCopy;
+  costAndCo2: IEnergyPdfCostAndCo2Copy;
   savingsIndicator: IEnergyPdfSavingsIndicatorCopy;
   footer: IEnergyPdfFooterCopy;
 }
@@ -122,9 +145,20 @@ export const ENERGY_PDF_COPY: Record<EnergyPdfLang, IEnergyPdfCopyBranch> = {
     },
     perCycleEfficiency: {
       title: 'Efficienza per ciclo',
+      cycleLabel: 'Ciclo',
+      cycleCountLabel: 'Numero cicli',
+      energyLabel: 'Energia',
+      outputKgLabel: 'Output',
+      efficiencyLabel: 'kWh/kg',
+      emptyLabel: 'Nessun ciclo attribuito nel periodo selezionato',
+      notAvailableLabel: 'n.d.',
     },
     costAndCo2: {
       title: 'Costi e CO₂',
+      totalCostLabel: 'Costo totale del periodo',
+      totalCo2Label: 'CO₂ totale del periodo',
+      deltaCostLabel: 'Delta costo vs baseline',
+      deltaCo2Label: 'Delta CO₂ vs baseline',
     },
     savingsIndicator: {
       title: 'Indicatore di risparmio',
@@ -138,7 +172,13 @@ export const ENERGY_PDF_COPY: Record<EnergyPdfLang, IEnergyPdfCopyBranch> = {
     },
     footer: {
       title: 'Fonti',
-      note: 'Dati derivati da aggregati energetici, baseline bloccata e cicli attribuiti.',
+      emissionFactorSourceLabel: 'Fonte fattore emissivo',
+      emissionFactorYearLabel: 'Anno fattore emissivo',
+      tariffSourceLabel: 'Fonte tariffa',
+      configuredTariffValueLabel: 'Configurazione energia WPT',
+      singleTariffModeLabel: 'monoraria',
+      tou3TariffModeLabel: 'fasce F1/F2/F3',
+      note: 'Il costo dell’energia è stimato dalla tariffa configurata e la CO₂ è calcolata dal fattore emissivo selezionato.',
     },
   },
   en: {
@@ -181,9 +221,20 @@ export const ENERGY_PDF_COPY: Record<EnergyPdfLang, IEnergyPdfCopyBranch> = {
     },
     perCycleEfficiency: {
       title: 'Per-cycle efficiency',
+      cycleLabel: 'Cycle',
+      cycleCountLabel: 'Cycle count',
+      energyLabel: 'Energy',
+      outputKgLabel: 'Output',
+      efficiencyLabel: 'kWh/kg',
+      emptyLabel: 'No attributed cycles in the selected window',
+      notAvailableLabel: 'n/a',
     },
     costAndCo2: {
       title: 'Cost and CO₂',
+      totalCostLabel: 'Total cost in window',
+      totalCo2Label: 'Total CO₂ in window',
+      deltaCostLabel: 'Cost delta vs baseline',
+      deltaCo2Label: 'CO₂ delta vs baseline',
     },
     savingsIndicator: {
       title: 'Savings indicator',
@@ -197,7 +248,13 @@ export const ENERGY_PDF_COPY: Record<EnergyPdfLang, IEnergyPdfCopyBranch> = {
     },
     footer: {
       title: 'Sources',
-      note: 'Data derived from energy aggregates, frozen baseline evidence, and attributed cycles.',
+      emissionFactorSourceLabel: 'Emission factor source',
+      emissionFactorYearLabel: 'Emission factor year',
+      tariffSourceLabel: 'Tariff source',
+      configuredTariffValueLabel: 'WPT energy settings',
+      singleTariffModeLabel: 'single-rate',
+      tou3TariffModeLabel: 'F1/F2/F3 bands',
+      note: 'Energy cost is estimated from the configured tariff and CO₂ is calculated from the selected emission factor; the tariff source is the active WPT energy setting.',
     },
   },
 };
