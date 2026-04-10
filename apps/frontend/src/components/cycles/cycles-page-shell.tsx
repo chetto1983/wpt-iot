@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { RotateCcw, Wifi, WifiOff, FileSpreadsheet, FileText } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
@@ -39,8 +39,8 @@ export function CyclesPageShell() {
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
   const [isExporting, setIsExporting] = useState<'csv' | 'pdf' | null>(null);
 
-  const fromDate = startOfMonth(new Date(selectedMonth.year, selectedMonth.month - 1, 1));
-  const toDate = endOfMonth(new Date(selectedMonth.year, selectedMonth.month - 1, 1));
+  const fromDate = useMemo(() => startOfMonth(new Date(selectedMonth.year, selectedMonth.month - 1, 1)), [selectedMonth]);
+  const toDate = useMemo(() => endOfMonth(new Date(selectedMonth.year, selectedMonth.month - 1, 1)), [selectedMonth]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -82,7 +82,7 @@ export function CyclesPageShell() {
     fetchCycles();
 
     return () => controller.abort();
-  }, [selectedMonth, page, sortColumn, sortOrder, t, fromDate, toDate]);
+  }, [fromDate, toDate, page, sortColumn, sortOrder, t]);
 
   function handleSort(column: string) {
     if (sortColumn === column) {

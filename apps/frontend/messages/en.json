@@ -953,6 +953,7 @@
     "error": "Unable to load cycle data. Please retry or contact support if the problem persists.",
     "pagination": {
       "showing": "Showing {from}-{to} of {total} cycles"
-    }
+    },
+    "selectPreset": "Select preset"
   }
 }

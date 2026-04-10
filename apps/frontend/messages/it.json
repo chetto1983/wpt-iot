@@ -953,6 +953,7 @@
     "error": "Impossibile caricare i dati dei cicli. Riprova o contatta l'assistenza se il problema persiste.",
     "pagination": {
       "showing": "Mostrando {from}-{to} di {total} cicli"
-    }
+    },
+    "selectPreset": "Seleziona preset"
   }
 }

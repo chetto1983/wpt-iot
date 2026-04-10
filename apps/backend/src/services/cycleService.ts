@@ -104,8 +104,8 @@ export class CycleService {
       id: number;
       resetEpoch: number;
       cycleNumber: number;
-      startedAt: Date;
-      endedAt: Date;
+      startedAt: string;
+      endedAt: string;
       cycleType: number;
       cycleStatusLabel: string | null;
       materialInputKg: number | null;
@@ -120,13 +120,13 @@ export class CycleService {
       orderNumber: string | null;
     }>;
 
-    // Map to response format (convert Date objects to ISO strings)
+    // Map to response format (timestamptz comes back as ISO string from PostgreSQL)
     const data = rows.map((row) => ({
       id: row.id,
       resetEpoch: row.resetEpoch,
       cycleNumber: row.cycleNumber,
-      startedAt: row.startedAt.toISOString(),
-      endedAt: row.endedAt.toISOString(),
+      startedAt: row.startedAt,
+      endedAt: row.endedAt,
       cycleType: row.cycleType,
       cycleStatusLabel: row.cycleStatusLabel,
       materialInputKg: row.materialInputKg,
@@ -187,8 +187,8 @@ export class CycleService {
 
     const rows = recordsResult.rows as Array<{
       cycleNumber: number;
-      startedAt: Date;
-      endedAt: Date;
+      startedAt: string;
+      endedAt: string;
       cycleType: number;
       cycleStatusLabel: string | null;
       materialInputKg: number | null;
@@ -202,11 +202,11 @@ export class CycleService {
     // Generate CSV content (stub — Wave 4 will enhance)
     const header = 'Ciclo,Data Inizio,Data Fine,Tipo,Stato,Input (kg),Output (kg),Bruto (kg),Bidoni,Operatore,Ordine\n';
     const csvRows = rows.map((row) => {
-      const startedAtFormatted = row.startedAt.toLocaleDateString('it-IT');
+      const startedAtFormatted = new Date(row.startedAt).toLocaleDateString('it-IT');
       return [
         row.cycleNumber,
         startedAtFormatted,
-        row.endedAt.toLocaleDateString('it-IT'),
+        new Date(row.endedAt).toLocaleDateString('it-IT'),
         row.cycleType,
         row.cycleStatusLabel ?? '',
         row.materialInputKg ?? '',
