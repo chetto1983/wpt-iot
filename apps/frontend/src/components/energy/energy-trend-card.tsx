@@ -86,7 +86,7 @@ export function EnergyTrendCard({
   const metricLabel = t(`trend.metrics.${metric}`);
 
   return (
-    <Card className="border border-border/70">
+    <Card className="min-w-0 border border-border/70">
       <CardHeader className="gap-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
@@ -117,7 +117,7 @@ export function EnergyTrendCard({
             : t('trend.description')}
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="min-w-0 space-y-4">
         {loading ? (
           <Skeleton className="h-[280px] w-full" />
         ) : error ? (
@@ -131,7 +131,7 @@ export function EnergyTrendCard({
         ) : (
           <>
             <p className="text-sm text-muted-foreground">{metricLabel}</p>
-            <div className="h-[280px]">
+            <div className="min-w-0 h-[280px]">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={rows} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
