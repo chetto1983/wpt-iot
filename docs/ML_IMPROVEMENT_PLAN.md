@@ -1,6 +1,6 @@
 # ML Anomaly Detection — Audit, Fixes & Roadmap
 
-*Updated: 2026-04-13 | Full code audit + 9 bug fixes deployed + 1 deferred + dashboard research*
+*Updated: 2026-04-13 | Full code audit + 10 bug fixes deployed + dashboard research*
 
 ## Current Architecture
 
@@ -27,7 +27,7 @@
 
 ## Bugs Fixed (2026-04-13)
 
-9 of 10 bugs identified in the original audit have been fixed, deployed to the remote VM (192.168.0.102), and verified via CDP E2E validation (33/33 checks pass). FIX 8 (correlated feature grouping) is deferred to Phase C5.
+All 10 bugs identified in the original audit have been fixed, deployed to the remote VM (192.168.0.102), and verified via CDP E2E validation (33/33 checks pass) + unit tests (5/5 pass).
 
 ### FIX 1 — CRITICAL: Dual Mean Update Corrupts Variance (FIXED)
 
@@ -87,11 +87,13 @@ Each `setInterval` tick created a new `AbortController` that was never stored or
 
 **Fix applied:** Changed to `false` to match reality. Wiring serialize/restore deferred to Phase C6.
 
-### FIX 8 — LOW: Top-K Scoring Ignores Feature Correlations
+### FIX 8 — LOW: Top-K Scoring Ignores Feature Correlations (FIXED)
 
-**Status:** Deferred to Phase C5. Top-K=3 averaging treats `rmsCurrL1/L2/L3` as independent; one genuine electrical anomaly inflates the composite score by 3x.
+**Location:** `onlineAnomalyDetector.ts`
 
-**Planned fix:** Group correlated features, take max per group before top-K (see C5).
+Top-K=3 averaging treated `rmsCurrL1/L2/L3` as independent; one genuine electrical anomaly inflated the composite score by 3x.
+
+**Fix applied:** Added `FEATURE_GROUPS` constant grouping `rmsCurrL1/L2/L3`. Before top-K selection, the max z-score per group is taken — only the highest contributor from each correlated group enters the top-K pool. Unit test confirms only 1 RMS feature appears in `topContributors` when all 3 spike.
 
 ### FIX 9 — LOW: Frontend "Normal" Badge During Loading (FIXED)
 
@@ -126,7 +128,7 @@ Tests used `scoreThreshold` and `updateRate` (old API) which were silently ignor
 - `@wpt/types`: clean
 - `@wpt/backend`: clean (tsc + i18n copy)
 - `@wpt/frontend`: clean (Next.js 16.2.2 Turbopack, 22 routes)
-- `onlineAnomalyDetector.test.ts`: 4/4 pass
+- `onlineAnomalyDetector.test.ts`: 5/5 pass (includes FIX 8 correlation grouping test)
 
 ### Remote Machine (192.168.0.102) — CDP E2E: 33/33
 
@@ -164,6 +166,7 @@ topDrivers: chamberPressure=1.8, garbageTemp=1.1, vacuumPumpSpeed01=0.7
 | `maxFeatureZScore` cap of 25 | Prevents single-feature domination |
 | Event persistence with 15-min per-mode cooldown | Prevents DB flooding |
 | 12 numeric features | Good coverage of motor/process state |
+| Correlated feature grouping (rmsCurrL1/L2/L3) | Correct — max-per-group before top-K prevents inflation |
 | Auth on all anomaly endpoints | Correct — matches rest of energy API |
 
 ---
@@ -267,9 +270,9 @@ class CUSUMTracker {
 
 Require N-of-M consecutive anomalous samples before flagging (e.g., 3-of-5 rule). Eliminates single-sample sensor noise spikes.
 
-### C5 — Correlated Feature Grouping
+### C5 — Correlated Feature Grouping ✅ DONE
 
-Group correlated features before top-K scoring (e.g., `rmsCurrL1/L2/L3` → take max per group). Prevents 3x score inflation from one electrical anomaly.
+Implemented in FIX 8. `FEATURE_GROUPS` + `FEATURE_TO_GROUP` inverted index deduplicates correlated features before top-K selection. Currently groups `rmsCurrL1/L2/L3`; additional groups (e.g., line voltages) can be added to `FEATURE_GROUPS`.
 
 ### C6 — State Persistence Across Restarts
 
@@ -300,7 +303,7 @@ All anomaly interfaces (`IAnomalyResult`, `ITrackingStatus`, `IDetectorMetrics`,
 | **P1** | C2 — Dashboard redesign | Operator UX matches industrial standards | High |
 | **P1** | C6 — State persistence across restarts | Baselines survive service restarts | Low |
 | **P2** | C3 — CUSUM drift detection | Catches slow shifts Z-score misses | Medium |
-| **P2** | C5 — Correlated feature grouping | Reduces false inflation from phase currents | Low |
+| ~~P2~~ | ~~C5 — Correlated feature grouping~~ | ✅ Done (FIX 8) | — |
 | **P2** | C4 — Persistence filter (N-of-M) | Reduces noise false positives | Low |
 | **P3** | C7 — Feedback loop | Auto-suggests threshold adjustments | Medium |
 | **P3** | C8 — Drizzle schema migration | Consistency | Low |
@@ -337,4 +340,4 @@ All anomaly interfaces (`IAnomalyResult`, `ITrackingStatus`, `IDetectorMetrics`,
 
 ---
 
-*Generated: 2026-04-13 | Based on: full code audit, 9 bug fixes deployed to production (1 deferred), CDP E2E 33/33, industrial ML dashboard research across ISA-18.2, AWS Lookout, OSIsoft PI, Seeq, Grafana ML*
+*Generated: 2026-04-13 | Based on: full code audit, 10/10 bug fixes deployed to production, CDP E2E 33/33, unit tests 5/5, industrial ML dashboard research across ISA-18.2, AWS Lookout, OSIsoft PI, Seeq, Grafana ML*
