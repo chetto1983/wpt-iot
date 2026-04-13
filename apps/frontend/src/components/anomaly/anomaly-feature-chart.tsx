@@ -52,7 +52,7 @@ export const AnomalyFeatureChart = memo(function AnomalyFeatureChart({
       <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
         {t('anomaly.featureChart.title')}
       </p>
-      <ResponsiveContainer width="100%" height={140}>
+      <ResponsiveContainer width="100%" height={Math.max(140, data.length * 28)}>
         <BarChart data={data} layout="vertical" margin={{ left: 0, right: 8, top: 4, bottom: 4 }}>
           <XAxis
             type="number"

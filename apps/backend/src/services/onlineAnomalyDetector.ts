@@ -411,11 +411,15 @@ export class OnlineAnomalyDetector {
 
     const deduped = [...groupMax.values(), ...ungrouped];
     deduped.sort((a, b) => b.zScore - a.zScore);
-    const topContributors = deduped.slice(0, this.config.topK);
+    const scoringContributors = deduped.slice(0, this.config.topK);
     const rawScore =
-      topContributors.length === 0
+      scoringContributors.length === 0
         ? 0
-        : topContributors.reduce((sum, item) => sum + item.zScore, 0) / topContributors.length;
+        : scoringContributors.reduce((sum, item) => sum + item.zScore, 0) / scoringContributors.length;
+
+    // Return up to 10 contributors for display (more context in the chart),
+    // while scoring uses only topK (default 5) to avoid dilution.
+    const topContributors = deduped.slice(0, 10);
 
     const score = rawScore * confidence;
     const warm = mode.samplesSeen >= this.config.minWarmSamples;
