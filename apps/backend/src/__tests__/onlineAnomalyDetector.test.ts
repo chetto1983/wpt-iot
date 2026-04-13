@@ -32,6 +32,19 @@ function makeSample(overrides: Partial<IAnomalyInput> = {}): IAnomalyInput {
     thermoRightUpper: 173,
     holdingTempSetpoint: 180,
     waterConsumption: 12,
+    // D2: Electrical grid health
+    lineVoltL1L2: 400,
+    lineVoltL2L3: 400,
+    lineVoltL3L1: 400,
+    lineNeutralVoltL1: 230,
+    lineNeutralVoltL2: 230,
+    lineNeutralVoltL3: 230,
+    pfTotal: 0.92,
+    // D3: High-temp zones
+    thermoLeftHighLower: 200,
+    thermoLeftHighMedium: 210,
+    thermoLeftHighUpper: 215,
+    thermoRightHighLower: 198,
     ...overrides,
   };
 }

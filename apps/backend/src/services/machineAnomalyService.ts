@@ -61,6 +61,19 @@ export function mapSnapshotToDetectorInput(snapshot: IMachineSnapshot) {
     thermoRightUpper: snapshot.thermoRightUpper ?? null,
     holdingTempSetpoint: snapshot.holdingTempSetpoint ?? null,
     waterConsumption: snapshot.waterConsumption ?? null,
+    // D2: Electrical grid health
+    lineVoltL1L2: snapshot.lineVoltL1L2 ?? null,
+    lineVoltL2L3: snapshot.lineVoltL2L3 ?? null,
+    lineVoltL3L1: snapshot.lineVoltL3L1 ?? null,
+    lineNeutralVoltL1: snapshot.lineNeutralVoltL1 ?? null,
+    lineNeutralVoltL2: snapshot.lineNeutralVoltL2 ?? null,
+    lineNeutralVoltL3: snapshot.lineNeutralVoltL3 ?? null,
+    pfTotal: snapshot.pfTotal ?? null,
+    // D3: High-temp zones
+    thermoLeftHighLower: snapshot.thermoLeftHighLower ?? null,
+    thermoLeftHighMedium: snapshot.thermoLeftHighMedium ?? null,
+    thermoLeftHighUpper: snapshot.thermoLeftHighUpper ?? null,
+    thermoRightHighLower: snapshot.thermoRightHighLower ?? null,
   };
 }
 

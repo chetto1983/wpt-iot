@@ -47,6 +47,19 @@ export interface IAnomalyInput {
   thermoRightUpper?: number | null;
   holdingTempSetpoint?: number | null;
   waterConsumption?: number | null;
+  // D2: Electrical grid health (+7)
+  lineVoltL1L2?: number | null;
+  lineVoltL2L3?: number | null;
+  lineVoltL3L1?: number | null;
+  lineNeutralVoltL1?: number | null;
+  lineNeutralVoltL2?: number | null;
+  lineNeutralVoltL3?: number | null;
+  pfTotal?: number | null;
+  // D3: High-temp zones (+4)
+  thermoLeftHighLower?: number | null;
+  thermoLeftHighMedium?: number | null;
+  thermoLeftHighUpper?: number | null;
+  thermoRightHighLower?: number | null;
 }
 
 export enum AnomalyLevel {
@@ -211,6 +224,19 @@ const NUMERIC_FEATURES = [
   'thermoRightUpper',
   'holdingTempSetpoint',
   'waterConsumption',
+  // D2: Electrical grid health (+7)
+  'lineVoltL1L2',
+  'lineVoltL2L3',
+  'lineVoltL3L1',
+  'lineNeutralVoltL1',
+  'lineNeutralVoltL2',
+  'lineNeutralVoltL3',
+  'pfTotal',
+  // D3: High-temp zones (+4)
+  'thermoLeftHighLower',
+  'thermoLeftHighMedium',
+  'thermoLeftHighUpper',
+  'thermoRightHighLower',
 ] as const;
 
 const EPSILON = 1e-6;
@@ -225,6 +251,11 @@ const FEATURE_GROUPS: ReadonlyArray<readonly string[]> = [
   // D1: Thermal zone groups — max per side prevents 3× inflation
   ['thermoLeftLower', 'thermoLeftMedium', 'thermoLeftUpper'],
   ['thermoRightLower', 'thermoRightMedium', 'thermoRightUpper'],
+  // D2: Voltage triples
+  ['lineVoltL1L2', 'lineVoltL2L3', 'lineVoltL3L1'],
+  ['lineNeutralVoltL1', 'lineNeutralVoltL2', 'lineNeutralVoltL3'],
+  // D3: High-temp zone group
+  ['thermoLeftHighLower', 'thermoLeftHighMedium', 'thermoLeftHighUpper', 'thermoRightHighLower'],
 ] as const;
 
 /** Inverted index: feature name → group index (undefined = ungrouped). */

@@ -43,6 +43,19 @@ function featureLabel(key: string): string {
     thermoRightUpper: 'Thermo R-Up',
     holdingTempSetpoint: 'Hold Setpoint',
     waterConsumption: 'Water',
+    // D2: Electrical grid health
+    lineVoltL1L2: 'Volt L1-L2',
+    lineVoltL2L3: 'Volt L2-L3',
+    lineVoltL3L1: 'Volt L3-L1',
+    lineNeutralVoltL1: 'Volt L1-N',
+    lineNeutralVoltL2: 'Volt L2-N',
+    lineNeutralVoltL3: 'Volt L3-N',
+    pfTotal: 'Power Factor',
+    // D3: High-temp zones
+    thermoLeftHighLower: 'HiTemp L-Low',
+    thermoLeftHighMedium: 'HiTemp L-Mid',
+    thermoLeftHighUpper: 'HiTemp L-Up',
+    thermoRightHighLower: 'HiTemp R-Low',
   };
   return labels[key] ?? key;
 }
