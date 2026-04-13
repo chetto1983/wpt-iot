@@ -291,25 +291,3 @@ export const WPT_VISIBLE_FIELDS = [
   'thermoRightMedSel',
   'thermoRightHighSel',
 ] as const satisfies ReadonlyArray<keyof IMachineSnapshot>;
-
-/** Dashboard gauge fields (gauge=x in Mappatura) */
-export const GAUGE_FIELDS = [
-  'garbageTemp',
-  'chamberPressure',
-  'mainMotorSpeed',
-  'vacuumPumpSpeed01',
-] as const satisfies ReadonlyArray<keyof IMachineSnapshot>;
-
-/** Dashboard text display fields (text field=x in Mappatura) */
-export const TEXT_FIELDS = [
-  'materialInputWeight',
-  'selectedCycle',
-  'currentPhase',
-  'machineStatus',
-  'completedCycles',
-  'user',
-  'supervisor',
-  'orderNumber',
-  'serialNumber',
-  'spareString01',
-] as const satisfies ReadonlyArray<keyof IMachineSnapshot>;

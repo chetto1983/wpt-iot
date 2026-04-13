@@ -80,7 +80,7 @@ export function mapRowToEvidence(row: Record<string, unknown>): IBaselineEvidenc
 // days), then per-day computes EUR / kgCO2 via the energy_config_periods row
 // in force that day (D-07 cost/CO2 freeze).
 
-export interface IFrozenBaselineEvidence {
+interface IFrozenBaselineEvidence {
   dailySeries: IBaselineDailyPoint[];
   totalKwh: number;
   totalKg: number;
@@ -330,7 +330,7 @@ export async function _buildMeasurementDailySeries(
 // stay in the service module (route mapper `instanceof` checks); these helpers
 // `throw new` them via the circular import at the top.
 
-export interface IScalarsInput {
+interface IScalarsInput {
   baseline: {
     enpi: number;
     totalKwh: number;
@@ -348,7 +348,7 @@ export interface IScalarsInput {
   windowTo: Date;
 }
 
-export interface IValidationInput {
+interface IValidationInput {
   baselinePeriodTo: Date;
   measurementFrom: Date;
   measurementTo: Date;

@@ -11,30 +11,6 @@ export interface IAuthUser {
   createdAt: Date;
 }
 
-/** Session data for authenticated user */
-export interface ISession {
-  userId: number;
-  username: string;
-  role: UserRole;
-  language: 'it' | 'en';
-}
-
-export const AuthUserSchema = z.object({
-  id: z.number(),
-  username: z.string().min(1),
-  password: z.string().min(1),
-  role: z.nativeEnum(UserRole),
-  avatar: z.string().nullable().optional(),
-  createdAt: z.date(),
-});
-
-export const SessionSchema = z.object({
-  userId: z.number(),
-  username: z.string().min(1),
-  role: z.nativeEnum(UserRole),
-  language: z.enum(['it', 'en']),
-});
-
 export const LoginRequestSchema = z.object({
   username: z.string().min(1),
   password: z.string().min(1),

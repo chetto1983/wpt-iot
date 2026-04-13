@@ -23,7 +23,7 @@ export interface ILiveAnomalyState extends IAnomalyResult {
   observedAt: string;
 }
 
-export interface IAnomalyTrackingStatus {
+interface IAnomalyTrackingStatus {
   active: boolean;
   continuousLearning: true;
   persistsAcrossRestart: boolean;
@@ -33,7 +33,7 @@ export interface IAnomalyTrackingStatus {
   detectorMetrics: IDetectorMetrics;
 }
 
-export function mapSnapshotToDetectorInput(snapshot: IMachineSnapshot) {
+function mapSnapshotToDetectorInput(snapshot: IMachineSnapshot) {
   return {
     selectedCycle: snapshot.selectedCycle ?? null,
     currentPhase: snapshot.currentPhase ?? null,
@@ -77,7 +77,7 @@ export function mapSnapshotToDetectorInput(snapshot: IMachineSnapshot) {
   };
 }
 
-export class MachineAnomalyService {
+class MachineAnomalyService {
   private detector = new OnlineAnomalyDetector();
   private startedAt: Date | null = null;
   private observationCount = 0;

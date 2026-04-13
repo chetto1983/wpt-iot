@@ -6,13 +6,13 @@ import { machineSnapshots } from '../db/schema/machine.js';
 // Interfaces
 // ---------------------------------------------------------------------------
 
-export interface IChartFilter {
+interface IChartFilter {
   from: Date;
   to: Date;
   fields: string[];
 }
 
-export interface IChartResponse {
+interface IChartResponse {
   resolution: 'raw' | '5min' | '1h';
   points: Array<Record<string, number | string>>;
 }

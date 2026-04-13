@@ -80,13 +80,6 @@ const ENUM_FIELDS: Record<string, Record<string, Record<number, string>>> = {
 };
 
 /**
- * Check if a field name is an enum field that should be formatted.
- */
-export function isEnumField(field: string): boolean {
-  return field in ENUM_FIELDS;
-}
-
-/**
  * Format a value for an enum field to its human-readable label.
  * Falls through to String(value) for non-enum fields or unknown values.
  */

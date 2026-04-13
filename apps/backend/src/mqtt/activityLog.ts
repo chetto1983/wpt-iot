@@ -3,9 +3,9 @@
  * Module-level state (no class instantiation) per project conventions.
  */
 
-export type MqttEventType = 'connect' | 'disconnect' | 'publish' | 'subscribe' | 'error';
+type MqttEventType = 'connect' | 'disconnect' | 'publish' | 'subscribe' | 'error';
 
-export interface MqttActivityEvent {
+interface MqttActivityEvent {
   timestamp: string; // ISO 8601
   type: MqttEventType;
   detail: string; // Human-readable detail
@@ -28,8 +28,4 @@ export function pushEvent(type: MqttEventType, detail: string): void {
 
 export function getEvents(): MqttActivityEvent[] {
   return [...events]; // Return copy, newest last
-}
-
-export function clearEvents(): void {
-  events.length = 0;
 }

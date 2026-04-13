@@ -1,5 +1,3 @@
-import { z } from 'zod/v4';
-
 /**
  * PLC handshake target configuration stored in the database.
  *
@@ -14,7 +12,3 @@ export interface IPlcConfig {
   targetHost: string;
   updatedAt: Date;
 }
-
-export const PlcConfigSchema = z.object({
-  targetHost: z.string().min(1).max(255),
-});

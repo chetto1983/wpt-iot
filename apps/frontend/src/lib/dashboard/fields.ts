@@ -8,7 +8,7 @@ export interface IGaugeSubArc {
 }
 
 /** Gauge definition loaded from config/gauges.json */
-export interface IGaugeDef {
+interface IGaugeDef {
   key: keyof IMachineSnapshot;
   tKey: string;
   unit: string;

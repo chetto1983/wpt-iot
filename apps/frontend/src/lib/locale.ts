@@ -26,7 +26,7 @@ function getBrowserTimezone(): string {
 // Locale value type
 // ---------------------------------------------------------------------------
 
-export interface AppLocale {
+interface AppLocale {
   /** 'it' or 'en' — from user DB setting, default 'it' */
   language: 'it' | 'en';
   /** IANA timezone string from browser, e.g. 'Europe/Rome' */

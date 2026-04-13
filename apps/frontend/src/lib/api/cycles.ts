@@ -2,7 +2,7 @@
 
 import { apiFetch } from '@/lib/api';
 
-export interface ICyclesQueryParams {
+interface ICyclesQueryParams {
   from: Date;
   to: Date;
   page?: number;
@@ -43,7 +43,7 @@ export interface ICyclesResponse {
   pagination: ICyclesPagination;
 }
 
-export interface ICycleExportRequest {
+interface ICycleExportRequest {
   format: 'csv' | 'pdf';
   from: Date;
   to: Date;
@@ -52,7 +52,7 @@ export interface ICycleExportRequest {
 /**
  * Fetch cycle records with pagination and filtering.
  */
-export async function getCycles(params: ICyclesQueryParams): Promise<ICyclesResponse> {
+async function getCycles(params: ICyclesQueryParams): Promise<ICyclesResponse> {
   const queryParams = new URLSearchParams({
     from: params.from.toISOString(),
     to: params.to.toISOString(),

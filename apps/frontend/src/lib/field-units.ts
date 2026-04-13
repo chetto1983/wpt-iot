@@ -13,9 +13,9 @@
  *   - decimals:  display precision
  */
 
-export type Aggregate = 'sum' | 'avg' | 'last';
+type Aggregate = 'sum' | 'avg' | 'last';
 
-export interface FieldUnit {
+interface FieldUnit {
   unit: string;
   category: string;
   aggregate: Aggregate;

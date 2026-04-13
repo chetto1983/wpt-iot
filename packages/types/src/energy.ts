@@ -217,14 +217,13 @@ export interface ITariffBands {
 export const ENERGY_TARIFF_BAND_KEYS = ['f1', 'f2', 'f3'] as const;
 export type EnergyTariffBandKey = (typeof ENERGY_TARIFF_BAND_KEYS)[number];
 
-export const EnergyTariffModeSchema = z.enum(['single', 'tou3']);
-export type EnergyTariffMode = z.infer<typeof EnergyTariffModeSchema>;
+const EnergyTariffModeSchema = z.enum(['single', 'tou3']);
 
-export const EnergyTariffBandValueSchema = z.object({
+const EnergyTariffBandValueSchema = z.object({
   eurPerKwh: z.number().min(0.001).max(2.0),
 });
 
-export const EnergyTariffBandsSchema = z.object({
+const EnergyTariffBandsSchema = z.object({
   f1: EnergyTariffBandValueSchema.optional(),
   f2: EnergyTariffBandValueSchema.optional(),
   f3: EnergyTariffBandValueSchema.optional(),
@@ -254,12 +253,6 @@ export interface IEnergyAdminConfigResponse {
   activePeriod: IEnergyConfigPeriod;
 }
 
-export const EnergySampleReportQuerySchema = z.object({
-  from: z.string().datetime(),
-  to: z.string().datetime(),
-  lang: z.enum(['it', 'en']).optional().default('it'),
-});
-
 export interface ICycleRecord {
   cycleNumber: number;
   resetEpoch: number;        // composite cycle ID (resetEpoch, cycleNumber) per ENRG-04
@@ -285,14 +278,6 @@ export interface ICycleRecord {
   operator: string | null;
   cycleStatusLabel: string | null;
   grossInputKg: number | null;
-}
-
-export interface ICycleReset {
-  id: number;
-  resetEpoch: number;
-  observedAt: Date;
-  lastCompletedCyclesBefore: number;  // value seen on the snapshot just before the decrease
-  newCompletedCyclesAfter: number;    // value seen on the snapshot that triggered the reset
 }
 
 // =============================================================================
@@ -321,29 +306,6 @@ export interface IEnergyAggregateResponse {
     totalCo2: string;        // formatItKgCO2
   };
 }
-
-// =============================================================================
-// STAGE_ENERGY_PROFILE — 9-element array indexed by PLC_STATUS, mirroring the
-// 9-stage taxonomy in apps/simulator/src/state/cycleEngine.ts:10-27. Plan 11
-// fills in default kwhPerTick rates and the test-mode override.
-//
-// RESEARCH.md Pitfall D: CONTEXT D-17 says "3 stages" but the actual PLC FSM
-// has 9 stages. The plan honors the 9-stage reality.
-// =============================================================================
-
-export interface IStageEnergyEntry {
-  /** Stage name, must match PLC_STATUS keys exactly. */
-  name: 'LOADING' | 'SHREDDING' | 'HEATING' | 'EVAPORATION' | 'OVERHEATING' | 'HOLDING' | 'COOLING' | 'FINAL_DRYING' | 'DISCHARGE';
-  /** kWh added to energyConsumption per simulator tick while this stage is active. */
-  kwhPerTick: number;
-}
-
-/** Default 9-element profile placeholder — Plan 11 fills with realistic and test-mode rates. */
-export type StageEnergyProfile = readonly [
-  IStageEnergyEntry, IStageEnergyEntry, IStageEnergyEntry,
-  IStageEnergyEntry, IStageEnergyEntry, IStageEnergyEntry,
-  IStageEnergyEntry, IStageEnergyEntry, IStageEnergyEntry
-];
 
 // =============================================================================
 // Phase 20 — Energy Baseline & Savings
@@ -516,14 +478,6 @@ export const EnergyPdfReportQuerySchema = z.object({
 // =============================================================================
 // Phase 21 - Energy KPI dashboard UI
 // =============================================================================
-
-export const EnergyRangePreset = z.enum([
-  'last7d',
-  'last30d',
-  'last12mo',
-  'custom',
-]);
-export type EnergyRangePreset = z.infer<typeof EnergyRangePreset>;
 
 export const EnergyMetric = z.enum([
   'kwh',

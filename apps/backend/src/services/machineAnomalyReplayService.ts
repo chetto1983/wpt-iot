@@ -50,7 +50,7 @@ interface IAlarmCountRow {
   activeCount: number | string;
 }
 
-export interface IAnomalyReplayRequest {
+interface IAnomalyReplayRequest {
   from: Date;
   to: Date;
   maxRows?: number;
@@ -65,7 +65,7 @@ export interface IAnomalyReplayPoint {
   topContributors: Array<{ feature: string; zScore: number }>;
 }
 
-export interface IAnomalyReplayResponse {
+interface IAnomalyReplayResponse {
   window: {
     from: string;
     to: string;

@@ -15,16 +15,3 @@ export const RfidUserSchema = z.object({
   group: z.nativeEnum(RfidUserGroup),
   enabled: z.boolean(),
 });
-
-/** Full RFID user packet structure from port 9092 */
-export interface IRfidUserPacket {
-  names: string[];    // 48 STRING[20] values
-  groups: number[];   // 48 BYTE values
-  enabled: number[];  // 48 BYTE values (0=enabled, 1=disabled)
-}
-
-export const RfidUserPacketSchema = z.object({
-  names: z.array(z.string().max(20)).length(48),
-  groups: z.array(z.int().min(0).max(2)).length(48),
-  enabled: z.array(z.int().min(0).max(1)).length(48),
-});

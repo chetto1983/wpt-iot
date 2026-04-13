@@ -51,7 +51,7 @@ const MIN_VALID_RMS_CURRENT_A = 0;
 const MAX_VALID_RMS_CURRENT_A = 1000;
 const MIN_VALID_PHASE_COUNT = 2;
 
-export interface IReconciliationResult {
+interface IReconciliationResult {
   /** Total metered kWh over [from, to) — sum of energy_1d.kwh_delta rows. */
   meterKwh: number;
   /** kWh attributed to ATTRIBUTED cycles in the window (cycle_records). */
@@ -67,7 +67,7 @@ export interface IReconciliationResult {
   ratio: number;
 }
 
-export interface IIdleBaseloadResult {
+interface IIdleBaseloadResult {
   /** p10 idle baseload in kW, or null if the window has no sampled rows. */
   kw: number | null;
   /** Power factor used for the derivation (from energy_config.cosphi). */

@@ -45,19 +45,6 @@ export interface ICyclesQueryParams {
 }
 
 /**
- * Response shape for GET /api/cycles with pagination metadata.
- */
-export interface ICyclesResponse {
-  cycles: ICycleRecordResponse[];
-  pagination: {
-    total: number;
-    page: number;
-    limit: number;
-    totalPages: number;
-  };
-}
-
-/**
  * Request body for cycle register export (CSV/PDF).
  */
 export interface ICycleExportRequest {
@@ -116,14 +103,3 @@ export interface ICycleExportResult {
   contentType: string;
 }
 
-/**
- * Service-level query parameters (after Zod validation and parsing).
- */
-export interface ICyclesServiceQuery {
-  from: Date;
-  to: Date;
-  page: number;
-  limit: number;
-  sort: ValidSortColumn;
-  order: 'asc' | 'desc';
-}

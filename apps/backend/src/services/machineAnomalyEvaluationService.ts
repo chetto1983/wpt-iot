@@ -32,7 +32,7 @@ interface IAlarmActivationRow {
   description_en: string;
 }
 
-export interface IAnomalyEvaluationRequest {
+interface IAnomalyEvaluationRequest {
   from: Date;
   to: Date;
   maxRows?: number;
@@ -41,7 +41,7 @@ export interface IAnomalyEvaluationRequest {
   alarmLagMinutes?: number;
 }
 
-export interface IAnomalyEvaluationAlarm {
+interface IAnomalyEvaluationAlarm {
   activatedAt: string;
   alarmIndex: number;
   descriptionIt: string;
@@ -49,7 +49,7 @@ export interface IAnomalyEvaluationAlarm {
   matched: boolean;
 }
 
-export interface IAnomalyEvaluationResponse {
+interface IAnomalyEvaluationResponse {
   window: {
     from: string;
     to: string;

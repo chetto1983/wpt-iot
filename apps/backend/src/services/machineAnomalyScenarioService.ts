@@ -4,7 +4,7 @@ import {
   type IAnomalyResult,
 } from './onlineAnomalyDetector.js';
 
-export type AnomalyScenarioName =
+type AnomalyScenarioName =
   | 'temperature_spike'
   | 'pressure_runaway'
   | 'energy_drift'
@@ -13,18 +13,18 @@ export type AnomalyScenarioName =
   | 'water_leak'
   | 'thermal_gradient';
 
-export interface IScenarioRunOptions {
+interface IScenarioRunOptions {
   scenario: AnomalyScenarioName;
   warmupSamples?: number;
   scenarioSamples?: number;
 }
 
-export interface IScenarioPoint extends IAnomalyResult {
+interface IScenarioPoint extends IAnomalyResult {
   index: number;
   phase: 'warmup' | 'scenario';
 }
 
-export interface IScenarioRunResult {
+interface IScenarioRunResult {
   scenario: AnomalyScenarioName;
   warmupSamples: number;
   scenarioSamples: number;

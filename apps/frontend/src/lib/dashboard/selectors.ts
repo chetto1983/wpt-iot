@@ -1,7 +1,7 @@
 import type { IMachineSnapshot } from '@wpt/types';
 import { TECHNICAL_GROUPS } from './fields';
 
-export type DashboardConnectionState = 'waiting' | 'live' | 'reconnecting' | 'offline';
+type DashboardConnectionState = 'waiting' | 'live' | 'reconnecting' | 'offline';
 
 /**
  * Derive the dashboard connection display state from ws context.

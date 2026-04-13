@@ -7,7 +7,7 @@ import { config } from '../config.js';
 import { getCachedPlcConfig } from './plcConfigService.js';
 
 /** Configuration for a single HandshakeFSM instance */
-export interface IFsmConfig {
+interface IFsmConfig {
   channelName: string;         // 'users' or 'jobs'
   controlByteIndex: number;    // 0 for jobs (port 9090 byte), 1 for users (port 9092 byte)
   simTargetDataPort: number;   // Where to send data TO simulator (19092 for users, 19090 for jobs)

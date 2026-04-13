@@ -126,7 +126,7 @@ export async function getCachedPlcConfig(): Promise<CachedPlcConfig> {
 }
 
 /** Force-refresh the cached config on next read. Called from PUT /api/plc/config. */
-export function invalidatePlcConfigCache(): void {
+function invalidatePlcConfigCache(): void {
   cachedConfig = null;
   configCacheExpiry = 0;
 }

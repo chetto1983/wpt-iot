@@ -27,7 +27,7 @@ export const PANEL_SIZE_DEFAULTS: Record<ChartType, { w: number; h: number; minW
 };
 
 /** Grafana-style time range presets */
-export const TIME_PRESETS = [
+const TIME_PRESETS = [
   { label: 'last15min', minutes: 15 },
   { label: 'last1h', minutes: 60 },
   { label: 'last6h', minutes: 360 },

@@ -23,7 +23,7 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { EnergyMetric, EnergyBucket, IEnergyAggregateResponse } from '@wpt/types';
 
-export function selectEnergyBucket(
+function selectEnergyBucket(
   from: Date,
   to: Date,
   preset: 'last7d' | 'last30d' | 'last12mo' | 'custom',

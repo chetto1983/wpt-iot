@@ -23,7 +23,7 @@ import { db } from '../../db/index.js';
 import { energyRoutes } from '../../routes/energy.js';
 
 /** Build an isolated Fastify test server wired to the energy plugin. */
-export async function buildTestServer(): Promise<FastifyInstance> {
+async function buildTestServer(): Promise<FastifyInstance> {
   const app = Fastify({ logger: false });
   await app.register(energyRoutes);
   await app.ready();

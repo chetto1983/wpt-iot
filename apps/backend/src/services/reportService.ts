@@ -8,19 +8,19 @@ import { formatEnumValue } from '../i18n/enumLabels.js';
 // Interfaces
 // ---------------------------------------------------------------------------
 
-export interface IReportFilter {
+interface IReportFilter {
   from: Date;
   to: Date;
   cycle?: number;
 }
 
-export interface IAlarmReportFilter {
+interface IAlarmReportFilter {
   from: Date;
   to: Date;
   status?: 'all' | 'active' | 'resolved';
 }
 
-export interface IAlarmEventRow {
+interface IAlarmEventRow {
   id: number;
   alarmIndex: number;
   wordIndex: number;

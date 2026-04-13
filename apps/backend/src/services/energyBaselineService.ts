@@ -28,25 +28,12 @@ import type {
   ISavingsDetailResponse,
 } from '@wpt/types';
 
-// Re-exports for back-compat with Plan 02/03 call sites.
-export {
-  _computeSavingsFromScalars,
-  _computeSoftWarnings,
-  _validateSavingsWindows,
-  freezeBaselineEvidence,
-  mapRowToBaseline,
-  mapRowToEvidence,
-} from './energyBaselineMath.js';
-export type {
-  IScalarsInput,
-  IValidationInput,
-} from './energyBaselineMath.js';
 
 // Error taxonomy — flat Error siblings. Route handler instanceof-maps
 // to 422 (validation) / 404 (NoActiveBaselineError).
 
 /** Minimal logger for DI (BLOCKER-03 Option 2). Pino satisfies this via duck typing. */
-export interface IServiceLogger {
+interface IServiceLogger {
   info(obj: Record<string, unknown>, msg: string): void;
   warn(obj: Record<string, unknown>, msg: string): void;
   error(obj: Record<string, unknown>, msg: string): void;
@@ -80,7 +67,7 @@ export class MeasurementTooShortError extends Error {
   }
 }
 
-export type BaselineTooShortReason =
+type BaselineTooShortReason =
   | 'window_too_short'
   | 'period_from_future'
   | 'no_production';

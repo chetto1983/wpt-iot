@@ -69,32 +69,6 @@ export type IMqttConfigPublic = Omit<IMqttConfig, 'password'> & {
   passwordSet: boolean;
 };
 
-export const MqttConfigSchema = z.object({
-  enabled: z.boolean(),
-  brokerHost: z.string().min(1).max(255),
-  brokerPort: z.int().min(1).max(65535),
-  username: z.string().min(1).max(255),
-  password: z.string().min(1).max(255),
-  siteId: z.string().min(1).max(100),
-  machineId: z.string().min(1).max(100),
-  publishMachine: z.boolean(),
-  publishAlarms: z.boolean(),
-  publishRfid: z.boolean(),
-  publishJobs: z.boolean(),
-  useTls: z.boolean(),
-  caCert: z.string().max(10000).nullable(),
-  sparkplugGroupId: z.string().min(1).max(255),
-  sparkplugEdgeNodeId: z.string().min(1).max(255),
-  publishCycleRecords: z.boolean(),
-  telemetryIntervalSeconds: z.int().min(5).max(3600),
-});
-
-/** Command request payload published by external MQTT clients */
-export interface IMqttCommandRequest {
-  requestId: string;
-  payload: Record<string, unknown>;
-}
-
 export const MqttCommandRequestSchema = z.object({
   requestId: z.string().min(1).max(64),
   payload: z.record(z.string(), z.unknown()),
@@ -117,12 +91,3 @@ export interface IMqttUser {
   disabled?: boolean;
 }
 
-/** Broker status from $SYS topics */
-export interface IMqttBrokerStatus {
-  connected: boolean;
-  uptime: string;
-  clientsConnected: number;
-  messagesReceived: number;
-  messagesSent: number;
-  version: string;
-}
