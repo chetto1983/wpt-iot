@@ -1,11 +1,25 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { UserRole, JobDataSchema, RemoteJobEnable, MaintenanceRequest, RemoteCycleSelection, CycleType } from '@wpt/types';
-import type { IJobData } from '@wpt/types';
+import type { IJobData, IMachineSnapshot } from '@wpt/types';
 import { requireRole } from '../auth/authHooks.js';
 import { writeJob } from '../udp/handshakeFsm.js';
 import { getSockets } from '../udp/sockets.js';
 import { dataHub } from '../events/hub.js';
 import { latestState } from '../cache/latestState.js';
+
+export function mapMachineSnapshotToJobData(snap: IMachineSnapshot): IJobData {
+  return {
+    supervisor: snap.supervisor,
+    orderNumber: snap.orderNumber,
+    serialNumber: snap.serialNumber,
+    remoteJobEnable: snap.spareInt67 as RemoteJobEnable,
+    maintenanceRequest: snap.spareInt68 as MaintenanceRequest,
+    remoteCycleSelection: snap.spareInt69 as RemoteCycleSelection,
+    cycleType: snap.spareInt70 as CycleType,
+    spareInt02: snap.spareInt65,
+    spareInt03: snap.spareInt66,
+  };
+}
 
 /**
  * Job/commessa management routes (read/write PLC job parameters).
@@ -34,19 +48,13 @@ export const jobRoutes: FastifyPluginAsync = async (server) => {
    * corresponding S1_* broadcast. We default them to NO_REQUEST / NO_CYCLE.
    * The operator then edits them and writes back via POST /jobs/write.
    */
-  server.post('/jobs/read', async (_request, _reply) => {
+  server.post('/jobs/read', async (_request, reply) => {
     const snap = latestState.getMachineSnapshot();
-    const job: IJobData = {
-      supervisor: snap?.supervisor ?? '',
-      orderNumber: snap?.orderNumber ?? '',
-      serialNumber: snap?.serialNumber ?? '',
-      remoteJobEnable: RemoteJobEnable.NO_REQUEST,
-      maintenanceRequest: MaintenanceRequest.NO_REQUEST,
-      remoteCycleSelection: RemoteCycleSelection.NO_REQUEST,
-      cycleType: CycleType.NO_CYCLE,
-      spareInt02: 0,
-      spareInt03: 0,
-    };
+    if (!snap) {
+      return reply.code(503).send({ error: 'PLC machine snapshot not available' });
+    }
+
+    const job = mapMachineSnapshotToJobData(snap);
     dataHub.emitJobData(job);
     return { job };
   });

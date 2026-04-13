@@ -2,28 +2,10 @@ import type { FastifyPluginAsync } from 'fastify';
 import { UserRole, RfidUserSchema } from '@wpt/types';
 import type { IRfidUser } from '@wpt/types';
 import { requireRole } from '../auth/authHooks.js';
-import { writeUsers } from '../udp/handshakeFsm.js';
+import { readUsers, writeUsers } from '../udp/handshakeFsm.js';
 import { getSockets } from '../udp/sockets.js';
 import { dataHub } from '../events/hub.js';
-import { db } from '../db/index.js';
-import { rfidUsers } from '../db/schema/users.js';
 import { z } from 'zod/v4';
-
-function buildMirroredUsers(rows: Array<{ tagId: number; name: string; group: number; enabled: boolean }>): IRfidUser[] {
-  const byTagId = new Map(rows.map((row) => [row.tagId, row]));
-
-  return Array.from({ length: 48 }, (_, index) => {
-    const tagId = index + 1;
-    const row = byTagId.get(tagId);
-
-    return {
-      tagId,
-      name: row?.name ?? '',
-      group: row?.group ?? 0,
-      enabled: row?.enabled ?? false,
-    };
-  });
-}
 
 /**
  * RFID user management routes (read/write PLC user tags).
@@ -35,20 +17,21 @@ export const rfidRoutes: FastifyPluginAsync = async (server) => {
 
   /**
    * POST /rfid/read
-   * Return the mirrored 48 RFID users from PostgreSQL.
-   *
-   * This intentionally matches `/jobs/read`: the backend serves its persisted
-   * operator snapshot instead of forcing a fresh PLC handshake on every read.
-   * The live ABB PLC can still reject an immediate 9092 re-read right after a
-   * write, while the UI expects the just-written data to remain readable.
+   * Trigger handshake read on port 9092, return 48 RFID users.
+   * Emits to dataHub for persistence via userStore subscriber.
    */
-  server.post('/rfid/read', async (_request, _reply) => {
-    const rows = await db.select().from(rfidUsers);
-    const users = buildMirroredUsers(rows).map((user) => ({
-      ...user,
-      group: user.group as IRfidUser['group'],
-    }));
-    return { users };
+  server.post('/rfid/read', async (request, reply) => {
+    try {
+      const { ackSocket, userSocket } = getSockets();
+      const users = await readUsers(ackSocket, userSocket, request.log);
+      dataHub.emitUserData(users);
+      return { users };
+    } catch (err: unknown) {
+      if (err instanceof Error && err.message.includes('Handshake in progress')) {
+        return reply.code(409).send({ error: 'Handshake in progress' });
+      }
+      throw err;
+    }
   });
 
   /**

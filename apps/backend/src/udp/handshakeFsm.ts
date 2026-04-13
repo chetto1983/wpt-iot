@@ -32,8 +32,8 @@ interface IFsmLogger {
  *   -> PLC sends data on data port -> IoT sends IDLE(2) on 9093
  *
  * Protocol (write):
- *   IoT sends REQUEST_WRITE(254) on port 9093 -> PLC responds ACK(100) on 9093
- *   -> IoT sends data to PLC data port -> IoT sends IDLE(2) on 9093
+ *   IoT sends REQUEST_WRITE(254) on port 9093 -> IoT sends data to PLC data
+ *   port -> PLC responds ACK(100) on 9093 -> IoT sends release ACK/IDLE on 9093
  *
  * Two instances exist: one for users (controlByteIndex=1, port 9092)
  * and one for jobs (controlByteIndex=0, port 9090). They share the ACK
@@ -219,6 +219,9 @@ export class HandshakeFSM {
     this.state = HandshakeState.REQUEST_WRITE;
 
     try {
+      let ackArmed = false;
+      const ackPromise = this.waitForAck(ackSocket, log, () => ackArmed);
+
       // Send REQUEST_WRITE on ack port (9093), this channel's byte.
       await this.sendControl(ackSocket, HandshakeState.REQUEST_WRITE);
       log.info({ name: 'HandshakeFSM', channel: this.fsmConfig.channelName }, 'Sent REQUEST_WRITE');
@@ -232,6 +235,9 @@ export class HandshakeFSM {
         });
       });
       log.info({ name: 'HandshakeFSM', channel: this.fsmConfig.channelName, bytes: data.length }, 'Data sent');
+
+      ackArmed = true;
+      await ackPromise;
 
       // Release the PLC in two phases: ACK first so the channel FSM sees 100,
       // then IDLE after one scan window so the 9093 coordinator can reset.
@@ -247,6 +253,36 @@ export class HandshakeFSM {
       this.busy = false;
       this.clearWatchdog();
     }
+  }
+
+  private waitForAck(
+    ackSocket: dgram.Socket,
+    log: IFsmLogger,
+    shouldAccept: () => boolean = () => true,
+  ): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const onMessage = (msg: Buffer): void => {
+        if (msg.length < 2) return;
+        if (!shouldAccept()) return;
+        if (msg.readUInt8(this.fsmConfig.controlByteIndex) !== HandshakeState.ACK) return;
+        cleanup();
+        resolve();
+      };
+
+      const onTimeout = (): void => {
+        cleanup();
+        log.warn({ name: 'HandshakeFSM', channel: this.fsmConfig.channelName }, 'Watchdog timeout waiting for ACK');
+        reject(new Error(`Handshake timeout on ${this.fsmConfig.channelName}: no ACK within ${this.fsmConfig.watchdogMs}ms`));
+      };
+
+      const cleanup = (): void => {
+        ackSocket.removeListener('message', onMessage);
+        this.clearWatchdog();
+      };
+
+      ackSocket.on('message', onMessage);
+      this.watchdogTimer = setTimeout(onTimeout, this.fsmConfig.watchdogMs);
+    });
   }
 
   /**

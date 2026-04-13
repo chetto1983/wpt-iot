@@ -190,9 +190,13 @@ describe('HandshakeFSM', () => {
       const dataSocket = createMockSocket();
       const dataBuffer = buildTestUserDataBuffer();
 
-      // write() is fire-and-forget on the real PLC 9092 path: send
-      // REQUEST_WRITE, send data, send ACK release, then IDLE cleanup.
-      await usersFsm.write(ackSocket as any, dataSocket as any, dataBuffer, mockLog);
+      const writePromise = usersFsm.write(ackSocket as any, dataSocket as any, dataBuffer, mockLog);
+
+      scheduleAfterTick(() => {
+        ackSocket.simulateMessage(buildAckBuffer(HandshakeState.IDLE, HandshakeState.ACK));
+      });
+
+      await writePromise;
 
       expect(ackSocket.send).toHaveBeenCalledTimes(3);
       const sentMsg: Buffer = ackSocket.send.mock.calls[0]![0];
@@ -211,7 +215,13 @@ describe('HandshakeFSM', () => {
       const dataSocket = createMockSocket();
       const dataBuffer = buildTestJobDataBuffer();
 
-      await jobsFsm.write(ackSocket as any, dataSocket as any, dataBuffer, mockLog);
+      const writePromise = jobsFsm.write(ackSocket as any, dataSocket as any, dataBuffer, mockLog);
+
+      scheduleAfterTick(() => {
+        ackSocket.simulateMessage(buildAckBuffer(HandshakeState.ACK, HandshakeState.IDLE));
+      });
+
+      await writePromise;
 
       expect(ackSocket.send).toHaveBeenCalledTimes(3);
       const sentMsg: Buffer = ackSocket.send.mock.calls[0]![0];
@@ -391,6 +401,17 @@ describe('HandshakeFSM', () => {
       const readPromise = usersFsm.read(ackSocket as any, dataSocket as any, mockLog);
 
       await expect(readPromise).rejects.toThrow('Handshake timeout on users: no data within 200ms');
+      expect(usersFsm.getState()).toBe(HandshakeState.IDLE);
+      expect(usersFsm.isBusy()).toBe(false);
+    }, 10000);
+
+    it('rejects with timeout error if no ACK received for write', async () => {
+      const ackSocket = createMockSocket();
+      const dataSocket = createMockSocket();
+
+      const writePromise = usersFsm.write(ackSocket as any, dataSocket as any, buildTestUserDataBuffer(), mockLog);
+
+      await expect(writePromise).rejects.toThrow('Handshake timeout on users: no ACK within 200ms');
       expect(usersFsm.getState()).toBe(HandshakeState.IDLE);
       expect(usersFsm.isBusy()).toBe(false);
     }, 10000);
