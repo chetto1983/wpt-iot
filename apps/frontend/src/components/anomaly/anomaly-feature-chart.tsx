@@ -25,13 +25,24 @@ function featureLabel(key: string): string {
     mainMotorSpeed: 'Motor Speed',
     mainMotorCurrent: 'Motor Current',
     mainMotorTorque: 'Motor Torque',
-    vacuumPumpSpeed01: 'Vacuum Pump',
+    vacuumPumpSpeed01: 'Vacuum Pump 1',
     energyConsumption: 'Energy',
     rmsCurrL1: 'RMS Curr L1',
     rmsCurrL2: 'RMS Curr L2',
     rmsCurrL3: 'RMS Curr L3',
     materialInputWeight: 'Input Weight',
     materialOutputWeight: 'Output Weight',
+    // D1: Core process signals
+    vacuumPumpSpeed02: 'Vacuum Pump 2',
+    rmsCurrN: 'RMS Curr N',
+    thermoLeftLower: 'Thermo L-Low',
+    thermoLeftMedium: 'Thermo L-Mid',
+    thermoLeftUpper: 'Thermo L-Up',
+    thermoRightLower: 'Thermo R-Low',
+    thermoRightMedium: 'Thermo R-Mid',
+    thermoRightUpper: 'Thermo R-Up',
+    holdingTempSetpoint: 'Hold Setpoint',
+    waterConsumption: 'Water',
   };
   return labels[key] ?? key;
 }

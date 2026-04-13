@@ -23,6 +23,7 @@ export interface IAnomalyInput {
   selectedCycle: number | null;
   currentPhase: number | null;
   machineStatus: number | null;
+  // Original 12 features
   garbageTemp?: number | null;
   chamberPressure?: number | null;
   mainMotorSpeed?: number | null;
@@ -35,6 +36,17 @@ export interface IAnomalyInput {
   rmsCurrL3?: number | null;
   materialInputWeight?: number | null;
   materialOutputWeight?: number | null;
+  // D1: Core process signals (+10)
+  vacuumPumpSpeed02?: number | null;
+  rmsCurrN?: number | null;
+  thermoLeftLower?: number | null;
+  thermoLeftMedium?: number | null;
+  thermoLeftUpper?: number | null;
+  thermoRightLower?: number | null;
+  thermoRightMedium?: number | null;
+  thermoRightUpper?: number | null;
+  holdingTempSetpoint?: number | null;
+  waterConsumption?: number | null;
 }
 
 export enum AnomalyLevel {
@@ -175,6 +187,7 @@ export interface IDetectorConfig {
 // ---------------------------------------------------------------------------
 
 const NUMERIC_FEATURES = [
+  // Original 12
   'garbageTemp',
   'chamberPressure',
   'mainMotorSpeed',
@@ -187,6 +200,17 @@ const NUMERIC_FEATURES = [
   'rmsCurrL3',
   'materialInputWeight',
   'materialOutputWeight',
+  // D1: Core process signals (+10)
+  'vacuumPumpSpeed02',
+  'rmsCurrN',
+  'thermoLeftLower',
+  'thermoLeftMedium',
+  'thermoLeftUpper',
+  'thermoRightLower',
+  'thermoRightMedium',
+  'thermoRightUpper',
+  'holdingTempSetpoint',
+  'waterConsumption',
 ] as const;
 
 const EPSILON = 1e-6;
@@ -198,6 +222,9 @@ const EPSILON = 1e-6;
  */
 const FEATURE_GROUPS: ReadonlyArray<readonly string[]> = [
   ['rmsCurrL1', 'rmsCurrL2', 'rmsCurrL3'],
+  // D1: Thermal zone groups — max per side prevents 3× inflation
+  ['thermoLeftLower', 'thermoLeftMedium', 'thermoLeftUpper'],
+  ['thermoRightLower', 'thermoRightMedium', 'thermoRightUpper'],
 ] as const;
 
 /** Inverted index: feature name → group index (undefined = ungrouped). */
@@ -270,7 +297,7 @@ export class OnlineAnomalyDetector {
       adaptiveRate: opts.adaptiveRate ?? true,
       quarantineMultiplier: opts.quarantineMultiplier ?? 1.5,
       maxFeatureZScore: opts.maxFeatureZScore ?? 25,
-      topK: opts.topK ?? 3,
+      topK: opts.topK ?? 5,
       modeChangeGraceMs: opts.modeChangeGraceMs ?? 30_000,
       cusumK: opts.cusumK ?? 0.5,
       cusumH: opts.cusumH ?? 4.0,

@@ -21,6 +21,17 @@ function makeSample(overrides: Partial<IAnomalyInput> = {}): IAnomalyInput {
     rmsCurrL3: 15,
     materialInputWeight: 250,
     materialOutputWeight: 120,
+    // D1: Core process signals
+    vacuumPumpSpeed02: 780,
+    rmsCurrN: 0.5,
+    thermoLeftLower: 160,
+    thermoLeftMedium: 170,
+    thermoLeftUpper: 175,
+    thermoRightLower: 158,
+    thermoRightMedium: 168,
+    thermoRightUpper: 173,
+    holdingTempSetpoint: 180,
+    waterConsumption: 12,
     ...overrides,
   };
 }
@@ -192,6 +203,7 @@ describe('OnlineAnomalyDetector', () => {
       warningThreshold: 4,
       baseRate: 0.02, // slow EMA — mean adapts slowly
       modeChangeGraceMs: 0,
+      topK: 3, // limit to avoid dilution from 22 stable features
       cusumK: 0.3,
       cusumH: 3.0, // lower decision boundary for faster test
       persistenceN: 1,

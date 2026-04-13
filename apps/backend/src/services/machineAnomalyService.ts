@@ -50,6 +50,17 @@ export function mapSnapshotToDetectorInput(snapshot: IMachineSnapshot) {
     rmsCurrL3: snapshot.rmsCurrL3 ?? null,
     materialInputWeight: snapshot.materialInputWeight ?? null,
     materialOutputWeight: snapshot.materialOutputWeight ?? null,
+    // D1: Core process signals
+    vacuumPumpSpeed02: snapshot.vacuumPumpSpeed02 ?? null,
+    rmsCurrN: snapshot.rmsCurrN ?? null,
+    thermoLeftLower: snapshot.thermoLeftLower ?? null,
+    thermoLeftMedium: snapshot.thermoLeftMedium ?? null,
+    thermoLeftUpper: snapshot.thermoLeftUpper ?? null,
+    thermoRightLower: snapshot.thermoRightLower ?? null,
+    thermoRightMedium: snapshot.thermoRightMedium ?? null,
+    thermoRightUpper: snapshot.thermoRightUpper ?? null,
+    holdingTempSetpoint: snapshot.holdingTempSetpoint ?? null,
+    waterConsumption: snapshot.waterConsumption ?? null,
   };
 }
 
