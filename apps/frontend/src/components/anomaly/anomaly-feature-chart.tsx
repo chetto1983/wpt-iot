@@ -31,12 +31,14 @@ export const AnomalyFeatureChart = memo(function AnomalyFeatureChart({
 
   const data = useMemo(() => {
     const contributors = live?.latest?.topContributors ?? [];
-    return contributors.map((c) => ({
-      name: t.has(`anomaly.featureChart.labels.${c.feature}`)
-        ? t(`anomaly.featureChart.labels.${c.feature}`)
-        : c.feature,
-      zScore: Number(c.zScore.toFixed(2)),
-    }));
+    return contributors
+      .filter((c) => c.zScore >= 0.05)
+      .map((c) => ({
+        name: t.has(`anomaly.featureChart.labels.${c.feature}`)
+          ? t(`anomaly.featureChart.labels.${c.feature}`)
+          : c.feature,
+        zScore: Number(c.zScore.toFixed(2)),
+      }));
   }, [live, t]);
 
   if (data.length === 0) {
