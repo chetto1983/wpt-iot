@@ -18,8 +18,8 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-// Path to frontend messages (relative to this test file)
-const MESSAGES_DIR = resolve(__dirname, '../../../../frontend/messages');
+// Path to frontend messages (relative to apps/frontend/src/__tests__/i18n/)
+const MESSAGES_DIR = resolve(__dirname, '../../../messages');
 
 interface TranslationFile {
   [key: string]: unknown;
