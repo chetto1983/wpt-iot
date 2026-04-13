@@ -167,6 +167,7 @@ export function MonthPicker({ value, onChange }: MonthPickerProps) {
             month={selectedDate}
             onMonthChange={setSelectedDate}
             disabled={{ after: new Date() }}
+            locale={it}
             className="rounded-md border"
           />
 
