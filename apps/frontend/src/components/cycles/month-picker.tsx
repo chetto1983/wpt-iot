@@ -2,9 +2,9 @@
 
 import { useState } from 'react';
 import { format, startOfMonth, subMonths, endOfDay } from 'date-fns';
-import { it } from 'date-fns/locale';
 import { CalendarIcon, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useTranslations } from 'next-intl';
+import { useAppLocale } from '@/lib/locale';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import {
@@ -40,6 +40,7 @@ const PRESETS: { key: PresetKey; labelKey: string }[] = [
 
 export function MonthPicker({ value, onChange }: MonthPickerProps) {
   const t = useTranslations('cycles');
+  const { dateFnsLocale } = useAppLocale();
   const [open, setOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date>(
     new Date(value.year, value.month - 1, 1)
@@ -48,7 +49,7 @@ export function MonthPicker({ value, onChange }: MonthPickerProps) {
   const displayText = format(
     new Date(value.year, value.month - 1, 1),
     'MMMM yyyy',
-    { locale: it }
+    { locale: dateFnsLocale }
   );
 
   function handleMonthSelect(date: Date | undefined) {
@@ -147,7 +148,7 @@ export function MonthPicker({ value, onChange }: MonthPickerProps) {
               <ChevronLeft className="size-4" />
             </Button>
             <span className="text-sm font-medium capitalize">
-              {format(selectedDate, 'MMMM yyyy', { locale: it })}
+              {format(selectedDate, 'MMMM yyyy', { locale: dateFnsLocale })}
             </span>
             <Button
               variant="ghost"
@@ -167,7 +168,6 @@ export function MonthPicker({ value, onChange }: MonthPickerProps) {
             month={selectedDate}
             onMonthChange={setSelectedDate}
             disabled={{ after: endOfDay(new Date()) }}
-            locale={it}
             className="rounded-md border"
           />
 

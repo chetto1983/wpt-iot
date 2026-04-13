@@ -6,6 +6,7 @@ export default getRequestConfig(async () => {
   const locale = store.get('NEXT_LOCALE')?.value || 'it';
   return {
     locale,
+    timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone ?? 'Europe/Rome',
     messages: (await import(`../../messages/${locale}.json`)).default,
   };
 });

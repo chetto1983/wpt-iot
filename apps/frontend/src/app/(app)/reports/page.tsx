@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import type { DateRange } from 'react-day-picker';
 import { format as formatDate } from 'date-fns';
-import { it as itLocale } from 'date-fns/locale';
 import { useTranslations } from 'next-intl';
 import { useQueryStates, parseAsString } from 'nuqs';
 import { CalendarDays } from 'lucide-react';
@@ -11,6 +10,7 @@ import { toast } from 'sonner';
 import { CLIENT_VISIBLE_FIELDS, WPT_VISIBLE_FIELDS, UserRole } from '@wpt/types';
 
 import { useAuth } from '@/lib/auth-context';
+import { useAppLocale } from '@/lib/locale';
 import { apiFetch } from '@/lib/api';
 import { getFieldLabel } from '@/lib/field-labels';
 import { Card, CardContent } from '@/components/ui/card';
@@ -46,7 +46,7 @@ function buildDateTimeISO(date: Date, time: string): string {
 export default function ReportsPage() {
   const t = useTranslations('reports');
   const { user } = useAuth();
-  const locale = (user?.language ?? 'it') as 'it' | 'en';
+  const { language: locale, formatDateTime } = useAppLocale();
   const role = user?.role ?? UserRole.CLIENT;
 
   // All meaningful fields for the role (no spareIntNN)
@@ -197,7 +197,6 @@ export default function ReportsPage() {
         onFormatChange={setExportFormat}
         onDownload={downloadReport}
         downloading={downloading}
-        calendarLocale={locale === 'it' ? itLocale : undefined}
         translations={{
           dateRangeLabel: t('dateRangeLabel'),
           dateRangePlaceholder: t('dateRangePlaceholder'),
@@ -272,7 +271,7 @@ export default function ReportsPage() {
                           }
                         >
                           {f === 'timestamp'
-                            ? formatTimestamp(row[f] as string)
+                            ? formatDateTime(new Date(row[f] as string))
                             : String(row[f] ?? '')}
                         </TableCell>
                       ))}
@@ -301,10 +300,4 @@ export default function ReportsPage() {
       </Card>
     </div>
   );
-}
-
-function formatTimestamp(iso: string): string {
-  if (!iso) return '';
-  const d = new Date(iso);
-  return `${d.toLocaleDateString('it-IT')} ${d.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`;
 }

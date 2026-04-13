@@ -7,10 +7,8 @@ import {
   type DayButton,
   type Locale,
 } from "react-day-picker"
-import { it as itLocale } from "date-fns/locale"
-
 import { cn } from "@/lib/utils"
-import { useAuth } from "@/lib/auth-context"
+import { useAppLocale } from "@/lib/locale"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { ChevronLeftIcon, ChevronRightIcon, ChevronDownIcon } from "lucide-react"
 
@@ -27,8 +25,8 @@ function Calendar({
 }: React.ComponentProps<typeof DayPicker> & {
   buttonVariant?: React.ComponentProps<typeof Button>["variant"]
 }) {
-  const { user } = useAuth()
-  const locale = localeProp ?? (user?.language === "it" ? itLocale : undefined)
+  const { dateFnsLocale } = useAppLocale()
+  const locale = localeProp ?? dateFnsLocale
   const defaultClassNames = getDefaultClassNames()
 
   return (

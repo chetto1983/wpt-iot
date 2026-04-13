@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { DateRange } from 'react-day-picker';
 import { format as formatDate } from 'date-fns';
-import { it as itLocale } from 'date-fns/locale';
 import { useTranslations } from 'next-intl';
 import { useQueryStates, parseAsString, parseAsStringEnum } from 'nuqs';
 import { AlertTriangle, CalendarDays } from 'lucide-react';
@@ -204,7 +203,6 @@ function AlarmsContent({ locale }: { locale: string }) {
         onFormatChange={setExportFormat}
         onDownload={downloadAlarmReport}
         downloading={downloading}
-        calendarLocale={locale === 'it' ? itLocale : undefined}
         showCycleFilter={false}
         cycleNumber=""
         onCycleNumberChange={() => {}}
