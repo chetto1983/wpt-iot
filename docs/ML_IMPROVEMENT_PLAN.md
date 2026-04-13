@@ -244,12 +244,9 @@ Implemented in FIX 8. `FEATURE_GROUPS` + `FEATURE_TO_GROUP` inverted index dedup
 
 Wired `toJSON()`/`fromJSON()` to Fastify lifecycle hooks. On `onClose`, detector state is serialized to `uploads/anomaly-state.json`. On plugin init, state is restored from disk before `start()`. Verified: stop/start cycle preserves observation count and mode baselines. `persistsAcrossRestart` now correctly reports `true`.
 
-### C7 — Feedback Loop (Threshold Recalibration)
+### C7 — Feedback Loop (Threshold Recalibration) ✅ DONE
 
-Use accumulated TP/FP labels (from C1) to auto-suggest threshold adjustments:
-- If FP rate > 30%: suggest raising `warningThreshold`
-- If TP rate < 50%: suggest lowering `criticalThreshold`
-- Expose sensitivity slider in SUPER_ADMIN settings
+Backend: `getFeedbackStats()` queries resolved events by `resolution_category`, computes FP/TP rates, auto-suggests threshold adjustments when FP>30% or TP<50% (min 5 resolved events). `GET /api/energy/anomaly/feedback` + `PATCH /api/energy/anomaly/thresholds` (SUPER_ADMIN, runtime recalibration persisted via C6). Frontend: feedback analysis panel with TP/FP counts, rates, and amber suggestion banner. i18n: en + it.
 
 ### C8 — Migrate `machine_anomaly_events` to Drizzle Schema ✅ DONE
 
@@ -271,7 +268,7 @@ All anomaly interfaces moved to `packages/types/src/anomaly.ts`: `IAnomalyResult
 | ~~P2~~ | ~~C3 — CUSUM drift detection~~ | ✅ Done | — |
 | ~~P2~~ | ~~C5 — Correlated feature grouping~~ | ✅ Done (FIX 8) | — |
 | ~~P2~~ | ~~C4 — Persistence filter (N-of-M)~~ | ✅ Done | — |
-| **P3** | C7 — Feedback loop | Auto-suggests threshold adjustments | Medium |
+| ~~P3~~ | ~~C7 — Feedback loop~~ | ✅ Done | — |
 | ~~P3~~ | ~~C8 — Drizzle schema migration~~ | ✅ Done | — |
 | ~~P3~~ | ~~C9 — Shared types~~ | ✅ Done | — |
 
