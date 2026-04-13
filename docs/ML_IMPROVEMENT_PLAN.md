@@ -195,37 +195,15 @@ topDrivers: chamberPressure=1.8, garbageTemp=1.1, vacuumPumpSpeed01=0.7
 
 ## Phase C: Enhancements (Future)
 
-### C1 — Event Lifecycle Management (HIGH PRIORITY)
+### C1 — Event Lifecycle Management ✅ DONE
 
-**Problem:** Users cannot acknowledge, dismiss, or label anomaly events. Historical false positives pile up with no way to clear them.
+Implemented ISA-18.2 event lifecycle: `OPEN → ACKNOWLEDGED → CONFIRMED/DISMISSED`.
 
-**Design (ISA-18.2 pattern):**
+**Schema:** 5 columns added via idempotent ALTER TABLE (`status`, `resolved_by`, `resolved_at`, `resolution_note`, `resolution_category`) + status index.
 
-```
-OPEN → ACKNOWLEDGED → CONFIRMED (true positive) → CLOSED
-                    → DISMISSED (false positive) → CLOSED
-                    → ESCALATED → linked to note
-```
+**API:** 3 endpoints — `PATCH /events/:id/acknowledge` (requireAuth), `PATCH /events/:id/resolve` (requireAuth, body: status + note + category), `DELETE /events/:id` (SUPER_ADMIN only).
 
-**Schema additions to `machine_anomaly_events`:**
-
-| Column | Type | Purpose |
-|---|---|---|
-| `status` | TEXT | `OPEN`, `ACKNOWLEDGED`, `CONFIRMED`, `DISMISSED`, `CLOSED` |
-| `resolved_by` | TEXT | Username of operator who acted |
-| `resolved_at` | TIMESTAMPTZ | When the action was taken |
-| `resolution_note` | TEXT | Free-text reason (e.g., "planned maintenance", "sensor noise") |
-| `resolution_category` | TEXT | `TRUE_POSITIVE`, `FALSE_POSITIVE`, `PLANNED_MAINTENANCE`, `SENSOR_FAULT` |
-
-**API additions:**
-
-| Endpoint | Method | Auth | Purpose |
-|---|---|---|---|
-| `/events/:id/acknowledge` | PATCH | `requireAuth` | Set status=ACKNOWLEDGED |
-| `/events/:id/resolve` | PATCH | `requireAuth` | Set status=CONFIRMED/DISMISSED with note |
-| `/events/:id` | DELETE | `requireRole(SUPER_ADMIN)` | Hard-delete (admin only) |
-
-**Frontend:** Action buttons per event row: ACK, Dismiss, Confirm. Badge color changes by status.
+**Frontend:** Status badge per event row (color-coded: destructive=OPEN, outline=ACK, default=CONFIRMED, secondary=DISMISSED). Action buttons: ACK (OPEN), Confirm/Dismiss (OPEN/ACK), Delete (admin). i18n: en + it.
 
 ### C2 — Dashboard Redesign (Health Gauge + Timeline + Feature Drill-Down)
 
@@ -299,7 +277,7 @@ All anomaly interfaces (`IAnomalyResult`, `ITrackingStatus`, `IDetectorMetrics`,
 
 | Priority | Enhancement | Impact | Effort |
 |---|---|---|---|
-| **P0** | C1 — Event lifecycle (ACK/Dismiss/Confirm) | Users can manage false positives | Medium |
+| ~~P0~~ | ~~C1 — Event lifecycle (ACK/Dismiss/Confirm)~~ | ✅ Done | — |
 | **P1** | C2 — Dashboard redesign | Operator UX matches industrial standards | High |
 | **P1** | C6 — State persistence across restarts | Baselines survive service restarts | Low |
 | **P2** | C3 — CUSUM drift detection | Catches slow shifts Z-score misses | Medium |
