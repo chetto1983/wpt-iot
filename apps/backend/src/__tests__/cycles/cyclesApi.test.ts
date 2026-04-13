@@ -50,8 +50,11 @@ const requireRoleMock = vi.fn(
 
 // Mock cycle service
 const getCyclesMock = vi.fn();
-const exportCsvMock = vi.fn();
-const exportPdfMock = vi.fn();
+
+// Mock cycle export service
+const generateFilenameMock = vi.fn().mockReturnValue('registro_cicli_2026_04.csv');
+const generateCsvMock = vi.fn();
+const generatePdfMock = vi.fn();
 
 vi.mock('../../auth/authHooks.js', () => ({
   requireAuth: requireAuthMock,
@@ -61,8 +64,14 @@ vi.mock('../../auth/authHooks.js', () => ({
 vi.mock('../../services/cycleService.js', () => ({
   CycleService: {
     getCycles: getCyclesMock,
-    exportCsv: exportCsvMock,
-    exportPdf: exportPdfMock,
+  },
+}));
+
+vi.mock('../../services/cycleExportService.js', () => ({
+  CycleExportService: {
+    generateFilename: generateFilenameMock,
+    generateCsv: generateCsvMock,
+    generatePdf: generatePdfMock,
   },
 }));
 
@@ -74,7 +83,7 @@ const { cycleRoutes } = await import('../../routes/cycles.js');
 // ---------------------------------------------------------------------------
 async function buildTestServer(): Promise<FastifyInstance> {
   const app = Fastify({ logger: false });
-  await app.register(cycleRoutes);
+  await app.register(cycleRoutes, { prefix: '/api' });
   await app.ready();
   return app;
 }
@@ -100,7 +109,7 @@ function makeCycleRecord(overrides: Record<string, unknown> = {}) {
   };
 }
 
-describe('/api/cycles routes (RED — Phase 24)', () => {
+describe('/api/cycles routes', () => {
   let app: FastifyInstance;
 
   beforeEach(async () => {
@@ -217,11 +226,8 @@ describe('/api/cycles routes (RED — Phase 24)', () => {
   // Test 4: GET /api/cycles/export?format=csv returns CSV download
   // ==========================================================================
   it('GET /api/cycles/export?format=csv returns CSV download with correct headers', async () => {
-    exportCsvMock.mockResolvedValue({
-      content: 'Ciclo,Data,Operatore\n11,10/04/2026,MARIO ROSSI\n',
-      filename: 'registro_cicli_2026_04.csv',
-      contentType: 'text/csv; charset=utf-8',
-    });
+    generateFilenameMock.mockReturnValue('registro_cicli_2026_04.csv');
+    generateCsvMock.mockResolvedValue('Ciclo;Data;Operatore\n11;10/04/2026;MARIO ROSSI\n');
 
     const response = await app.inject({
       method: 'GET',
@@ -238,11 +244,8 @@ describe('/api/cycles routes (RED — Phase 24)', () => {
   // Test 5: GET /api/cycles/export?format=pdf returns PDF download
   // ==========================================================================
   it('GET /api/cycles/export?format=pdf returns PDF download with correct headers', async () => {
-    exportPdfMock.mockResolvedValue({
-      content: Buffer.from('pdf-content'),
-      filename: 'registro_cicli_2026_04.pdf',
-      contentType: 'application/pdf',
-    });
+    generateFilenameMock.mockReturnValue('registro_cicli_2026_04.pdf');
+    generatePdfMock.mockResolvedValue(Buffer.from('pdf-content'));
 
     const response = await app.inject({
       method: 'GET',
