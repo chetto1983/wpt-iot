@@ -130,6 +130,11 @@ export class MachineAnomalyEventService {
             warm,
             sample_count,
             top_contributors,
+            status,
+            resolved_by,
+            resolved_at,
+            resolution_note,
+            resolution_category,
             created_at
           FROM machine_anomaly_events
           WHERE flagged = true
@@ -146,6 +151,11 @@ export class MachineAnomalyEventService {
             warm,
             sample_count,
             top_contributors,
+            status,
+            resolved_by,
+            resolved_at,
+            resolution_note,
+            resolution_category,
             created_at
           FROM machine_anomaly_events
           ORDER BY observed_at DESC
