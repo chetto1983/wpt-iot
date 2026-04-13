@@ -85,7 +85,7 @@ Each `setInterval` tick created a new `AbortController` that was never stored or
 
 `getTrackingStatus()` returned `persistsAcrossRestart: true` but `toJSON()`/`fromJSON()` were never wired to lifecycle hooks.
 
-**Fix applied:** Changed to `false` to match reality. Wiring serialize/restore deferred to Phase C6.
+**Fix applied:** Originally changed to `false` to match reality. C6 subsequently wired `toJSON()`/`fromJSON()` to Fastify lifecycle hooks — `persistsAcrossRestart` is now `true` and truthful.
 
 ### FIX 8 — LOW: Top-K Scoring Ignores Feature Correlations (FIXED)
 
@@ -252,9 +252,9 @@ Require N-of-M consecutive anomalous samples before flagging (e.g., 3-of-5 rule)
 
 Implemented in FIX 8. `FEATURE_GROUPS` + `FEATURE_TO_GROUP` inverted index deduplicates correlated features before top-K selection. Currently groups `rmsCurrL1/L2/L3`; additional groups (e.g., line voltages) can be added to `FEATURE_GROUPS`.
 
-### C6 — State Persistence Across Restarts
+### C6 — State Persistence Across Restarts ✅ DONE
 
-Wire `toJSON()`/`fromJSON()` to Fastify `onClose`/`onReady` lifecycle hooks. Serialize to file or DB. Without it, every restart discards hours of accumulated baselines.
+Wired `toJSON()`/`fromJSON()` to Fastify lifecycle hooks. On `onClose`, detector state is serialized to `uploads/anomaly-state.json`. On plugin init, state is restored from disk before `start()`. Verified: stop/start cycle preserves observation count and mode baselines. `persistsAcrossRestart` now correctly reports `true`.
 
 ### C7 — Feedback Loop (Threshold Recalibration)
 
@@ -279,7 +279,7 @@ All anomaly interfaces (`IAnomalyResult`, `ITrackingStatus`, `IDetectorMetrics`,
 |---|---|---|---|
 | ~~P0~~ | ~~C1 — Event lifecycle (ACK/Dismiss/Confirm)~~ | ✅ Done | — |
 | **P1** | C2 — Dashboard redesign | Operator UX matches industrial standards | High |
-| **P1** | C6 — State persistence across restarts | Baselines survive service restarts | Low |
+| ~~P1~~ | ~~C6 — State persistence across restarts~~ | ✅ Done | — |
 | **P2** | C3 — CUSUM drift detection | Catches slow shifts Z-score misses | Medium |
 | ~~P2~~ | ~~C5 — Correlated feature grouping~~ | ✅ Done (FIX 8) | — |
 | **P2** | C4 — Persistence filter (N-of-M) | Reduces noise false positives | Low |

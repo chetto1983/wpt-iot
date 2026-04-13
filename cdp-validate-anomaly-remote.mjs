@@ -173,8 +173,8 @@ async function main() {
     check('tracking.active is true', tracking?.active === true);
     check('tracking.continuousLearning is true', tracking?.continuousLearning === true);
     check(
-      'BUG 7: persistsAcrossRestart is false (not lying)',
-      tracking?.persistsAcrossRestart === false,
+      'C6: persistsAcrossRestart is true (state persists to disk)',
+      tracking?.persistsAcrossRestart === true,
       `got ${tracking?.persistsAcrossRestart}`,
     );
     check(
