@@ -25,6 +25,15 @@ interface IAnomalyReplayResponse {
   };
 }
 
+interface IFeedbackStats {
+  totalResolved: number;
+  truePositives: number;
+  falsePositives: number;
+  fpRate: number | null;
+  tpRate: number | null;
+  suggestion: string | null;
+}
+
 type ReplayPreset = '6h' | '24h';
 
 interface MachineAnomalyCardProps {
@@ -69,21 +78,24 @@ export const MachineAnomalyCard = memo(function MachineAnomalyCard({
   const [loading, setLoading] = useState(true);
   const [replayLoading, setReplayLoading] = useState<ReplayPreset | null>(null);
   const [replaySummary, setReplaySummary] = useState<IAnomalyReplayResponse | null>(null);
+  const [feedback, setFeedback] = useState<IFeedbackStats | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<number | null>(null);
 
   const loadCard = useCallback(async (signal?: AbortSignal) => {
     try {
-      const [liveData, eventsData] = await Promise.all([
+      const [liveData, eventsData, feedbackData] = await Promise.all([
         apiFetch<IAnomalyLiveResponse>('/api/energy/anomaly/live', { signal }),
         apiFetch<IAnomalyEventsResponse>(`/api/energy/anomaly/events?limit=${eventLimit}&flaggedOnly=1`, {
           signal,
         }),
+        apiFetch<IFeedbackStats>('/api/energy/anomaly/feedback', { signal }),
       ]);
 
       startTransition(() => {
         setLive(liveData);
         setEvents(eventsData.events);
+        setFeedback(feedbackData);
         setError(null);
       });
     } catch (err) {
@@ -346,6 +358,42 @@ export const MachineAnomalyCard = memo(function MachineAnomalyCard({
                 )}
               </div>
             </div>
+
+            {feedback && feedback.totalResolved > 0 && (
+              <div className="rounded-lg border border-border/60 bg-background/40 p-4">
+                <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                  <BrainCircuit className="size-4 text-primary" />
+                  {t('anomaly.feedback.title')}
+                </div>
+                <div className="mt-3 grid grid-cols-2 gap-3 text-sm xl:grid-cols-4">
+                  <div>
+                    <span className="text-muted-foreground">{t('anomaly.feedback.resolved')}</span>
+                    <p className="font-semibold tabular-nums">{feedback.totalResolved}</p>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">{t('anomaly.feedback.tp')}</span>
+                    <p className="font-semibold tabular-nums">{feedback.truePositives}</p>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">{t('anomaly.feedback.fpRate')}</span>
+                    <p className="font-semibold tabular-nums">
+                      {feedback.fpRate !== null ? `${(feedback.fpRate * 100).toFixed(0)}%` : '—'}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">{t('anomaly.feedback.tpRate')}</span>
+                    <p className="font-semibold tabular-nums">
+                      {feedback.tpRate !== null ? `${(feedback.tpRate * 100).toFixed(0)}%` : '—'}
+                    </p>
+                  </div>
+                </div>
+                {feedback.suggestion && (
+                  <div className="mt-3 rounded-md border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-xs text-amber-700 dark:text-amber-400">
+                    <span className="font-semibold">{t('anomaly.feedback.suggestion')}:</span> {feedback.suggestion}
+                  </div>
+                )}
+              </div>
+            )}
 
             <div>
               <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-foreground">

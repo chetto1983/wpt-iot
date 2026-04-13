@@ -506,6 +506,22 @@ export class OnlineAnomalyDetector {
   // Metrics
   // -----------------------------------------------------------------------
 
+  /** C7: Expose current config for threshold inspection. */
+  getConfig(): Required<IDetectorConfig> {
+    return { ...this.config };
+  }
+
+  /** C7: Update config in-place (e.g. threshold recalibration). */
+  updateConfig(patch: Partial<IDetectorConfig>): void {
+    if (patch.warningThreshold !== undefined) this.config.warningThreshold = patch.warningThreshold;
+    if (patch.criticalThreshold !== undefined) this.config.criticalThreshold = patch.criticalThreshold;
+    if (patch.baseRate !== undefined) this.config.baseRate = patch.baseRate;
+    if (patch.cusumK !== undefined) this.config.cusumK = patch.cusumK;
+    if (patch.cusumH !== undefined) this.config.cusumH = patch.cusumH;
+    if (patch.persistenceN !== undefined) this.config.persistenceN = patch.persistenceN;
+    if (patch.persistenceM !== undefined) this.config.persistenceM = patch.persistenceM;
+  }
+
   getMetrics(): IDetectorMetrics {
     let warmModes = 0;
     for (const mode of this.modes.values()) {

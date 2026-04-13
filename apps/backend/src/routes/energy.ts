@@ -646,6 +646,46 @@ export const energyRoutes: FastifyPluginAsync = async (server) => {
     }
   });
 
+  // ── C7: Feedback loop — threshold recalibration suggestions ───────────
+
+  server.get('/energy/anomaly/feedback', { preHandler: requireAuth }, async (_request, reply) => {
+    try {
+      const stats = await MachineAnomalyEventService.getFeedbackStats();
+      return reply.send(stats);
+    } catch (err) {
+      server.log.error({ name: 'AnomalyFeedback', err: (err as Error).message }, 'Feedback stats failed');
+      return reply.code(500).send({ error: 'Internal error' });
+    }
+  });
+
+  server.patch('/energy/anomaly/thresholds', { preHandler: requireRole(UserRole.SUPER_ADMIN) }, async (request, reply) => {
+    const body = request.body as Record<string, unknown> | null;
+    const warning = typeof body?.warningThreshold === 'number' ? body.warningThreshold as number : undefined;
+    const critical = typeof body?.criticalThreshold === 'number' ? body.criticalThreshold as number : undefined;
+    if (warning === undefined && critical === undefined) {
+      return reply.code(400).send({ error: 'Provide warningThreshold and/or criticalThreshold' });
+    }
+    if (warning !== undefined && (warning < 1 || warning > 10)) {
+      return reply.code(400).send({ error: 'warningThreshold must be 1–10' });
+    }
+    if (critical !== undefined && (critical < 1 || critical > 15)) {
+      return reply.code(400).send({ error: 'criticalThreshold must be 1–15' });
+    }
+    if (warning !== undefined && critical !== undefined && warning >= critical) {
+      return reply.code(400).send({ error: 'warningThreshold must be less than criticalThreshold' });
+    }
+    // Update in-memory detector config — persisted on next shutdown via C6
+    const config = machineAnomalyService.getDetectorConfig();
+    if (warning !== undefined) config.warningThreshold = warning;
+    if (critical !== undefined) config.criticalThreshold = critical;
+    machineAnomalyService.updateDetectorConfig(config);
+    server.log.info(
+      { name: 'AnomalyFeedback', warningThreshold: warning, criticalThreshold: critical },
+      'Detector thresholds updated',
+    );
+    return reply.send({ warningThreshold: config.warningThreshold, criticalThreshold: config.criticalThreshold });
+  });
+
   // =========================================================================
   // Phase 20 — POST /api/energy/baseline/lock
   //

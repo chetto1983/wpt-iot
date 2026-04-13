@@ -258,7 +258,17 @@
         }
       },
       "resolvedBy": "Resolved by {user}",
-      "resolvedAt": "Resolved {date}"
+      "resolvedAt": "Resolved {date}",
+      "feedback": {
+        "title": "Feedback analysis",
+        "resolved": "Resolved events",
+        "tp": "True positives",
+        "fp": "False positives",
+        "fpRate": "FP rate",
+        "tpRate": "TP rate",
+        "noData": "Not enough resolved events (need 5+)",
+        "suggestion": "Suggestion"
+      }
     },
     "staleData": "Last update: {seconds}s ago",
     "noData": "---",

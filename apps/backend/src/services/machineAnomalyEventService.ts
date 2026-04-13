@@ -187,6 +187,59 @@ export class MachineAnomalyEventService {
     return row ? mapRow(row) : null;
   }
 
+  static async getFeedbackStats(): Promise<{
+    totalResolved: number;
+    truePositives: number;
+    falsePositives: number;
+    plannedMaintenance: number;
+    sensorFault: number;
+    fpRate: number | null;
+    tpRate: number | null;
+    suggestion: string | null;
+  }> {
+    const result = await db.execute(sql`
+      SELECT resolution_category, COUNT(*)::int AS cnt
+      FROM machine_anomaly_events
+      WHERE status IN ('CONFIRMED', 'DISMISSED')
+        AND resolution_category IS NOT NULL
+      GROUP BY resolution_category
+    `);
+    const rows = result.rows as Array<{ resolution_category: string; cnt: number }>;
+    const counts: Record<string, number> = {};
+    for (const row of rows) {
+      counts[row.resolution_category] = Number(row.cnt);
+    }
+
+    const tp = counts['TRUE_POSITIVE'] ?? 0;
+    const fp = counts['FALSE_POSITIVE'] ?? 0;
+    const pm = counts['PLANNED_MAINTENANCE'] ?? 0;
+    const sf = counts['SENSOR_FAULT'] ?? 0;
+    const total = tp + fp + pm + sf;
+
+    const fpRate = total > 0 ? (fp + pm + sf) / total : null;
+    const tpRate = total > 0 ? tp / total : null;
+
+    let suggestion: string | null = null;
+    if (total >= 5) {
+      if (fpRate !== null && fpRate > 0.3) {
+        suggestion = 'FP rate > 30% — consider raising warningThreshold';
+      } else if (tpRate !== null && tpRate < 0.5) {
+        suggestion = 'TP rate < 50% — consider lowering criticalThreshold';
+      }
+    }
+
+    return {
+      totalResolved: total,
+      truePositives: tp,
+      falsePositives: fp,
+      plannedMaintenance: pm,
+      sensorFault: sf,
+      fpRate,
+      tpRate,
+      suggestion,
+    };
+  }
+
   static async deleteEvent(id: number): Promise<boolean> {
     const result = await db.execute(sql`
       DELETE FROM machine_anomaly_events WHERE id = ${id}

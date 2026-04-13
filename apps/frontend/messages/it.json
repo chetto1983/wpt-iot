@@ -258,7 +258,17 @@
         }
       },
       "resolvedBy": "Risolto da {user}",
-      "resolvedAt": "Risolto {date}"
+      "resolvedAt": "Risolto {date}",
+      "feedback": {
+        "title": "Analisi feedback",
+        "resolved": "Eventi risolti",
+        "tp": "Veri positivi",
+        "fp": "Falsi positivi",
+        "fpRate": "Tasso FP",
+        "tpRate": "Tasso TP",
+        "noData": "Non ci sono abbastanza eventi risolti (servono 5+)",
+        "suggestion": "Suggerimento"
+      }
     },
     "staleData": "Ultimo aggiornamento: {seconds}s fa",
     "noData": "---",

@@ -7,6 +7,7 @@ import { MachineAnomalyEventService } from './machineAnomalyEventService.js';
 import {
   OnlineAnomalyDetector,
   type IAnomalyResult,
+  type IDetectorConfig,
   type IDetectorMetrics,
   type ISerializedDetector,
 } from './onlineAnomalyDetector.js';
@@ -121,6 +122,16 @@ export class MachineAnomalyService {
   /** Expose detector metrics for monitoring (Phase 4.2). */
   getDetectorMetrics(): IDetectorMetrics {
     return this.detector.getMetrics();
+  }
+
+  /** C7: Get current detector config (thresholds etc). */
+  getDetectorConfig(): IDetectorConfig {
+    return { ...this.detector.getConfig() };
+  }
+
+  /** C7: Update detector config in-place (persisted on next shutdown via C6). */
+  updateDetectorConfig(patch: Partial<IDetectorConfig>): void {
+    this.detector.updateConfig(patch);
   }
 
   private get persistCooldownMs(): number {
