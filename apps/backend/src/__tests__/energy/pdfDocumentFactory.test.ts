@@ -1,8 +1,7 @@
 import { createRequire } from 'node:module';
 import type pdfmakeType from 'pdfmake';
 import { describe, expect, it } from 'vitest';
-import { createDeterministicPdfBuffer } from '../../services/pdfDocumentFactory.js';
-import { ensurePdfFonts } from '../../services/pdfFonts.js';
+import { createDeterministicPdfBuffer, ensurePdfFonts } from '../../services/pdf/index.js';
 
 const require = createRequire(import.meta.url);
 const pdfmake = require('pdfmake') as typeof pdfmakeType;

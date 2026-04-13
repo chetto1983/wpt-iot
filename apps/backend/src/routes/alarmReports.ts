@@ -2,7 +2,7 @@ import type { FastifyPluginAsync } from 'fastify';
 import { UserRole, getAlarmFieldLabels } from '@wpt/types';
 import { requireRole } from '../auth/authHooks.js';
 import { ReportService } from '../services/reportService.js';
-import { PdfService } from '../services/pdfService.js';
+import { PdfService } from '../services/pdf/index.js';
 
 const ALARM_EXPORT_FIELDS = [
   'alarmCode',

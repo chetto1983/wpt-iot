@@ -706,7 +706,7 @@ export const energyRoutes: FastifyPluginAsync = async (server) => {
     const days = Number(query['days']) || 7;
     try {
       const data = await MachineAnomalyEventService.getReportData({ days });
-      const { createDeterministicPdfBuffer } = await import('../services/pdfDocumentFactory.js');
+      const { createDeterministicPdfBuffer } = await import('../services/pdf/index.js');
       const now = new Date();
 
       const tableBody = [

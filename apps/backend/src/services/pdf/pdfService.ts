@@ -1,6 +1,6 @@
 import { createRequire } from 'node:module';
 import type pdfmakeType from 'pdfmake';
-import { formatEnumValue } from '../i18n/enumLabels.js';
+import { formatEnumValue } from '../../i18n/enumLabels.js';
 import { createDeterministicPdfBuffer } from './pdfDocumentFactory.js';
 import { ensurePdfFonts } from './pdfFonts.js';
 

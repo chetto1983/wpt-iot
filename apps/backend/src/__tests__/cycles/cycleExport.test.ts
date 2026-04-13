@@ -33,13 +33,13 @@ vi.mock('../../db/index.js', () => ({
   },
 }));
 
-vi.mock('../../services/pdfDocumentFactory.js', () => ({
+vi.mock('../../services/pdf/index.js', () => ({
   createDeterministicPdfBuffer: vi.fn(() => Promise.resolve(mockPdfBuffer)),
 }));
 
 // Import SUT after mocks
 const { CycleExportService } = await import('../../services/cycleExportService.js');
-import { createDeterministicPdfBuffer } from '../../services/pdfDocumentFactory.js';
+import { createDeterministicPdfBuffer } from '../../services/pdf/index.js';
 
 // ---------------------------------------------------------------------------
 // Test data factories

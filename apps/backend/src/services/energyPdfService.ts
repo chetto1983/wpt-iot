@@ -22,7 +22,7 @@ import { EnergyAggregateService } from './energyAggregateService.js';
 import { EnergyBaselineService } from './energyBaselineService.js';
 import { EnergyConfigService } from './energyConfigService.js';
 import { EnergyDashboardService } from './energyDashboardService.js';
-import { createDeterministicPdfBuffer } from './pdfDocumentFactory.js';
+import { createDeterministicPdfBuffer } from './pdf/index.js';
 
 type PdfDocumentDefinition = Parameters<typeof createDeterministicPdfBuffer>[0];
 type PdfContent = Record<string, unknown>;

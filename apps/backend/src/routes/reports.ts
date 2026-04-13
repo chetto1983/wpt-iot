@@ -2,7 +2,7 @@ import type { FastifyPluginAsync } from 'fastify';
 import { UserRole, CLIENT_VISIBLE_FIELDS, WPT_VISIBLE_FIELDS, getFieldLabel } from '@wpt/types';
 import { requireAuth } from '../auth/authHooks.js';
 import { ReportService } from '../services/reportService.js';
-import { PdfService } from '../services/pdfService.js';
+import { PdfService } from '../services/pdf/index.js';
 import { formatEnumValue } from '../i18n/enumLabels.js';
 
 /**

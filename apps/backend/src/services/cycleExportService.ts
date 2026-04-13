@@ -16,7 +16,7 @@
 
 import { sql } from 'drizzle-orm';
 import { db } from '../db/index.js';
-import { createDeterministicPdfBuffer } from './pdfDocumentFactory.js';
+import { createDeterministicPdfBuffer } from './pdf/index.js';
 import { formatItDate, formatItDateTime } from '@wpt/types';
 
 // ---------------------------------------------------------------------------
