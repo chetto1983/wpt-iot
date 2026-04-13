@@ -1,7 +1,7 @@
 'use client';
 
 import { useRef, useState } from 'react';
-import { format } from 'date-fns';
+import { format, endOfDay } from 'date-fns';
 import { useTranslations } from 'next-intl';
 import { Clock, RefreshCw, Loader2 } from 'lucide-react';
 
@@ -181,7 +181,7 @@ export function TimeRangePicker({
                     mode="single"
                     selected={customFrom}
                     onSelect={(d) => d && setCustomFrom(d)}
-                    disabled={{ after: new Date() }}
+                    disabled={{ after: endOfDay(new Date()) }}
                   />
                   <Input
                     type="time"
@@ -198,7 +198,7 @@ export function TimeRangePicker({
                     mode="single"
                     selected={customTo}
                     onSelect={(d) => d && setCustomTo(d)}
-                    disabled={{ after: new Date() }}
+                    disabled={{ after: endOfDay(new Date()) }}
                   />
                   <Input
                     type="time"

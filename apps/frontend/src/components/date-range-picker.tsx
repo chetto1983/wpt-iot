@@ -1,7 +1,7 @@
 'use client';
 
 import type { DateRange, Locale } from 'react-day-picker';
-import { format } from 'date-fns';
+import { format, endOfDay } from 'date-fns';
 import { CalendarIcon } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
@@ -60,7 +60,7 @@ export function DateRangePicker({
           selected={value}
           onSelect={onChange}
           numberOfMonths={2}
-          disabled={{ after: new Date() }}
+          disabled={{ after: endOfDay(new Date()) }}
           locale={locale}
         />
       </PopoverContent>

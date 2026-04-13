@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { format, startOfMonth, subMonths } from 'date-fns';
+import { format, startOfMonth, subMonths, endOfDay } from 'date-fns';
 import { it } from 'date-fns/locale';
 import { CalendarIcon, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useTranslations } from 'next-intl';
@@ -166,7 +166,7 @@ export function MonthPicker({ value, onChange }: MonthPickerProps) {
             onSelect={handleMonthSelect}
             month={selectedDate}
             onMonthChange={setSelectedDate}
-            disabled={{ after: new Date() }}
+            disabled={{ after: endOfDay(new Date()) }}
             locale={it}
             className="rounded-md border"
           />
