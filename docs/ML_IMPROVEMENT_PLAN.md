@@ -251,13 +251,13 @@ Use accumulated TP/FP labels (from C1) to auto-suggest threshold adjustments:
 - If TP rate < 50%: suggest lowering `criticalThreshold`
 - Expose sensitivity slider in SUPER_ADMIN settings
 
-### C8 — Migrate `machine_anomaly_events` to Drizzle Schema
+### C8 — Migrate `machine_anomaly_events` to Drizzle Schema ✅ DONE
 
-Move from raw DDL in `ensureSchema()` to a proper Drizzle schema file in `db/schema/`. Consistency with every other table.
+Schema defined in `db/schema/anomaly.ts` (Drizzle pgTable). `ensureSchema()` consolidated — single CREATE TABLE with all columns + idempotent ALTER TABLE for pre-C1 deployments. Consistent with every other table.
 
-### C9 — Move Types to `@wpt/types`
+### C9 — Move Types to `@wpt/types` ✅ DONE
 
-All anomaly interfaces (`IAnomalyResult`, `ITrackingStatus`, `IDetectorMetrics`, etc.) are duplicated between backend and frontend. Move to shared types package.
+All anomaly interfaces moved to `packages/types/src/anomaly.ts`: `IAnomalyResult`, `IDetectorMetrics`, `IAnomalyTrackingStatus`, `IMachineAnomalyEvent`, `IAnomalyLiveResponse`, `IAnomalyEventsResponse`, `AnomalyEventStatus`, `ResolutionCategory`, `AnomalyLevel`. Backend and frontend import from `@wpt/types`. Zero duplication.
 
 ---
 
@@ -272,8 +272,8 @@ All anomaly interfaces (`IAnomalyResult`, `ITrackingStatus`, `IDetectorMetrics`,
 | ~~P2~~ | ~~C5 — Correlated feature grouping~~ | ✅ Done (FIX 8) | — |
 | ~~P2~~ | ~~C4 — Persistence filter (N-of-M)~~ | ✅ Done | — |
 | **P3** | C7 — Feedback loop | Auto-suggests threshold adjustments | Medium |
-| **P3** | C8 — Drizzle schema migration | Consistency | Low |
-| **P3** | C9 — Shared types | DRY | Low |
+| ~~P3~~ | ~~C8 — Drizzle schema migration~~ | ✅ Done | — |
+| ~~P3~~ | ~~C9 — Shared types~~ | ✅ Done | — |
 
 ---
 
