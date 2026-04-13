@@ -29,8 +29,8 @@ describe('OnlineAnomalyDetector', () => {
   it('keeps scores low for steady normal observations after warmup', () => {
     const detector = new OnlineAnomalyDetector({
       minWarmSamples: 20,
-      scoreThreshold: 3,
-      updateRate: 0.12,
+      criticalThreshold: 3,
+      baseRate: 0.12,
     });
 
     for (let i = 0; i < 30; i += 1) {
@@ -59,8 +59,10 @@ describe('OnlineAnomalyDetector', () => {
   it('flags a clear multivariate anomaly spike', () => {
     const detector = new OnlineAnomalyDetector({
       minWarmSamples: 15,
-      scoreThreshold: 3,
-      updateRate: 0.1,
+      minReliableSamples: 25,
+      criticalThreshold: 3,
+      baseRate: 0.1,
+      modeChangeGraceMs: 0, // disable grace period for unit test timing
     });
 
     for (let i = 0; i < 25; i += 1) {
@@ -91,8 +93,8 @@ describe('OnlineAnomalyDetector', () => {
   it('keeps separate baselines per operating mode', () => {
     const detector = new OnlineAnomalyDetector({
       minWarmSamples: 10,
-      scoreThreshold: 3,
-      updateRate: 0.1,
+      criticalThreshold: 3,
+      baseRate: 0.1,
     });
 
     for (let i = 0; i < 15; i += 1) {
@@ -143,8 +145,8 @@ describe('OnlineAnomalyDetector', () => {
   it('adapts to gradual drift without flagging every later sample', () => {
     const detector = new OnlineAnomalyDetector({
       minWarmSamples: 10,
-      scoreThreshold: 3.2,
-      updateRate: 0.2,
+      criticalThreshold: 3.2,
+      baseRate: 0.2,
     });
 
     for (let i = 0; i < 20; i += 1) {

@@ -920,7 +920,7 @@
   },
   "cycles": {
     "title": "Registro Mensile Cicli",
-    "subtitle": "Visualizzazione e esportazione del registro cicli mensile conforme al formato cliente",
+    "subtitle": "Visualizzazione e esportazione del registro cicli mensile",
     "view": {
       "register": "Registro",
       "detail": "Dettaglio"

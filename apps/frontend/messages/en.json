@@ -920,7 +920,7 @@
   },
   "cycles": {
     "title": "Monthly Cycle Register",
-    "subtitle": "View and export monthly cycle register matching customer format",
+    "subtitle": "View and export monthly cycle register",
     "view": {
       "register": "Register",
       "detail": "Detail"

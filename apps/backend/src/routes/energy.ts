@@ -451,14 +451,14 @@ export const energyRoutes: FastifyPluginAsync = async (server) => {
       .send({ error: 'Not Implemented — Phase 21 wires this' }),
   );
 
-  server.get('/energy/anomaly/live', async (_request, reply) =>
+  server.get('/energy/anomaly/live', { preHandler: requireAuth }, async (_request, reply) =>
     reply.send({
       tracking: machineAnomalyService.getTrackingStatus(),
       latest: machineAnomalyService.getLatest(),
     }),
   );
 
-  server.get('/energy/anomaly/events', async (request, reply) => {
+  server.get('/energy/anomaly/events', { preHandler: requireAuth }, async (request, reply) => {
     const parsed = anomalyEventsQuerySchema.safeParse(request.query);
     if (!parsed.success) {
       return reply
@@ -481,7 +481,7 @@ export const energyRoutes: FastifyPluginAsync = async (server) => {
     }
   });
 
-  server.post('/energy/anomaly/simulate', async (request, reply) => {
+  server.post('/energy/anomaly/simulate', { preHandler: requireAuth }, async (request, reply) => {
     const parsed = anomalySimulationSchema.safeParse(request.body);
     if (!parsed.success) {
       return reply
@@ -498,7 +498,7 @@ export const energyRoutes: FastifyPluginAsync = async (server) => {
     );
   });
 
-  server.post('/energy/anomaly/replay', async (request, reply) => {
+  server.post('/energy/anomaly/replay', { preHandler: requireAuth }, async (request, reply) => {
     const parsed = anomalyReplaySchema.safeParse(request.body);
     if (!parsed.success) {
       return reply
@@ -533,7 +533,7 @@ export const energyRoutes: FastifyPluginAsync = async (server) => {
     }
   });
 
-  server.post('/energy/anomaly/evaluate', async (request, reply) => {
+  server.post('/energy/anomaly/evaluate', { preHandler: requireAuth }, async (request, reply) => {
     const parsed = anomalyEvaluationSchema.safeParse(request.body);
     if (!parsed.success) {
       return reply

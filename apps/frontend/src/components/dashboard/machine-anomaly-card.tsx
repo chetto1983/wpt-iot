@@ -23,13 +23,24 @@ interface ILiveAnomalyState {
   topContributors: IAnomalyContributor[];
 }
 
+interface IDetectorMetrics {
+  totalObservations: number;
+  totalFlagged: number;
+  totalWarnings: number;
+  modesTracked: number;
+  warmModes: number;
+  uptimeMs: number;
+  gracePeriodsEntered: number;
+}
+
 interface ITrackingStatus {
   active: boolean;
   continuousLearning: true;
-  persistsAcrossRestart: false;
+  persistsAcrossRestart: boolean;
   startedAt: string | null;
   observationCount: number;
   lastObservedAt: string | null;
+  detectorMetrics: IDetectorMetrics;
 }
 
 interface IAnomalyLiveResponse {
@@ -142,8 +153,10 @@ export const MachineAnomalyCard = memo(function MachineAnomalyCard({
     void loadCard(controller.signal);
 
     const timer = setInterval(() => {
-      const pollController = new AbortController();
-      void loadCard(pollController.signal);
+      // Reuse the same controller — aborted on unmount
+      if (!controller.signal.aborted) {
+        void loadCard(controller.signal);
+      }
     }, 15000);
 
     return () => {
@@ -200,7 +213,9 @@ export const MachineAnomalyCard = memo(function MachineAnomalyCard({
               <h3 className="text-xl font-semibold text-foreground">{t('sections.anomaly')}</h3>
             </div>
           </div>
-          {live?.latest?.flagged ? (
+          {loading ? (
+            <Badge variant="outline"><Loader2 className="mr-1 size-3 animate-spin" />{t('anomaly.loading')}</Badge>
+          ) : live?.latest?.flagged ? (
             <Badge variant="destructive">{t('anomaly.state.flagged')}</Badge>
           ) : (
             <Badge variant="secondary">{t('anomaly.state.normal')}</Badge>

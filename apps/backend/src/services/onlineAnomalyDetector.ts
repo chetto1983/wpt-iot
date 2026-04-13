@@ -73,7 +73,10 @@ export interface IDetectorMetrics {
 
 interface IWelfordState {
   count: number;
+  /** Exact running mean — used ONLY for Welford M2 math. Never touch outside Welford step. */
   mean: number;
+  /** EMA-tracked mean — adaptive reference for z-score computation. */
+  emaMean: number;
   m2: number;
   decayedVariance: number;
 }
@@ -92,6 +95,7 @@ interface IModeState {
 export interface ISerializedWelfordState {
   count: number;
   mean: number;
+  emaMean: number;
   m2: number;
   decayedVariance: number;
 }
@@ -271,7 +275,7 @@ export class OnlineAnomalyDetector {
       if (!state || state.count < 2) continue;
 
       const sigma = Math.sqrt(Math.max(state.decayedVariance, EPSILON));
-      const rawZScore = Math.abs((value - state.mean) / sigma);
+      const rawZScore = Math.abs((value - state.emaMean) / sigma);
       const zScore = Number.isFinite(rawZScore)
         ? Math.min(rawZScore, this.config.maxFeatureZScore)
         : this.config.maxFeatureZScore;
@@ -309,7 +313,8 @@ export class OnlineAnomalyDetector {
     const modeKey = toModeKey(input);
 
     // Detect mode transition for grace period
-    if (this.currentModeKey !== null && this.currentModeKey !== modeKey) {
+    const modeChanged = this.currentModeKey !== null && this.currentModeKey !== modeKey;
+    if (modeChanged) {
       this.gracePeriodsEntered += 1;
     }
     this.currentModeKey = modeKey;
@@ -319,15 +324,18 @@ export class OnlineAnomalyDetector {
     if (!mode) {
       mode = { samplesSeen: 0, features: new Map<string, IWelfordState>(), enteredAt: Date.now() };
       this.modes.set(modeKey, mode);
+    } else if (modeChanged) {
+      // Reset grace period on every re-entry, not just first creation
+      mode.enteredAt = Date.now();
     }
 
     // Score first (read-only)
     const result = this.score(input);
 
-    // Quarantine: during grace period, raise the bar so transition noise
-    // doesn't pollute the baseline.
+    // Quarantine: during grace period, use tighter threshold to reject
+    // transition spikes. Normal mode uses the wider multiplier.
     const quarantineThreshold = result.inGracePeriod
-      ? this.config.criticalThreshold * this.config.quarantineMultiplier
+      ? this.config.warningThreshold
       : this.config.criticalThreshold * this.config.quarantineMultiplier;
 
     const shouldUpdate = result.score < quarantineThreshold || !result.warm;
@@ -339,17 +347,17 @@ export class OnlineAnomalyDetector {
 
         let state = mode.features.get(feature);
         if (!state) {
-          state = { count: 1, mean: value, m2: 0, decayedVariance: 1 };
+          state = { count: 1, mean: value, emaMean: value, m2: 0, decayedVariance: 1 };
           mode.features.set(feature, state);
           continue;
         }
 
-        // Welford online update
+        // Welford online update — canonical form (count first)
+        state.count += 1;
         const delta = value - state.mean;
-        state.mean += delta / (state.count + 1);
+        state.mean += delta / state.count;
         const delta2 = value - state.mean;
         state.m2 += delta * delta2;
-        state.count += 1;
 
         // Adaptive learning rate
         const alpha = this.config.adaptiveRate
@@ -362,9 +370,9 @@ export class OnlineAnomalyDetector {
           this.config.varianceDecayFactor * state.decayedVariance +
           (1 - this.config.varianceDecayFactor) * currentVariance;
 
-        // EMA blend for mean
+        // EMA blend — updates emaMean only, never touches Welford mean
         if (alpha > 0 && state.count > 1) {
-          state.mean = (1 - alpha) * state.mean + alpha * value;
+          state.emaMean = (1 - alpha) * state.emaMean + alpha * value;
         }
       }
       mode.samplesSeen += 1;
@@ -449,7 +457,8 @@ export class OnlineAnomalyDetector {
     for (const [modeKey, modeData] of Object.entries(data.modes)) {
       const features = new Map<string, IWelfordState>();
       for (const [fname, fdata] of Object.entries(modeData.features)) {
-        features.set(fname, { ...fdata });
+        // Backward-compat: old serialized states lack emaMean
+        features.set(fname, { ...fdata, emaMean: fdata.emaMean ?? fdata.mean });
       }
       detector.modes.set(modeKey, {
         samplesSeen: modeData.samplesSeen,

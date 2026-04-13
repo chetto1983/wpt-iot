@@ -96,7 +96,7 @@ export class MachineAnomalyService {
     return {
       active: this.handler !== null,
       continuousLearning: true,
-      persistsAcrossRestart: true,
+      persistsAcrossRestart: false,
       startedAt: this.startedAt?.toISOString() ?? null,
       observationCount: this.observationCount,
       lastObservedAt: this.latest?.observedAt ?? null,
