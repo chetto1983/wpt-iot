@@ -4,8 +4,8 @@ import type {
   IMachineAnomalyEvent,
   ResolutionCategory,
 } from '@wpt/types';
-import { db } from '../db/index.js';
-import type { ILiveAnomalyState } from './machineAnomalyService.js';
+import { db } from '../../db/index.js';
+import type { ILiveAnomalyState } from './types.js';
 
 interface IEventRow {
   id: number | string;

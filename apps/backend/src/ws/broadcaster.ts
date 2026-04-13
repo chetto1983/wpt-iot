@@ -8,7 +8,7 @@ import { latestState } from '../cache/latestState.js';
 import { filterByRole } from '../services/filterByRole.js';
 import { getAlarmDescription } from '../i18n/alarmDescriptions.js';
 import { getActiveAlarmIndices } from '../persistence/alarmStore.js';
-import { machineAnomalyService } from '../services/machineAnomalyService.js';
+import { machineAnomalyService } from '../services/anomaly/index.js';
 import { db } from '../db/index.js';
 import { sessions } from '../db/schema/auth.js';
 import type { IWsClient } from './types.js';

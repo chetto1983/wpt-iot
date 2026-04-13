@@ -7,7 +7,7 @@ vi.mock('../db/index.js', () => ({
 }));
 
 import { db } from '../db/index.js';
-import { MachineAnomalyEventService } from '../services/machineAnomalyEventService.js';
+import { MachineAnomalyEventService } from '../services/anomaly/index.js';
 
 describe('MachineAnomalyEventService', () => {
   beforeEach(() => {

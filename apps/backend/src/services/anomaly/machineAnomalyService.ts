@@ -1,12 +1,13 @@
 import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import type { IMachineSnapshot } from '@wpt/types';
-import { dataHub } from '../events/hub.js';
-import { DATA_EVENTS } from '../events/types.js';
+import { dataHub } from '../../events/hub.js';
+import { DATA_EVENTS } from '../../events/types.js';
 import { MachineAnomalyEventService } from './machineAnomalyEventService.js';
+import type { ILiveAnomalyState } from './types.js';
+export type { ILiveAnomalyState } from './types.js';
 import {
   OnlineAnomalyDetector,
-  type IAnomalyResult,
   type IDetectorConfig,
   type IDetectorMetrics,
   type ISerializedDetector,
@@ -17,10 +18,6 @@ const STATE_FILE = path.resolve('uploads', 'anomaly-state.json');
 interface ILogger {
   info(obj: Record<string, unknown>, msg: string): void;
   error(obj: Record<string, unknown>, msg: string): void;
-}
-
-export interface ILiveAnomalyState extends IAnomalyResult {
-  observedAt: string;
 }
 
 interface IAnomalyTrackingStatus {

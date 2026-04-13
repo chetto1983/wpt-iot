@@ -7,15 +7,14 @@ vi.mock('../events/hub.js', () => ({
   },
 }));
 
-vi.mock('../services/machineAnomalyEventService.js', () => ({
+vi.mock('../services/anomaly/machineAnomalyEventService.js', () => ({
   MachineAnomalyEventService: {
     recordEvent: vi.fn().mockResolvedValue(undefined),
   },
 }));
 
 import { dataHub } from '../events/hub.js';
-import { machineAnomalyService } from '../services/machineAnomalyService.js';
-import { MachineAnomalyEventService } from '../services/machineAnomalyEventService.js';
+import { machineAnomalyService, MachineAnomalyEventService } from '../services/anomaly/index.js';
 
 const mockLog = {
   info: vi.fn(),

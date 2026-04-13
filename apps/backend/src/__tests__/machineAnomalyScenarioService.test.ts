@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { MachineAnomalyScenarioService } from '../services/machineAnomalyScenarioService.js';
+import { MachineAnomalyScenarioService } from '../services/anomaly/index.js';
 
 describe('MachineAnomalyScenarioService', () => {
   it.each([

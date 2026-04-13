@@ -1,7 +1,7 @@
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { sql } from 'drizzle-orm';
 import { db, pool } from '../db/index.js';
-import { MachineAnomalyReplayService } from '../services/machineAnomalyReplayService.js';
+import { MachineAnomalyReplayService } from '../services/anomaly/index.js';
 
 const WINDOW_FROM = new Date('2099-04-09T08:00:00.000Z');
 const WINDOW_TO = new Date('2099-04-09T11:00:00.000Z');

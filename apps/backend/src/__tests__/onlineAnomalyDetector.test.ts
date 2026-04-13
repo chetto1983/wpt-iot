@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   OnlineAnomalyDetector,
   type IAnomalyInput,
-} from '../services/onlineAnomalyDetector.js';
+} from '../services/anomaly/index.js';
 
 function makeSample(overrides: Partial<IAnomalyInput> = {}): IAnomalyInput {
   return {

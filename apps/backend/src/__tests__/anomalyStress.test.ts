@@ -8,7 +8,7 @@ import { describe, expect, it } from 'vitest';
 import {
   OnlineAnomalyDetector,
   type IAnomalyInput,
-} from '../services/onlineAnomalyDetector.js';
+} from '../services/anomaly/index.js';
 
 /** Baseline steady-state sample — all 33 features at normal values. */
 function baseline(overrides: Partial<IAnomalyInput> = {}): IAnomalyInput {

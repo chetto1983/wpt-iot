@@ -9,7 +9,7 @@ import { MqttConfigService } from './mqtt/configService.js';
 import { SparkplugService } from './mqtt/sparkplugService.js';
 import { CloudUplinkWorker } from './mqtt/cloudUplinkWorker.js';
 import { EnergyConfigService, EnergyBaselineService } from './services/energy/index.js';
-import { MachineAnomalyEventService } from './services/machineAnomalyEventService.js';
+import { MachineAnomalyEventService } from './services/anomaly/index.js';
 import { PlcConfigService, setPlcConfigLogger } from './udp/plcConfigService.js';
 import { MachineSchemaMigrationService } from './db/machineSchemaMigrationService.js';
 import { pool } from './db/index.js';

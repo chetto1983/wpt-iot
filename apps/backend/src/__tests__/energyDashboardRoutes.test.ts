@@ -37,7 +37,7 @@ vi.mock('../persistence/cyclePersister.js', () => ({
   startCyclePersister: vi.fn(),
 }));
 
-vi.mock('../services/machineAnomalyService.js', () => ({
+vi.mock('../services/anomaly/machineAnomalyService.js', () => ({
   machineAnomalyService: {
     start: vi.fn(),
     stop: vi.fn(),

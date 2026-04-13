@@ -7,7 +7,7 @@ vi.mock('../db/index.js', () => ({
 }));
 
 import { db } from '../db/index.js';
-import { MachineAnomalyReplayService } from '../services/machineAnomalyReplayService.js';
+import { MachineAnomalyReplayService } from '../services/anomaly/index.js';
 
 describe('MachineAnomalyReplayService', () => {
   beforeEach(() => {

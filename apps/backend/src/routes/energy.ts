@@ -13,11 +13,13 @@ import {
   EnergyConfigService,
   EnergyPdfService,
 } from '../services/energy/index.js';
-import { machineAnomalyService } from '../services/machineAnomalyService.js';
-import { MachineAnomalyEvaluationService } from '../services/machineAnomalyEvaluationService.js';
-import { MachineAnomalyEventService } from '../services/machineAnomalyEventService.js';
-import { MachineAnomalyReplayService } from '../services/machineAnomalyReplayService.js';
-import { MachineAnomalyScenarioService } from '../services/machineAnomalyScenarioService.js';
+import {
+  machineAnomalyService,
+  MachineAnomalyEvaluationService,
+  MachineAnomalyEventService,
+  MachineAnomalyReplayService,
+  MachineAnomalyScenarioService,
+} from '../services/anomaly/index.js';
 import { startV03CycleTracker } from '../persistence/v03CycleTracker.js';
 import { startCyclePersister } from '../persistence/cyclePersister.js';
 import {
