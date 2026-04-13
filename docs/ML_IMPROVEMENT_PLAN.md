@@ -228,25 +228,13 @@ Implemented ISA-18.2 event lifecycle: `OPEN → ACKNOWLEDGED → CONFIRMED/DISMI
 | WARNING | Amber `#f59e0b` | Action required soon |
 | NORMAL | Green (accent of `#1ABC9C`) | Healthy state |
 
-### C3 — CUSUM Drift Detection
+### C3 — CUSUM Drift Detection ✅ DONE
 
-Current system misses slow persistent shifts that never cross the instantaneous Z threshold. CUSUM detects a 1-sigma mean shift in ~10 samples vs ~44 for Z-score. ISO 7870-4 standard.
+Two-sided CUSUM (ISO 7870-4) on composite score per mode. Detects slow persistent shifts (~1-sigma) in ~10 samples vs ~44 for z-score. Config: `cusumK=0.5` (allowance), `cusumH=4.0` (decision boundary). Resets after trigger. `driftDetected` field added to `IAnomalyResult`. CUSUM state serialized for persistence across restarts.
 
-```typescript
-class CUSUMTracker {
-  private posCumSum = 0;
-  private negCumSum = 0;
-  update(zScore: number, k = 0.5, h = 4.0) {
-    this.posCumSum = Math.max(0, this.posCumSum + zScore - k);
-    this.negCumSum = Math.min(0, this.negCumSum + zScore + k);
-    return { alarm: this.posCumSum > h || this.negCumSum < -h };
-  }
-}
-```
+### C4 — Persistence Filter (N-of-M Rule) ✅ DONE
 
-### C4 — Persistence Filter (N-of-M Rule)
-
-Require N-of-M consecutive anomalous samples before flagging (e.g., 3-of-5 rule). Eliminates single-sample sensor noise spikes.
+Sliding window N-of-M filter (default 3-of-5). Single-sample noise spikes no longer flag — requires N anomalous samples in the last M. CUSUM drift counts as a flaggable sample. Config: `persistenceN=3`, `persistenceM=5`. Window state serialized.
 
 ### C5 — Correlated Feature Grouping ✅ DONE
 
@@ -280,9 +268,9 @@ All anomaly interfaces (`IAnomalyResult`, `ITrackingStatus`, `IDetectorMetrics`,
 | ~~P0~~ | ~~C1 — Event lifecycle (ACK/Dismiss/Confirm)~~ | ✅ Done | — |
 | **P1** | C2 — Dashboard redesign | Operator UX matches industrial standards | High |
 | ~~P1~~ | ~~C6 — State persistence across restarts~~ | ✅ Done | — |
-| **P2** | C3 — CUSUM drift detection | Catches slow shifts Z-score misses | Medium |
+| ~~P2~~ | ~~C3 — CUSUM drift detection~~ | ✅ Done | — |
 | ~~P2~~ | ~~C5 — Correlated feature grouping~~ | ✅ Done (FIX 8) | — |
-| **P2** | C4 — Persistence filter (N-of-M) | Reduces noise false positives | Low |
+| ~~P2~~ | ~~C4 — Persistence filter (N-of-M)~~ | ✅ Done | — |
 | **P3** | C7 — Feedback loop | Auto-suggests threshold adjustments | Medium |
 | **P3** | C8 — Drizzle schema migration | Consistency | Low |
 | **P3** | C9 — Shared types | DRY | Low |
