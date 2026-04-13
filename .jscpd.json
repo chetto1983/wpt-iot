@@ -1,0 +1,14 @@
+{
+  "minLines": 3,
+  "minTokens": 25,
+  "format": ["typescript", "tsx"],
+  "ignore": [
+    "**/node_modules/**",
+    "**/dist/**",
+    "**/.next/**",
+    "**/SC_Complete_wpt-40-local-server/**"
+  ],
+  "reporters": ["json", "console"],
+  "output": "../.planning/phases/27-codebase-scan-audit/raw",
+  "absolute": true
+}
