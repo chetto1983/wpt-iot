@@ -168,6 +168,25 @@ const NUMERIC_FEATURES = [
 
 const EPSILON = 1e-6;
 
+/**
+ * Correlated feature groups — take max z-score per group before top-K
+ * to prevent a single electrical anomaly from inflating the composite
+ * score by occupying all K slots (FIX 8).
+ */
+const FEATURE_GROUPS: ReadonlyArray<readonly string[]> = [
+  ['rmsCurrL1', 'rmsCurrL2', 'rmsCurrL3'],
+] as const;
+
+/** Inverted index: feature name → group index (undefined = ungrouped). */
+const FEATURE_TO_GROUP = new Map<string, number>();
+for (let gi = 0; gi < FEATURE_GROUPS.length; gi++) {
+  const group = FEATURE_GROUPS[gi];
+  if (!group) continue;
+  for (const f of group) {
+    FEATURE_TO_GROUP.set(f, gi);
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -282,8 +301,26 @@ export class OnlineAnomalyDetector {
       contributors.push({ feature, zScore });
     }
 
-    contributors.sort((a, b) => b.zScore - a.zScore);
-    const topContributors = contributors.slice(0, this.config.topK);
+    // FIX 8: Group correlated features — take max per group before top-K
+    // to prevent one electrical anomaly from inflating the score by N×.
+    const groupMax = new Map<number, { feature: string; zScore: number }>();
+    const ungrouped: Array<{ feature: string; zScore: number }> = [];
+
+    for (const c of contributors) {
+      const gi = FEATURE_TO_GROUP.get(c.feature);
+      if (gi != null) {
+        const prev = groupMax.get(gi);
+        if (!prev || c.zScore > prev.zScore) {
+          groupMax.set(gi, c);
+        }
+      } else {
+        ungrouped.push(c);
+      }
+    }
+
+    const deduped = [...groupMax.values(), ...ungrouped];
+    deduped.sort((a, b) => b.zScore - a.zScore);
+    const topContributors = deduped.slice(0, this.config.topK);
     const rawScore =
       topContributors.length === 0
         ? 0

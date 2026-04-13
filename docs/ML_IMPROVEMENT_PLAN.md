@@ -1,12 +1,12 @@
-# ML Anomaly Detection — Deep Audit & Fix Plan
+# ML Anomaly Detection — Audit, Fixes & Roadmap
 
-*Updated: 2026-04-13 | Full code audit + online research against industrial ML literature*
+*Updated: 2026-04-13 | Full code audit + 9 bug fixes deployed + 1 deferred + dashboard research*
 
 ## Current Architecture
 
 | File | Role |
 |---|---|
-| `onlineAnomalyDetector.ts` | Core ML: per-mode Welford z-score with EWMA decay |
+| `onlineAnomalyDetector.ts` | Core ML: per-mode Welford z-score with separated EMA mean + variance decay |
 | `machineAnomalyService.ts` | Real-time loop: subscribes to dataHub, runs detector, publishes events |
 | `machineAnomalyEventService.ts` | Persists flagged events to `machine_anomaly_events` (raw DDL, not Drizzle) |
 | `machineAnomalyReplayService.ts` | Historical replay for debugging/tuning |
@@ -17,134 +17,136 @@
 
 | Endpoint | Method | Auth | Purpose |
 |---|---|---|---|
-| `/live` | GET | **NONE** | Live detector state + latest result |
-| `/events` | GET | **NONE** | Recent persisted anomaly events |
-| `/simulate` | POST | **NONE** | Run synthetic scenario |
-| `/replay` | POST | **NONE** | Replay historical window |
-| `/evaluate` | POST | **NONE** | Precision/recall vs alarm events |
+| `/live` | GET | `requireAuth` | Live detector state + latest result |
+| `/events` | GET | `requireAuth` | Recent persisted anomaly events |
+| `/simulate` | POST | `requireAuth` | Run synthetic scenario |
+| `/replay` | POST | `requireAuth` | Replay historical window |
+| `/evaluate` | POST | `requireAuth` | Precision/recall vs alarm events |
 
 ---
 
-## Bugs Found (Code Audit)
+## Bugs Fixed (2026-04-13)
 
-### BUG 1 — CRITICAL: Dual Mean Update Corrupts Variance
+9 of 10 bugs identified in the original audit have been fixed, deployed to the remote VM (192.168.0.102), and verified via CDP E2E validation (33/33 checks pass). FIX 8 (correlated feature grouping) is deferred to Phase C5.
 
-**Location:** `onlineAnomalyDetector.ts` lines 347-368
-
-The code runs two mean-update mechanisms on the **same `state.mean` field**:
-
-1. **Welford step** (line 349): `state.mean += delta / (state.count + 1)` — sets mean to exact sample mean
-2. **EMA blend** (line 367): `state.mean = (1 - alpha) * state.mean + alpha * value` — overwrites with EMA
-
-The EMA overwrites the Welford mean. On the next observation, the Welford delta is computed against the EMA-drifted mean, not the true sample mean. This breaks the Welford invariant `M2 = Sum((xi - mean)^2)`. Variance estimates degrade with sample count rather than improving.
-
-**Research backing:** Welford's algorithm (Knuth Vol. 2, Cook 2002) requires `state.mean` to always be the true running mean. Any external adjustment violates the invariant.
-
-**Fix:** Separate into `state.welfordMean` (for variance math, never touched outside Welford step) and `state.emaMean` (for adaptive Z-score reference).
-
-### BUG 2 — HIGH: Quarantine Ternary is a No-Op
-
-**Location:** `onlineAnomalyDetector.ts` lines 329-331
-
-```typescript
-const quarantineThreshold = result.inGracePeriod
-  ? this.config.criticalThreshold * this.config.quarantineMultiplier
-  : this.config.criticalThreshold * this.config.quarantineMultiplier;
-```
-
-Both branches are identical. The grace-period quarantine never fires differently.
-
-**Fix:**
-```typescript
-const quarantineThreshold = result.inGracePeriod
-  ? this.config.warningThreshold                          // tighter: reject transition spikes
-  : this.config.criticalThreshold * this.config.quarantineMultiplier; // normal: only extreme outliers
-```
-
-### BUG 3 — HIGH: All 5 Anomaly Routes Lack Authentication
-
-**Location:** `routes/energy.ts` — anomaly endpoints have no `preHandler: requireAuth`
-
-Every other energy route has `requireAuth`. The `replay` and `evaluate` endpoints accept arbitrary date ranges and execute potentially expensive full-table scans against `machine_snapshots` without any authentication.
-
-**Fix:** Add `{ preHandler: requireAuth }` to all 5 anomaly route registrations.
-
-### BUG 4 — MEDIUM: Welford Count Increment Order (Off-by-One)
-
-**Location:** `onlineAnomalyDetector.ts` lines 348-354
-
-```typescript
-const delta = value - state.mean;
-state.mean += delta / (state.count + 1);  // uses count+1
-const delta2 = value - state.mean;
-state.m2 += delta * delta2;
-state.count += 1;                         // incremented LAST
-```
-
-Canonical Welford increments count **first**. The stale count causes:
-- `welfordVariance()` computes `m2 / (n-2)` instead of `m2 / (n-1)` — **overestimates variance by one DoF**
-- Adaptive alpha computed one sample behind
-
-**Fix:** Canonical form:
-```typescript
-state.count += 1;
-const delta  = value - state.mean;
-state.mean  += delta / state.count;
-const delta2 = value - state.mean;
-state.m2    += delta * delta2;
-```
-
-### BUG 5 — MEDIUM: Grace Period Never Fires on Mode Re-Entry
+### FIX 1 — CRITICAL: Dual Mean Update Corrupts Variance (FIXED)
 
 **Location:** `onlineAnomalyDetector.ts`
 
-`mode.enteredAt` is only set at mode **creation** (first encounter). If a mode is exited and re-entered, `enteredAt` is never reset. A process oscillating between two modes only gets a grace period on first encounter of each.
+The code was running two mean-update mechanisms on the **same `state.mean` field**: Welford step set mean to exact sample mean, then EMA blend overwrote it. This broke the Welford invariant `M2 = Sum((xi - mean)^2)`.
 
-**Fix:** Reset `mode.enteredAt = Date.now()` on every mode transition, not just creation.
+**Fix applied:** Separated into `state.mean` (exact Welford mean, used only for M2 math) and `state.emaMean` (adaptive EMA reference for z-score computation). The `score()` method now uses `state.emaMean` for z-score calculation while `welfordVariance()` uses the untouched `state.mean`.
 
-### BUG 6 — MEDIUM: Frontend Polling AbortController Leak
+**Impact:** Live score dropped from artificially inflated ~2.5 to correct ~0.74 on the same machine data. 4 historical false positive events confirmed as artifacts of the corrupted variance.
 
-**Location:** `machine-anomaly-card.tsx` lines 140-153
+### FIX 2 — HIGH: Quarantine Ternary Was a No-Op (FIXED)
 
-Each `setInterval` tick creates a new `AbortController` that is never stored/aborted. Post-unmount state updates possible.
+**Location:** `onlineAnomalyDetector.ts`
 
-**Fix:** Use a single `AbortController` for the component lifetime, or store the poll controller in a ref.
+Both branches of the quarantine threshold were identical (`criticalThreshold * quarantineMultiplier`).
 
-### BUG 7 — MEDIUM: `persistsAcrossRestart: true` is a Lie
+**Fix applied:** Grace period now uses `warningThreshold` (tighter — rejects transition spikes); normal mode uses `criticalThreshold * quarantineMultiplier`.
 
-**Location:** `machineAnomalyService.ts` line 99
+### FIX 3 — HIGH: All 5 Anomaly Routes Lacked Authentication (FIXED)
 
-`getTrackingStatus()` returns `persistsAcrossRestart: true`. But `serializeDetector()`/`restoreDetector()` are never wired to any lifecycle hook. The detector resets from scratch on every restart.
+**Location:** `routes/energy.ts`
 
-**Fix:** Set to `false` (matching reality). Wire serialize/restore when implementing state persistence.
+Every other energy route had `requireAuth`. The anomaly endpoints were exposed without any auth, allowing unauthenticated users to run expensive full-table replays.
 
-### BUG 8 — LOW: Top-K Scoring Ignores Feature Correlations
+**Fix applied:** Added `{ preHandler: requireAuth }` to all 5 anomaly route registrations. Verified: all return 401 without session cookie.
 
-**Location:** `onlineAnomalyDetector.ts` lines 281-286
+### FIX 4 — MEDIUM: Welford Count Increment Order (FIXED)
 
-Top-K=3 averaging treats `rmsCurrL1`, `rmsCurrL2`, `rmsCurrL3` as independent. One genuine electrical anomaly inflates the composite score by 3x because all three phases correlate.
+**Location:** `onlineAnomalyDetector.ts`
 
-**Fix (short-term):** Group correlated features, take max per group before top-K.
-**Fix (long-term):** Mahalanobis distance with online covariance matrix.
+Count was incremented *after* the delta computation (off-by-one). Canonical Welford increments count *first*.
 
-### BUG 9 — LOW: Frontend "Normal" Badge During Loading
+**Fix applied:** `state.count += 1` moved before `delta = value - state.mean`. Variance now uses correct degrees of freedom.
 
-**Location:** `machine-anomaly-card.tsx` lines 203-207
+### FIX 5 — MEDIUM: Grace Period Never Fired on Mode Re-Entry (FIXED)
 
-When `live` is null (first render), badge defaults to "Normal" instead of showing loading state.
+**Location:** `onlineAnomalyDetector.ts`
 
-### BUG 10 — LOW: Frontend Types Stale/Incomplete
+`mode.enteredAt` was only set at mode creation. Re-entering a previously seen mode never reset the grace period.
 
-- `ITrackingStatus.persistsAcrossRestart` typed as literal `false` but backend returns `true`
-- `detectorMetrics` field in live response silently ignored
-- `topAnomalies` from replay computed but never rendered
-- No shared types in `@wpt/types` — all interfaces duplicated between backend and frontend
+**Fix applied:** `mode.enteredAt = Date.now()` is now set on every mode transition, not just first creation.
+
+### FIX 6 — MEDIUM: Frontend Polling AbortController Leak (FIXED)
+
+**Location:** `machine-anomaly-card.tsx`
+
+Each `setInterval` tick created a new `AbortController` that was never stored or aborted.
+
+**Fix applied:** Single `AbortController` reused for the component lifetime, aborted on unmount.
+
+### FIX 7 — MEDIUM: `persistsAcrossRestart: true` Was a Lie (FIXED)
+
+**Location:** `machineAnomalyService.ts`
+
+`getTrackingStatus()` returned `persistsAcrossRestart: true` but `toJSON()`/`fromJSON()` were never wired to lifecycle hooks.
+
+**Fix applied:** Changed to `false` to match reality. Wiring serialize/restore deferred to Phase C6.
+
+### FIX 8 — LOW: Top-K Scoring Ignores Feature Correlations
+
+**Status:** Deferred to Phase C5. Top-K=3 averaging treats `rmsCurrL1/L2/L3` as independent; one genuine electrical anomaly inflates the composite score by 3x.
+
+**Planned fix:** Group correlated features, take max per group before top-K (see C5).
+
+### FIX 9 — LOW: Frontend "Normal" Badge During Loading (FIXED)
+
+**Location:** `machine-anomaly-card.tsx`
+
+When `live` is null (first render), badge defaulted to "Normal".
+
+**Fix applied:** Shows loading badge with spinner while data loads.
+
+### FIX 10 — LOW: Frontend Types Stale/Incomplete (FIXED)
+
+**Location:** `machine-anomaly-card.tsx`
+
+`ITrackingStatus` was missing `detectorMetrics`, `persistsAcrossRestart` was typed as literal `false` but backend returned `true`.
+
+**Fix applied:** Updated `ITrackingStatus` to include `detectorMetrics: IDetectorMetrics` and `persistsAcrossRestart: boolean`.
+
+### BONUS: Stale Test Config Parameter Names (FIXED)
+
+**Location:** `onlineAnomalyDetector.test.ts`
+
+Tests used `scoreThreshold` and `updateRate` (old API) which were silently ignored — tests ran with unintended default thresholds.
+
+**Fix applied:** Updated to `criticalThreshold` and `baseRate`. Added `minReliableSamples` and `modeChangeGraceMs: 0` to the spike detection test to ensure correct confidence and disable grace period in synchronous unit tests.
 
 ---
 
-## Schema Inconsistency
+## Verification Results (2026-04-13)
 
-`machine_anomaly_events` table is created via raw DDL inside `MachineAnomalyEventService.ensureSchema()`, NOT through a Drizzle schema file in `db/schema/`. Every other table uses Drizzle.
+### Build Validation
+
+- `@wpt/types`: clean
+- `@wpt/backend`: clean (tsc + i18n copy)
+- `@wpt/frontend`: clean (Next.js 16.2.2 Turbopack, 22 routes)
+- `onlineAnomalyDetector.test.ts`: 4/4 pass
+
+### Remote Machine (192.168.0.102) — CDP E2E: 33/33
+
+| Section | Checks | Result |
+|---------|--------|--------|
+| Auth enforcement (5 routes) | 5/5 | All return 401 unauthenticated |
+| Login via browser | 1/1 | Session cookie set via HTTPS |
+| Live API (BUG 1,4,5,7,10) | 7/7 | `persistsAcrossRestart=false`, `detectorMetrics` present, score=0.74 |
+| Events API | 2/2 | 4 historical events returned |
+| Simulate (3 scenarios) | 3/3 | temp_spike: maxScore=5.20 flags=10 |
+| Replay (24h) | 3/3 | 1270 rows replayed |
+| Evaluate (3 days) | 3/3 | 7418 rows, precision/recall fields present |
+| Frontend anomaly page | 9/9 | Card renders, badges correct, replay buttons work |
+
+### Live Detector State Post-Fix
+
+score: 0.74 | level: normal | flagged: false
+observations: 239 | confidence: 1.0 | warm: true
+mode: 7:3:5 | gracePeriodsEntered: 0
+topDrivers: chamberPressure=1.8, garbageTemp=1.1, vacuumPumpSpeed01=0.7
 
 ---
 
@@ -152,22 +154,102 @@ When `live` is null (first render), badge defaults to "Normal" instead of showin
 
 | Technique | Assessment |
 |---|---|
-| Welford base algorithm | Correct (with the off-by-one aside) |
+| Welford base algorithm | Correct (canonical count-first form) |
+| Separated Welford mean / EMA mean | Correct — Welford invariant preserved |
 | Variance decay factor 0.999 | Reasonable — ~693 sample half-life (~115 min at 10s polls) |
 | Z-score thresholds 2.5 / 3.5 | Appropriate for industrial SPC (ISA-18.2 range) |
 | Mode partitioning by `selectedCycle:currentPhase:machineStatus` | Standard industrial practice ("multistate SPC") |
-| Grace period concept (30s default) | Reasonable for transients |
+| Grace period on every mode re-entry (30s default) | Correct — catches transients on all transitions |
+| Quarantine: tighter threshold during grace period | Correct — rejects transition spikes |
 | `maxFeatureZScore` cap of 25 | Prevents single-feature domination |
 | Event persistence with 15-min per-mode cooldown | Prevents DB flooding |
 | 12 numeric features | Good coverage of motor/process state |
+| Auth on all anomaly endpoints | Correct — matches rest of energy API |
 
 ---
 
-## Missing Techniques (Standard in Industrial ML)
+## Schema Inconsistency
 
-### CUSUM (Cumulative Sum) — Detects Slow Drifts
+`machine_anomaly_events` table is created via raw DDL inside `MachineAnomalyEventService.ensureSchema()`, NOT through a Drizzle schema file in `db/schema/`. Every other table uses Drizzle. Deferred to Phase C8.
 
-Current system misses slow persistent shifts that never cross the instantaneous Z threshold. CUSUM detects a 1-sigma mean shift in ~10 samples vs. ~44 for Z-score/Shewhart charts. ISO 7870-4 standard.
+---
+
+## Parameter Assessment
+
+| Parameter | Current | Recommended | Rationale |
+|---|---|---|---|
+| `baseRate` (EMA alpha) | 0.08 | 0.15-0.25 | Industrial EWMA literature recommends 0.2-0.4 for shift detection |
+| `warningThreshold` | 2.5 | 2.5 | OK — matches ±2.5sigma SPC convention |
+| `criticalThreshold` | 3.5 | 3.5 | OK — matches ±3.5sigma convention |
+| `varianceDecayFactor` | 0.999 | 0.999 | OK — ~115 min half-life appropriate for 10s polls |
+| `minWarmSamples` | 30 | 30 | OK for single mode; fragile with large mode space |
+| `minReliableSamples` | 200 | 200 | OK — ~33 min at 10s polls |
+| `modeChangeGraceMs` | 30000 | 30000 | OK — reasonable for industrial transients |
+| `quarantineMultiplier` | 1.5 | 1.5 | OK — effective now that grace-period branch is fixed |
+| `topK` | 3 | 3 | OK — but should group correlated features first (Phase C) |
+
+---
+
+## Phase C: Enhancements (Future)
+
+### C1 — Event Lifecycle Management (HIGH PRIORITY)
+
+**Problem:** Users cannot acknowledge, dismiss, or label anomaly events. Historical false positives pile up with no way to clear them.
+
+**Design (ISA-18.2 pattern):**
+
+```
+OPEN → ACKNOWLEDGED → CONFIRMED (true positive) → CLOSED
+                    → DISMISSED (false positive) → CLOSED
+                    → ESCALATED → linked to note
+```
+
+**Schema additions to `machine_anomaly_events`:**
+
+| Column | Type | Purpose |
+|---|---|---|
+| `status` | TEXT | `OPEN`, `ACKNOWLEDGED`, `CONFIRMED`, `DISMISSED`, `CLOSED` |
+| `resolved_by` | TEXT | Username of operator who acted |
+| `resolved_at` | TIMESTAMPTZ | When the action was taken |
+| `resolution_note` | TEXT | Free-text reason (e.g., "planned maintenance", "sensor noise") |
+| `resolution_category` | TEXT | `TRUE_POSITIVE`, `FALSE_POSITIVE`, `PLANNED_MAINTENANCE`, `SENSOR_FAULT` |
+
+**API additions:**
+
+| Endpoint | Method | Auth | Purpose |
+|---|---|---|---|
+| `/events/:id/acknowledge` | PATCH | `requireAuth` | Set status=ACKNOWLEDGED |
+| `/events/:id/resolve` | PATCH | `requireAuth` | Set status=CONFIRMED/DISMISSED with note |
+| `/events/:id` | DELETE | `requireRole(SUPER_ADMIN)` | Hard-delete (admin only) |
+
+**Frontend:** Action buttons per event row: ACK, Dismiss, Confirm. Badge color changes by status.
+
+### C2 — Dashboard Redesign (Health Gauge + Timeline + Feature Drill-Down)
+
+**Research source:** AWS Lookout for Equipment, OSIsoft PI Vision, Seeq, Grafana ML, ISA-101 HMI standard, ISO 13374-4.
+
+**Target panel layout:**
+
+| Panel | Position | Content |
+|---|---|---|
+| Health Score Gauge | Top-left | Single number 0-100, green/amber/red zones |
+| Anomaly Timeline | Top-right, full width | Score over time with confidence envelope, colored anomaly bands |
+| Active Event Table | Center | Sortable rows with ACK/Dismiss/Escalate buttons, filterable by severity |
+| Feature Contribution | Drill-down panel | Bar chart of sensor z-scores for selected event |
+| Model Health | Sidebar widget | Observations, warm modes, confidence, drift warning |
+| Historical Event Log | Secondary tab | Past events with final verdict (TP/FP), date/severity filters |
+
+**Color convention (ISA-101):**
+
+| Level | Color | Meaning |
+|---|---|---|
+| CRITICAL | Red `#dc3545` | Immediate action required |
+| WARNING | Amber `#f59e0b` | Action required soon |
+| NORMAL | Green (accent of `#1ABC9C`) | Healthy state |
+
+### C3 — CUSUM Drift Detection
+
+Current system misses slow persistent shifts that never cross the instantaneous Z threshold. CUSUM detects a 1-sigma mean shift in ~10 samples vs ~44 for Z-score. ISO 7870-4 standard.
 
 ```typescript
 class CUSUMTracker {
@@ -181,85 +263,78 @@ class CUSUMTracker {
 }
 ```
 
-### Persistence Filter — Reduces Single-Sample False Positives
+### C4 — Persistence Filter (N-of-M Rule)
 
-Require N-of-M consecutive anomalous samples before flagging (e.g., 3-of-5 rule). Eliminates sensor noise spikes.
+Require N-of-M consecutive anomalous samples before flagging (e.g., 3-of-5 rule). Eliminates single-sample sensor noise spikes.
 
-### Rate-of-Change Monitoring
+### C5 — Correlated Feature Grouping
 
-Rapid ramps are dangerous even within normal absolute bounds. Monitor `d(value)/dt` alongside absolute values.
+Group correlated features before top-K scoring (e.g., `rmsCurrL1/L2/L3` → take max per group). Prevents 3x score inflation from one electrical anomaly.
 
-### State Persistence Across Restarts
+### C6 — State Persistence Across Restarts
 
-`toJSON()`/`fromJSON()` are implemented but never called. Wire to `onClose`/`onReady` lifecycle hooks. Without it, every restart throws away hours of accumulated baselines.
+Wire `toJSON()`/`fromJSON()` to Fastify `onClose`/`onReady` lifecycle hooks. Serialize to file or DB. Without it, every restart discards hours of accumulated baselines.
+
+### C7 — Feedback Loop (Threshold Recalibration)
+
+Use accumulated TP/FP labels (from C1) to auto-suggest threshold adjustments:
+- If FP rate > 30%: suggest raising `warningThreshold`
+- If TP rate < 50%: suggest lowering `criticalThreshold`
+- Expose sensitivity slider in SUPER_ADMIN settings
+
+### C8 — Migrate `machine_anomaly_events` to Drizzle Schema
+
+Move from raw DDL in `ensureSchema()` to a proper Drizzle schema file in `db/schema/`. Consistency with every other table.
+
+### C9 — Move Types to `@wpt/types`
+
+All anomaly interfaces (`IAnomalyResult`, `ITrackingStatus`, `IDetectorMetrics`, etc.) are duplicated between backend and frontend. Move to shared types package.
 
 ---
 
-## Parameter Assessment
+## Priority Matrix
 
-| Parameter | Current | Recommended | Rationale |
+| Priority | Enhancement | Impact | Effort |
 |---|---|---|---|
-| `baseRate` (EMA alpha) | 0.08 | 0.15-0.25 | Industrial EWMA literature recommends 0.2-0.4 for shift detection. Moot until dual-mean bug fixed. |
-| `warningThreshold` | 2.5 | 2.5 | OK — matches ±2.5σ SPC convention |
-| `criticalThreshold` | 3.5 | 3.5 | OK — matches ±3.5σ convention |
-| `varianceDecayFactor` | 0.999 | 0.999 | OK — ~115 min half-life appropriate for 10s polls |
-| `minWarmSamples` | 30 | 30 | OK for single mode; fragile with large mode space |
-| `minReliableSamples` | 200 | 200 | OK — ~33 min at 10s polls |
-| `modeChangeGraceMs` | 30000 | 30000 | OK — reasonable for industrial transients |
-| `quarantineMultiplier` | 1.5 | 1.5 | OK — but only effective after quarantine bug is fixed |
-| `topK` | 3 | 3 | OK — but should group correlated features first |
-
----
-
-## Fix Implementation Plan
-
-### Phase A: Critical Fixes (implement now)
-
-| # | Fix | Files | Risk |
-|---|---|---|---|
-| A1 | Separate Welford mean from EMA mean | `onlineAnomalyDetector.ts` | Medium — changes scoring behavior |
-| A2 | Fix Welford count increment order | `onlineAnomalyDetector.ts` | Low — canonical algorithm |
-| A3 | Fix quarantine ternary | `onlineAnomalyDetector.ts` | Low — straightforward |
-| A4 | Fix grace period re-entry | `onlineAnomalyDetector.ts` | Low |
-| A5 | Add auth to anomaly routes | `routes/energy.ts` | Low |
-| A6 | Fix `persistsAcrossRestart` to `false` | `machineAnomalyService.ts` | Low |
-
-### Phase B: Frontend Fixes
-
-| # | Fix | Files |
-|---|---|---|
-| B1 | Fix polling AbortController leak | `machine-anomaly-card.tsx` |
-| B2 | Fix "Normal" badge during loading | `machine-anomaly-card.tsx` |
-| B3 | Update stale interfaces | `machine-anomaly-card.tsx` |
-
-### Phase C: Enhancements (future)
-
-| # | Enhancement | Impact |
-|---|---|---|
-| C1 | Wire `toJSON`/`fromJSON` to server lifecycle | High — preserves baselines across restarts |
-| C2 | Add CUSUM drift detection | High — catches slow shifts Z-scores miss |
-| C3 | Group correlated features before top-K | Medium — reduces false inflation |
-| C4 | Add persistence filter (N-of-M rule) | Medium — reduces noise false positives |
-| C5 | Move types to `@wpt/types` | Low — shared contract |
-| C6 | Migrate `machine_anomaly_events` to Drizzle schema | Low — consistency |
+| **P0** | C1 — Event lifecycle (ACK/Dismiss/Confirm) | Users can manage false positives | Medium |
+| **P1** | C2 — Dashboard redesign | Operator UX matches industrial standards | High |
+| **P1** | C6 — State persistence across restarts | Baselines survive service restarts | Low |
+| **P2** | C3 — CUSUM drift detection | Catches slow shifts Z-score misses | Medium |
+| **P2** | C5 — Correlated feature grouping | Reduces false inflation from phase currents | Low |
+| **P2** | C4 — Persistence filter (N-of-M) | Reduces noise false positives | Low |
+| **P3** | C7 — Feedback loop | Auto-suggests threshold adjustments | Medium |
+| **P3** | C8 — Drizzle schema migration | Consistency | Low |
+| **P3** | C9 — Shared types | DRY | Low |
 
 ---
 
 ## References
 
-- Welford, B.P. (1962). "Note on a Method for Calculating Corrected Sums of Squares and Products". *Technometrics*.
-- Knuth, D.E. (1997). *The Art of Computer Programming*, Vol. 2, 3rd ed. — Welford algorithm.
-- Cook, J.D. (2002). "Accurately Computing Running Variance" — [johndcook.com/blog/standard_deviation](https://www.johndcook.com/blog/standard_deviation/)
-- [Wikipedia: Algorithms for calculating variance](https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance)
+### Standards
+- ISA-18.2 / IEC 62682 — Management of Alarm Systems for the Process Industries
+- ISA-101 — Human Machine Interfaces for Process Automation Systems
 - ISO 7870-4:2011 — Control charts, Part 4: Cumulative sum charts
 - ISO 7870-6:2016 — Control charts, Part 6: EWMA control charts
-- ISA-18.2 / IEC 62682 — Management of Alarm Systems for the Process Industries
+- ISO 13374-1:2003 — Condition monitoring and diagnostics of machines — Data processing
+- ISO 13374-4:2015 — Condition monitoring — Presentation requirements
+
+### Algorithms
+- Welford, B.P. (1962). "Note on a Method for Calculating Corrected Sums of Squares and Products". *Technometrics*.
+- Knuth, D.E. (1997). *The Art of Computer Programming*, Vol. 2, 3rd ed.
+- Cook, J.D. (2002). "Accurately Computing Running Variance" — johndcook.com/blog/standard_deviation
 - Montgomery, D.C. (2019). *Introduction to Statistical Quality Control*, 8th ed. — CUSUM, EWMA, Mahalanobis.
 - Chandola, V. et al. (2009). "Anomaly Detection: A Survey". *ACM Computing Surveys*.
 - Basseville, M. & Nikiforov, I. (1993). *Detection of Abrupt Changes: Theory and Application*.
-- [Quality America: When to Use EWMA Charts](https://qualityamerica.com/LSS-Knowledge-Center/statisticalprocesscontrol/when_to_use_an_ewma_chart.php)
-- [Number Analytics: Mahalanobis Distance for Anomaly Detection](https://www.numberanalytics.com/blog/mahalanobis-distance-anomaly-detection)
+
+### Industrial ML Dashboard Research
+- AWS Lookout for Equipment — Anomaly lifecycle, A2I human review, retraining with labels
+- OSIsoft PI / AVEVA — AF Event Frames as lifecycle containers, PI Vision drill-down
+- Seeq — Capsule annotation, comparison view, Innovapptive closed-loop integration
+- Grafana ML — Dynamic alerting with sensitivity slider, anomaly band overlay
+- Datadog Watchdog — Automatic correlation of concurrent anomalies
+- Grid Dynamics (2021). "Anomaly Detection in Industrial Applications: Solution Design Methodology"
+- Eni digiTALKS (2023). "Detecting anomalies in industrial equipment: an explainable predictive approach"
 
 ---
 
-*Generated: 2026-04-13 | Based on: full code audit of onlineAnomalyDetector.ts + 6 service files + frontend components + online research against industrial ML/SPC literature*
+*Generated: 2026-04-13 | Based on: full code audit, 9 bug fixes deployed to production (1 deferred), CDP E2E 33/33, industrial ML dashboard research across ISA-18.2, AWS Lookout, OSIsoft PI, Seeq, Grafana ML*

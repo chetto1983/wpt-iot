@@ -142,6 +142,46 @@ describe('OnlineAnomalyDetector', () => {
     expect(lowTempMode.modeKey).not.toBe(highTempMode.modeKey);
   });
 
+  it('groups correlated RMS current features — only max enters top-K (FIX 8)', () => {
+    const detector = new OnlineAnomalyDetector({
+      minWarmSamples: 15,
+      minReliableSamples: 25,
+      criticalThreshold: 3,
+      baseRate: 0.1,
+      topK: 3,
+      modeChangeGraceMs: 0,
+    });
+
+    // Warmup with steady values
+    for (let i = 0; i < 25; i += 1) {
+      detector.observe(
+        makeSample({
+          rmsCurrL1: 15 + (i % 2) * 0.1,
+          rmsCurrL2: 15 + (i % 2) * 0.1,
+          rmsCurrL3: 15 + (i % 2) * 0.1,
+        }),
+      );
+    }
+
+    // Spike all three RMS currents — without grouping, all 3 would
+    // occupy the top-K and inflate the score ~3×.
+    const spiked = detector.observe(
+      makeSample({
+        rmsCurrL1: 80,
+        rmsCurrL2: 78,
+        rmsCurrL3: 79,
+      }),
+    );
+
+    // Only ONE RMS current feature should appear in topContributors
+    const rmsContributors = spiked.topContributors.filter((c) =>
+      ['rmsCurrL1', 'rmsCurrL2', 'rmsCurrL3'].includes(c.feature),
+    );
+    expect(rmsContributors).toHaveLength(1);
+    // The max (rmsCurrL1=80) should be the one selected
+    expect(rmsContributors[0]?.feature).toBe('rmsCurrL1');
+  });
+
   it('adapts to gradual drift without flagging every later sample', () => {
     const detector = new OnlineAnomalyDetector({
       minWarmSamples: 10,
