@@ -13,7 +13,6 @@ import {
   Brush,
   ReferenceArea,
 } from 'recharts';
-import { format } from 'date-fns';
 import { useTranslations } from 'next-intl';
 import { useQueryStates, parseAsString, parseAsInteger } from 'nuqs';
 import { TrendingUp, CalendarDays, Loader2, Maximize2, Minimize2, RotateCcw } from 'lucide-react';
@@ -23,6 +22,7 @@ import { useAuth } from '@/lib/auth-context';
 import { apiFetch } from '@/lib/api';
 import { getFieldLabel } from '@/lib/field-labels';
 import { CHART_COLORS } from '@/lib/chart-colors';
+import { formatTick } from '@/lib/chart-format';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -33,13 +33,6 @@ import { FieldSelector, getChartableFields } from '@/components/field-selector';
 interface IChartResponse {
   resolution: 'raw' | '5min' | '1h';
   points: Array<Record<string, number>>;
-}
-
-function formatTick(epochMs: number, resolution: string): string {
-  const d = new Date(epochMs);
-  if (resolution === 'raw') return format(d, 'HH:mm:ss');
-  if (resolution === '5min') return format(d, 'HH:mm');
-  return format(d, 'dd/MM HH:mm');
 }
 
 export default function ChartsPage() {

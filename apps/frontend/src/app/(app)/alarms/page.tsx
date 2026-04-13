@@ -30,6 +30,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { ReportFilters } from '@/components/report-filters';
+import { buildDateTimeISO } from '@/lib/date-utils';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || '';
 
@@ -47,13 +48,6 @@ interface IAlarmResponse {
   total: number;
   active: number;
   resolved: number;
-}
-
-function buildDateTimeISO(date: Date, time: string): string {
-  const [h, m] = time.split(':').map(Number);
-  const d = new Date(date);
-  d.setHours(h ?? 0, m ?? 0, 0, 0);
-  return d.toISOString();
 }
 
 export default function AlarmsPage() {

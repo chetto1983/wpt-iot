@@ -26,6 +26,7 @@ import {
 } from '@/components/ui/table';
 import { ReportFilters } from '@/components/report-filters';
 import { FieldSelector, REPORT_FIELD_CATEGORIES } from '@/components/field-selector';
+import { buildDateTimeISO } from '@/lib/date-utils';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || '';
 
@@ -34,13 +35,6 @@ interface IMachinePreview {
   total: number;
   fields: string[];
   headers: string[];
-}
-
-function buildDateTimeISO(date: Date, time: string): string {
-  const [h, m] = time.split(':').map(Number);
-  const d = new Date(date);
-  d.setHours(h ?? 0, m ?? 0, 0, 0);
-  return d.toISOString();
 }
 
 export default function ReportsPage() {

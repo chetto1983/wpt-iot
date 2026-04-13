@@ -26,6 +26,7 @@ import { useTranslations } from 'next-intl';
 import { AlertCircle, AlertTriangle, RotateCcw } from 'lucide-react';
 import type { ChartType, IPanelConfig } from '@wpt/types';
 import { CHART_COLORS } from '@/lib/chart-colors';
+import { formatTick } from '@/lib/chart-format';
 import { getFieldLabel } from '@/lib/field-labels';
 import {
   aggregateField,
@@ -91,13 +92,6 @@ function PanelErrorFallback({ resetErrorBoundary }: { resetErrorBoundary: () => 
       </Button>
     </div>
   );
-}
-
-function formatTick(epochMs: number, resolution: string): string {
-  const d = new Date(epochMs);
-  if (resolution === 'raw') return format(d, 'HH:mm:ss');
-  if (resolution === '5min') return format(d, 'HH:mm');
-  return format(d, 'dd/MM HH:mm');
 }
 
 function formatTooltipLabel(epochMs: number, resolution: string): string {

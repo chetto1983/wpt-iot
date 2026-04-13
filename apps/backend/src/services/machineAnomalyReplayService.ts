@@ -1,50 +1,11 @@
 import { sql } from 'drizzle-orm';
 import { db } from '../db/index.js';
+import { OnlineAnomalyDetector } from './onlineAnomalyDetector.js';
 import {
-  OnlineAnomalyDetector,
-  type IAnomalyInput,
-} from './onlineAnomalyDetector.js';
-
-interface IReplaySnapshotRow {
-  timestamp: Date | string;
-  selected_cycle: number | null;
-  current_phase: number | null;
-  machine_status: number | null;
-  garbage_temp: number | null;
-  chamber_pressure: number | null;
-  main_motor_speed: number | null;
-  main_motor_current: number | null;
-  main_motor_torque: number | null;
-  vacuum_pump_speed_01: number | null;
-  energy_consumption: number | null;
-  rms_curr_l1: number | null;
-  rms_curr_l2: number | null;
-  rms_curr_l3: number | null;
-  material_input_weight: number | null;
-  material_output_weight: number | null;
-  // V03 fields — parity with mapSnapshotToDetectorInput
-  vacuum_pump_speed_02: number | null;
-  rms_curr_n: number | null;
-  thermo_left_lower: number | null;
-  thermo_left_medium: number | null;
-  thermo_left_upper: number | null;
-  thermo_right_lower: number | null;
-  thermo_right_medium: number | null;
-  thermo_right_upper: number | null;
-  holding_temp_setpoint: number | null;
-  water_consumption: number | null;
-  line_volt_l1_l2: number | null;
-  line_volt_l2_l3: number | null;
-  line_volt_l3_l1: number | null;
-  line_neutral_volt_l1: number | null;
-  line_neutral_volt_l2: number | null;
-  line_neutral_volt_l3: number | null;
-  pf_total: number | null;
-  thermo_left_high_lower: number | null;
-  thermo_left_high_medium: number | null;
-  thermo_left_high_upper: number | null;
-  thermo_right_high_lower: number | null;
-}
+  type IReplaySnapshotRow,
+  asIsoString,
+  mapReplayRow,
+} from './anomalyReplayHelpers.js';
 
 interface IAlarmCountRow {
   activeCount: number | string;
@@ -86,51 +47,6 @@ interface IAnomalyReplayResponse {
   timeline?: Array<{ time: string; score: number; flagged: boolean }>;
 }
 
-function asIsoString(value: Date | string): string {
-  return value instanceof Date ? value.toISOString() : new Date(value).toISOString();
-}
-
-function mapReplayRow(row: IReplaySnapshotRow): IAnomalyInput {
-  return {
-    selectedCycle: row.selected_cycle,
-    currentPhase: row.current_phase,
-    machineStatus: row.machine_status,
-    garbageTemp: row.garbage_temp,
-    chamberPressure: row.chamber_pressure,
-    mainMotorSpeed: row.main_motor_speed,
-    mainMotorCurrent: row.main_motor_current,
-    mainMotorTorque: row.main_motor_torque,
-    vacuumPumpSpeed01: row.vacuum_pump_speed_01,
-    energyConsumption: row.energy_consumption,
-    rmsCurrL1: row.rms_curr_l1,
-    rmsCurrL2: row.rms_curr_l2,
-    rmsCurrL3: row.rms_curr_l3,
-    materialInputWeight: row.material_input_weight,
-    materialOutputWeight: row.material_output_weight,
-    // V03 fields — parity with mapSnapshotToDetectorInput
-    vacuumPumpSpeed02: row.vacuum_pump_speed_02,
-    rmsCurrN: row.rms_curr_n,
-    thermoLeftLower: row.thermo_left_lower,
-    thermoLeftMedium: row.thermo_left_medium,
-    thermoLeftUpper: row.thermo_left_upper,
-    thermoRightLower: row.thermo_right_lower,
-    thermoRightMedium: row.thermo_right_medium,
-    thermoRightUpper: row.thermo_right_upper,
-    holdingTempSetpoint: row.holding_temp_setpoint,
-    waterConsumption: row.water_consumption,
-    lineVoltL1L2: row.line_volt_l1_l2,
-    lineVoltL2L3: row.line_volt_l2_l3,
-    lineVoltL3L1: row.line_volt_l3_l1,
-    lineNeutralVoltL1: row.line_neutral_volt_l1,
-    lineNeutralVoltL2: row.line_neutral_volt_l2,
-    lineNeutralVoltL3: row.line_neutral_volt_l3,
-    pfTotal: row.pf_total,
-    thermoLeftHighLower: row.thermo_left_high_lower,
-    thermoLeftHighMedium: row.thermo_left_high_medium,
-    thermoLeftHighUpper: row.thermo_left_high_upper,
-    thermoRightHighLower: row.thermo_right_high_lower,
-  };
-}
 
 export class MachineAnomalyReplayService {
   static async replay(
