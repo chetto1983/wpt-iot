@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterAll } from 'vitest';
 import { sql } from 'drizzle-orm';
 import { db, pool } from '../../db/index.js';
-import { EnergyConfigService } from '../../services/energyConfigService.js';
+import { EnergyConfigService } from '../../services/energy/index.js';
 
 /**
  * PHASE 19 — Tariff period [valid_from, valid_to) half-open interval contract.

@@ -1,20 +1,23 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod/v4';
-import { EnergyAggregateService } from '../services/energyAggregateService.js';
-import { EnergyAttributionService } from '../services/energyAttributionService.js';
-import { machineAnomalyService } from '../services/machineAnomalyService.js';
-import { MachineAnomalyEvaluationService } from '../services/machineAnomalyEvaluationService.js';
-import { MachineAnomalyEventService } from '../services/machineAnomalyEventService.js';
-import { MachineAnomalyReplayService } from '../services/machineAnomalyReplayService.js';
-import { MachineAnomalyScenarioService } from '../services/machineAnomalyScenarioService.js';
 import {
+  EnergyAggregateService,
+  EnergyAttributionService,
   BaselineOverlapError,
   BaselinePredatesDataError,
   BaselineTooShortError,
   EnergyBaselineService,
   MeasurementTooShortError,
   NoActiveBaselineError,
-} from '../services/energyBaselineService.js';
+  EnergyDashboardService,
+  EnergyConfigService,
+  EnergyPdfService,
+} from '../services/energy/index.js';
+import { machineAnomalyService } from '../services/machineAnomalyService.js';
+import { MachineAnomalyEvaluationService } from '../services/machineAnomalyEvaluationService.js';
+import { MachineAnomalyEventService } from '../services/machineAnomalyEventService.js';
+import { MachineAnomalyReplayService } from '../services/machineAnomalyReplayService.js';
+import { MachineAnomalyScenarioService } from '../services/machineAnomalyScenarioService.js';
 import { startV03CycleTracker } from '../persistence/v03CycleTracker.js';
 import { startCyclePersister } from '../persistence/cyclePersister.js';
 import {
@@ -30,9 +33,6 @@ import {
   UserRole,
 } from '@wpt/types';
 import { requireAuth, requireRole } from '../auth/authHooks.js';
-import { EnergyDashboardService } from '../services/energyDashboardService.js';
-import { EnergyConfigService } from '../services/energyConfigService.js';
-import { EnergyPdfService } from '../services/energyPdfService.js';
 
 /**
  * /api/energy/* route plugin — Phase 19 Plan 19-10 scaffold.

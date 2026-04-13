@@ -2,9 +2,8 @@ import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vites
 import Fastify, { type FastifyInstance } from 'fastify';
 import { sql } from 'drizzle-orm';
 import { db, pool } from '../db/index.js';
-import type * as EnergyAttributionServiceModule from '../services/energyAttributionService.js';
-import { EnergyBaselineService } from '../services/energyBaselineService.js';
-import { EnergyConfigService } from '../services/energyConfigService.js';
+import type * as EnergyAttributionServiceModule from '../services/energy/index.js';
+import { EnergyBaselineService, EnergyConfigService } from '../services/energy/index.js';
 import { assertReportReproducible, extractPdfText } from './energy/pdfReportTestUtils.js';
 
 const requireAuthMock = vi.fn(async (request: any, reply: any) => {

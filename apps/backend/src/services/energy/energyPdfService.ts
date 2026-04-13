@@ -17,12 +17,12 @@ import {
   type EnergyPdfLang,
   type EnergyPdfSectionKey,
   type IEnergyPdfCopyBranch,
-} from '../i18n/energyPdfCopy.js';
+} from '../../i18n/energyPdfCopy.js';
 import { EnergyAggregateService } from './energyAggregateService.js';
 import { EnergyBaselineService } from './energyBaselineService.js';
 import { EnergyConfigService } from './energyConfigService.js';
 import { EnergyDashboardService } from './energyDashboardService.js';
-import { createDeterministicPdfBuffer } from './pdf/index.js';
+import { createDeterministicPdfBuffer } from '../pdf/index.js';
 
 type PdfDocumentDefinition = Parameters<typeof createDeterministicPdfBuffer>[0];
 type PdfContent = Record<string, unknown>;

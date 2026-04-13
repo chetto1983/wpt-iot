@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterAll } from 'vitest';
 import { sql } from 'drizzle-orm';
 import { db, pool } from '../../db/index.js';
-import { EnergyAggregateService } from '../../services/energyAggregateService.js';
+import { EnergyAggregateService } from '../../services/energy/index.js';
 
 /**
  * PHASE 19 PHASE GATE TEST — Success Criterion 1.

@@ -1,5 +1,5 @@
 import { dataHub } from '../events/hub.js';
-import { EnergyAttributionService } from '../services/energyAttributionService.js';
+import { EnergyAttributionService } from '../services/energy/index.js';
 import type { ICycleClosedEvent } from '@wpt/types';
 
 /** Logger interface compatible with Pino/Fastify logger */

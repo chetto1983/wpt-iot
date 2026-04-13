@@ -52,10 +52,16 @@ describe('scope wall — energyBaselineService', () => {
     const servicesDir = resolve(
       fileURLToPath(new URL('../services', import.meta.url)),
     );
-    const selfFile = resolve(servicesDir, 'energyBaselineService.ts');
+    const selfFile = resolve(servicesDir, 'energy', 'energyBaselineService.ts');
     // Pre-allowlist the split sibling from Plan 04 WARNING 5.
-    const mathFile = resolve(servicesDir, 'energyBaselineMath.ts');
-    const ignoreFiles = new Set<string>([selfFile, mathFile]);
+    const mathFile = resolve(servicesDir, 'energy', 'energyBaselineMath.ts');
+    // errors.ts re-exports the error classes that energyBaselineService re-exports.
+    const errorsFile = resolve(servicesDir, 'energy', 'errors.ts');
+    // energyDashboardService imports error classes (via errors.ts) and EnergyBaselineService.
+    const dashboardFile = resolve(servicesDir, 'energy', 'energyDashboardService.ts');
+    // energy/index.ts barrel re-exports from energyBaselineService.ts.
+    const barrelFile = resolve(servicesDir, 'energy', 'index.ts');
+    const ignoreFiles = new Set<string>([selfFile, mathFile, errorsFile, dashboardFile, barrelFile]);
 
     // Match ES-module relative imports: `from '...energyBaselineService'`
     // or `from '...energyBaselineService.js'`. Single or double quotes.

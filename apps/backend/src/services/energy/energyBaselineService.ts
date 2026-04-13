@@ -7,7 +7,7 @@
  */
 
 import { sql } from 'drizzle-orm';
-import { db, pool } from '../db/index.js';
+import { db, pool } from '../../db/index.js';
 import {
   _buildMeasurementDailySeries,
   _computeSavingsFromScalars,
@@ -20,6 +20,12 @@ import {
   mapRowToEvidence,
 } from './energyBaselineMath.js';
 import { EnergyAttributionService } from './energyAttributionService.js';
+import {
+  BaselinePredatesDataError,
+  BaselineTooShortError,
+  MeasurementTooShortError,
+  NoActiveBaselineError,
+} from './errors.js';
 import type {
   IBaselineLockRequest,
   IBaselineLockResponse,
@@ -28,9 +34,14 @@ import type {
   ISavingsDetailResponse,
 } from '@wpt/types';
 
-
-// Error taxonomy — flat Error siblings. Route handler instanceof-maps
-// to 422 (validation) / 404 (NoActiveBaselineError).
+// Re-export error classes from errors.ts for backward compatibility through barrel.
+export {
+  BaselineOverlapError,
+  BaselinePredatesDataError,
+  BaselineTooShortError,
+  MeasurementTooShortError,
+  NoActiveBaselineError,
+} from './errors.js';
 
 /** Minimal logger for DI (BLOCKER-03 Option 2). Pino satisfies this via duck typing. */
 interface IServiceLogger {
@@ -47,67 +58,8 @@ const NOOP_LOGGER: IServiceLogger = {
   fatal: () => undefined,
 };
 
-export class BaselineOverlapError extends Error {
-  readonly code = 'BASELINE_OVERLAP' as const;
-  readonly details: Record<string, unknown>;
-  constructor(message: string, details: Record<string, unknown> = {}) {
-    super(message);
-    this.name = 'BaselineOverlapError';
-    this.details = details;
-  }
-}
-
-export class MeasurementTooShortError extends Error {
-  readonly code = 'MEASUREMENT_TOO_SHORT' as const;
-  readonly details: Record<string, unknown>;
-  constructor(message: string, details: Record<string, unknown> = {}) {
-    super(message);
-    this.name = 'MeasurementTooShortError';
-    this.details = details;
-  }
-}
-
-type BaselineTooShortReason =
-  | 'window_too_short'
-  | 'period_from_future'
-  | 'no_production';
-
-export class BaselineTooShortError extends Error {
-  readonly code = 'BASELINE_TOO_SHORT' as const;
-  readonly details: { reason: BaselineTooShortReason; [k: string]: unknown };
-  constructor(
-    message: string,
-    details: { reason: BaselineTooShortReason; [k: string]: unknown },
-  ) {
-    super(message);
-    this.name = 'BaselineTooShortError';
-    this.details = details;
-  }
-}
-
-export class BaselinePredatesDataError extends Error {
-  readonly code = 'BASELINE_PREDATES_DATA' as const;
-  readonly details: Record<string, unknown>;
-  constructor(message: string, details: Record<string, unknown> = {}) {
-    super(message);
-    this.name = 'BaselinePredatesDataError';
-    this.details = details;
-  }
-}
-
-export class NoActiveBaselineError extends Error {
-  readonly code = 'NO_ACTIVE_BASELINE' as const;
-  readonly details: Record<string, unknown>;
-  constructor(message: string, details: Record<string, unknown> = {}) {
-    super(message);
-    this.name = 'NoActiveBaselineError';
-    this.details = details;
-  }
-}
-
 // Pure-math helpers live in energyBaselineMath.ts (500-line cap split).
-// Error classes stay here; math imports them via a circular value import
-// (ESM-safe — references are inside function bodies). Re-exports at top.
+// Error classes live in errors.ts (re-exported above for barrel compat).
 
 export class EnergyBaselineService {
   /** Idempotent schema creation. Direct SQL — NOT drizzle-kit push. */

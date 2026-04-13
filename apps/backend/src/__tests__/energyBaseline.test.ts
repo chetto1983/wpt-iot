@@ -23,7 +23,7 @@ import {
   BaselineOverlapError,
   MeasurementTooShortError,
   type IScalarsInput,
-} from '../services/energyBaselineService.js';
+} from '../services/energy/index.js';
 
 /** Builds an IScalarsInput with sensible defaults; overrides shallow-merge per nested object. */
 function makeScalarsInput(overrides: Partial<IScalarsInput> = {}): IScalarsInput {

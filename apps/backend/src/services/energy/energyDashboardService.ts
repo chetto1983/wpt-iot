@@ -1,13 +1,13 @@
 import { sql } from 'drizzle-orm';
-import { db } from '../db/index.js';
+import { db } from '../../db/index.js';
 import { EnergyAggregateService } from './energyAggregateService.js';
 import {
   BaselineOverlapError,
   BaselinePredatesDataError,
-  EnergyBaselineService,
   MeasurementTooShortError,
   NoActiveBaselineError,
-} from './energyBaselineService.js';
+} from './errors.js';
+import { EnergyBaselineService } from './energyBaselineService.js';
 import {
   classifyTariffBand,
   CLIENT_VISIBLE_ENERGY_FIELDS,

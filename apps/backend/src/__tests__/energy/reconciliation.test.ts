@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterAll } from 'vitest';
 import { db, pool } from '../../db/index.js';
 import { sql } from 'drizzle-orm';
-import { EnergyAggregateService } from '../../services/energyAggregateService.js';
+import { EnergyAggregateService } from '../../services/energy/index.js';
 
 /**
  * PHASE 19 — CA-on-CA reconciliation invariant.

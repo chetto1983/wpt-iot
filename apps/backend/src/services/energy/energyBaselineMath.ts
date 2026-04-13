@@ -11,16 +11,13 @@
  */
 
 import { sql } from 'drizzle-orm';
-import { db } from '../db/index.js';
+import { db } from '../../db/index.js';
 import { EnergyConfigService } from './energyConfigService.js';
 import { EnergyTariffService } from './energyTariffService.js';
-// Circular import safety: `energyBaselineService.ts` re-exports the helpers
-// below for back-compat. The cycle is fine because the imported error classes
-// are referenced only inside function bodies, not at module top-level.
 import {
   BaselineOverlapError,
   MeasurementTooShortError,
-} from './energyBaselineService.js';
+} from './errors.js';
 import type {
   BaselineWarning,
   IBaselineDailyPoint,

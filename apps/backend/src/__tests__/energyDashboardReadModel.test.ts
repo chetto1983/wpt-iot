@@ -1,8 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { db } from '../db/index.js';
-import { EnergyAggregateService } from '../services/energyAggregateService.js';
-import { EnergyBaselineService } from '../services/energyBaselineService.js';
-import { EnergyDashboardService } from '../services/energyDashboardService.js';
+import { EnergyAggregateService, EnergyBaselineService, EnergyDashboardService } from '../services/energy/index.js';
 import { UserRole } from '@wpt/types';
 
 describe('energy dashboard read-model', () => {

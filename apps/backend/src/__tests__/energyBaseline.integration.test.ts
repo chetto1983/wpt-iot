@@ -16,8 +16,7 @@ import { describe, it, expect, beforeEach, afterAll } from 'vitest';
 import Fastify, { type FastifyInstance } from 'fastify';
 import { sql } from 'drizzle-orm';
 import { db, pool } from '../db/index.js';
-import { EnergyBaselineService } from '../services/energyBaselineService.js';
-import { EnergyConfigService } from '../services/energyConfigService.js';
+import { EnergyBaselineService, EnergyConfigService } from '../services/energy/index.js';
 import { energyRoutes } from '../routes/energy.js';
 
 async function buildTestServer(): Promise<FastifyInstance> {

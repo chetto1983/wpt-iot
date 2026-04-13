@@ -1,5 +1,5 @@
 import { sql } from 'drizzle-orm';
-import { db } from '../db/index.js';
+import { db } from '../../db/index.js';
 import type { ICycleClosedEvent } from '@wpt/types';
 import { AttributionStatus } from '@wpt/types';
 
