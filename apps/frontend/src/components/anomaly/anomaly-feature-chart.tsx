@@ -18,48 +18,6 @@ interface AnomalyFeatureChartProps {
   live: IAnomalyLiveResponse | null;
 }
 
-function featureLabel(key: string): string {
-  const labels: Record<string, string> = {
-    garbageTemp: 'Temperature',
-    chamberPressure: 'Pressure',
-    mainMotorSpeed: 'Motor Speed',
-    mainMotorCurrent: 'Motor Current',
-    mainMotorTorque: 'Motor Torque',
-    vacuumPumpSpeed01: 'Vacuum Pump 1',
-    energyConsumption: 'Energy',
-    rmsCurrL1: 'RMS Curr L1',
-    rmsCurrL2: 'RMS Curr L2',
-    rmsCurrL3: 'RMS Curr L3',
-    materialInputWeight: 'Input Weight',
-    materialOutputWeight: 'Output Weight',
-    // D1: Core process signals
-    vacuumPumpSpeed02: 'Vacuum Pump 2',
-    rmsCurrN: 'RMS Curr N',
-    thermoLeftLower: 'Thermo L-Low',
-    thermoLeftMedium: 'Thermo L-Mid',
-    thermoLeftUpper: 'Thermo L-Up',
-    thermoRightLower: 'Thermo R-Low',
-    thermoRightMedium: 'Thermo R-Mid',
-    thermoRightUpper: 'Thermo R-Up',
-    holdingTempSetpoint: 'Hold Setpoint',
-    waterConsumption: 'Water',
-    // D2: Electrical grid health
-    lineVoltL1L2: 'Volt L1-L2',
-    lineVoltL2L3: 'Volt L2-L3',
-    lineVoltL3L1: 'Volt L3-L1',
-    lineNeutralVoltL1: 'Volt L1-N',
-    lineNeutralVoltL2: 'Volt L2-N',
-    lineNeutralVoltL3: 'Volt L3-N',
-    pfTotal: 'Power Factor',
-    // D3: High-temp zones
-    thermoLeftHighLower: 'HiTemp L-Low',
-    thermoLeftHighMedium: 'HiTemp L-Mid',
-    thermoLeftHighUpper: 'HiTemp L-Up',
-    thermoRightHighLower: 'HiTemp R-Low',
-  };
-  return labels[key] ?? key;
-}
-
 function barColor(z: number): string {
   if (z >= 3.5) return '#dc3545';
   if (z >= 2.5) return '#f59e0b';
@@ -74,10 +32,12 @@ export const AnomalyFeatureChart = memo(function AnomalyFeatureChart({
   const data = useMemo(() => {
     const contributors = live?.latest?.topContributors ?? [];
     return contributors.map((c) => ({
-      name: featureLabel(c.feature),
+      name: t.has(`anomaly.featureChart.labels.${c.feature}`)
+        ? t(`anomaly.featureChart.labels.${c.feature}`)
+        : c.feature,
       zScore: Number(c.zScore.toFixed(2)),
     }));
-  }, [live]);
+  }, [live, t]);
 
   if (data.length === 0) {
     return (
