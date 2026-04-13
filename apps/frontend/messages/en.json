@@ -325,7 +325,12 @@
         "tpRate": "TP rate",
         "noData": "Not enough resolved events (need 5+)",
         "suggestion": "Suggestion"
-      }
+      },
+      "correlatedAlarms": "{count} alarm(s) within ±10min",
+      "noCorrelatedAlarms": "No correlated alarms",
+      "downloadPdf": "Download PDF Report",
+      "downloadPdf7d": "7 days",
+      "downloadPdf30d": "30 days"
     },
     "staleData": "Last update: {seconds}s ago",
     "noData": "---",

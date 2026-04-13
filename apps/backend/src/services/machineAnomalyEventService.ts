@@ -250,6 +250,86 @@ export class MachineAnomalyEventService {
     };
   }
 
+  /**
+   * Cross-correlate anomaly events with PLC alarm activations.
+   * For each anomaly event, find alarms that fired within ±leadLagMinutes.
+   */
+  static async getCorrelatedAlarms(args?: {
+    leadLagMinutes?: number;
+    limit?: number;
+  }): Promise<Array<{
+    event: IMachineAnomalyEvent;
+    alarms: Array<{ alarmIndex: number; activatedAt: string; descriptionIt: string; descriptionEn: string }>;
+  }>> {
+    const lag = args?.leadLagMinutes ?? 10;
+    const limit = args?.limit ?? 20;
+
+    const events = await this.listRecent({ limit, flaggedOnly: true });
+    const results: Array<{
+      event: IMachineAnomalyEvent;
+      alarms: Array<{ alarmIndex: number; activatedAt: string; descriptionIt: string; descriptionEn: string }>;
+    }> = [];
+
+    for (const event of events) {
+      const alarmResult = await db.execute(sql`
+        SELECT alarm_index, activated_at, description_it, description_en
+        FROM alarm_events
+        WHERE transition_type = 'ACTIVE'
+          AND activated_at >= (${event.observedAt}::timestamptz - ${`${lag} minutes`}::interval)
+          AND activated_at <= (${event.observedAt}::timestamptz + ${`${lag} minutes`}::interval)
+        ORDER BY activated_at ASC
+        LIMIT 10
+      `);
+      const alarms = (alarmResult.rows as Array<{
+        alarm_index: number | string;
+        activated_at: Date | string;
+        description_it: string;
+        description_en: string;
+      }>).map((r) => ({
+        alarmIndex: Number(r.alarm_index),
+        activatedAt: r.activated_at instanceof Date ? r.activated_at.toISOString() : new Date(r.activated_at).toISOString(),
+        descriptionIt: r.description_it,
+        descriptionEn: r.description_en,
+      }));
+
+      results.push({ event, alarms });
+    }
+
+    return results;
+  }
+
+  /**
+   * Aggregate report data for PDF generation: events, feedback stats,
+   * alarm correlations, and detector config.
+   */
+  static async getReportData(args?: { days?: number }) {
+    const days = args?.days ?? 7;
+    const from = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+
+    const eventsResult = await db.execute(sql`
+      SELECT * FROM machine_anomaly_events
+      WHERE observed_at >= ${from}::timestamptz
+      ORDER BY observed_at DESC
+    `);
+    const events = (eventsResult.rows as unknown as IEventRow[]).map(mapRow);
+    const feedback = await this.getFeedbackStats();
+    const correlations = await this.getCorrelatedAlarms({ limit: 50 });
+
+    const byStatus: Record<string, number> = {};
+    for (const e of events) {
+      byStatus[e.status] = (byStatus[e.status] ?? 0) + 1;
+    }
+
+    return {
+      period: { from: from.toISOString(), to: new Date().toISOString(), days },
+      totalEvents: events.length,
+      byStatus,
+      events,
+      feedback,
+      correlations,
+    };
+  }
+
   static async deleteEvent(id: number): Promise<boolean> {
     const result = await db.execute(sql`
       DELETE FROM machine_anomaly_events WHERE id = ${id}

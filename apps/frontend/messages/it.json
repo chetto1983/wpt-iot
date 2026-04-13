@@ -325,7 +325,12 @@
         "tpRate": "Tasso TP",
         "noData": "Non ci sono abbastanza eventi risolti (servono 5+)",
         "suggestion": "Suggerimento"
-      }
+      },
+      "correlatedAlarms": "{count} allarme/i entro ±10min",
+      "noCorrelatedAlarms": "Nessun allarme correlato",
+      "downloadPdf": "Scarica Report PDF",
+      "downloadPdf7d": "7 giorni",
+      "downloadPdf30d": "30 giorni"
     },
     "staleData": "Ultimo aggiornamento: {seconds}s fa",
     "noData": "---",

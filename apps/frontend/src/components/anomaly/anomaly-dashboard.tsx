@@ -2,7 +2,7 @@
 
 import { memo, startTransition, useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { AlertTriangle, BrainCircuit, Loader2 } from 'lucide-react';
+import { AlertTriangle, BrainCircuit, FileDown, Loader2 } from 'lucide-react';
 import type { IAnomalyEventsResponse, IAnomalyLiveResponse, IMachineAnomalyEvent } from '@wpt/types';
 import { apiFetch } from '@/lib/api';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
@@ -240,6 +240,18 @@ export const AnomalyDashboard = memo(function AnomalyDashboard() {
           </Tabs>
         </CardContent>
       </Card>
+
+      {/* Row 4: PDF Report Download */}
+      <div className="flex flex-wrap items-center gap-3">
+        <FileDown className="size-4 text-muted-foreground" />
+        <span className="text-sm font-semibold text-muted-foreground">{t('anomaly.downloadPdf')}</span>
+        <a href="/api/energy/anomaly/report/pdf?days=7" className="inline-flex h-8 items-center rounded-md border border-border/60 bg-background px-3 text-xs font-medium hover:bg-accent">
+          {t('anomaly.downloadPdf7d')}
+        </a>
+        <a href="/api/energy/anomaly/report/pdf?days=30" className="inline-flex h-8 items-center rounded-md border border-border/60 bg-background px-3 text-xs font-medium hover:bg-accent">
+          {t('anomaly.downloadPdf30d')}
+        </a>
+      </div>
     </div>
   );
 });

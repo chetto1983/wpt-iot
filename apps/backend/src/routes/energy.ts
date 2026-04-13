@@ -686,6 +686,99 @@ export const energyRoutes: FastifyPluginAsync = async (server) => {
     return reply.send({ warningThreshold: config.warningThreshold, criticalThreshold: config.criticalThreshold });
   });
 
+  // ── Alarm cross-correlation + PDF report ─────────────────────────────
+
+  server.get('/energy/anomaly/correlations', { preHandler: requireAuth }, async (request, reply) => {
+    const query = request.query as Record<string, string>;
+    const lag = Number(query['leadLagMinutes']) || 10;
+    const limit = Number(query['limit']) || 20;
+    try {
+      const data = await MachineAnomalyEventService.getCorrelatedAlarms({ leadLagMinutes: lag, limit });
+      return reply.send({ correlations: data });
+    } catch (err) {
+      server.log.error({ name: 'AnomalyCorrelation', err: (err as Error).message }, 'Correlation query failed');
+      return reply.code(500).send({ error: 'Internal error' });
+    }
+  });
+
+  server.get('/energy/anomaly/report/pdf', { preHandler: requireAuth }, async (request, reply) => {
+    const query = request.query as Record<string, string>;
+    const days = Number(query['days']) || 7;
+    try {
+      const data = await MachineAnomalyEventService.getReportData({ days });
+      const { createDeterministicPdfBuffer } = await import('../services/pdfDocumentFactory.js');
+      const now = new Date();
+
+      const tableBody = [
+        [
+          { text: 'Date', bold: true, fontSize: 9 },
+          { text: 'Score', bold: true, fontSize: 9 },
+          { text: 'Status', bold: true, fontSize: 9 },
+          { text: 'Mode', bold: true, fontSize: 9 },
+          { text: 'Top Driver', bold: true, fontSize: 9 },
+          { text: 'Alarms ±10min', bold: true, fontSize: 9 },
+        ],
+        ...data.events.slice(0, 50).map((e) => {
+          const corr = data.correlations.find((c) => c.event.id === e.id);
+          const alarmCount = corr?.alarms.length ?? 0;
+          return [
+            { text: new Date(e.observedAt).toLocaleString('it-IT'), fontSize: 8 },
+            { text: e.score.toFixed(2), fontSize: 8 },
+            { text: e.status, fontSize: 8 },
+            { text: e.modeKey, fontSize: 8 },
+            { text: e.topContributors[0]?.feature ?? '—', fontSize: 8 },
+            { text: alarmCount > 0 ? `${alarmCount} alarm(s)` : '—', fontSize: 8 },
+          ];
+        }),
+      ];
+
+      const pdf = await createDeterministicPdfBuffer(
+        {
+          pageSize: 'A4',
+          pageMargins: [40, 60, 40, 50],
+          content: [
+            { text: 'WPT IoT — Anomaly Detection Report', fontSize: 18, bold: true, margin: [0, 0, 0, 10] },
+            { text: `Period: ${days} days (${new Date(data.period.from).toLocaleDateString('it-IT')} — ${now.toLocaleDateString('it-IT')})`, fontSize: 10, color: '#666', margin: [0, 0, 0, 15] },
+            { text: 'Summary', fontSize: 14, bold: true, margin: [0, 0, 0, 8] },
+            {
+              columns: [
+                { text: `Total events: ${data.totalEvents}`, fontSize: 10 },
+                { text: `TP rate: ${data.feedback.tpRate !== null ? (data.feedback.tpRate * 100).toFixed(0) + '%' : 'N/A'}`, fontSize: 10 },
+                { text: `FP rate: ${data.feedback.fpRate !== null ? (data.feedback.fpRate * 100).toFixed(0) + '%' : 'N/A'}`, fontSize: 10 },
+              ],
+              margin: [0, 0, 0, 15],
+            },
+            ...(data.feedback.suggestion ? [{ text: `Suggestion: ${data.feedback.suggestion}`, fontSize: 10, color: '#b45309', margin: [0, 0, 0, 15] as [number, number, number, number] }] : []),
+            { text: 'Events', fontSize: 14, bold: true, margin: [0, 0, 0, 8] as [number, number, number, number] },
+            {
+              table: { headerRows: 1, widths: ['auto', 'auto', 'auto', 'auto', '*', 'auto'], body: tableBody },
+              layout: 'lightHorizontalLines',
+            },
+          ],
+          defaultStyle: { font: 'Roboto' },
+        },
+        {
+          title: 'WPT IoT Anomaly Report',
+          author: 'WPT Sistema IoT',
+          subject: `Anomaly detection report — ${days}d`,
+          creator: 'WPT IoT ML',
+          producer: 'pdfmake',
+          creationDate: now,
+          modDate: now,
+        },
+      );
+
+      const filename = `anomaly-report-${days}d-${now.toISOString().slice(0, 10)}.pdf`;
+      return reply
+        .header('Content-Type', 'application/pdf')
+        .header('Content-Disposition', `attachment; filename="${filename}"`)
+        .send(pdf);
+    } catch (err) {
+      server.log.error({ name: 'AnomalyPdf', err: (err as Error).message }, 'PDF generation failed');
+      return reply.code(500).send({ error: 'PDF generation failed' });
+    }
+  });
+
   // =========================================================================
   // Phase 20 — POST /api/energy/baseline/lock
   //
