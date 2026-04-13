@@ -205,28 +205,20 @@ Implemented ISA-18.2 event lifecycle: `OPEN → ACKNOWLEDGED → CONFIRMED/DISMI
 
 **Frontend:** Status badge per event row (color-coded: destructive=OPEN, outline=ACK, default=CONFIRMED, secondary=DISMISSED). Action buttons: ACK (OPEN), Confirm/Dismiss (OPEN/ACK), Delete (admin). i18n: en + it.
 
-### C2 — Dashboard Redesign (Health Gauge + Timeline + Feature Drill-Down)
+### C2 — Dashboard Redesign (Health Gauge + Timeline + Feature Drill-Down) ✅ DONE
 
-**Research source:** AWS Lookout for Equipment, OSIsoft PI Vision, Seeq, Grafana ML, ISA-101 HMI standard, ISO 13374-4.
+Multi-panel ISA-101 dashboard replacing the single-card layout. 6 components in `src/components/anomaly/`:
 
-**Target panel layout:**
-
-| Panel | Position | Content |
+| Panel | Component | Content |
 |---|---|---|
-| Health Score Gauge | Top-left | Single number 0-100, green/amber/red zones |
-| Anomaly Timeline | Top-right, full width | Score over time with confidence envelope, colored anomaly bands |
-| Active Event Table | Center | Sortable rows with ACK/Dismiss/Escalate buttons, filterable by severity |
-| Feature Contribution | Drill-down panel | Bar chart of sensor z-scores for selected event |
-| Model Health | Sidebar widget | Observations, warm modes, confidence, drift warning |
-| Historical Event Log | Secondary tab | Past events with final verdict (TP/FP), date/severity filters |
+| Health Score Gauge | `anomaly-health-gauge.tsx` | 0-100 radial gauge, green/amber/red ISA-101 zones |
+| Anomaly Timeline | `anomaly-timeline.tsx` | Recharts AreaChart, live score accumulation, W/C reference lines |
+| Feature Contribution | `anomaly-feature-chart.tsx` | Horizontal bar chart of z-scores, ISA-101 color per severity |
+| Model Health | `anomaly-model-health.tsx` | Observations, warm/tracked modes, uptime, CUSUM drift warning |
+| Feedback Analysis | integrated in dashboard | TP/FP rates, threshold suggestions from C7 |
+| Event Table | `anomaly-event-table.tsx` | Tabbed Active/History, lifecycle actions from C1 |
 
-**Color convention (ISA-101):**
-
-| Level | Color | Meaning |
-|---|---|---|
-| CRITICAL | Red `#dc3545` | Immediate action required |
-| WARNING | Amber `#f59e0b` | Action required soon |
-| NORMAL | Green (accent of `#1ABC9C`) | Healthy state |
+Orchestrated by `anomaly-dashboard.tsx` — 15s polling, timeline accumulation (120 points), parallel API fetch.
 
 ### C3 — CUSUM Drift Detection ✅ DONE
 
@@ -263,7 +255,7 @@ All anomaly interfaces moved to `packages/types/src/anomaly.ts`: `IAnomalyResult
 | Priority | Enhancement | Impact | Effort |
 |---|---|---|---|
 | ~~P0~~ | ~~C1 — Event lifecycle (ACK/Dismiss/Confirm)~~ | ✅ Done | — |
-| **P1** | C2 — Dashboard redesign | Operator UX matches industrial standards | High |
+| ~~P1~~ | ~~C2 — Dashboard redesign~~ | ✅ Done | — |
 | ~~P1~~ | ~~C6 — State persistence across restarts~~ | ✅ Done | — |
 | ~~P2~~ | ~~C3 — CUSUM drift detection~~ | ✅ Done | — |
 | ~~P2~~ | ~~C5 — Correlated feature grouping~~ | ✅ Done (FIX 8) | — |
