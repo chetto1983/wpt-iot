@@ -20,18 +20,18 @@ interface AnomalyFeatureChartProps {
 
 function featureLabel(key: string): string {
   const labels: Record<string, string> = {
-    garbageTemp: 'Temp',
-    chamberPressure: 'Press',
-    mainMotorSpeed: 'Speed',
-    mainMotorCurrent: 'Curr',
-    mainMotorTorque: 'Torque',
-    vacuumPumpSpeed01: 'Vacuum',
+    garbageTemp: 'Temperature',
+    chamberPressure: 'Pressure',
+    mainMotorSpeed: 'Motor Speed',
+    mainMotorCurrent: 'Motor Current',
+    mainMotorTorque: 'Motor Torque',
+    vacuumPumpSpeed01: 'Vacuum Pump',
     energyConsumption: 'Energy',
-    rmsCurrL1: 'RMS L1',
-    rmsCurrL2: 'RMS L2',
-    rmsCurrL3: 'RMS L3',
-    materialInputWeight: 'In Wt',
-    materialOutputWeight: 'Out Wt',
+    rmsCurrL1: 'RMS Curr L1',
+    rmsCurrL2: 'RMS Curr L2',
+    rmsCurrL3: 'RMS Curr L3',
+    materialInputWeight: 'Input Weight',
+    materialOutputWeight: 'Output Weight',
   };
   return labels[key] ?? key;
 }
@@ -83,7 +83,7 @@ export const AnomalyFeatureChart = memo(function AnomalyFeatureChart({
             tick={{ fontSize: 11, fill: '#aaa' }}
             tickLine={false}
             axisLine={false}
-            width={55}
+            width={95}
           />
           <Tooltip
             contentStyle={{
