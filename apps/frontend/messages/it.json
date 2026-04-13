@@ -595,6 +595,24 @@
     "successToast": "Report scaricato",
     "tooltip": {
       "selectDateRange": "Seleziona prima un intervallo di date"
+    },
+    "selectFields": "Seleziona Colonne",
+    "fieldCount": "{count} colonne selezionate",
+    "fieldCountNone": "Seleziona almeno una colonna",
+    "fieldCountMax": "Massimo colonne selezionate",
+    "selectAll": "Seleziona tutto",
+    "deselectAll": "Deseleziona tutto",
+    "categories": {
+      "general": "Generale",
+      "status": "Stato",
+      "temperatures": "Temperature",
+      "pressures": "Pressioni",
+      "motors": "Motori e Pompe",
+      "electrical": "Elettrico",
+      "lineVoltages": "Tensioni trifase",
+      "weights": "Pesi e Consumi",
+      "timers": "Timer e Contatori",
+      "thermoSelection": "Selezione Termocoppie"
     }
   },
   "alarms": {
@@ -784,7 +802,15 @@
       "caCert": "Certificato CA (PEM)",
       "caCertHelp": "Necessario per certificati auto-firmati. Lascia vuoto per CA pubbliche.",
       "brokerHost": "Host Broker",
-      "brokerPort": "Porta Broker"
+      "brokerPort": "Porta Broker",
+      "sparkplugTitle": "Uplink Cloud (Sparkplug B)",
+      "sparkplugGroupId": "Group ID",
+      "sparkplugGroupIdHelp": "Gruppo namespace Sparkplug B (es. WPT)",
+      "sparkplugEdgeNodeId": "Edge Node ID",
+      "sparkplugEdgeNodeIdHelp": "Identificatore univoco del nodo IoT (es. iot-box-01)",
+      "publishCycleRecords": "Pubblica Registri Ciclo",
+      "telemetryIntervalSeconds": "Intervallo Telemetria (secondi)",
+      "telemetryIntervalHelp": "Intervallo tra snapshot di telemetria macchina inviati al cloud (5\u20133600 s)"
     },
     "users": {
       "title": "Utenti MQTT",

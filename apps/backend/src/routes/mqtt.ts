@@ -101,6 +101,10 @@ export const mqttRoutes: FastifyPluginAsync = async (server) => {
       publishJobs: z.boolean().optional(),
       useTls: z.boolean().optional(),
       caCert: z.string().max(10000).nullable().optional(),
+      sparkplugGroupId: z.string().min(1).max(255).optional(),
+      sparkplugEdgeNodeId: z.string().min(1).max(255).optional(),
+      publishCycleRecords: z.boolean().optional(),
+      telemetryIntervalSeconds: z.int().min(5).max(3600).optional(),
     }).safeParse(request.body);
 
     if (!result.success) {

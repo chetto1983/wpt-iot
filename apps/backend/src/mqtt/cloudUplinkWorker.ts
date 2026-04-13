@@ -2,7 +2,7 @@ import { eq, isNull, asc } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import { cycleRecords } from '../db/schema/energy.js';
 import { SparkplugService } from './sparkplugService.js';
-import { CloudConfigService } from './cloudConfigService.js';
+import { MqttConfigService } from './configService.js';
 import { dataHub } from '../events/hub.js';
 import type { FastifyBaseLogger } from 'fastify';
 import type { ICycleClosedEvent } from '@wpt/types';
@@ -51,7 +51,7 @@ export class CloudUplinkWorker {
    * Called both by immediate handler and drain loop.
    */
   private static async publishAndMark(record: ICycleClosedEvent | { id: number; cycleNumber: number } & Record<string, unknown>): Promise<void> {
-    const cfg = await CloudConfigService.getConfig();
+    const cfg = await MqttConfigService.getConfig();
     if (!cfg.enabled || !cfg.publishCycleRecords) return;
 
     await SparkplugService.publishCycleRecord(record);
@@ -77,7 +77,7 @@ export class CloudUplinkWorker {
     this.isRunning = true;
 
     try {
-      const cfg = await CloudConfigService.getConfig();
+      const cfg = await MqttConfigService.getConfig();
       if (!cfg.enabled || !cfg.publishCycleRecords) {
         this.isRunning = false;
         return;

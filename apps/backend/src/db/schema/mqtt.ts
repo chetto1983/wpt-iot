@@ -16,5 +16,9 @@ export const mqttConfig = pgTable('mqtt_config', {
   publishJobs: boolean('publish_jobs').default(false).notNull(),
   useTls: boolean('use_tls').default(false).notNull(),
   caCert: varchar('ca_cert', { length: 10000 }),
+  sparkplugGroupId: varchar('sparkplug_group_id', { length: 255 }).default('WPT').notNull(),
+  sparkplugEdgeNodeId: varchar('sparkplug_edge_node_id', { length: 255 }).default('iot-box-01').notNull(),
+  publishCycleRecords: boolean('publish_cycle_records').default(false).notNull(),
+  telemetryIntervalSeconds: integer('telemetry_interval_seconds').default(30).notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 });

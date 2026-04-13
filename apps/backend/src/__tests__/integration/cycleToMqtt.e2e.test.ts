@@ -126,20 +126,29 @@ const mockLogger = {
   error: vi.fn(),
 };
 
-// Mock CloudConfigService
-vi.mock('../../mqtt/cloudConfigService.js', () => ({
-  CloudConfigService: {
+// Mock MqttConfigService (consolidated — replaces CloudConfigService)
+vi.mock('../../mqtt/configService.js', () => ({
+  MqttConfigService: {
     getConfig: vi.fn(async () => ({
+      id: 1,
       enabled: true,
-      publishCycleRecords: true,
-      publishMachineData: true,
       brokerHost: 'localhost',
       brokerPort: 1883,
       username: 'test',
       password: 'test',
-      groupId: 'WPT_TEST',
-      edgeNodeId: 'MACHINE_001',
+      siteId: 'site-01',
+      machineId: 'wpt40-001',
+      publishMachine: true,
+      publishAlarms: true,
+      publishRfid: false,
+      publishJobs: false,
+      useTls: false,
+      caCert: null,
+      sparkplugGroupId: 'WPT_TEST',
+      sparkplugEdgeNodeId: 'MACHINE_001',
+      publishCycleRecords: true,
       telemetryIntervalSeconds: 15,
+      updatedAt: new Date(),
     })),
   },
 }));

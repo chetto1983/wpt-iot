@@ -32,6 +32,10 @@ interface MqttConfig {
   publishJobs: boolean;
   useTls: boolean;
   caCert: string | null;
+  sparkplugGroupId: string;
+  sparkplugEdgeNodeId: string;
+  publishCycleRecords: boolean;
+  telemetryIntervalSeconds: number;
 }
 
 interface MqttConfigFormProps {
@@ -60,6 +64,10 @@ export function MqttConfigForm({ config, onSaved }: MqttConfigFormProps) {
   const [publishJobs, setPublishJobs] = useState(config.publishJobs);
   const [useTls, setUseTls] = useState(config.useTls);
   const [caCert, setCaCert] = useState(config.caCert ?? '');
+  const [sparkplugGroupId, setSparkplugGroupId] = useState(config.sparkplugGroupId);
+  const [sparkplugEdgeNodeId, setSparkplugEdgeNodeId] = useState(config.sparkplugEdgeNodeId);
+  const [publishCycleRecords, setPublishCycleRecords] = useState(config.publishCycleRecords);
+  const [telemetryIntervalSeconds, setTelemetryIntervalSeconds] = useState(config.telemetryIntervalSeconds);
   const [saving, setSaving] = useState(false);
   const restoredDraftRef = useRef(false);
 
@@ -77,6 +85,10 @@ export function MqttConfigForm({ config, onSaved }: MqttConfigFormProps) {
     setPublishJobs(next.publishJobs);
     setUseTls(next.useTls);
     setCaCert(next.caCert ?? '');
+    setSparkplugGroupId(next.sparkplugGroupId);
+    setSparkplugEdgeNodeId(next.sparkplugEdgeNodeId);
+    setPublishCycleRecords(next.publishCycleRecords);
+    setTelemetryIntervalSeconds(next.telemetryIntervalSeconds);
   }, []);
 
   useEffect(() => {
@@ -96,6 +108,10 @@ export function MqttConfigForm({ config, onSaved }: MqttConfigFormProps) {
     setPublishJobs(draft.publishJobs);
     setUseTls(draft.useTls);
     setCaCert(draft.caCert ?? '');
+    if ('sparkplugGroupId' in draft) setSparkplugGroupId((draft as MqttConfig).sparkplugGroupId);
+    if ('sparkplugEdgeNodeId' in draft) setSparkplugEdgeNodeId((draft as MqttConfig).sparkplugEdgeNodeId);
+    if ('publishCycleRecords' in draft) setPublishCycleRecords((draft as MqttConfig).publishCycleRecords);
+    if ('telemetryIntervalSeconds' in draft) setTelemetryIntervalSeconds((draft as MqttConfig).telemetryIntervalSeconds);
   }, []);
 
   useEffect(() => {
@@ -117,7 +133,11 @@ export function MqttConfigForm({ config, onSaved }: MqttConfigFormProps) {
       publishRfid !== config.publishRfid ||
       publishJobs !== config.publishJobs ||
       useTls !== config.useTls ||
-      caCert !== (config.caCert ?? '');
+      caCert !== (config.caCert ?? '') ||
+      sparkplugGroupId !== config.sparkplugGroupId ||
+      sparkplugEdgeNodeId !== config.sparkplugEdgeNodeId ||
+      publishCycleRecords !== config.publishCycleRecords ||
+      telemetryIntervalSeconds !== config.telemetryIntervalSeconds;
 
     if (!hasDraftChanges) {
       clearSessionDraft(MQTT_CONFIG_DRAFT_KEY);
@@ -137,6 +157,10 @@ export function MqttConfigForm({ config, onSaved }: MqttConfigFormProps) {
       publishJobs,
       useTls,
       caCert: caCert || null,
+      sparkplugGroupId,
+      sparkplugEdgeNodeId,
+      publishCycleRecords,
+      telemetryIntervalSeconds,
     });
   }, [
     caCert,
@@ -152,6 +176,10 @@ export function MqttConfigForm({ config, onSaved }: MqttConfigFormProps) {
     publishRfid,
     publishJobs,
     useTls,
+    sparkplugGroupId,
+    sparkplugEdgeNodeId,
+    publishCycleRecords,
+    telemetryIntervalSeconds,
   ]);
 
   const handleSave = useCallback(async () => {
@@ -170,6 +198,10 @@ export function MqttConfigForm({ config, onSaved }: MqttConfigFormProps) {
         publishJobs,
         useTls,
         caCert: caCert || null,
+        sparkplugGroupId,
+        sparkplugEdgeNodeId,
+        publishCycleRecords,
+        telemetryIntervalSeconds,
       };
       // Only send password if user typed one — empty means "no change".
       if (password.length > 0) body.password = password;
@@ -191,7 +223,7 @@ export function MqttConfigForm({ config, onSaved }: MqttConfigFormProps) {
     } finally {
       setSaving(false);
     }
-  }, [enabled, brokerHost, brokerPort, username, password, siteId, machineId, publishMachine, publishAlarms, publishRfid, publishJobs, useTls, caCert, onSaved, t, tCommon]);
+  }, [enabled, brokerHost, brokerPort, username, password, siteId, machineId, publishMachine, publishAlarms, publishRfid, publishJobs, useTls, caCert, sparkplugGroupId, sparkplugEdgeNodeId, publishCycleRecords, telemetryIntervalSeconds, onSaved, t, tCommon]);
 
   return (
     <Card>
@@ -366,6 +398,57 @@ export function MqttConfigForm({ config, onSaved }: MqttConfigFormProps) {
               </p>
             </div>
           ) : null}
+        </div>
+
+        {/* Cloud Uplink (Sparkplug B) */}
+        <div className="grid gap-4">
+          <Label className="text-sm font-medium">{t('config.sparkplugTitle')}</Label>
+
+          <div className="grid gap-2">
+            <Label htmlFor="mqtt-sparkplug-group-id">{t('config.sparkplugGroupId')}</Label>
+            <Input
+              id="mqtt-sparkplug-group-id"
+              value={sparkplugGroupId}
+              onChange={(e) => setSparkplugGroupId(e.target.value)}
+              placeholder="WPT"
+            />
+            <p className="text-xs text-muted-foreground">{t('config.sparkplugGroupIdHelp')}</p>
+          </div>
+
+          <div className="grid gap-2">
+            <Label htmlFor="mqtt-sparkplug-edge-node-id">{t('config.sparkplugEdgeNodeId')}</Label>
+            <Input
+              id="mqtt-sparkplug-edge-node-id"
+              value={sparkplugEdgeNodeId}
+              onChange={(e) => setSparkplugEdgeNodeId(e.target.value)}
+              placeholder="iot-box-01"
+            />
+            <p className="text-xs text-muted-foreground">{t('config.sparkplugEdgeNodeIdHelp')}</p>
+          </div>
+
+          <div className="flex items-center justify-between">
+            <Label htmlFor="mqtt-publish-cycle-records" className="font-normal">
+              {t('config.publishCycleRecords')}
+            </Label>
+            <Switch
+              id="mqtt-publish-cycle-records"
+              checked={publishCycleRecords}
+              onCheckedChange={setPublishCycleRecords}
+            />
+          </div>
+
+          <div className="grid gap-2">
+            <Label htmlFor="mqtt-telemetry-interval">{t('config.telemetryIntervalSeconds')}</Label>
+            <Input
+              id="mqtt-telemetry-interval"
+              type="number"
+              value={telemetryIntervalSeconds}
+              onChange={(e) => setTelemetryIntervalSeconds(Number(e.target.value))}
+              min={5}
+              max={3600}
+            />
+            <p className="text-xs text-muted-foreground">{t('config.telemetryIntervalHelp')}</p>
+          </div>
         </div>
 
         {/* Save */}

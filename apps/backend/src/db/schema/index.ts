@@ -7,5 +7,4 @@ export * from './dashboards.js';
 export * from './mqtt.js';
 export * from './plc.js';
 export * from './energy.js';
-export * from './cloudMqtt.js';
 export * from './anomaly.js';

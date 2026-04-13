@@ -37,20 +37,29 @@ vi.mock('sparkplug-payload', () => ({
   },
 }));
 
-// Mock CloudConfigService
-vi.mock('../../mqtt/cloudConfigService.js', () => ({
-  CloudConfigService: {
+// Mock MqttConfigService (consolidated — replaces CloudConfigService)
+vi.mock('../../mqtt/configService.js', () => ({
+  MqttConfigService: {
     getConfig: vi.fn().mockResolvedValue({
+      id: 1,
       enabled: true,
-      publishCycleRecords: true,
-      publishMachineData: true,
-      telemetryIntervalSeconds: 15,
-      groupId: 'ideal-don-gnocchi',
-      edgeNodeId: 'NW30-020',
       brokerHost: 'mqtt.example.com',
       brokerPort: 1883,
       username: 'user',
       password: 'pass',
+      siteId: 'site-01',
+      machineId: 'wpt40-001',
+      publishMachine: true,
+      publishAlarms: true,
+      publishRfid: false,
+      publishJobs: false,
+      useTls: false,
+      caCert: null,
+      sparkplugGroupId: 'ideal-don-gnocchi',
+      sparkplugEdgeNodeId: 'NW30-020',
+      publishCycleRecords: true,
+      telemetryIntervalSeconds: 15,
+      updatedAt: new Date(),
     }),
   },
 }));
@@ -190,19 +199,28 @@ describe('Sparkplug B cycle-record encoding (GREEN — Phase 24)', () => {
   // Test 5: Disabled when cloud config disables cycle records
   // ==========================================================================
   it('does not publish when cycle records are disabled', async () => {
-    const { CloudConfigService } = await import('../../mqtt/cloudConfigService.js');
-    vi.mocked(CloudConfigService.getConfig).mockResolvedValue({
+    const { MqttConfigService } = await import('../../mqtt/configService.js');
+    vi.mocked(MqttConfigService.getConfig).mockResolvedValue({
+      id: 1,
       enabled: true,
-      publishCycleRecords: false,
-      publishMachineData: true,
-      telemetryIntervalSeconds: 15,
-      groupId: 'ideal-don-gnocchi',
-      edgeNodeId: 'NW30-020',
       brokerHost: 'mqtt.example.com',
       brokerPort: 1883,
       username: 'user',
       password: 'pass',
-    } as any);
+      siteId: 'site-01',
+      machineId: 'wpt40-001',
+      publishMachine: true,
+      publishAlarms: true,
+      publishRfid: false,
+      publishJobs: false,
+      useTls: false,
+      caCert: null,
+      sparkplugGroupId: 'ideal-don-gnocchi',
+      sparkplugEdgeNodeId: 'NW30-020',
+      publishCycleRecords: false,
+      telemetryIntervalSeconds: 15,
+      updatedAt: new Date(),
+    });
 
     const log = { info: vi.fn(), warn: vi.fn(), error: vi.fn() };
     await SparkplugService.init(log);

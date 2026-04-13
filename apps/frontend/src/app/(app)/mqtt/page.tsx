@@ -68,6 +68,10 @@ interface MqttConfig {
   publishJobs: boolean;
   useTls: boolean;
   caCert: string | null;
+  sparkplugGroupId: string;
+  sparkplugEdgeNodeId: string;
+  publishCycleRecords: boolean;
+  telemetryIntervalSeconds: number;
   updatedAt: string;
 }
 

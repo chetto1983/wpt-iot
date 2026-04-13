@@ -49,6 +49,18 @@ export class MqttConfigService {
     await db.execute(sql`
       ALTER TABLE mqtt_config ADD COLUMN IF NOT EXISTS password VARCHAR(255) NOT NULL DEFAULT 'wpt_mqtt_dev_password'
     `);
+    await db.execute(sql`
+      ALTER TABLE mqtt_config ADD COLUMN IF NOT EXISTS sparkplug_group_id VARCHAR(255) NOT NULL DEFAULT 'WPT'
+    `);
+    await db.execute(sql`
+      ALTER TABLE mqtt_config ADD COLUMN IF NOT EXISTS sparkplug_edge_node_id VARCHAR(255) NOT NULL DEFAULT 'iot-box-01'
+    `);
+    await db.execute(sql`
+      ALTER TABLE mqtt_config ADD COLUMN IF NOT EXISTS publish_cycle_records BOOLEAN NOT NULL DEFAULT false
+    `);
+    await db.execute(sql`
+      ALTER TABLE mqtt_config ADD COLUMN IF NOT EXISTS telemetry_interval_seconds INTEGER NOT NULL DEFAULT 30
+    `);
 
     const existing = await db.execute(
       sql`SELECT id FROM mqtt_config WHERE id = 1`,
@@ -60,12 +72,14 @@ export class MqttConfigService {
           id, enabled, broker_host, broker_port, username, password,
           site_id, machine_id,
           publish_machine, publish_alarms, publish_rfid, publish_jobs,
-          use_tls, ca_cert
+          use_tls, ca_cert,
+          sparkplug_group_id, sparkplug_edge_node_id, publish_cycle_records, telemetry_interval_seconds
         ) VALUES (
           1, false, 'localhost', 1883, 'wpt-backend', 'wpt_mqtt_dev_password',
           'site-01', 'wpt40-001',
           true, true, false, false,
-          false, NULL
+          false, NULL,
+          'WPT', 'iot-box-01', false, 30
         )
       `);
     }

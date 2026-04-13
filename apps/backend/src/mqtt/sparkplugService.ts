@@ -2,7 +2,7 @@ import mqtt from 'mqtt';
 import type { MqttClient } from 'mqtt';
 import type { FastifyBaseLogger } from 'fastify';
 import sparkplugPayload from 'sparkplug-payload';
-import { CloudConfigService } from './cloudConfigService.js';
+import { MqttConfigService } from './configService.js';
 import { pushEvent } from './activityLog.js';
 import { dataHub } from '../events/hub.js';
 import type { IMachineSnapshot } from '@wpt/types';
@@ -24,13 +24,13 @@ export class SparkplugService {
 
   static async init(log: FastifyBaseLogger): Promise<void> {
     this.logger = log;
-    const cfg = await CloudConfigService.getConfig();
+    const cfg = await MqttConfigService.getConfig();
     if (!cfg.enabled) {
       log.info({ name: 'Sparkplug' }, 'Sparkplug Cloud Uplink disabled');
       return;
     }
 
-    const deathTopic = `spBv1.0/${cfg.groupId}/NDEATH/${cfg.edgeNodeId}`;
+    const deathTopic = `spBv1.0/${cfg.sparkplugGroupId}/NDEATH/${cfg.sparkplugEdgeNodeId}`;
     const deathPayload = spb?.encodePayload({
       timestamp: Date.now(),
       metrics: [{ name: 'bdSeq', type: 'UInt64', value: this.bdSeq }]
@@ -40,7 +40,7 @@ export class SparkplugService {
       this.client = await mqtt.connectAsync({
         host: cfg.brokerHost,
         port: cfg.brokerPort,
-        clientId: `wpt-sparkplug-${cfg.edgeNodeId}`,
+        clientId: `wpt-sparkplug-${cfg.sparkplugEdgeNodeId}`,
         username: cfg.username,
         password: cfg.password,
         will: {
@@ -80,10 +80,10 @@ export class SparkplugService {
 
   private static async publishBirths(): Promise<void> {
     if (!this.client || !spb) return;
-    const cfg = await CloudConfigService.getConfig();
+    const cfg = await MqttConfigService.getConfig();
 
     // NBIRTH
-    const nbirthTopic = `spBv1.0/${cfg.groupId}/NBIRTH/${cfg.edgeNodeId}`;
+    const nbirthTopic = `spBv1.0/${cfg.sparkplugGroupId}/NBIRTH/${cfg.sparkplugEdgeNodeId}`;
     const nbirthPayload = spb.encodePayload({
       timestamp: Date.now(),
       seq: this.nextSeq(),
@@ -95,7 +95,7 @@ export class SparkplugService {
     await this.client.publishAsync(nbirthTopic, Buffer.from(nbirthPayload), { qos: 1, retain: false });
 
     // DBIRTH
-    const dbirthTopic = `spBv1.0/${cfg.groupId}/DBIRTH/${cfg.edgeNodeId}/machine`;
+    const dbirthTopic = `spBv1.0/${cfg.sparkplugGroupId}/DBIRTH/${cfg.sparkplugEdgeNodeId}/machine`;
     const dbirthPayload = spb.encodePayload({
       timestamp: Date.now(),
       seq: this.nextSeq(),
@@ -112,10 +112,10 @@ export class SparkplugService {
 
   static async publishMachineTelemetry(snapshot: IMachineSnapshot): Promise<void> {
     if (!this.client || !spb) return;
-    const cfg = await CloudConfigService.getConfig();
-    if (!cfg.enabled || !cfg.publishMachineData) return;
+    const cfg = await MqttConfigService.getConfig();
+    if (!cfg.enabled || !cfg.publishMachine) return;
 
-    const topic = `spBv1.0/${cfg.groupId}/DDATA/${cfg.edgeNodeId}/machine`;
+    const topic = `spBv1.0/${cfg.sparkplugGroupId}/DDATA/${cfg.sparkplugEdgeNodeId}/machine`;
     const payload = spb.encodePayload({
       timestamp: Date.now(),
       seq: this.nextSeq(),
@@ -133,11 +133,11 @@ export class SparkplugService {
 
   static async publishCycleRecord(record: any): Promise<void> {
     if (!this.client || !spb) return;
-    const cfg = await CloudConfigService.getConfig();
+    const cfg = await MqttConfigService.getConfig();
     if (!cfg.enabled || !cfg.publishCycleRecords) return;
 
     // Topic: spBv1.0/{groupId}/DDATA/{edgeNodeId}/cycle (per WPT-SISTEMA-IOT-SPEC.md §14)
-    const topic = `spBv1.0/${cfg.groupId}/DDATA/${cfg.edgeNodeId}/cycle`;
+    const topic = `spBv1.0/${cfg.sparkplugGroupId}/DDATA/${cfg.sparkplugEdgeNodeId}/cycle`;
 
     // 14-field DDATA payload per Base_registro_mensile_cicli.xls format
     // Field order: order_number, cycles, date, start_time, end_time, cycle_status_label,

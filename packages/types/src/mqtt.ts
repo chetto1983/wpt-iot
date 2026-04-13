@@ -53,6 +53,10 @@ export interface IMqttConfig {
   publishJobs: boolean;
   useTls: boolean;
   caCert: string | null;
+  sparkplugGroupId: string;
+  sparkplugEdgeNodeId: string;
+  publishCycleRecords: boolean;
+  telemetryIntervalSeconds: number;
   updatedAt: Date;
 }
 
@@ -79,6 +83,10 @@ export const MqttConfigSchema = z.object({
   publishJobs: z.boolean(),
   useTls: z.boolean(),
   caCert: z.string().max(10000).nullable(),
+  sparkplugGroupId: z.string().min(1).max(255),
+  sparkplugEdgeNodeId: z.string().min(1).max(255),
+  publishCycleRecords: z.boolean(),
+  telemetryIntervalSeconds: z.int().min(5).max(3600),
 });
 
 /** Command request payload published by external MQTT clients */

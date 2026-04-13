@@ -6,7 +6,6 @@ import { startUdpPipeline, stopUdpPipeline } from './udp/index.js';
 import { initBroadcaster, shutdownBroadcaster } from './ws/broadcaster.js';
 import { connectMqtt, disconnectMqtt } from './mqtt/connectionManager.js';
 import { MqttConfigService } from './mqtt/configService.js';
-import { CloudConfigService } from './mqtt/cloudConfigService.js';
 import { SparkplugService } from './mqtt/sparkplugService.js';
 import { CloudUplinkWorker } from './mqtt/cloudUplinkWorker.js';
 import { EnergyConfigService } from './services/energyConfigService.js';
@@ -76,9 +75,8 @@ async function main(): Promise<void> {
     // Seed default admin account if auth_users table is empty
     await seedDefaultAdmin(server.log);
 
-    // Ensure MQTT and Cloud MQTT config tables exist with default rows
+    // Ensure MQTT config table exists with default row
     await MqttConfigService.ensureTable();
-    await CloudConfigService.ensureTable();
 
     // Ensure Phase 19 energy tables exist + seed the default tariff period
     // (energy_config singleton, energy_config_periods, cycle_records,
