@@ -7,12 +7,11 @@ import { useTranslations } from 'next-intl';
 import { useQueryStates, parseAsString } from 'nuqs';
 import { CalendarDays } from 'lucide-react';
 import { toast } from 'sonner';
-import { CLIENT_VISIBLE_FIELDS, WPT_VISIBLE_FIELDS, UserRole } from '@wpt/types';
+import { CLIENT_VISIBLE_FIELDS, WPT_VISIBLE_FIELDS, UserRole, getFieldLabel } from '@wpt/types';
 
 import { useAuth } from '@/lib/auth-context';
 import { useAppLocale } from '@/lib/locale';
 import { apiFetch } from '@/lib/api';
-import { getFieldLabel } from '@/lib/field-labels';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';

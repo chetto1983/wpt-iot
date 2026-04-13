@@ -3,8 +3,8 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useTranslations } from 'next-intl';
 import type { ChartType, IPanel, IPanelConfig } from '@wpt/types';
+import { getFieldLabel } from '@wpt/types';
 import { useAuth } from '@/lib/auth-context';
-import { getFieldLabel } from '@/lib/field-labels';
 import { fieldsShareUnit } from '@/lib/field-units';
 import { FieldSelector, getChartableFields } from '@/components/field-selector';
 import { AlertTriangle } from 'lucide-react';

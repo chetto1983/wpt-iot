@@ -14,3 +14,4 @@ export * from './energy.js';
 export * from './format.js';
 export * from './cycle.js';
 export * from './anomaly.js';
+export { getFieldLabel, getAlarmFieldLabels } from './fieldLabels.js';

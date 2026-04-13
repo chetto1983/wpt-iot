@@ -18,9 +18,9 @@ import { useQueryStates, parseAsString, parseAsInteger } from 'nuqs';
 import { TrendingUp, CalendarDays, Loader2, Maximize2, Minimize2, RotateCcw } from 'lucide-react';
 import { toast } from 'sonner';
 
+import { getFieldLabel } from '@wpt/types';
 import { useAuth } from '@/lib/auth-context';
 import { apiFetch } from '@/lib/api';
-import { getFieldLabel } from '@/lib/field-labels';
 import { CHART_COLORS } from '@/lib/chart-colors';
 import { formatTick } from '@/lib/chart-format';
 import { Card, CardContent } from '@/components/ui/card';

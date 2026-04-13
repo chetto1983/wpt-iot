@@ -1,7 +1,7 @@
 /**
- * Field-name-to-translated-header map for CSV/PDF exports.
- * Covers all 42 WPT_VISIBLE_FIELDS + timestamp.
- * Same pattern as alarmDescriptions.ts (module-level maps).
+ * Canonical bilingual field labels for CSV/PDF exports and chart legends.
+ * Superset of all machine snapshot fields: base WPT_VISIBLE_FIELDS + V03 additions.
+ * Single source of truth — backend and frontend both import from here.
  */
 
 const itLabels: Record<string, string> = {
@@ -42,12 +42,25 @@ const itLabels: Record<string, string> = {
   rmsCurrL3: 'Corrente RMS L3',
   rmsCurrN: 'Corrente RMS N',
   spareReal01: 'Reale riserva 1',
+  spareReal02: 'Reale riserva 2',
+  // V03 — three-phase line voltages + power factor
+  lineVoltL1L2: 'Tensione linea L1-L2',
+  lineVoltL2L3: 'Tensione linea L2-L3',
+  lineVoltL3L1: 'Tensione linea L3-L1',
+  lineNeutralVoltL1: 'Tensione fase-neutro L1',
+  lineNeutralVoltL2: 'Tensione fase-neutro L2',
+  lineNeutralVoltL3: 'Tensione fase-neutro L3',
+  pfTotal: 'Fattore di potenza totale',
+  // V03 — process / job INTs
+  cycleStatus: 'Stato ciclo',
+  container: 'Contenitore',
   thermoLeftLowSel: 'Sel. termo SX basso',
   thermoLeftMedSel: 'Sel. termo SX medio',
   thermoLeftHighSel: 'Sel. termo SX alto',
   thermoRightLowSel: 'Sel. termo DX basso',
   thermoRightMedSel: 'Sel. termo DX medio',
   thermoRightHighSel: 'Sel. termo DX alto',
+  // Spare INTs (backend-only, for completeness)
   spareInt19: 'Riserva Int 19',
   spareInt20: 'Riserva Int 20',
   spareInt21: 'Riserva Int 21',
@@ -138,12 +151,25 @@ const enLabels: Record<string, string> = {
   rmsCurrL3: 'RMS Current L3',
   rmsCurrN: 'RMS Current N',
   spareReal01: 'Spare Real 1',
+  spareReal02: 'Spare Real 2',
+  // V03 — three-phase line voltages + power factor
+  lineVoltL1L2: 'Line Voltage L1-L2',
+  lineVoltL2L3: 'Line Voltage L2-L3',
+  lineVoltL3L1: 'Line Voltage L3-L1',
+  lineNeutralVoltL1: 'Line-Neutral Voltage L1',
+  lineNeutralVoltL2: 'Line-Neutral Voltage L2',
+  lineNeutralVoltL3: 'Line-Neutral Voltage L3',
+  pfTotal: 'Power Factor Total',
+  // V03 — process / job INTs
+  cycleStatus: 'Cycle Status',
+  container: 'Container',
   thermoLeftLowSel: 'Thermo Left Low Sel',
   thermoLeftMedSel: 'Thermo Left Med Sel',
   thermoLeftHighSel: 'Thermo Left High Sel',
   thermoRightLowSel: 'Thermo Right Low Sel',
   thermoRightMedSel: 'Thermo Right Med Sel',
   thermoRightHighSel: 'Thermo Right High Sel',
+  // Spare INTs (backend-only, for completeness)
   spareInt19: 'Spare Int 19',
   spareInt20: 'Spare Int 20',
   spareInt21: 'Spare Int 21',

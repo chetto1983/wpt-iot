@@ -25,9 +25,9 @@ import { ErrorBoundary } from 'react-error-boundary';
 import { useTranslations } from 'next-intl';
 import { AlertCircle, AlertTriangle, RotateCcw } from 'lucide-react';
 import type { ChartType, IPanelConfig } from '@wpt/types';
+import { getFieldLabel } from '@wpt/types';
 import { CHART_COLORS } from '@/lib/chart-colors';
 import { formatTick } from '@/lib/chart-format';
-import { getFieldLabel } from '@/lib/field-labels';
 import {
   aggregateField,
   fieldsShareUnit,
