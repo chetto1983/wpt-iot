@@ -309,22 +309,12 @@ export class CycleExportService {
       ORDER BY started_at ASC
     `);
 
-    const rows = recordsResult.rows as Array<{
-      cycleNumber: number;
-      startedAt: Date;
-      endedAt: Date;
-      cycleStatusLabel: string | null;
-      materialInputKg: number | null;
-      materialOutputKg: number | null;
-      containers: number | null;
-      grossInputKg: number | null;
-      startEnergyKwh: number | null;
-      endEnergyKwh: number | null;
-      startWaterL: number | null;
-      endWaterL: number | null;
-      operator: string | null;
-      orderNumber: string | null;
-    }>;
+    // PostgreSQL returns timestamptz as strings — convert to Date objects
+    const rows = (recordsResult.rows as Array<Record<string, unknown>>).map((r) => ({
+      ...r,
+      startedAt: new Date(r.startedAt as string),
+      endedAt: new Date(r.endedAt as string),
+    })) as ICycleRecord[];
 
     return buildCsvContent(rows);
   }
@@ -375,7 +365,13 @@ export class CycleExportService {
       ORDER BY started_at ASC
     `);
 
-    const rows = recordsResult.rows as unknown as ICycleRecord[];
+    // PostgreSQL returns timestamptz as strings — convert to Date objects
+    // so formatTime() and formatItDate() work correctly.
+    const rows = (recordsResult.rows as Array<Record<string, unknown>>).map((r) => ({
+      ...r,
+      startedAt: new Date(r.startedAt as string),
+      endedAt: new Date(r.endedAt as string),
+    })) as ICycleRecord[];
 
     // Build PDF document
     const docDef = buildPdfDocumentDefinition(rows, config, from, deterministicTimestamp);
