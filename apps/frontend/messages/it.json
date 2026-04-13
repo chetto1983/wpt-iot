@@ -259,6 +259,28 @@
       },
       "resolvedBy": "Risolto da {user}",
       "resolvedAt": "Risolto {date}",
+      "healthGauge": "Stato di salute",
+      "modelHealth": {
+        "title": "Stato modello",
+        "modes": "Modalita calde / tracciate",
+        "uptime": "Tempo attivo",
+        "flagged": "Totale segnalati",
+        "confidence": "Confidenza",
+        "persistent": "Persistente",
+        "driftWarning": "Deriva CUSUM rilevata — spostamento lento e persistente nei parametri di processo"
+      },
+      "featureChart": {
+        "title": "Contributi caratteristiche",
+        "noData": "Nessun dato disponibile"
+      },
+      "timeline": {
+        "title": "Timeline score anomalia",
+        "collecting": "Raccolta dati in corso..."
+      },
+      "events": {
+        "active": "Attivi",
+        "history": "Storico"
+      },
       "feedback": {
         "title": "Analisi feedback",
         "resolved": "Eventi risolti",

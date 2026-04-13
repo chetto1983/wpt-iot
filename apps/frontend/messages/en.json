@@ -259,6 +259,28 @@
       },
       "resolvedBy": "Resolved by {user}",
       "resolvedAt": "Resolved {date}",
+      "healthGauge": "Health Score",
+      "modelHealth": {
+        "title": "Model Health",
+        "modes": "Warm / tracked modes",
+        "uptime": "Uptime",
+        "flagged": "Total flagged",
+        "confidence": "Confidence",
+        "persistent": "Persistent",
+        "driftWarning": "CUSUM drift detected — slow persistent shift in process parameters"
+      },
+      "featureChart": {
+        "title": "Feature Contributions",
+        "noData": "No feature data available"
+      },
+      "timeline": {
+        "title": "Anomaly Score Timeline",
+        "collecting": "Collecting data points..."
+      },
+      "events": {
+        "active": "Active",
+        "history": "History"
+      },
       "feedback": {
         "title": "Feedback analysis",
         "resolved": "Resolved events",
