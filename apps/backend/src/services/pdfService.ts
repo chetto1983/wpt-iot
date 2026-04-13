@@ -1,11 +1,12 @@
 import { createRequire } from 'node:module';
+import type pdfmakeType from 'pdfmake';
 import { formatEnumValue } from '../i18n/enumLabels.js';
 import { createDeterministicPdfBuffer } from './pdfDocumentFactory.js';
 import { ensurePdfFonts } from './pdfFonts.js';
 
 const LEGACY_REPORT_METADATA_DATE = '2026-04-09T00:00:00.000Z';
 const require = createRequire(import.meta.url);
-const pdfmake = require('pdfmake') as typeof import('pdfmake');
+const pdfmake = require('pdfmake') as typeof pdfmakeType;
 
 // ---------------------------------------------------------------------------
 // PdfService — static-only class, separated from ReportService (500-line rule)

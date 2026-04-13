@@ -73,7 +73,7 @@ export function UserTable() {
 
   const fetchUsers = useCallback(async () => {
     try {
-      const data = await apiFetch<UserRow[]>('/users');
+      const data = await apiFetch<UserRow[]>('/api/users');
       setUsers(data);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : tCommon('error'));

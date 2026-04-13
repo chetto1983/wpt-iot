@@ -12,7 +12,7 @@ const MAX_LOGGED_MESSAGE_CHARS = 200;
 
 function getWsUrl(): string {
   const base = (API_BASE || window.location.origin).replace(/\/$/, '');
-  return `${base.replace(/^http/, 'ws')}/ws`;
+  return `${base.replace(/^http/, 'ws')}/api/ws`;
 }
 
 export interface WsState {

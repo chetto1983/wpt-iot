@@ -221,7 +221,7 @@ export default function RfidPage() {
   const handleRead = async () => {
     setIsReading(true);
     try {
-      const data = await apiFetch<{ users: IRfidUser[] }>('/rfid/read', { method: 'POST' });
+      const data = await apiFetch<{ users: IRfidUser[] }>('/api/rfid/read', { method: 'POST' });
       setUsers(data.users);
       lock.markReadSuccess();
       toast.success(t('toast.readSuccess'));
@@ -240,7 +240,7 @@ export default function RfidPage() {
   const handleWrite = async () => {
     setIsWriting(true);
     try {
-      await apiFetch('/rfid/write', {
+      await apiFetch('/api/rfid/write', {
         method: 'POST',
         body: JSON.stringify({ users }),
       });

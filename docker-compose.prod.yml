@@ -10,14 +10,10 @@ services:
   backend:
     image: ghcr.io/chetto1983/wpt-backend:latest
     pull_policy: always
-    network_mode: host
-    ports: []
-    # Host networking + 0.0.0.0->127.0.0.1 mosquitto bind = backend reaches broker via loopback,
-    # NOT via the "mosquitto" Docker DNS name (which is not in scope under network_mode: host).
-    # CORS_ORIGIN must be the LAN-facing frontend URL; default in base compose is localhost which
-    # only works for dev on the OnLogic itself.
+    # network_mode: host is in docker-compose.host.yml (layered separately).
+    # CORS_ORIGIN must be the LAN-facing frontend URL; default in base compose
+    # is localhost which only works for dev on the box itself.
     environment:
-      MQTT_HOST: 127.0.0.1
       CORS_ORIGIN: ${CORS_ORIGIN:-https://wpt.local}
     labels:
       - "com.centurylinklabs.watchtower.enable=true"

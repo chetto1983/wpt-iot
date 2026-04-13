@@ -13,6 +13,7 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach, beforeAll, afterAll } from 'vitest';
 import { sql } from 'drizzle-orm';
+import type { FastifyBaseLogger } from 'fastify';
 import { db, pool } from '../../db/index.js';
 import { dataHub } from '../../events/hub.js';
 import type { IMachineSnapshot, ICycleClosedEvent } from '@wpt/types';
@@ -70,7 +71,7 @@ const { SparkplugService } = await import('../../mqtt/sparkplugService.js');
 const { CloudUplinkWorker } = await import('../../mqtt/cloudUplinkWorker.js');
 
 // Test data factory for V03 machine snapshots
-function makeSnapshot(overrides: Partial<IMachineSnapshot> = {}): IMachineSnapshot {
+function _makeSnapshot(overrides: Partial<IMachineSnapshot> = {}): IMachineSnapshot {
   return {
     cycleStatus: CycleStatus.NONE,
     completedCycles: 10,
@@ -220,10 +221,10 @@ describe('cycleToMqtt E2E', () => {
     vi.clearAllMocks();
 
     // Initialize Sparkplug service
-    await SparkplugService.init(mockLogger as unknown as import('fastify').FastifyBaseLogger);
+    await SparkplugService.init(mockLogger as unknown as FastifyBaseLogger);
 
     // Start CloudUplinkWorker
-    CloudUplinkWorker.start(mockLogger as unknown as import('fastify').FastifyBaseLogger);
+    CloudUplinkWorker.start(mockLogger as unknown as FastifyBaseLogger);
   });
 
   afterEach(async () => {

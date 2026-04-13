@@ -89,61 +89,61 @@ export function buildServer(): ReturnType<typeof Fastify> {
     },
   });
 
-  // 7. WebSocket route (session-authenticated)
-  server.register(wsRoute);
+  // All HTTP + WebSocket routes are mounted under the `/api` prefix so that
+  // nginx can proxy a single `location /api/ { proxy_pass http://backend; }`
+  // without URI rewriting. The individual route files use their own internal
+  // paths (e.g. `/auth/login`, `/energy/aggregate`) and Fastify prepends the
+  // prefix at register time.
+  const apiOpts = { prefix: '/api' };
 
-  // 8. Health check
-  server.register(healthRoute);
+  // 7. WebSocket route (session-authenticated) -> /api/ws
+  server.register(wsRoute, apiOpts);
 
-  // 9. Auth routes (login, logout, me, change-password)
-  server.register(authRoutes);
+  // 8. Health check -> /api/health
+  server.register(healthRoute, apiOpts);
 
-  // 10. User CRUD routes (SuperAdmin only)
-  server.register(userRoutes);
+  // 9. Auth routes (login, logout, me, change-password) -> /api/auth/*
+  server.register(authRoutes, apiOpts);
+
+  // 10. User CRUD routes (SuperAdmin only) -> /api/users
+  server.register(userRoutes, apiOpts);
 
   // 11. Avatar upload/delete routes (any authenticated user)
-  server.register(avatarRoutes);
+  server.register(avatarRoutes, apiOpts);
 
   // 12. RFID routes (WPT + SUPER_ADMIN)
-  server.register(rfidRoutes);
+  server.register(rfidRoutes, apiOpts);
 
   // 13. Job routes (WPT + SUPER_ADMIN)
-  server.register(jobRoutes);
+  server.register(jobRoutes, apiOpts);
 
   // 14. Report routes (all authenticated)
-  server.register(reportRoutes);
+  server.register(reportRoutes, apiOpts);
 
   // 15. Alarm report routes (WPT + SUPER_ADMIN)
-  server.register(alarmReportRoutes);
+  server.register(alarmReportRoutes, apiOpts);
 
   // 16. Chart data routes (all authenticated)
-  server.register(chartRoutes);
+  server.register(chartRoutes, apiOpts);
 
   // 17. Dashboard routes (all authenticated)
-  server.register(dashboardRoutes);
+  server.register(dashboardRoutes, apiOpts);
 
   // 18. MQTT admin routes (Super Admin only).
   // Note: the broker connection itself is initialized after server.listen()
   // by `connectMqtt()` in index.ts, which reads its config from the DB.
-  server.register(mqttRoutes);
+  server.register(mqttRoutes, apiOpts);
 
   // 19. PLC config routes (Super Admin only) — DB-backed PLC target host
   // replaces the legacy SIM_HOST env var. Handshake FSM reads via cache.
-  server.register(plcConfigRoutes);
+  server.register(plcConfigRoutes, apiOpts);
 
   // 20. Energy routes (Phase 19 Plan 19-10) — read-side aggregate API
-  // over the energy_5min/1h/1d/1mo CAGG hierarchy. Ships GET
-  // /api/energy/aggregate wired and GET /api/energy/cycles as a 503
-  // stub. Plan 19-06 will extend this plugin with cycle persister +
-  // attribution scheduler lifecycle hooks. Phase 21 adds auth + role
-  // filtering (currently open per threat register T-19-26
-  // accept-for-now).
-  server.register(energyRoutes);
+  // over the energy_5min/1h/1d/1mo CAGG hierarchy.
+  server.register(energyRoutes, apiOpts);
 
-  // 21. Cycle register routes (Phase 24 Plan 24-03a) — /cycles page API
-  // GET /api/cycles — paginated cycle records with filtering
-  // GET /api/cycles/export — CSV/PDF export (SUPER_ADMIN only)
-  server.register(cycleRoutes);
+  // 21. Cycle register routes (Phase 24 Plan 24-03a) — /api/cycles page API
+  server.register(cycleRoutes, apiOpts);
 
   return server;
 }

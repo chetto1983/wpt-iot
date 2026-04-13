@@ -43,7 +43,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let cancelled = false;
     async function checkSession() {
       try {
-        const res = await fetch(`${API_BASE}/auth/me`, {
+        const res = await fetch(`${API_BASE}/api/auth/me`, {
           credentials: 'include',
         });
         if (!res.ok) throw new Error('No session');
@@ -71,7 +71,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     async (username: string, password: string, language: string) => {
       // Use raw fetch for login to avoid apiFetch's 401 redirect behavior.
       // A 401 on login means "invalid credentials", not "session expired".
-      const res = await fetch(`${API_BASE}/auth/login`, {
+      const res = await fetch(`${API_BASE}/api/auth/login`, {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
@@ -102,7 +102,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = useCallback(async () => {
     try {
-      await apiFetch('/auth/logout', { method: 'POST' });
+      await apiFetch('/api/auth/logout', { method: 'POST' });
     } catch {
       // Ignore errors — clear local state regardless
     }
@@ -112,7 +112,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const refreshUser = useCallback(async () => {
     try {
-      const res = await fetch(`${API_BASE}/auth/me`, {
+      const res = await fetch(`${API_BASE}/api/auth/me`, {
         credentials: 'include',
       });
       if (!res.ok) return;

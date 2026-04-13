@@ -68,13 +68,13 @@ export function UserDialog({ open, onOpenChange, user, onSuccess }: UserDialogPr
 
       try {
         if (isEdit && user) {
-          await apiFetch(`/users/${String(user.id)}`, {
+          await apiFetch(`/api/users/${String(user.id)}`, {
             method: 'PUT',
             body: JSON.stringify({ username, role }),
           });
           toast.success(t('toast.updated', { username }));
         } else {
-          await apiFetch('/users', {
+          await apiFetch('/api/users', {
             method: 'POST',
             body: JSON.stringify({ username, password, role }),
           });

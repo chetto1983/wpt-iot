@@ -181,7 +181,7 @@ export default function SingleDashboardPage() {
             fields: p.config.fields,
           })),
         };
-        const result = await apiFetch<IBatchChartResponse>('/charts/batch', {
+        const result = await apiFetch<IBatchChartResponse>('/api/charts/batch', {
           method: 'POST',
           body: JSON.stringify(body),
           signal: controller.signal,
@@ -209,7 +209,7 @@ export default function SingleDashboardPage() {
         const result = await apiFetch<{
           dashboard: IDashboard;
           panels: IPanel[];
-        }>(`/dashboards/${id}`);
+        }>(`/api/dashboards/${id}`);
         if (cancelled) return;
         setDashboard(result.dashboard);
         setPanels(result.panels);
@@ -291,7 +291,7 @@ export default function SingleDashboardPage() {
     if (!dashboard) return false;
     setSaving(true);
     try {
-      await apiFetch(`/dashboards/${id}`, {
+      await apiFetch(`/api/dashboards/${id}`, {
         method: 'PUT',
         body: JSON.stringify({ layout }),
       });
@@ -337,7 +337,7 @@ export default function SingleDashboardPage() {
         if (editingPanel) {
           // Update existing panel
           const updated = await apiFetch<IPanel>(
-            `/panels/${String(editingPanel.id)}`,
+            `/api/panels/${String(editingPanel.id)}`,
             {
               method: 'PUT',
               body: JSON.stringify(data),
@@ -350,7 +350,7 @@ export default function SingleDashboardPage() {
           // Create new panel with per-chart-type default sizing
           const panelKey = 'panel-' + Date.now();
           const newPanel = await apiFetch<IPanel>(
-            `/dashboards/${id}/panels`,
+            `/api/dashboards/${id}/panels`,
             {
               method: 'POST',
               body: JSON.stringify({ panelKey, ...data }),
@@ -374,7 +374,7 @@ export default function SingleDashboardPage() {
           const nextLayout = [...layout, newLayoutItem];
           setLayout(nextLayout);
           try {
-            await apiFetch(`/dashboards/${id}`, {
+            await apiFetch(`/api/dashboards/${id}`, {
               method: 'PUT',
               body: JSON.stringify({ layout: nextLayout }),
             });
@@ -414,7 +414,7 @@ export default function SingleDashboardPage() {
       const timer = setTimeout(async () => {
         pendingDeletesRef.current.delete(panelId);
         try {
-          await apiFetch(`/panels/${String(panelId)}`, { method: 'DELETE' });
+          await apiFetch(`/api/panels/${String(panelId)}`, { method: 'DELETE' });
           setDataVersion((v) => v + 1);
         } catch (err) {
           toast.error((err as Error).message);

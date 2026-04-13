@@ -109,7 +109,7 @@ services:
 
   frontend:
     environment:
-      NEXT_PUBLIC_API_URL: https://wpt.local/api
+      NEXT_PUBLIC_API_URL: https://wpt.local
 HOSTEOF
 ok "Compose files and helpers downloaded."
 
@@ -173,7 +173,7 @@ SIM_USERS_PORT=9092
 SESSION_SECRET=${SESSION_SECRET}
 ADMIN_PASSWORD=${ADMIN_PASSWORD}
 CORS_ORIGIN=https://wpt.local
-NEXT_PUBLIC_API_URL=https://wpt.local/api
+NEXT_PUBLIC_API_URL=https://wpt.local
 SESSION_COOKIE_SECURE=true
 TRUST_PROXY=true
 ENVEOF
@@ -181,7 +181,7 @@ ENVEOF
   ok ".env generated with random secrets."
 else
   upsert_env .env "CORS_ORIGIN" "https://wpt.local"
-  upsert_env .env "NEXT_PUBLIC_API_URL" "https://wpt.local/api"
+  upsert_env .env "NEXT_PUBLIC_API_URL" "https://wpt.local"
   upsert_env .env "SESSION_COOKIE_SECURE" "true"
   upsert_env .env "TRUST_PROXY" "true"
   ok ".env preserved and updated for HTTPS."
@@ -197,8 +197,8 @@ docker compose -f docker-compose.yml -f docker-compose.host.yml -f docker-compos
 
 info "Waiting for backend /health..."
 for i in {1..30}; do
-  if curl -fsS -m 2 "http://127.0.0.1:3000/health" >/dev/null 2>&1; then
-    ok "backend /health responds."
+  if curl -fsS -m 2 "http://127.0.0.1:3000/api/health" >/dev/null 2>&1; then
+    ok "backend /api/health responds."
     break
   fi
   sleep 2

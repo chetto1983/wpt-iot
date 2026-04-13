@@ -207,7 +207,7 @@ export function EnergyPageShell() {
         params.set('baseline_id', String(baselineId));
       }
 
-      const res = await fetch(`${API_BASE}/energy/reports/iso50001/pdf?${params.toString()}`, {
+      const res = await fetch(`${API_BASE}/api/energy/reports/iso50001/pdf?${params.toString()}`, {
         method: 'POST',
         credentials: 'include',
       });
@@ -330,7 +330,7 @@ export function EnergyPageShell() {
         onOpenChange={setBaselineDialogOpen}
         suggestedFrom={baselineWindow.from}
         suggestedTo={baselineWindow.to}
-        onLocked={(result) => {
+        onLocked={(_result) => {
           setRefreshTick((value) => value + 1);
         }}
       />

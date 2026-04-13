@@ -88,7 +88,7 @@ export default function ReportsPage() {
       lang: locale,
     });
 
-    apiFetch<IMachinePreview>(`/reports/machine?${params.toString()}`, { signal: controller.signal })
+    apiFetch<IMachinePreview>(`/api/reports/machine?${params.toString()}`, { signal: controller.signal })
       .then((data) => {
         if (!controller.signal.aborted) setPreview(data);
       })
@@ -116,7 +116,7 @@ export default function ReportsPage() {
       });
 
       const res = await fetch(
-        `${API_BASE}/reports/machine/${exportFormat}?${params.toString()}`,
+        `${API_BASE}/api/reports/machine/${exportFormat}?${params.toString()}`,
         { credentials: 'include' },
       );
 

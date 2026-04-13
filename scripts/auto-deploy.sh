@@ -42,7 +42,7 @@ LOG_FILE="${LOG_FILE:-/var/log/wpt-auto-deploy.log}"
 CUSTOMERS_CONF="${CUSTOMERS_CONF:-/etc/wpt-auto-deploy/customers.conf}"
 KEEP_BUNDLES="${KEEP_BUNDLES:-5}"
 SKIP_SHIP="${SKIP_SHIP:-0}"          # 1 = build only, do not ship to customers
-NEXT_PUBLIC_API_URL="${NEXT_PUBLIC_API_URL:-https://wpt.local/api}"
+NEXT_PUBLIC_API_URL="${NEXT_PUBLIC_API_URL:-https://wpt.local}"
 
 # --- Logging helpers ---
 log() {

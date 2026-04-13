@@ -255,7 +255,7 @@ export const energyRoutes: FastifyPluginAsync = async (server) => {
    * strings (totalKwh, totalCost, totalCo2) so the Phase 21 dashboard
    * can render without re-formatting.
    */
-  server.get('/api/energy/aggregate', { preHandler: requireAuth }, async (request, reply) => {
+  server.get('/energy/aggregate', { preHandler: requireAuth }, async (request, reply) => {
     const parsed = aggregateQuerySchema.safeParse(request.query);
     if (!parsed.success) {
       return reply.code(400).send({
@@ -290,7 +290,7 @@ export const energyRoutes: FastifyPluginAsync = async (server) => {
     }
   });
 
-  server.get('/api/energy/config', { preHandler: requireRole(UserRole.SUPER_ADMIN) }, async (_request, reply) => {
+  server.get('/energy/config', { preHandler: requireRole(UserRole.SUPER_ADMIN) }, async (_request, reply) => {
     try {
       const [config, activePeriod] = await Promise.all([
         EnergyConfigService.getConfig(),
@@ -310,7 +310,7 @@ export const energyRoutes: FastifyPluginAsync = async (server) => {
     }
   });
 
-  server.put('/api/energy/config', { preHandler: requireRole(UserRole.SUPER_ADMIN) }, async (request, reply) => {
+  server.put('/energy/config', { preHandler: requireRole(UserRole.SUPER_ADMIN) }, async (request, reply) => {
     const parsed = EnergyConfigUpdateSchema.safeParse(request.body);
     if (!parsed.success) {
       return reply
@@ -365,7 +365,7 @@ export const energyRoutes: FastifyPluginAsync = async (server) => {
    * surface that consumes cycle_records rows populated by the Plan
    * 19-06 cycle persister and the Plan 19-07 attribution classifier.
    */
-  server.get('/api/energy/dashboard', { preHandler: requireAuth }, async (request, reply) => {
+  server.get('/energy/dashboard', { preHandler: requireAuth }, async (request, reply) => {
     const parsed = EnergyDashboardSummaryQuerySchema.safeParse(request.query);
     if (!parsed.success) {
       return reply
@@ -390,7 +390,7 @@ export const energyRoutes: FastifyPluginAsync = async (server) => {
     }
   });
 
-  server.get('/api/energy/cycles', { preHandler: requireAuth }, async (request, reply) => {
+  server.get('/energy/cycles', { preHandler: requireAuth }, async (request, reply) => {
     const parsed = EnergyCyclesQuerySchema.safeParse(request.query);
     if (!parsed.success) {
       return reply
@@ -417,7 +417,7 @@ export const energyRoutes: FastifyPluginAsync = async (server) => {
   });
 
   server.get(
-    '/api/energy/reconciliation',
+    '/energy/reconciliation',
     { preHandler: requireAuth },
     async (request, reply) => {
       const parsed = EnergyReconciliationQuerySchema.safeParse(request.query);
@@ -445,20 +445,20 @@ export const energyRoutes: FastifyPluginAsync = async (server) => {
     },
   );
 
-  server.get('/api/energy/cycles-legacy-stub', async (_request, reply) =>
+  server.get('/energy/cycles-legacy-stub', async (_request, reply) =>
     reply
       .code(503)
       .send({ error: 'Not Implemented — Phase 21 wires this' }),
   );
 
-  server.get('/api/energy/anomaly/live', async (_request, reply) =>
+  server.get('/energy/anomaly/live', async (_request, reply) =>
     reply.send({
       tracking: machineAnomalyService.getTrackingStatus(),
       latest: machineAnomalyService.getLatest(),
     }),
   );
 
-  server.get('/api/energy/anomaly/events', async (request, reply) => {
+  server.get('/energy/anomaly/events', async (request, reply) => {
     const parsed = anomalyEventsQuerySchema.safeParse(request.query);
     if (!parsed.success) {
       return reply
@@ -481,7 +481,7 @@ export const energyRoutes: FastifyPluginAsync = async (server) => {
     }
   });
 
-  server.post('/api/energy/anomaly/simulate', async (request, reply) => {
+  server.post('/energy/anomaly/simulate', async (request, reply) => {
     const parsed = anomalySimulationSchema.safeParse(request.body);
     if (!parsed.success) {
       return reply
@@ -498,7 +498,7 @@ export const energyRoutes: FastifyPluginAsync = async (server) => {
     );
   });
 
-  server.post('/api/energy/anomaly/replay', async (request, reply) => {
+  server.post('/energy/anomaly/replay', async (request, reply) => {
     const parsed = anomalyReplaySchema.safeParse(request.body);
     if (!parsed.success) {
       return reply
@@ -533,7 +533,7 @@ export const energyRoutes: FastifyPluginAsync = async (server) => {
     }
   });
 
-  server.post('/api/energy/anomaly/evaluate', async (request, reply) => {
+  server.post('/energy/anomaly/evaluate', async (request, reply) => {
     const parsed = anomalyEvaluationSchema.safeParse(request.body);
     if (!parsed.success) {
       return reply
@@ -575,7 +575,7 @@ export const energyRoutes: FastifyPluginAsync = async (server) => {
   //
   // Insert a new baseline row + freeze evidence snapshot. No UPDATE/PUT/PATCH.
   // =========================================================================
-  server.post('/api/energy/baseline/lock', { preHandler: requireRole(UserRole.SUPER_ADMIN) }, async (request, reply) => {
+  server.post('/energy/baseline/lock', { preHandler: requireRole(UserRole.SUPER_ADMIN) }, async (request, reply) => {
     const parsed = BaselineLockRequestSchema.safeParse(request.body);
     if (!parsed.success) {
       return reply
@@ -622,7 +622,7 @@ export const energyRoutes: FastifyPluginAsync = async (server) => {
   // Sets retired_at = NOW(). 204 on success, 404 if id not found.
   // =========================================================================
   server.post<{ Params: { id: string } }>(
-    '/api/energy/baseline/:id/retire',
+    '/energy/baseline/:id/retire',
     { preHandler: requireRole(UserRole.SUPER_ADMIN) },
     async (request, reply) => {
       const baselineId = Number(request.params.id);
@@ -647,7 +647,7 @@ export const energyRoutes: FastifyPluginAsync = async (server) => {
   // D-09: response shape frozen — ISavingsResponse (detail=0) or
   //       ISavingsDetailResponse (detail=1).
   // =========================================================================
-  server.get('/api/energy/savings', { preHandler: requireAuth }, async (request, reply) => {
+  server.get('/energy/savings', { preHandler: requireAuth }, async (request, reply) => {
     const parsed = SavingsQuerySchema.safeParse(request.query);
     if (!parsed.success) {
       return reply
@@ -695,7 +695,7 @@ export const energyRoutes: FastifyPluginAsync = async (server) => {
   });
 
   server.post(
-    '/api/energy/reports/iso50001/pdf',
+    '/energy/reports/iso50001/pdf',
     { preHandler: requireAuth },
     async (request, reply) => {
       const parsed = EnergyPdfReportQuerySchema.safeParse(request.query);
@@ -741,7 +741,7 @@ export const energyRoutes: FastifyPluginAsync = async (server) => {
 
           return reply
             .header('Content-Type', 'application/pdf')
-            .header('Content-Disposition', `attachment; filename=\"${filename}\"`)
+            .header('Content-Disposition', `attachment; filename="${filename}"`)
             .send(pdf);
         } catch (err) {
           server.log.error(

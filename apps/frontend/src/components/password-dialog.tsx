@@ -63,7 +63,7 @@ export function PasswordDialog({ open, onOpenChange, user, onSuccess }: Password
       setSubmitting(true);
 
       try {
-        await apiFetch(`/users/${String(user.id)}/password`, {
+        await apiFetch(`/api/users/${String(user.id)}/password`, {
           method: 'PUT',
           body: JSON.stringify({ password: newPassword }),
         });

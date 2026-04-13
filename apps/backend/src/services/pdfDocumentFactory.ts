@@ -1,8 +1,9 @@
 import { createRequire } from 'node:module';
+import type pdfmakeType from 'pdfmake';
 import { ensurePdfFonts } from './pdfFonts.js';
 
 const require = createRequire(import.meta.url);
-const pdfmake = require('pdfmake') as typeof import('pdfmake');
+const pdfmake = require('pdfmake') as typeof pdfmakeType;
 
 type PdfDocumentDefinition = Parameters<(typeof pdfmake)['createPdf']>[0];
 

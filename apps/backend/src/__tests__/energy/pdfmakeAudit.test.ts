@@ -2,10 +2,11 @@ import { readFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import type pdfmakeType from 'pdfmake';
 import { describe, expect, it } from 'vitest';
 
 const require = createRequire(import.meta.url);
-const pdfmake = require('pdfmake') as typeof import('pdfmake');
+const pdfmake = require('pdfmake') as typeof pdfmakeType;
 
 const pdfmakeRoot = path.dirname(require.resolve('pdfmake/package.json'));
 const fontsDir = path.join(pdfmakeRoot, 'build', 'fonts', 'Roboto');

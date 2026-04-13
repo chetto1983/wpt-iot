@@ -34,7 +34,7 @@ export default function DashboardsListPage() {
 
   const fetchDashboards = useCallback(async () => {
     try {
-      const data = await apiFetch<IDashboard[]>('/dashboards');
+      const data = await apiFetch<IDashboard[]>('/api/dashboards');
       setDashboards(data);
     } catch (err) {
       toast.error((err as Error).message);
@@ -55,7 +55,7 @@ export default function DashboardsListPage() {
 
       setCreating(true);
       try {
-        const created = await apiFetch<IDashboard>('/dashboards', {
+        const created = await apiFetch<IDashboard>('/api/dashboards', {
           method: 'POST',
           body: JSON.stringify({ name }),
         });
@@ -73,7 +73,7 @@ export default function DashboardsListPage() {
   const handleDelete = useCallback(
     async (dashId: number) => {
       try {
-        await apiFetch(`/dashboards/${String(dashId)}`, { method: 'DELETE' });
+        await apiFetch(`/api/dashboards/${String(dashId)}`, { method: 'DELETE' });
         setDashboards((prev) => prev.filter((d) => d.id !== dashId));
         setDeleteId(null);
       } catch (err) {

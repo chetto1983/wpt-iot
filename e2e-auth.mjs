@@ -112,14 +112,14 @@ async function apiGet(path) {
   console.log('\nTest 3: Session');
 
   await test('/auth/me returns user', async () => {
-    const res = await apiGet('/auth/me');
+    const res = await apiGet('/api/auth/me');
     if (res.status !== 200) throw new Error(`status=${res.status}`);
     if (res.body.username !== 'admin') throw new Error(`user=${res.body.username}`);
     if (res.body.role !== 'SUPER_ADMIN') throw new Error(`role=${res.body.role}`);
   });
 
   await test('no password in /auth/me response', async () => {
-    const res = await apiGet('/auth/me');
+    const res = await apiGet('/api/auth/me');
     if ('password' in res.body) throw new Error('password leaked!');
   });
 
@@ -154,14 +154,14 @@ async function apiGet(path) {
   console.log('\nTest 5: User CRUD');
 
   await test('list users', async () => {
-    const res = await apiGet('/users');
+    const res = await apiGet('/api/users');
     if (res.status !== 200) throw new Error(`status=${res.status}`);
     if (!Array.isArray(res.body)) throw new Error('not array');
   });
 
   let testUserId;
   await test('create user', async () => {
-    const res = await apiPost('/users', {
+    const res = await apiPost('/api/users', {
       username: 'e2e_test_user', password: 'test1234', role: 'CLIENT',
     });
     if (res.status !== 201) throw new Error(`status=${res.status}, body=${JSON.stringify(res.body)}`);
@@ -170,7 +170,7 @@ async function apiGet(path) {
 
   await test('edit user role', async () => {
     const res = await page.evaluate(async ({ api, id }) => {
-      const r = await fetch(`${api}/users/${id}`, {
+      const r = await fetch(`${api}/api/users/${id}`, {
         method: 'PUT', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ role: 'WPT' }),
@@ -182,16 +182,16 @@ async function apiGet(path) {
   });
 
   await test('duplicate username → 409', async () => {
-    const res = await apiPost('/users', {
+    const res = await apiPost('/api/users', {
       username: 'admin', password: 'x1234x', role: 'CLIENT',
     });
     if (res.status !== 409) throw new Error(`expected 409, got ${res.status}`);
   });
 
   await test('self-delete blocked', async () => {
-    const me = await apiGet('/auth/me');
+    const me = await apiGet('/api/auth/me');
     const res = await page.evaluate(async ({ api, id }) => {
-      const r = await fetch(`${api}/users/${id}`, {
+      const r = await fetch(`${api}/api/users/${id}`, {
         method: 'DELETE', credentials: 'include',
       });
       return { status: r.status, body: await r.json() };
@@ -201,7 +201,7 @@ async function apiGet(path) {
 
   await test('delete test user', async () => {
     const res = await page.evaluate(async ({ api, id }) => {
-      const r = await fetch(`${api}/users/${id}`, {
+      const r = await fetch(`${api}/api/users/${id}`, {
         method: 'DELETE', credentials: 'include',
       });
       return { status: r.status };
@@ -213,14 +213,14 @@ async function apiGet(path) {
   console.log('\nTest 6: Password change');
 
   await test('change own password (correct current)', async () => {
-    const res = await apiPost('/auth/change-password', {
+    const res = await apiPost('/api/auth/change-password', {
       currentPassword: '!Wpt2026!', newPassword: 'TempPass99!',
     });
     if (res.status !== 200) throw new Error(`status=${res.status}`);
   });
 
   await test('wrong current password → 400', async () => {
-    const res = await apiPost('/auth/change-password', {
+    const res = await apiPost('/api/auth/change-password', {
       currentPassword: 'wrong', newPassword: 'doesntmatter',
     });
     if (res.status !== 400) throw new Error(`expected 400, got ${res.status}`);
@@ -228,7 +228,7 @@ async function apiGet(path) {
 
   // Restore original password
   await test('restore original password', async () => {
-    const res = await apiPost('/auth/change-password', {
+    const res = await apiPost('/api/auth/change-password', {
       currentPassword: 'TempPass99!', newPassword: '!Wpt2026!',
     });
     if (res.status !== 200) throw new Error(`status=${res.status}`);
@@ -238,7 +238,7 @@ async function apiGet(path) {
   console.log('\nTest 7: Role-based access');
 
   // Create a CLIENT user, login as them in a new context
-  await apiPost('/users', {
+  await apiPost('/api/users', {
     username: 'e2e_client', password: 'client1234', role: 'CLIENT',
   });
 
@@ -246,17 +246,17 @@ async function apiGet(path) {
     // Login as client in a separate fetch (cookie won't replace admin session in main page)
     const res = await page.evaluate(async ({ api }) => {
       // Login as client
-      const loginRes = await fetch(`${api}/auth/login`, {
+      const loginRes = await fetch(`${api}/api/auth/login`, {
         method: 'POST', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username: 'e2e_client', password: 'client1234' }),
       });
       if (loginRes.status !== 200) return { status: -1, note: 'login failed' };
       // Try /users
-      const usersRes = await fetch(`${api}/users`, { credentials: 'include' });
+      const usersRes = await fetch(`${api}/api/users`, { credentials: 'include' });
       const status = usersRes.status;
       // Re-login as admin to restore session
-      await fetch(`${api}/auth/login`, {
+      await fetch(`${api}/api/auth/login`, {
         method: 'POST', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username: 'admin', password: '!Wpt2026!' }),
@@ -267,11 +267,11 @@ async function apiGet(path) {
   });
 
   // Cleanup
-  const users = await apiGet('/users');
+  const users = await apiGet('/api/users');
   const e2eClient = users.body.find(u => u.username === 'e2e_client');
   if (e2eClient) {
     await page.evaluate(async ({ api, id }) => {
-      await fetch(`${api}/users/${id}`, { method: 'DELETE', credentials: 'include' });
+      await fetch(`${api}/api/users/${id}`, { method: 'DELETE', credentials: 'include' });
     }, { api: API, id: e2eClient.id });
   }
 
@@ -290,8 +290,8 @@ async function apiGet(path) {
   console.log('\nTest 9: Logout');
 
   await test('logout invalidates session', async () => {
-    await apiPost('/auth/logout', {});
-    const res = await apiGet('/auth/me');
+    await apiPost('/api/auth/logout', {});
+    const res = await apiGet('/api/auth/me');
     if (res.status !== 401) throw new Error(`expected 401 after logout, got ${res.status}`);
   });
 

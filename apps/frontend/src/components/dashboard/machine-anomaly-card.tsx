@@ -114,8 +114,8 @@ export const MachineAnomalyCard = memo(function MachineAnomalyCard({
   const loadCard = useCallback(async (signal?: AbortSignal) => {
     try {
       const [liveData, eventsData] = await Promise.all([
-        apiFetch<IAnomalyLiveResponse>('/energy/anomaly/live', { signal }),
-        apiFetch<IAnomalyEventsResponse>(`/energy/anomaly/events?limit=${eventLimit}&flaggedOnly=1`, {
+        apiFetch<IAnomalyLiveResponse>('/api/energy/anomaly/live', { signal }),
+        apiFetch<IAnomalyEventsResponse>(`/api/energy/anomaly/events?limit=${eventLimit}&flaggedOnly=1`, {
           signal,
         }),
       ]);
@@ -159,7 +159,7 @@ export const MachineAnomalyCard = memo(function MachineAnomalyCard({
       const from = new Date(
         now.getTime() - (preset === '6h' ? 6 : 24) * 60 * 60 * 1000,
       );
-      const result = await apiFetch<IAnomalyReplayResponse>('/energy/anomaly/replay', {
+      const result = await apiFetch<IAnomalyReplayResponse>('/api/energy/anomaly/replay', {
         method: 'POST',
         body: JSON.stringify({
           from: from.toISOString(),

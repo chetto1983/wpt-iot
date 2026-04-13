@@ -39,7 +39,7 @@ export function DeleteDialog({ open, onOpenChange, user, onSuccess }: DeleteDial
     setDeleting(true);
 
     try {
-      await apiFetch(`/users/${String(user.id)}`, { method: 'DELETE' });
+      await apiFetch(`/api/users/${String(user.id)}`, { method: 'DELETE' });
       toast.success(t('toast.deleted', { username: user.username }));
       onSuccess();
       onOpenChange(false);

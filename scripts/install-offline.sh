@@ -147,7 +147,7 @@ services:
 
   frontend:
     environment:
-      NEXT_PUBLIC_API_URL: https://wpt.local/api
+      NEXT_PUBLIC_API_URL: https://wpt.local
 HOSTEOF
 ok "Host overlay generated."
 
@@ -180,7 +180,7 @@ SIM_USERS_PORT=9092
 SESSION_SECRET=${SESSION_SECRET}
 ADMIN_PASSWORD=${ADMIN_PASSWORD}
 CORS_ORIGIN=https://wpt.local
-NEXT_PUBLIC_API_URL=https://wpt.local/api
+NEXT_PUBLIC_API_URL=https://wpt.local
 SESSION_COOKIE_SECURE=true
 TRUST_PROXY=true
 MQTT_HOST=127.0.0.1
@@ -195,7 +195,7 @@ ENVEOF
   ok ".env generated with random secrets."
 else
   upsert_env "${INSTALL_DIR}/.env" "CORS_ORIGIN" "https://wpt.local"
-  upsert_env "${INSTALL_DIR}/.env" "NEXT_PUBLIC_API_URL" "https://wpt.local/api"
+  upsert_env "${INSTALL_DIR}/.env" "NEXT_PUBLIC_API_URL" "https://wpt.local"
   upsert_env "${INSTALL_DIR}/.env" "SESSION_COOKIE_SECURE" "true"
   upsert_env "${INSTALL_DIR}/.env" "TRUST_PROXY" "true"
   ok ".env preserved and updated for HTTPS."
@@ -215,8 +215,8 @@ step "Step 10/10  Health checks"
 
 info "Waiting for backend /health..."
 for i in {1..30}; do
-  if curl -fsS -m 2 "http://127.0.0.1:3000/health" >/dev/null 2>&1; then
-    ok "backend /health responds."
+  if curl -fsS -m 2 "http://127.0.0.1:3000/api/health" >/dev/null 2>&1; then
+    ok "backend /api/health responds."
     break
   fi
   sleep 2

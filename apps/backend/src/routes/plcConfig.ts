@@ -22,7 +22,7 @@ export const plcConfigRoutes: FastifyPluginAsync = async (server) => {
    * GET /api/plc/config
    * Returns the current PLC target host.
    */
-  server.get('/api/plc/config', async (_request, _reply) => {
+  server.get('/plc/config', async (_request, _reply) => {
     return PlcConfigService.getConfig();
   });
 
@@ -31,7 +31,7 @@ export const plcConfigRoutes: FastifyPluginAsync = async (server) => {
    * Update the PLC target host. Invalidates the FSM's cached target so
    * the change takes effect on the next handshake operation.
    */
-  server.put('/api/plc/config', async (request, reply) => {
+  server.put('/plc/config', async (request, reply) => {
     const result = z.object({
       targetHost: z.string().min(1).max(255).optional(),
     }).safeParse(request.body);

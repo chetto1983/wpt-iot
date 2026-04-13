@@ -64,13 +64,13 @@ test.describe('2. Session ReturnUrl', () => {
     // by logging out then triggering an API call from the app's context
     await page.evaluate(async (api) => {
       // Invalidate session
-      await fetch(`${api}/auth/logout`, { method: 'POST', credentials: 'include' });
+      await fetch(`${api}/api/auth/logout`, { method: 'POST', credentials: 'include' });
     }, API);
 
     // Now trigger a 401 by clicking something that calls apiFetch
     // Or directly invoke the 401 handler from the browser context
     const redirectUrl = await page.evaluate(async (api) => {
-      const res = await fetch(`${api}/auth/me`, { credentials: 'include' });
+      const res = await fetch(`${api}/api/auth/me`, { credentials: 'include' });
       if (res.status === 401) {
         // Simulate what api.ts does: capture returnUrl
         const returnUrl = encodeURIComponent(window.location.pathname + window.location.search);

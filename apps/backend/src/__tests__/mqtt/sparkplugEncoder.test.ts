@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { ICycleRecord } from '@wpt/types';
+import type { SparkplugService as SparkplugServiceType } from '../../mqtt/sparkplugService.js';
 
 /**
  * PHASE 24 Wave 2 — Sparkplug B cycle-record encoding tests (GREEN).
@@ -55,7 +56,7 @@ vi.mock('../../mqtt/cloudConfigService.js', () => ({
 }));
 
 // Import SUT after mocks - need to use dynamic import
-let SparkplugService: typeof import('../../mqtt/sparkplugService.js').SparkplugService;
+let SparkplugService: typeof SparkplugServiceType;
 
 describe('Sparkplug B cycle-record encoding (GREEN — Phase 24)', () => {
   beforeEach(async () => {

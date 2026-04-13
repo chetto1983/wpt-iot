@@ -1,10 +1,11 @@
 import { createRequire } from 'node:module';
+import type pdfmakeType from 'pdfmake';
 import { describe, expect, it } from 'vitest';
 import { createDeterministicPdfBuffer } from '../../services/pdfDocumentFactory.js';
 import { ensurePdfFonts } from '../../services/pdfFonts.js';
 
 const require = createRequire(import.meta.url);
-const pdfmake = require('pdfmake') as typeof import('pdfmake');
+const pdfmake = require('pdfmake') as typeof pdfmakeType;
 
 describe('ensurePdfFonts', () => {
   it('registers Roboto fonts so pdfmake can render a buffer', async () => {

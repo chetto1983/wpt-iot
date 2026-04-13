@@ -172,7 +172,7 @@ export default function ChartsPage() {
       });
 
       const data = await apiFetch<IChartResponse>(
-        `/charts/data?${params.toString()}`,
+        `/api/charts/data?${params.toString()}`,
         { signal: controller.signal },
       );
       if (!controller.signal.aborted) {

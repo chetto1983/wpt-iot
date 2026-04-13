@@ -135,7 +135,7 @@ export function AvatarUploadDialog({
       const blob = await getCroppedImage(imageSrc, croppedAreaPixels);
       const formData = new FormData();
       formData.append('file', blob, 'avatar.jpg');
-      const res = await fetch(`${API_BASE}/users/${userId}/avatar`, {
+      const res = await fetch(`${API_BASE}/api/users/${userId}/avatar`, {
         method: 'POST',
         credentials: 'include',
         body: formData,
@@ -159,7 +159,7 @@ export function AvatarUploadDialog({
   const handleRemove = useCallback(async () => {
     setRemoving(true);
     try {
-      await apiFetch(`/users/${userId}/avatar`, { method: 'DELETE' });
+      await apiFetch(`/api/users/${userId}/avatar`, { method: 'DELETE' });
       onSuccess();
       onOpenChange(false);
     } catch (err) {

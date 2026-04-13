@@ -42,7 +42,7 @@ export const cycleRoutes: FastifyPluginAsync = async (server) => {
    * Per T-24-03a-03: Server-side pagination with limit prevents DoS.
    */
   server.get(
-    '/api/cycles',
+    '/cycles',
     { preHandler: requireAuth },
     async (request, reply) => {
       // Validate query parameters with Zod
@@ -141,7 +141,7 @@ export const cycleRoutes: FastifyPluginAsync = async (server) => {
    * Per T-24-03a-01: Role-based access control restricts export to admin.
    */
   server.get(
-    '/api/cycles/export',
+    '/cycles/export',
     { preHandler: requireRole(UserRole.SUPER_ADMIN) },
     async (request, reply) => {
       // Validate query parameters with Zod

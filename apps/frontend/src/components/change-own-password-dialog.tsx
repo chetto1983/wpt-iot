@@ -48,7 +48,7 @@ export function ChangeOwnPasswordDialog({ open, onOpenChange }: ChangeOwnPasswor
       setMismatch(false);
       setSubmitting(true);
       try {
-        await apiFetch('/auth/change-password', {
+        await apiFetch('/api/auth/change-password', {
           method: 'POST',
           body: JSON.stringify({ currentPassword, newPassword }),
         });

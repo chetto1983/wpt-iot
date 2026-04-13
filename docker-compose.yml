@@ -52,22 +52,12 @@ services:
   # mappings (9090-9093/udp). That WILL silently drop inbound packets
   # from a real ABB AC500 PLC.
   #
-  # CLAUDE.md mandate (non-negotiable):
-  #   "Backend networking: Must use network_mode: host in Docker —
-  #    bridge networking kills UDP PLC packets"
-  #
-  # For ANY deployment attached to a real PLC, you MUST layer the
-  # host override on top of this file:
-  #
+  # For ANY deployment attached to a real PLC, layer the host override:
   #   docker compose -f docker-compose.yml -f docker-compose.host.yml up -d
   #
-  # The host override applies `network_mode: host` and clears `ports: []`
-  # on the backend service, which is the only configuration that lets the
-  # PLC's UDP frames actually reach the listener sockets.
-  #
-  # If you are extending this file with a new "real-plc" profile or
-  # reorganising deployments, the network_mode: host requirement
-  # carries over — do not "simplify" it away.
+  # docker-compose.host.yml applies network_mode: host and clears ports,
+  # which is the only configuration that lets PLC UDP frames reach the
+  # listener sockets. Do not "simplify" this requirement away.
   # =====================================================================
   backend:
     build:
@@ -118,7 +108,7 @@ services:
     volumes:
       - uploads:/app/uploads
     healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:3000/health"]
+      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:3000/api/health"]
       interval: 10s
       timeout: 3s
       retries: 5

@@ -123,7 +123,7 @@ function AlarmsContent({ locale }: { locale: string }) {
       lang: locale,
     });
 
-    apiFetch<IAlarmResponse>(`/reports/alarms?${params.toString()}`, { signal: controller.signal })
+    apiFetch<IAlarmResponse>(`/api/reports/alarms?${params.toString()}`, { signal: controller.signal })
       .then((data) => {
         if (!controller.signal.aborted) {
           setEvents(data.events);
@@ -158,7 +158,7 @@ function AlarmsContent({ locale }: { locale: string }) {
       });
 
       const res = await fetch(
-        `${API_BASE}/reports/alarms/${exportFormat}?${params.toString()}`,
+        `${API_BASE}/api/reports/alarms/${exportFormat}?${params.toString()}`,
         { credentials: 'include' },
       );
 

@@ -62,7 +62,7 @@ function escapeCsv(value: string | number | null | undefined): string {
   const str = String(value);
 
   // Escape formula injection characters (OWASP CSV Security)
-  if (/^[\+\-=@\t\r]/.test(str)) {
+  if (/^[+\-=@\t\r]/.test(str)) {
     return `'${str}`;
   }
 
@@ -107,7 +107,6 @@ function formatMonthYearItalian(d: Date, uppercase = false): string {
     'luglio', 'agosto', 'settembre', 'ottobre', 'novembre', 'dicembre',
   ];
   const monthIdx = d.getUTCMonth();
-  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
   const month = monthNames[monthIdx] ?? 'sconosciuto';
   const year = d.getUTCFullYear();
   if (uppercase) {

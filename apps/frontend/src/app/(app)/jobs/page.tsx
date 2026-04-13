@@ -155,7 +155,7 @@ export default function JobsPage() {
   const handleRead = async () => {
     setIsReading(true);
     try {
-      const data = await apiFetch<{ job: IJobData }>('/jobs/read', {
+      const data = await apiFetch<{ job: IJobData }>('/api/jobs/read', {
         method: 'POST',
       });
       setJob(data.job);
@@ -177,7 +177,7 @@ export default function JobsPage() {
   const handleWrite = async () => {
     setIsWriting(true);
     try {
-      await apiFetch('/jobs/write', {
+      await apiFetch('/api/jobs/write', {
         method: 'POST',
         body: JSON.stringify({ job }),
       });

@@ -75,7 +75,7 @@ export const mqttRoutes: FastifyPluginAsync = async (server) => {
    * redacted. The frontend uses `passwordSet` to decide whether the password
    * input is required.
    */
-  server.get('/api/mqtt/config', async (_request, _reply) => {
+  server.get('/mqtt/config', async (_request, _reply) => {
     return MqttConfigService.getPublicConfig();
   });
 
@@ -85,7 +85,7 @@ export const mqttRoutes: FastifyPluginAsync = async (server) => {
    * An empty-string password is treated as "leave unchanged" so the form can
    * round-trip without forcing the operator to retype credentials.
    */
-  server.put('/api/mqtt/config', async (request, reply) => {
+  server.put('/mqtt/config', async (request, reply) => {
     const result = z.object({
       enabled: z.boolean().optional(),
       brokerHost: z.string().min(1).max(255).optional(),
@@ -122,7 +122,7 @@ export const mqttRoutes: FastifyPluginAsync = async (server) => {
    * GET /api/mqtt/status
    * Returns broker connection state and basic config info.
    */
-  server.get('/api/mqtt/status', async (_request, _reply) => {
+  server.get('/mqtt/status', async (_request, _reply) => {
     const config = await MqttConfigService.getConfig();
     const live = getMqttClient();
     return {
@@ -140,7 +140,7 @@ export const mqttRoutes: FastifyPluginAsync = async (server) => {
    * GET /api/mqtt/users
    * List all MQTT users from Dynamic Security Plugin.
    */
-  server.get('/api/mqtt/users', async (request, reply) => {
+  server.get('/mqtt/users', async (request, reply) => {
     const dsc = await ensureDynSec(request.log);
     if (!dsc) {
       return reply.code(503).send({ error: 'MQTT not connected' });
@@ -152,7 +152,7 @@ export const mqttRoutes: FastifyPluginAsync = async (server) => {
    * POST /api/mqtt/users
    * Create a new MQTT user with a role.
    */
-  server.post('/api/mqtt/users', async (request, reply) => {
+  server.post('/mqtt/users', async (request, reply) => {
     const dsc = await ensureDynSec(request.log);
     if (!dsc) {
       return reply.code(503).send({ error: 'MQTT not connected' });
@@ -181,7 +181,7 @@ export const mqttRoutes: FastifyPluginAsync = async (server) => {
    * Modify an existing MQTT user (password, role, textName).
    */
   server.put<{ Params: { username: string } }>(
-    '/api/mqtt/users/:username',
+    '/mqtt/users/:username',
     async (request, reply) => {
       const dsc = await ensureDynSec(request.log);
       if (!dsc) {
@@ -209,7 +209,7 @@ export const mqttRoutes: FastifyPluginAsync = async (server) => {
    * Delete an MQTT user. Cannot delete the system account.
    */
   server.delete<{ Params: { username: string } }>(
-    '/api/mqtt/users/:username',
+    '/mqtt/users/:username',
     async (request, reply) => {
       const dsc = await ensureDynSec(request.log);
       if (!dsc) {
@@ -239,7 +239,7 @@ export const mqttRoutes: FastifyPluginAsync = async (server) => {
    * POST /api/mqtt/test
    * Quick broker connection health check.
    */
-  server.post('/api/mqtt/test', async (_request, reply) => {
+  server.post('/mqtt/test', async (_request, reply) => {
     const live = getMqttClient();
     if (live?.connected) {
       return { success: true, message: 'Broker connection active' };
@@ -253,7 +253,7 @@ export const mqttRoutes: FastifyPluginAsync = async (server) => {
    * GET /api/mqtt/log
    * Returns recent MQTT activity events (ring buffer, last 100).
    */
-  server.get('/api/mqtt/log', async (_request, _reply) => {
+  server.get('/mqtt/log', async (_request, _reply) => {
     return getEvents();
   });
 };
