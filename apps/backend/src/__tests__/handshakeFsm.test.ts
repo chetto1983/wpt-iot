@@ -135,8 +135,8 @@ describe('HandshakeFSM', () => {
 
       // `sendControl` awaits getCachedPlcConfig() before calling ackSocket.send,
       // so the first send is NOT synchronous. Schedule ACK+data, await the
-      // read, then assert on the recorded calls. The read path sends twice on
-      // ackSocket: REQUEST_READ first, then IDLE cleanup.
+      // read, then assert on the recorded calls. The read path sends three
+      // control messages: REQUEST_READ, ACK release, then IDLE cleanup.
       scheduleAfterTick(() => {
         ackSocket.simulateMessage(buildAckBuffer(HandshakeState.IDLE, HandshakeState.ACK));
         scheduleAfterTick(() => {
@@ -146,10 +146,16 @@ describe('HandshakeFSM', () => {
 
       await readPromise;
 
-      expect(ackSocket.send).toHaveBeenCalledTimes(2);
+      expect(ackSocket.send).toHaveBeenCalledTimes(3);
       const sentMsg: Buffer = ackSocket.send.mock.calls[0]![0];
+      const releaseMsg: Buffer = ackSocket.send.mock.calls[1]![0];
+      const cleanupMsg: Buffer = ackSocket.send.mock.calls[2]![0];
       expect(sentMsg.readUInt8(0)).toBe(HandshakeState.IDLE);
       expect(sentMsg.readUInt8(1)).toBe(HandshakeState.REQUEST_READ);
+      expect(releaseMsg.readUInt8(0)).toBe(HandshakeState.IDLE);
+      expect(releaseMsg.readUInt8(1)).toBe(HandshakeState.ACK);
+      expect(cleanupMsg.readUInt8(0)).toBe(HandshakeState.IDLE);
+      expect(cleanupMsg.readUInt8(1)).toBe(HandshakeState.IDLE);
     }, 10000);
 
     it('jobs FSM writes REQUEST_READ at byte index 0, IDLE at byte index 1', async () => {
@@ -167,10 +173,16 @@ describe('HandshakeFSM', () => {
 
       await readPromise;
 
-      expect(ackSocket.send).toHaveBeenCalledTimes(2);
+      expect(ackSocket.send).toHaveBeenCalledTimes(3);
       const sentMsg: Buffer = ackSocket.send.mock.calls[0]![0];
+      const releaseMsg: Buffer = ackSocket.send.mock.calls[1]![0];
+      const cleanupMsg: Buffer = ackSocket.send.mock.calls[2]![0];
       expect(sentMsg.readUInt8(0)).toBe(HandshakeState.REQUEST_READ);
       expect(sentMsg.readUInt8(1)).toBe(HandshakeState.IDLE);
+      expect(releaseMsg.readUInt8(0)).toBe(HandshakeState.ACK);
+      expect(releaseMsg.readUInt8(1)).toBe(HandshakeState.IDLE);
+      expect(cleanupMsg.readUInt8(0)).toBe(HandshakeState.IDLE);
+      expect(cleanupMsg.readUInt8(1)).toBe(HandshakeState.IDLE);
     }, 10000);
 
     it('users FSM writes REQUEST_WRITE at byte index 1', async () => {
@@ -179,13 +191,19 @@ describe('HandshakeFSM', () => {
       const dataBuffer = buildTestUserDataBuffer();
 
       // write() is fire-and-forget on the real PLC 9092 path: send
-      // REQUEST_WRITE, send data, send IDLE cleanup. No ACK is awaited.
+      // REQUEST_WRITE, send data, send ACK release, then IDLE cleanup.
       await usersFsm.write(ackSocket as any, dataSocket as any, dataBuffer, mockLog);
 
-      expect(ackSocket.send).toHaveBeenCalledTimes(2);
+      expect(ackSocket.send).toHaveBeenCalledTimes(3);
       const sentMsg: Buffer = ackSocket.send.mock.calls[0]![0];
+      const releaseMsg: Buffer = ackSocket.send.mock.calls[1]![0];
+      const cleanupMsg: Buffer = ackSocket.send.mock.calls[2]![0];
       expect(sentMsg.readUInt8(0)).toBe(HandshakeState.IDLE);
       expect(sentMsg.readUInt8(1)).toBe(HandshakeState.REQUEST_WRITE);
+      expect(releaseMsg.readUInt8(0)).toBe(HandshakeState.IDLE);
+      expect(releaseMsg.readUInt8(1)).toBe(HandshakeState.ACK);
+      expect(cleanupMsg.readUInt8(0)).toBe(HandshakeState.IDLE);
+      expect(cleanupMsg.readUInt8(1)).toBe(HandshakeState.IDLE);
     }, 10000);
 
     it('jobs FSM writes REQUEST_WRITE at byte index 0', async () => {
@@ -195,10 +213,16 @@ describe('HandshakeFSM', () => {
 
       await jobsFsm.write(ackSocket as any, dataSocket as any, dataBuffer, mockLog);
 
-      expect(ackSocket.send).toHaveBeenCalledTimes(2);
+      expect(ackSocket.send).toHaveBeenCalledTimes(3);
       const sentMsg: Buffer = ackSocket.send.mock.calls[0]![0];
+      const releaseMsg: Buffer = ackSocket.send.mock.calls[1]![0];
+      const cleanupMsg: Buffer = ackSocket.send.mock.calls[2]![0];
       expect(sentMsg.readUInt8(0)).toBe(HandshakeState.REQUEST_WRITE);
       expect(sentMsg.readUInt8(1)).toBe(HandshakeState.IDLE);
+      expect(releaseMsg.readUInt8(0)).toBe(HandshakeState.ACK);
+      expect(releaseMsg.readUInt8(1)).toBe(HandshakeState.IDLE);
+      expect(cleanupMsg.readUInt8(0)).toBe(HandshakeState.IDLE);
+      expect(cleanupMsg.readUInt8(1)).toBe(HandshakeState.IDLE);
     }, 10000);
   });
 

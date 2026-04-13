@@ -15,6 +15,8 @@ export interface IFsmConfig {
   watchdogMs: number;          // 5000
 }
 
+const POST_ACK_IDLE_DELAY_MS = 75;
+
 /** Minimal structured logger accepted by HandshakeFSM methods */
 interface IFsmLogger {
   info: (...args: unknown[]) => void;
@@ -81,8 +83,8 @@ export class HandshakeFSM {
    *   1. Backend 9093 → PLC 9093: 2B payload [9090ch=IDLE(2), 9092ch=REQUEST_READ(255)]
    *   2. PLC 9093 → Backend 9093: 2B payload [9090ch=IDLE(2), 9092ch=ACK(100)] — 44 ms later
    *   3. PLC 9092 → Backend 9092: full data packet — 10 ms after the ACK (54 ms after step 1)
-   *   4. Backend 9093 → PLC 9093: 2B payload [IDLE, IDLE] cleanup
-   *   5. PLC 9093 → Backend 9093: 2B payload [IDLE, IDLE] — PLC echoes the cleanup state
+   *   4. Backend 9093 → PLC 9093: 2B payload [IDLE(2), ACK(100)].
+   *   5. After a short delay, backend 9093 → PLC 9093: 2B payload [IDLE(2), IDLE(2)].
    *
    * The PLC DOES send ACK(100) on 9093, contrary to an earlier claim in this
    * file. The earlier "PLC never ACKs" observation (7 tcpdump captures showing
@@ -99,7 +101,16 @@ export class HandshakeFSM {
    *      ~10 ms before the data is correct but ignored — a stricter
    *      implementation could consume it for faster failure detection, but
    *      that's an optimization, not a correctness requirement.
-   *   4. Send IDLE(2) on ack port as cleanup.
+   *   4. Send ACK(100) on ack port so `UDP_Send_03` / `UDP_Send_01` can leave
+   *      their 130/220 wait state.
+   *   5. Wait one PLC scan window, then send IDLE(2) so `UDP_Send_9093` can
+   *      leave its 120/210 wait state and accept the next command.
+   *
+   * IMPORTANT: ACK and IDLE cannot be sent back-to-back. `UDP_Send_03` /
+   * `UDP_Send_01` need to observe ACK=100 first, but `UDP_Send_9093` also
+   * requires the control byte to return to IDLE=2 before its 9092/9090
+   * sub-state machine resets. A short post-ACK delay avoids the write→next-read
+   * deadlock observed live on 2026-04-13 at https://wpt.local/rfid.
    *
    * NOTE: this path intentionally skips waitForAck. Not because the PLC doesn't
    * ACK (it does — see wire capture), but because we only need the data to
@@ -130,9 +141,10 @@ export class HandshakeFSM {
       // Await the data that the PLC pushes on dataSocket.
       const data = await dataPromise;
 
-      // Send ACK(100) to confirm receipt, then IDLE(2) to reset.
-      // PLC UDP_Send_03 state 130 waits for Ctrl=100 before returning to idle.
+      // Release the PLC in two phases: ACK first so the channel FSM sees 100,
+      // then IDLE after one scan window so the 9093 coordinator can reset.
       await this.sendControl(ackSocket, HandshakeState.ACK);
+      await this.delay(POST_ACK_IDLE_DELAY_MS);
       await this.sendControl(ackSocket, HandshakeState.IDLE);
       this.state = HandshakeState.IDLE;
 
@@ -161,17 +173,19 @@ export class HandshakeFSM {
    *   9092 (RFID write): TRULY fire-and-forget. 3 frames total:
    *     1. Bkd→PLC 9093: [IDLE, REQUEST_WRITE] — 2B
    *     2. Bkd→PLC 9092: 1104B user data (~470 μs after step 1)
-   *     3. Bkd→PLC 9093: [IDLE, IDLE] cleanup (~380 μs after step 2)
+   *     3. Bkd→PLC 9093: [IDLE, ACK(100)] release.
+   *     4. After a short delay, Bkd→PLC 9093: [IDLE, IDLE] cleanup.
    *     Total ~851 μs, ZERO PLC→Backend frames (verified with 5-second
    *     post-send capture window — no delayed ACK either).
    *
    *   9090 (job write): Delayed ACK on 9090 channel. 4 frames total:
    *     1. Bkd→PLC 9093: [REQUEST_WRITE, IDLE] — 2B (byte 0 = 9090 channel)
    *     2. Bkd→PLC 9090: 96B job data (~385 μs after step 1)
-   *     3. Bkd→PLC 9093: [IDLE, IDLE] cleanup (~304 μs after step 2)
-   *     4. PLC→Bkd 9093: [ACK(100), IDLE] — 2B, ~22 ms AFTER step 3
+   *     3. Bkd→PLC 9093: [ACK(100), IDLE] release.
+   *     4. After a short delay, Bkd→PLC 9093: [IDLE, IDLE] cleanup.
+   *     5. PLC→Bkd 9093: [ACK(100), IDLE] — 2B, ~22 ms AFTER step 3
    *     Total ~23 ms exchange. The PLC delivers a late ACK on 9090's channel
-   *     byte AFTER the backend has already sent the IDLE cleanup.
+   *     byte AFTER the backend has already released the channel with ACK.
    *
    * The current code ignores the delayed 9090-write ACK — `writeJob()` returns
    * as soon as step 3 is sent, so the caller sees success before step 4 has
@@ -186,7 +200,9 @@ export class HandshakeFSM {
    * Sequence (in code):
    *   1. Send REQUEST_WRITE(254) on ack port (9093) on this channel's byte.
    *   2. Send the data buffer on the data port.
-   *   3. Send IDLE(2) on ack port as cleanup.
+   *   3. Send ACK(100) on ack port to release the PLC channel FSM.
+   *   4. Wait one PLC scan window, then send IDLE(2) so `UDP_Send_9093`
+   *      resets and accepts the next command.
    *
    * No listener is needed — errors surface only via UDP send failure.
    */
@@ -217,9 +233,10 @@ export class HandshakeFSM {
       });
       log.info({ name: 'HandshakeFSM', channel: this.fsmConfig.channelName, bytes: data.length }, 'Data sent');
 
-      // Send ACK(100) to confirm write, then IDLE(2) to reset.
-      // PLC UDP_Send_03 state 220 waits for Ctrl=100 before returning to idle.
+      // Release the PLC in two phases: ACK first so the channel FSM sees 100,
+      // then IDLE after one scan window so the 9093 coordinator can reset.
       await this.sendControl(ackSocket, HandshakeState.ACK);
+      await this.delay(POST_ACK_IDLE_DELAY_MS);
       await this.sendControl(ackSocket, HandshakeState.IDLE);
       this.state = HandshakeState.IDLE;
     } catch (err) {
@@ -273,6 +290,12 @@ export class HandshakeFSM {
       clearTimeout(this.watchdogTimer);
       this.watchdogTimer = null;
     }
+  }
+
+  private delay(ms: number): Promise<void> {
+    return new Promise((resolve) => {
+      setTimeout(resolve, ms);
+    });
   }
 
   /** Force-reset the channel to IDLE (Pitfall 5: recovery after crash) */
