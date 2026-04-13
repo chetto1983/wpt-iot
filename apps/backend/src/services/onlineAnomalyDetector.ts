@@ -54,6 +54,8 @@ export interface IAnomalyResult {
   inGracePeriod: boolean;
   level: AnomalyLevel;
   flagged: boolean;
+  /** C3: CUSUM detected a slow persistent drift that Z-score missed. */
+  driftDetected: boolean;
   topContributors: Array<{ feature: string; zScore: number }>;
 }
 
@@ -81,11 +83,20 @@ interface IWelfordState {
   decayedVariance: number;
 }
 
+interface ICUSUMState {
+  posCumSum: number;
+  negCumSum: number;
+}
+
 interface IModeState {
   samplesSeen: number;
   features: Map<string, IWelfordState>;
   /** Timestamp (ms since epoch) when this mode was first entered. */
   enteredAt: number;
+  /** C3: CUSUM accumulator on composite score. */
+  cusum: ICUSUMState;
+  /** C4: Sliding window of recent flag decisions (true = flagged). */
+  recentFlags: boolean[];
 }
 
 // ---------------------------------------------------------------------------
@@ -104,6 +115,10 @@ export interface ISerializedModeState {
   samplesSeen: number;
   features: Record<string, ISerializedWelfordState>;
   enteredAt: number;
+  /** C3: CUSUM state (absent in pre-C3 snapshots). */
+  cusum?: ICUSUMState;
+  /** C4: Recent flag window (absent in pre-C4 snapshots). */
+  recentFlags?: boolean[];
 }
 
 export interface ISerializedDetector {
@@ -145,6 +160,14 @@ export interface IDetectorConfig {
   topK?: number;
   /** Grace period in ms after a mode change (default 30 000). */
   modeChangeGraceMs?: number;
+  /** C3: CUSUM allowance parameter k (default 0.5). */
+  cusumK?: number;
+  /** C3: CUSUM decision threshold h (default 4.0). */
+  cusumH?: number;
+  /** C4: Persistence filter — require N flags in the last M samples (default N=3). */
+  persistenceN?: number;
+  /** C4: Persistence filter — sliding window size M (default 5). */
+  persistenceM?: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -203,6 +226,16 @@ function isFiniteNumber(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value);
 }
 
+function freshModeState(enteredAt = 0): IModeState {
+  return {
+    samplesSeen: 0,
+    features: new Map<string, IWelfordState>(),
+    enteredAt,
+    cusum: { posCumSum: 0, negCumSum: 0 },
+    recentFlags: [],
+  };
+}
+
 function welfordVariance(state: IWelfordState): number {
   if (state.count < 2) return 1;
   return state.m2 / (state.count - 1);
@@ -239,6 +272,10 @@ export class OnlineAnomalyDetector {
       maxFeatureZScore: opts.maxFeatureZScore ?? 25,
       topK: opts.topK ?? 3,
       modeChangeGraceMs: opts.modeChangeGraceMs ?? 30_000,
+      cusumK: opts.cusumK ?? 0.5,
+      cusumH: opts.cusumH ?? 4.0,
+      persistenceN: opts.persistenceN ?? 3,
+      persistenceM: opts.persistenceM ?? 5,
     };
   }
 
@@ -275,11 +312,7 @@ export class OnlineAnomalyDetector {
   /** Score an input without updating state. */
   score(input: IAnomalyInput): IAnomalyResult {
     const modeKey = toModeKey(input);
-    const mode = this.modes.get(modeKey) ?? {
-      samplesSeen: 0,
-      features: new Map<string, IWelfordState>(),
-      enteredAt: 0,
-    };
+    const mode = this.modes.get(modeKey) ?? freshModeState();
 
     const inGracePeriod = this.isGracePeriod(mode);
     const confidence = this.sampleConfidence(mode.samplesSeen);
@@ -330,6 +363,10 @@ export class OnlineAnomalyDetector {
     const warm = mode.samplesSeen >= this.config.minWarmSamples;
     const { level, flagged } = this.classifyLevel(score, inGracePeriod);
 
+    // C3: Check CUSUM drift state (read-only in score — updated in observe)
+    const driftDetected = warm &&
+      (mode.cusum.posCumSum > this.config.cusumH || mode.cusum.negCumSum < -this.config.cusumH);
+
     return {
       modeKey,
       warm,
@@ -339,6 +376,7 @@ export class OnlineAnomalyDetector {
       inGracePeriod,
       level,
       flagged: warm && flagged,
+      driftDetected,
       topContributors,
     };
   }
@@ -359,7 +397,7 @@ export class OnlineAnomalyDetector {
     // Ensure mode exists
     let mode = this.modes.get(modeKey);
     if (!mode) {
-      mode = { samplesSeen: 0, features: new Map<string, IWelfordState>(), enteredAt: Date.now() };
+      mode = freshModeState(Date.now());
       this.modes.set(modeKey, mode);
     } else if (modeChanged) {
       // Reset grace period on every re-entry, not just first creation
@@ -425,7 +463,27 @@ export class OnlineAnomalyDetector {
     // Re-score with updated statistics for accurate classification
     const updatedScore = this.score(input);
     const { level, flagged } = this.classifyLevel(updatedScore.score, inGracePeriod);
-    const finalFlagged = warm && flagged;
+
+    // C3: Update CUSUM on composite score (normalized z-score space)
+    const { cusumK, cusumH } = this.config;
+    mode.cusum.posCumSum = Math.max(0, mode.cusum.posCumSum + updatedScore.score - cusumK);
+    mode.cusum.negCumSum = Math.min(0, mode.cusum.negCumSum + updatedScore.score + cusumK);
+    const driftDetected = warm &&
+      (mode.cusum.posCumSum > cusumH || mode.cusum.negCumSum < -cusumH);
+    // Reset CUSUM after trigger to avoid permanent alarm
+    if (driftDetected) {
+      mode.cusum.posCumSum = 0;
+      mode.cusum.negCumSum = 0;
+    }
+
+    // C4: N-of-M persistence filter — only flag if N of last M were anomalous
+    const rawFlagged = warm && (flagged || driftDetected);
+    mode.recentFlags.push(rawFlagged);
+    if (mode.recentFlags.length > this.config.persistenceM) {
+      mode.recentFlags.shift();
+    }
+    const recentCount = mode.recentFlags.filter(Boolean).length;
+    const finalFlagged = recentCount >= this.config.persistenceN;
 
     if (finalFlagged) this.totalFlagged += 1;
     if (level === AnomalyLevel.WARNING) this.totalWarnings += 1;
@@ -439,6 +497,7 @@ export class OnlineAnomalyDetector {
       inGracePeriod,
       level,
       flagged: finalFlagged,
+      driftDetected,
       topContributors: updatedScore.topContributors,
     };
   }
@@ -474,7 +533,13 @@ export class OnlineAnomalyDetector {
       for (const [fname, fstate] of mode.features) {
         features[fname] = { ...fstate };
       }
-      modes[key] = { samplesSeen: mode.samplesSeen, features, enteredAt: mode.enteredAt };
+      modes[key] = {
+        samplesSeen: mode.samplesSeen,
+        features,
+        enteredAt: mode.enteredAt,
+        cusum: { ...mode.cusum },
+        recentFlags: [...mode.recentFlags],
+      };
     }
     return {
       modes,
@@ -501,6 +566,8 @@ export class OnlineAnomalyDetector {
         samplesSeen: modeData.samplesSeen,
         features,
         enteredAt: modeData.enteredAt ?? 0,
+        cusum: modeData.cusum ?? { posCumSum: 0, negCumSum: 0 },
+        recentFlags: modeData.recentFlags ?? [],
       });
     }
     return detector;

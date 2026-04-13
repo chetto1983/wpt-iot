@@ -63,6 +63,8 @@ describe('OnlineAnomalyDetector', () => {
       criticalThreshold: 3,
       baseRate: 0.1,
       modeChangeGraceMs: 0, // disable grace period for unit test timing
+      persistenceN: 1, // disable N-of-M for single-spike test
+      persistenceM: 1,
     });
 
     for (let i = 0; i < 25; i += 1) {
@@ -180,6 +182,68 @@ describe('OnlineAnomalyDetector', () => {
     expect(rmsContributors).toHaveLength(1);
     // The max (rmsCurrL1=80) should be the one selected
     expect(rmsContributors[0]?.feature).toBe('rmsCurrL1');
+  });
+
+  it('C3: CUSUM detects slow persistent drift that z-score misses', () => {
+    const detector = new OnlineAnomalyDetector({
+      minWarmSamples: 10,
+      minReliableSamples: 15,
+      criticalThreshold: 5, // high threshold so z-score alone won't flag
+      warningThreshold: 4,
+      baseRate: 0.02, // slow EMA — mean adapts slowly
+      modeChangeGraceMs: 0,
+      cusumK: 0.3,
+      cusumH: 3.0, // lower decision boundary for faster test
+      persistenceN: 1,
+      persistenceM: 1,
+    });
+
+    // Warmup with tight steady-state data
+    for (let i = 0; i < 20; i += 1) {
+      detector.observe(makeSample({ garbageTemp: 180 + (i % 3) * 0.1 }));
+    }
+
+    // Apply a persistent moderate shift — composite score should be ~1-2
+    // (above cusumK=0.3 but below criticalThreshold=5).
+    // CUSUM accumulates and triggers after ~4-6 steps.
+    let driftSeen = false;
+    for (let i = 0; i < 40; i += 1) {
+      const result = detector.observe(makeSample({ garbageTemp: 181.5 }));
+      if (result.driftDetected) {
+        driftSeen = true;
+        break;
+      }
+    }
+
+    expect(driftSeen).toBe(true);
+  });
+
+  it('C4: N-of-M filter suppresses single-sample noise spikes', () => {
+    const detector = new OnlineAnomalyDetector({
+      minWarmSamples: 10,
+      minReliableSamples: 15,
+      criticalThreshold: 3,
+      baseRate: 0.1,
+      modeChangeGraceMs: 0,
+      persistenceN: 3,
+      persistenceM: 5,
+    });
+
+    // Warmup
+    for (let i = 0; i < 20; i += 1) {
+      detector.observe(makeSample({ garbageTemp: 180 + (i % 2) * 0.3 }));
+    }
+
+    // Single spike — should NOT flag due to 3-of-5 requirement
+    const spike = detector.observe(makeSample({ garbageTemp: 250 }));
+    expect(spike.flagged).toBe(false);
+
+    // Return to normal
+    detector.observe(makeSample({ garbageTemp: 180.2 }));
+
+    // Another spike — still only 1-of-last-5 flaggable, should NOT flag
+    const spike2 = detector.observe(makeSample({ garbageTemp: 250 }));
+    expect(spike2.flagged).toBe(false);
   });
 
   it('adapts to gradual drift without flagging every later sample', () => {
