@@ -15,7 +15,7 @@ import {
   MeasurementTooShortError,
   NoActiveBaselineError,
 } from '../services/energyBaselineService.js';
-import { startCycleTracker } from '../persistence/cycleTracker.js';
+import { startV03CycleTracker } from '../persistence/v03CycleTracker.js';
 import { startCyclePersister } from '../persistence/cyclePersister.js';
 import {
   BaselineLockRequestSchema,
@@ -42,8 +42,8 @@ import { EnergyPdfService } from '../services/energyPdfService.js';
  *   GET /api/energy/cycles     — 503 stub (Phase 21 wires it)
  *
  * Plan 19-06 (cycle persister) will extend THIS file with:
- *   - startCycleTracker(server.log)   registration in onReady
- *   - startCyclePersister(server.log) registration in onReady
+ *   - startV03CycleTracker(server.log)  registration in onReady
+ *   - startCyclePersister(server.log)   registration in onReady
  *   - EnergyAttributionService.detectAndPersistClosedCycles() backfill
  *     scheduler via setInterval(5min) with onClose cleanup
  *
@@ -106,13 +106,12 @@ export const energyRoutes: FastifyPluginAsync = async (server) => {
   // The Fastify route plugin body is the start-function call site for
   // cycle-closed FSM tracking and per-cycle persistence:
   //
-  //   1. startCycleTracker    — subscribes to dataHub.onMachineData,
-  //                             emits cycle:closed on STANDBY ↔
-  //                             AUTOMATIC_STARTED transitions + >30s
-  //                             gap debounce; sets attributionStatusHint
-  //                             = 'ABORTED' per CONTEXT D-13 reformulation
-  //                             when completedCycles did NOT increment
-  //                             during the active window (Plan 19-05).
+  //   1. startV03CycleTracker — subscribes to dataHub.onMachineData,
+  //                             watches Cycle_Status (S1_I_DATO_71) for
+  //                             rising edge transitions (0->1 start,
+  //                             1->{2,3,4} end); emits cycle:closed with
+  //                             full 14-field payload including energy/water
+  //                             deltas and V03 cycle status label.
   //
   //   2. startCyclePersister  — subscribes to dataHub.onCycleClosed and
   //                             calls EnergyAttributionService
@@ -132,7 +131,7 @@ export const energyRoutes: FastifyPluginAsync = async (server) => {
   //
   // onClose cleanup clears the interval so vitest processes don't leak.
   // ─────────────────────────────────────────────────────────────────
-  startCycleTracker(server.log);
+  startV03CycleTracker(server.log);
   startCyclePersister(server.log);
   // C6: Restore detector state from disk before starting live tracking
   await machineAnomalyService.loadState(server.log);

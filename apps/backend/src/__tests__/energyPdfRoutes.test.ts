@@ -29,8 +29,8 @@ vi.mock('../auth/authHooks.js', () => ({
   requireRole: requireRoleMock,
 }));
 
-vi.mock('../persistence/cycleTracker.js', () => ({
-  startCycleTracker: vi.fn(),
+vi.mock('../persistence/v03CycleTracker.js', () => ({
+  startV03CycleTracker: vi.fn(),
 }));
 
 vi.mock('../persistence/cyclePersister.js', () => ({
