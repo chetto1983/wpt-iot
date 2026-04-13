@@ -130,7 +130,9 @@ export class HandshakeFSM {
       // Await the data that the PLC pushes on dataSocket.
       const data = await dataPromise;
 
-      // Send IDLE to reset the channel state (best effort).
+      // Send ACK(100) to confirm receipt, then IDLE(2) to reset.
+      // PLC UDP_Send_03 state 130 waits for Ctrl=100 before returning to idle.
+      await this.sendControl(ackSocket, HandshakeState.ACK);
       await this.sendControl(ackSocket, HandshakeState.IDLE);
       this.state = HandshakeState.IDLE;
 
@@ -215,7 +217,9 @@ export class HandshakeFSM {
       });
       log.info({ name: 'HandshakeFSM', channel: this.fsmConfig.channelName, bytes: data.length }, 'Data sent');
 
-      // Send IDLE to reset the channel state (best effort).
+      // Send ACK(100) to confirm write, then IDLE(2) to reset.
+      // PLC UDP_Send_03 state 220 waits for Ctrl=100 before returning to idle.
+      await this.sendControl(ackSocket, HandshakeState.ACK);
       await this.sendControl(ackSocket, HandshakeState.IDLE);
       this.state = HandshakeState.IDLE;
     } catch (err) {

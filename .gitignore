@@ -14,3 +14,4 @@ cdp-screenshots-*/
 certs/
 
 *.tar*
+screenshots/*
