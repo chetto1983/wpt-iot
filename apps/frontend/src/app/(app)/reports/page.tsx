@@ -80,8 +80,8 @@ export default function ReportsPage() {
 
   const setDateRange = useCallback((range: DateRange | undefined) => {
     void setFilters({
-      from: range?.from ? range.from.toISOString().split('T')[0] : null,
-      to: range?.to ? range.to.toISOString().split('T')[0] : null,
+      from: range?.from ? formatDate(range.from, 'yyyy-MM-dd') : null,
+      to: range?.to ? formatDate(range.to, 'yyyy-MM-dd') : null,
     });
   }, [setFilters]);
 
