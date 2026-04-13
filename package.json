@@ -7,7 +7,15 @@
     "dev": "pnpm -r run dev",
     "lint": "pnpm -r run lint",
     "test": "pnpm -r run test",
-    "clean": "pnpm -r run clean"
+    "clean": "pnpm -r run clean",
+    "scan:knip": "knip --reporter json",
+    "scan:jscpd": "jscpd apps/ packages/",
+    "scan:madge:backend": "madge --circular --json --ts-config apps/backend/tsconfig.json --extensions ts apps/backend/src/",
+    "scan:madge:frontend": "madge --circular --json --ts-config apps/frontend/tsconfig.json --extensions ts,tsx apps/frontend/src/",
+    "scan:madge:types": "madge --circular --json --ts-config packages/types/tsconfig.json --extensions ts packages/types/src/",
+    "scan:madge": "pnpm scan:madge:backend && pnpm scan:madge:frontend && pnpm scan:madge:types",
+    "scan:security": "eslint --config eslint.security.config.js -f json \"apps/**/*.{ts,tsx}\" \"packages/**/*.ts\"",
+    "scan:all": "pnpm -r --filter @wpt/types run build && pnpm scan:knip && pnpm scan:jscpd && pnpm scan:madge"
   },
   "engines": {
     "node": ">=22.0.0",
@@ -22,7 +30,11 @@
     "@eslint/js": "^10.0.1",
     "@playwright/test": "^1.59.1",
     "eslint": "^10.1.0",
+    "eslint-plugin-security": "^4.0.0",
     "globals": "^17.4.0",
+    "jscpd": "^4.0.9",
+    "knip": "^6.4.1",
+    "madge": "^8.0.0",
     "puppeteer-core": "^24.40.0",
     "typescript-eslint": "^8.58.0"
   }

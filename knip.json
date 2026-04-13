@@ -1,0 +1,37 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "workspaces": {
+    ".": {
+      "entry": [],
+      "project": ["eslint.config.js"]
+    },
+    "apps/backend": {
+      "entry": ["src/index.ts", "src/server.ts", "drizzle.config.ts"],
+      "project": ["src/**/*.ts"],
+      "ignoreDependencies": [
+        "pdfmake",
+        "sharp",
+        "sparkplug-payload",
+        "pino-pretty",
+        "pdf-parse"
+      ]
+    },
+    "apps/frontend": {
+      "entry": [
+        "src/app/**/page.tsx",
+        "src/app/**/layout.tsx",
+        "src/app/**/not-found.tsx",
+        "src/app/**/global-error.tsx",
+        "src/app/**/manifest.ts",
+        "next.config.ts"
+      ],
+      "project": ["src/**/*.{ts,tsx}"],
+      "ignoreDependencies": ["shadcn"]
+    },
+    "packages/types": {
+      "entry": ["src/index.ts"],
+      "project": ["src/**/*.ts"],
+      "includeEntryExports": true
+    }
+  }
+}
