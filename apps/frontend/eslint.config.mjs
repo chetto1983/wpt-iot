@@ -29,6 +29,9 @@ export default tseslint.config(
         ...globals.browser,
         ...globals.node,
       },
+      parserOptions: {
+        tsconfigRootDir: __dirname,
+      },
     },
     settings: {
       next: {
