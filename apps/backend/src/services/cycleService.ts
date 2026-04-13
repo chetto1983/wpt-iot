@@ -31,7 +31,7 @@ export class CycleService {
    * @returns Paginated cycles response with total count
    */
   static async getCycles(params: ICyclesQueryParams): Promise<{
-    data: ICycleRecordResponse[];
+    cycles: ICycleRecordResponse[];
     pagination: {
       total: number;
       page: number;
@@ -144,7 +144,7 @@ export class CycleService {
     const totalPages = Math.ceil(total / limit);
 
     return {
-      data,
+      cycles: data,
       pagination: {
         total,
         page,
