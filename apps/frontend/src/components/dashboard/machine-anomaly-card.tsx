@@ -3,73 +3,15 @@
 import { memo, startTransition, useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { AlertTriangle, BrainCircuit, Check, Loader2, Radar, RefreshCw, Trash2, X } from 'lucide-react';
+import type {
+  IAnomalyLiveResponse,
+  IAnomalyEventsResponse,
+  IMachineAnomalyEvent,
+} from '@wpt/types';
 import { apiFetch } from '@/lib/api';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-
-interface IAnomalyContributor {
-  feature: string;
-  zScore: number;
-}
-
-interface ILiveAnomalyState {
-  observedAt: string;
-  modeKey: string;
-  warm: boolean;
-  sampleCount: number;
-  score: number;
-  flagged: boolean;
-  topContributors: IAnomalyContributor[];
-}
-
-interface IDetectorMetrics {
-  totalObservations: number;
-  totalFlagged: number;
-  totalWarnings: number;
-  modesTracked: number;
-  warmModes: number;
-  uptimeMs: number;
-  gracePeriodsEntered: number;
-}
-
-interface ITrackingStatus {
-  active: boolean;
-  continuousLearning: true;
-  persistsAcrossRestart: boolean;
-  startedAt: string | null;
-  observationCount: number;
-  lastObservedAt: string | null;
-  detectorMetrics: IDetectorMetrics;
-}
-
-interface IAnomalyLiveResponse {
-  tracking: ITrackingStatus;
-  latest: ILiveAnomalyState | null;
-}
-
-type AnomalyEventStatus = 'OPEN' | 'ACKNOWLEDGED' | 'CONFIRMED' | 'DISMISSED' | 'CLOSED';
-
-interface IAnomalyEvent {
-  id: number;
-  observedAt: string;
-  modeKey: string;
-  score: number;
-  flagged: boolean;
-  warm: boolean;
-  sampleCount: number;
-  topContributors: IAnomalyContributor[];
-  status: AnomalyEventStatus;
-  resolvedBy: string | null;
-  resolvedAt: string | null;
-  resolutionNote: string | null;
-  resolutionCategory: string | null;
-  createdAt: string;
-}
-
-interface IAnomalyEventsResponse {
-  events: IAnomalyEvent[];
-}
 
 interface IAnomalyReplayResponse {
   summary: {
@@ -123,7 +65,7 @@ export const MachineAnomalyCard = memo(function MachineAnomalyCard({
   const t = useTranslations('dashboard');
   const locale = useLocale();
   const [live, setLive] = useState<IAnomalyLiveResponse | null>(null);
-  const [events, setEvents] = useState<IAnomalyEvent[]>([]);
+  const [events, setEvents] = useState<IMachineAnomalyEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [replayLoading, setReplayLoading] = useState<ReplayPreset | null>(null);
   const [replaySummary, setReplaySummary] = useState<IAnomalyReplayResponse | null>(null);

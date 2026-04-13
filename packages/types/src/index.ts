@@ -13,3 +13,4 @@ export * from './plc.js';
 export * from './energy.js';
 export * from './format.js';
 export * from './cycle.js';
+export * from './anomaly.js';

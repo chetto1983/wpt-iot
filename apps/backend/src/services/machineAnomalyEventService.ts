@@ -1,26 +1,11 @@
 import { sql } from 'drizzle-orm';
+import type {
+  AnomalyEventStatus,
+  IMachineAnomalyEvent,
+  ResolutionCategory,
+} from '@wpt/types';
 import { db } from '../db/index.js';
 import type { ILiveAnomalyState } from './machineAnomalyService.js';
-
-export type AnomalyEventStatus = 'OPEN' | 'ACKNOWLEDGED' | 'CONFIRMED' | 'DISMISSED' | 'CLOSED';
-export type ResolutionCategory = 'TRUE_POSITIVE' | 'FALSE_POSITIVE' | 'PLANNED_MAINTENANCE' | 'SENSOR_FAULT';
-
-export interface IMachineAnomalyEvent {
-  id: number;
-  observedAt: string;
-  modeKey: string;
-  score: number;
-  flagged: boolean;
-  warm: boolean;
-  sampleCount: number;
-  topContributors: Array<{ feature: string; zScore: number }>;
-  status: AnomalyEventStatus;
-  resolvedBy: string | null;
-  resolvedAt: string | null;
-  resolutionNote: string | null;
-  resolutionCategory: ResolutionCategory | null;
-  createdAt: string;
-}
 
 interface IEventRow {
   id: number | string;
@@ -65,7 +50,13 @@ function mapRow(row: IEventRow): IMachineAnomalyEvent {
 }
 
 export class MachineAnomalyEventService {
+  /**
+   * C8: Schema now defined in db/schema/anomaly.ts (Drizzle).
+   * This method handles idempotent migration for existing deployments.
+   * New deployments get the full schema via `drizzle-kit push`.
+   */
   static async ensureSchema(): Promise<void> {
+    // Base table — idempotent for pre-Drizzle deployments
     await db.execute(sql`
       CREATE TABLE IF NOT EXISTS machine_anomaly_events (
         id BIGSERIAL PRIMARY KEY,
@@ -76,19 +67,15 @@ export class MachineAnomalyEventService {
         warm BOOLEAN NOT NULL,
         sample_count INTEGER NOT NULL,
         top_contributors JSONB NOT NULL DEFAULT '[]'::jsonb,
+        status TEXT NOT NULL DEFAULT 'OPEN',
+        resolved_by TEXT,
+        resolved_at TIMESTAMPTZ,
+        resolution_note TEXT,
+        resolution_category TEXT,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       )
     `);
-    await db.execute(sql`
-      CREATE INDEX IF NOT EXISTS machine_anomaly_events_observed_at_idx
-        ON machine_anomaly_events (observed_at DESC)
-    `);
-    await db.execute(sql`
-      CREATE INDEX IF NOT EXISTS machine_anomaly_events_flagged_idx
-        ON machine_anomaly_events (flagged, observed_at DESC)
-    `);
-
-    // C1: Event lifecycle columns (idempotent ALTER TABLE)
+    // C1: Lifecycle columns for pre-C1 deployments
     await db.execute(sql`
       ALTER TABLE machine_anomaly_events
         ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'OPEN',
@@ -97,10 +84,10 @@ export class MachineAnomalyEventService {
         ADD COLUMN IF NOT EXISTS resolution_note TEXT,
         ADD COLUMN IF NOT EXISTS resolution_category TEXT
     `);
-    await db.execute(sql`
-      CREATE INDEX IF NOT EXISTS machine_anomaly_events_status_idx
-        ON machine_anomaly_events (status, observed_at DESC)
-    `);
+    // Indexes
+    await db.execute(sql`CREATE INDEX IF NOT EXISTS machine_anomaly_events_observed_at_idx ON machine_anomaly_events (observed_at DESC)`);
+    await db.execute(sql`CREATE INDEX IF NOT EXISTS machine_anomaly_events_flagged_idx ON machine_anomaly_events (flagged, observed_at DESC)`);
+    await db.execute(sql`CREATE INDEX IF NOT EXISTS machine_anomaly_events_status_idx ON machine_anomaly_events (status, observed_at DESC)`);
   }
 
   static async recordEvent(state: ILiveAnomalyState): Promise<void> {
