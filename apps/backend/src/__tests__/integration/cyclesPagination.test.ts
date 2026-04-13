@@ -135,7 +135,7 @@ describe('cyclesPagination stress test', () => {
     if (!dbAvailable) return;
     try {
       await db.execute(sql`DELETE FROM cycle_records WHERE order_number LIKE 'PAGINATION_TEST_%'`);
-    } catch (_err) { /* ignore */ }
+    } catch { /* ignore */ }
     await pool.end().catch(() => undefined);
   });
 

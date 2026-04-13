@@ -41,6 +41,8 @@ vi.mock('../services/machineAnomalyService.js', () => ({
   machineAnomalyService: {
     start: vi.fn(),
     stop: vi.fn(),
+    loadState: vi.fn(async () => undefined),
+    saveState: vi.fn(async () => undefined),
     getTrackingStatus: vi.fn(() => ({})),
     getLatest: vi.fn(() => null),
   },
