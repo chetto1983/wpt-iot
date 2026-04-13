@@ -11,32 +11,11 @@
  * Per 24-UI-SPEC.md accessibility requirements.
  */
 
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { JSDOM } from 'jsdom';
+import { describe, it, expect } from 'vitest';
 import axeCore from 'axe-core';
 
-// Mock jsdom for component rendering tests
+// Uses vitest's built-in jsdom environment (configured in vitest.config.ts)
 describe('cyclesA11y', () => {
-  let dom: JSDOM;
-  let document: Document;
-
-  beforeAll(() => {
-    // Create a mock DOM environment
-    dom = new JSDOM('<!DOCTYPE html><html><body></body></html>', {
-      url: 'http://localhost:3000',
-      pretendToBeVisual: true,
-      resources: 'usable',
-    });
-    document = dom.window.document;
-
-    // Mock window and document globals
-    global.window = dom.window as unknown as Window & typeof globalThis;
-    global.document = document;
-  });
-
-  afterAll(() => {
-    dom.window.close();
-  });
 
   /**
    * Create a mock cycle register table structure
