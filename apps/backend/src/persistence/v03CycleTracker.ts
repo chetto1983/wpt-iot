@@ -43,6 +43,7 @@ export function startV03CycleTracker(log: IStoreLogger): void {
   let lastCycleStatus: CycleStatus | null = null;
   let resetEpoch = 0;
   let inFlightCycle: IInFlightCycle | null = null;
+  let warnedZeroStatus = false;
 
   // Seed the resetEpoch from the latest cycle_resets row on startup
   void (async () => {
@@ -189,6 +190,19 @@ export function startV03CycleTracker(log: IStoreLogger): void {
         lastCompletedCycles = snapshot.completedCycles;
         lastCycleStatus = currentStatus;
         return;
+      }
+
+      // --- 0. WARN-on-zero: first snapshot with cycleStatus===0 ---
+      if (
+        !warnedZeroStatus &&
+        currentStatus === CycleStatus.NONE &&
+        lastCycleStatus === null
+      ) {
+        warnedZeroStatus = true;
+        log.warn?.(
+          { name: 'V03CycleTracker' },
+          'V03 Cycle_Status is 0 — cycle tracking disabled until PLC sends lifecycle signals',
+        );
       }
 
       // --- 1. Counter-reset detection (same as original cycleTracker) ---
