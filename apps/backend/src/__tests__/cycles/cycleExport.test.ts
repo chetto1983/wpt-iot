@@ -44,7 +44,7 @@ import { createDeterministicPdfBuffer } from '../../services/pdfDocumentFactory.
 // ---------------------------------------------------------------------------
 // Test data factories
 // ---------------------------------------------------------------------------
-function makeCycleRecord(overrides: Partial<ICycleRecord> = {}): ICycleRecord {
+function _makeCycleRecord(overrides: Partial<ICycleRecord> = {}): ICycleRecord {
   const now = new Date('2026-04-10T14:30:00Z');
   const startedAt = new Date('2026-04-10T14:00:00Z');
   return {

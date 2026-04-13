@@ -258,7 +258,9 @@ describe('startCycleTracker — cycle window FSM (RED — Plan 19-05)', () => {
     expect(Number.isNaN(kwhPerKg as number)).toBe(false);
 
     // Sanity-check the happy path: 12.5 kWh / 80 kg = 0.15625 kWh/kg.
-    const happyDenominator = 80 > 0 ? 80 : 100 > 0 ? 100 : null;
+    const happyInput = 80;
+    const happyGross = 100;
+    const happyDenominator = happyInput > 0 ? happyInput : happyGross > 0 ? happyGross : null;
     const happy =
       happyDenominator !== null ? 12.5 / happyDenominator : null;
     expect(happy).not.toBeNull();

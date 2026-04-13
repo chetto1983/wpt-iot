@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { CycleStatus, CycleStatusLabel } from '@wpt/types';
-import type { IMachineSnapshot, ICycleClosedEvent } from '@wpt/types';
+import type { IMachineSnapshot } from '@wpt/types';
 
 /**
  * PHASE 24 Wave 0 — V03 Cycle_Status edge detection FSM test scaffold.
