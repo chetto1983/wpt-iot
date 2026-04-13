@@ -165,7 +165,7 @@ topDrivers: chamberPressure=1.8, garbageTemp=1.1, vacuumPumpSpeed01=0.7
 | Quarantine: tighter threshold during grace period | Correct — rejects transition spikes |
 | `maxFeatureZScore` cap of 25 | Prevents single-feature domination |
 | Event persistence with 15-min per-mode cooldown | Prevents DB flooding |
-| 12 numeric features (of 33 operational) | Motor/process core covered; see Phase D for expansion |
+| 33 numeric features (100% of PLC operational fields) | Full coverage after Phase D expansion — 8 correlation groups |
 | Correlated feature grouping (rmsCurrL1/L2/L3) | Correct — max-per-group before top-K prevents inflation |
 | Auth on all anomaly endpoints | Correct — matches rest of energy API |
 
@@ -276,19 +276,19 @@ All anomaly interfaces moved to `packages/types/src/anomaly.ts`: `IAnomalyResult
 
 ### Coverage Summary
 
-The PLC sends **33 operational numeric fields** on UDP 9090. The ML detector currently tracks **12 (36%)**. The remaining 21 fields contain high-value anomaly signals across thermal, electrical, and process domains.
+The PLC sends **33 operational numeric fields** on UDP 9090. After D1+D2+D3, the ML detector tracks **all 33 (100%)** with 8 correlation groups preventing score inflation.
 
-| Category | Total | Tracked | Gap | Coverage |
-|---|---|---|---|---|
-| Thermal (zone temps + garbage) | 12 | 1 | 11 | 8% |
-| Motor (speed, current, torque, pumps) | 6 | 4 | 2 | 67% |
-| Material (input/output weight) | 2 | 2 | 0 | 100% |
-| Electrical: RMS currents | 5 | 3 | 2 | 60% |
-| Electrical: Line voltages | 6 | 0 | 6 | 0% |
-| Power/utilities (energy, PF, water) | 3 | 1 | 2 | 33% |
-| **Total** | **34** | **12** | **22** | **35%** |
+| Category | Total | Tracked | Coverage |
+|---|---|---|---|
+| Thermal (zone temps + garbage) | 12 | 12 | 100% |
+| Motor (speed, current, torque, pumps) | 6 | 6 | 100% |
+| Material (input/output weight) | 2 | 2 | 100% |
+| Electrical: RMS currents | 5 | 5 | 100% |
+| Electrical: Line voltages | 6 | 6 | 100% |
+| Power/utilities (energy, PF, water) | 3 | 3 | 100% |
+| **Total** | **34** | **34** | **100%** |
 
-### D1 — Tier 1: Core Process Signals (+10 features → 22 total)
+### D1 — Tier 1: Core Process Signals (+10 features → 22 total) ✅ DONE
 
 | Field | Type | Rationale |
 |---|---|---|
@@ -305,7 +305,7 @@ The PLC sends **33 operational numeric fields** on UDP 9090. The ML detector cur
 
 **Correlation groups to add:** `thermoLeft*` (3 fields), `thermoRight*` (3 fields).
 
-### D2 — Tier 2: Electrical Grid Health (+7 features → 29 total)
+### D2 — Tier 2: Electrical Grid Health (+7 features → 29 total) ✅ DONE
 
 | Field | Type | Rationale |
 |---|---|---|
@@ -321,7 +321,7 @@ The PLC sends **33 operational numeric fields** on UDP 9090. The ML detector cur
 
 **Note:** Line voltages and pfTotal currently read 400/230/0 from PLC (bench-day firmware issue, see `project_bench_day_voltage_cosfi_fix.md`). Add fields now but they'll only produce meaningful anomalies after Paolo's PLC firmware fix.
 
-### D3 — Tier 3: High-Temp Zones (+4 features → 33 total)
+### D3 — Tier 3: High-Temp Zones (+4 features → 33 total) ✅ DONE
 
 | Field | Type | Rationale |
 |---|---|---|
@@ -343,9 +343,9 @@ The PLC sends **33 operational numeric fields** on UDP 9090. The ML detector cur
 
 | Priority | Enhancement | Impact | Effort |
 |---|---|---|---|
-| **P0** | D1 — Core process signals (+10) | Thermal + pump + water anomaly detection | Low |
-| **P1** | D2 — Electrical grid health (+7) | Voltage imbalance, ground fault, PF degradation | Low |
-| **P2** | D3 — High-temp zones (+4) | Furnace stratification patterns | Low |
+| ~~P0~~ | ~~D1 — Core process signals (+10)~~ | ✅ Done | — |
+| ~~P1~~ | ~~D2 — Electrical grid health (+7)~~ | ✅ Done | — |
+| ~~P2~~ | ~~D3 — High-temp zones (+4)~~ | ✅ Done | — |
 
 ---
 
