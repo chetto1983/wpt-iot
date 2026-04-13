@@ -1,3 +1,5 @@
+import { readFile, writeFile } from 'node:fs/promises';
+import path from 'node:path';
 import type { IMachineSnapshot } from '@wpt/types';
 import { dataHub } from '../events/hub.js';
 import { DATA_EVENTS } from '../events/types.js';
@@ -8,6 +10,8 @@ import {
   type IDetectorMetrics,
   type ISerializedDetector,
 } from './onlineAnomalyDetector.js';
+
+const STATE_FILE = path.resolve('uploads', 'anomaly-state.json');
 
 interface ILogger {
   info(obj: Record<string, unknown>, msg: string): void;
@@ -76,7 +80,7 @@ export class MachineAnomalyService {
       {
         name: 'MachineAnomaly',
         continuousLearning: true,
-        persistsAcrossRestart: false,
+        persistsAcrossRestart: true,
       },
       'Machine anomaly tracker started',
     );
@@ -96,7 +100,7 @@ export class MachineAnomalyService {
     return {
       active: this.handler !== null,
       continuousLearning: true,
-      persistsAcrossRestart: false,
+      persistsAcrossRestart: true,
       startedAt: this.startedAt?.toISOString() ?? null,
       observationCount: this.observationCount,
       lastObservedAt: this.latest?.observedAt ?? null,
@@ -178,6 +182,44 @@ export class MachineAnomalyService {
     }
 
     return this.latest;
+  }
+
+  async saveState(log?: ILogger): Promise<void> {
+    try {
+      const data = this.serializeDetector();
+      await writeFile(STATE_FILE, JSON.stringify(data), 'utf-8');
+      if (log) {
+        log.info(
+          { name: 'MachineAnomaly', file: STATE_FILE, observations: data.totalObservations },
+          'Detector state saved to disk',
+        );
+      }
+    } catch (err) {
+      if (log) {
+        log.error(
+          { name: 'MachineAnomaly', err: (err as Error).message },
+          'Failed to save detector state',
+        );
+      }
+    }
+  }
+
+  async loadState(log?: ILogger): Promise<boolean> {
+    try {
+      const raw = await readFile(STATE_FILE, 'utf-8');
+      const data = JSON.parse(raw) as ISerializedDetector;
+      this.restoreDetector(data);
+      if (log) {
+        log.info(
+          { name: 'MachineAnomaly', file: STATE_FILE, observations: data.totalObservations },
+          'Detector state restored from disk',
+        );
+      }
+      return true;
+    } catch {
+      // File not found or corrupt — start fresh
+      return false;
+    }
   }
 
   resetForTest(): void {

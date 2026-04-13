@@ -134,6 +134,8 @@ export const energyRoutes: FastifyPluginAsync = async (server) => {
   // ─────────────────────────────────────────────────────────────────
   startCycleTracker(server.log);
   startCyclePersister(server.log);
+  // C6: Restore detector state from disk before starting live tracking
+  await machineAnomalyService.loadState(server.log);
   machineAnomalyService.start(server.log);
 
   const BACKFILL_INTERVAL_MS = 5 * 60 * 1000;
@@ -164,6 +166,8 @@ export const energyRoutes: FastifyPluginAsync = async (server) => {
   server.addHook('onClose', async () => {
     clearInterval(backfillInterval);
     machineAnomalyService.stop();
+    // C6: Persist detector state to disk so baselines survive restarts
+    await machineAnomalyService.saveState(server.log);
   });
 
   // =========================================================================
