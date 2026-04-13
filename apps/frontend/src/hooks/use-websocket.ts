@@ -3,7 +3,7 @@
 import { startTransition, useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { WsMessageType } from '@wpt/types';
-import type { IActiveAlarm, IMachineSnapshot, IWsMessage } from '@wpt/types';
+import type { IActiveAlarm, ILiveAnomalyState, IMachineSnapshot, IWsMessage } from '@wpt/types';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || '';
 const MIN_RECONNECT_DELAY = 1000;
@@ -18,6 +18,7 @@ function getWsUrl(): string {
 export interface WsState {
   machineData: Partial<IMachineSnapshot> | null;
   alarms: IActiveAlarm[];
+  anomaly: ILiveAnomalyState | null;
   connected: boolean;
   lastUpdate: Date | null;
 }
@@ -25,6 +26,7 @@ export interface WsState {
 export function useWebSocket(enabled: boolean): WsState {
   const [machineData, setMachineData] = useState<Partial<IMachineSnapshot> | null>(null);
   const [alarms, setAlarms] = useState<IActiveAlarm[]>([]);
+  const [anomaly, setAnomaly] = useState<ILiveAnomalyState | null>(null);
   const [connected, setConnected] = useState(false);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
 
@@ -135,6 +137,11 @@ export function useWebSocket(enabled: boolean): WsState {
               setAlarms(message.payload as IActiveAlarm[]);
             });
             break;
+          case WsMessageType.ANOMALY_UPDATE:
+            startTransition(() => {
+              setAnomaly(message.payload as ILiveAnomalyState);
+            });
+            break;
           default:
             console.warn('[ws] unsupported message type', { type: message.type });
             break;
@@ -187,5 +194,5 @@ export function useWebSocket(enabled: boolean): WsState {
     };
   }, [enabled, connect]);
 
-  return { machineData, alarms, connected, lastUpdate };
+  return { machineData, alarms, anomaly, connected, lastUpdate };
 }

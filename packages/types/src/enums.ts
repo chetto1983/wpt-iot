@@ -106,4 +106,5 @@ export enum WsMessageType {
   WRITE_USERS = 'WRITE_USERS',
   READ_JOB = 'READ_JOB',
   WRITE_JOB = 'WRITE_JOB',
+  ANOMALY_UPDATE = 'ANOMALY_UPDATE',
 }

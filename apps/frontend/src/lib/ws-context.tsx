@@ -16,10 +16,11 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
     () => ({
       machineData: wsState.machineData,
       alarms: wsState.alarms,
+      anomaly: wsState.anomaly,
       connected: wsState.connected,
       lastUpdate: wsState.lastUpdate,
     }),
-    [wsState.machineData, wsState.alarms, wsState.connected, wsState.lastUpdate],
+    [wsState.machineData, wsState.alarms, wsState.anomaly, wsState.connected, wsState.lastUpdate],
   );
 
   return <WsContext.Provider value={value}>{children}</WsContext.Provider>;

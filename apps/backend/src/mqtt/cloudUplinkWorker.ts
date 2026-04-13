@@ -20,13 +20,14 @@ export class CloudUplinkWorker {
   private static timer: NodeJS.Timeout | null = null;
   private static logger: FastifyBaseLogger | null = null;
   private static isRunning = false;
+  private static cycleClosedHandler: ((event: ICycleClosedEvent) => void) | null = null;
 
   static start(log: FastifyBaseLogger): void {
     this.logger = log;
     this.stop();
 
     // Subscribe to cycle close events for immediate publish
-    dataHub.onCycleClosed(async (event: ICycleClosedEvent) => {
+    this.cycleClosedHandler = async (event: ICycleClosedEvent) => {
       try {
         await this.publishAndMark(event);
       } catch (err) {
@@ -34,7 +35,8 @@ export class CloudUplinkWorker {
         this.logger?.warn({ name: 'CloudUplinkWorker', err, cycleNumber: event.cycleNumber },
           'Immediate cycle publish failed, will retry via drain');
       }
-    });
+    };
+    dataHub.onCycleClosed(this.cycleClosedHandler);
 
     // 60s drain for catchup and retry
     this.timer = setInterval(() => this.drainOutbox(), 60_000);
@@ -111,6 +113,10 @@ export class CloudUplinkWorker {
   }
 
   static stop(): void {
+    if (this.cycleClosedHandler) {
+      dataHub.removeListener('cycle:closed', this.cycleClosedHandler);
+      this.cycleClosedHandler = null;
+    }
     if (this.timer) {
       clearInterval(this.timer);
       this.timer = null;

@@ -8,6 +8,7 @@ import { latestState } from '../cache/latestState.js';
 import { filterByRole } from '../services/filterByRole.js';
 import { getAlarmDescription } from '../i18n/alarmDescriptions.js';
 import { getActiveAlarmIndices } from '../persistence/alarmStore.js';
+import { machineAnomalyService } from '../services/machineAnomalyService.js';
 import { db } from '../db/index.js';
 import { sessions } from '../db/schema/auth.js';
 import type { IWsClient } from './types.js';
@@ -49,6 +50,8 @@ function buildActiveAlarm(alarmIndex: number, timestamp: Date): IActiveAlarm {
 
 /** Handle machine data events: push role-filtered snapshots to all clients */
 function onMachineData(snapshot: IMachineSnapshot, timestamp: Date): void {
+  const anomalyState = machineAnomalyService.getLatest();
+
   for (const client of clients) {
     const filtered = filterByRole(snapshot, client.role);
     safeSend(client.socket, {
@@ -56,6 +59,24 @@ function onMachineData(snapshot: IMachineSnapshot, timestamp: Date): void {
       payload: filtered,
       timestamp: timestamp.toISOString(),
     });
+
+    // Push anomaly state alongside machine data (same 5s cadence)
+    if (anomalyState) {
+      safeSend(client.socket, {
+        type: WsMessageType.ANOMALY_UPDATE,
+        payload: {
+          score: anomalyState.score,
+          level: anomalyState.level,
+          flagged: anomalyState.flagged,
+          driftDetected: anomalyState.driftDetected,
+          modeKey: anomalyState.modeKey,
+          warm: anomalyState.warm,
+          confidence: anomalyState.confidence,
+          topContributors: anomalyState.topContributors,
+          observedAt: anomalyState.observedAt,
+        },
+      });
+    }
   }
 }
 

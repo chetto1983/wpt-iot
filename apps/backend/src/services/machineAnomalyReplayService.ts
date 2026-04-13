@@ -60,6 +60,8 @@ export interface IAnomalyReplayResponse {
     firstFlaggedAt: string | null;
   };
   topAnomalies: IAnomalyReplayPoint[];
+  /** Downsampled score timeline for charting (max ~120 points). */
+  timeline?: Array<{ time: string; score: number; flagged: boolean }>;
 }
 
 function asIsoString(value: Date | string): string {
@@ -128,13 +130,17 @@ export class MachineAnomalyReplayService {
 
     const detector = new OnlineAnomalyDetector();
     const topAnomalies: IAnomalyReplayPoint[] = [];
+    const allScores: Array<{ time: string; score: number; flagged: boolean }> = [];
     let flaggedRows = 0;
     let maxScore = 0;
     let firstFlaggedAt: string | null = null;
+    const totalRows = snapshotResult.rows.length;
 
     for (const row of snapshotResult.rows as unknown as IReplaySnapshotRow[]) {
       const result = detector.observe(mapReplayRow(row));
       const observedAt = asIsoString(row.timestamp);
+
+      allScores.push({ time: observedAt, score: result.score, flagged: result.flagged });
 
       if (result.flagged) {
         flaggedRows += 1;
@@ -162,6 +168,15 @@ export class MachineAnomalyReplayService {
       }
     }
 
+    // Downsample timeline to ~120 points for charting
+    const MAX_TIMELINE = 120;
+    const step = totalRows > MAX_TIMELINE ? Math.floor(totalRows / MAX_TIMELINE) : 1;
+    const timeline: Array<{ time: string; score: number; flagged: boolean }> = [];
+    for (let i = 0; i < allScores.length; i += step) {
+      const pt = allScores[i];
+      if (pt) timeline.push(pt);
+    }
+
     const activeAlarmCount = Number(
       (alarmCountResult.rows[0] as IAlarmCountRow | undefined)?.activeCount ?? 0,
     );
@@ -183,6 +198,7 @@ export class MachineAnomalyReplayService {
         firstFlaggedAt,
       },
       topAnomalies,
+      timeline,
     };
   }
 }

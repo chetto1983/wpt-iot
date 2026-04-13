@@ -67,7 +67,7 @@ const aggregateQuerySchema = z.object({
 });
 
 const anomalySimulationSchema = z.object({
-  scenario: z.enum(['temperature_spike', 'pressure_runaway', 'energy_drift']),
+  scenario: z.enum(['temperature_spike', 'pressure_runaway', 'energy_drift', 'voltage_sag', 'pump_failure', 'water_leak', 'thermal_gradient']),
   warmupSamples: z.number().int().min(10).max(500).optional(),
   scenarioSamples: z.number().int().min(1).max(200).optional(),
 });

@@ -75,6 +75,27 @@ export const AnomalyDashboard = memo(function AnomalyDashboard() {
 
   useEffect(() => {
     const controller = new AbortController();
+
+    // Seed timeline with 2h historical replay (one-time on mount)
+    const seedHistory = async () => {
+      try {
+        const now = new Date();
+        const from = new Date(now.getTime() - 2 * 60 * 60 * 1000);
+        const replay = await apiFetch<{
+          timeline?: ITimelinePoint[];
+        }>('/api/energy/anomaly/replay', {
+          method: 'POST',
+          signal: controller.signal,
+          body: JSON.stringify({ from: from.toISOString(), to: now.toISOString() }),
+        });
+        if (replay.timeline && replay.timeline.length > 0) {
+          historyRef.current = replay.timeline;
+          startTransition(() => setHistory([...replay.timeline!]));
+        }
+      } catch { /* non-critical — live polling will fill it */ }
+    };
+    void seedHistory();
+
     void loadData(controller.signal);
     const timer = setInterval(() => {
       if (!controller.signal.aborted) void loadData(controller.signal);
