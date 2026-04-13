@@ -95,6 +95,12 @@ const anomalyEventsQuerySchema = z.object({
     .optional(),
 });
 
+const anomalyResolveSchema = z.object({
+  status: z.enum(['CONFIRMED', 'DISMISSED']),
+  note: z.string().max(500).optional(),
+  category: z.enum(['TRUE_POSITIVE', 'FALSE_POSITIVE', 'PLANNED_MAINTENANCE', 'SENSOR_FAULT']).optional(),
+});
+
 export const energyRoutes: FastifyPluginAsync = async (server) => {
   // ── Plan 19-06: lifecycle wiring (Pattern 3 from RESEARCH.md) ────
   // The Fastify route plugin body is the start-function call site for
@@ -566,6 +572,73 @@ export const energyRoutes: FastifyPluginAsync = async (server) => {
         { name: 'MachineAnomalyEvaluate', err: (err as Error).message },
         'Historical anomaly evaluation failed',
       );
+      return reply.code(500).send({ error: 'Internal error' });
+    }
+  });
+
+  // ── C1: Event lifecycle routes ────────────────────────────────────────
+
+  server.patch('/energy/anomaly/events/:id/acknowledge', { preHandler: requireAuth }, async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const eventId = Number(id);
+    if (!Number.isFinite(eventId) || eventId < 1) {
+      return reply.code(400).send({ error: 'Invalid event id' });
+    }
+    try {
+      const updated = await MachineAnomalyEventService.acknowledgeEvent(
+        eventId,
+        request.session.username as string,
+      );
+      if (!updated) {
+        return reply.code(404).send({ error: 'Event not found or not in OPEN status' });
+      }
+      return reply.send({ event: updated });
+    } catch (err) {
+      server.log.error({ name: 'AnomalyLifecycle', err: (err as Error).message }, 'Acknowledge failed');
+      return reply.code(500).send({ error: 'Internal error' });
+    }
+  });
+
+  server.patch('/energy/anomaly/events/:id/resolve', { preHandler: requireAuth }, async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const eventId = Number(id);
+    if (!Number.isFinite(eventId) || eventId < 1) {
+      return reply.code(400).send({ error: 'Invalid event id' });
+    }
+    const parsed = anomalyResolveSchema.safeParse(request.body);
+    if (!parsed.success) {
+      return reply.code(400).send({ error: 'Invalid request body', issues: parsed.error.issues });
+    }
+    try {
+      const updated = await MachineAnomalyEventService.resolveEvent(
+        eventId,
+        request.session.username as string,
+        parsed.data,
+      );
+      if (!updated) {
+        return reply.code(404).send({ error: 'Event not found or already resolved' });
+      }
+      return reply.send({ event: updated });
+    } catch (err) {
+      server.log.error({ name: 'AnomalyLifecycle', err: (err as Error).message }, 'Resolve failed');
+      return reply.code(500).send({ error: 'Internal error' });
+    }
+  });
+
+  server.delete('/energy/anomaly/events/:id', { preHandler: requireRole(UserRole.SUPER_ADMIN) }, async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const eventId = Number(id);
+    if (!Number.isFinite(eventId) || eventId < 1) {
+      return reply.code(400).send({ error: 'Invalid event id' });
+    }
+    try {
+      const deleted = await MachineAnomalyEventService.deleteEvent(eventId);
+      if (!deleted) {
+        return reply.code(404).send({ error: 'Event not found' });
+      }
+      return reply.send({ deleted: true });
+    } catch (err) {
+      server.log.error({ name: 'AnomalyLifecycle', err: (err as Error).message }, 'Delete failed');
       return reply.code(500).send({ error: 'Internal error' });
     }
   });

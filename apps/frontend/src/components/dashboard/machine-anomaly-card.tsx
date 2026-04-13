@@ -2,7 +2,7 @@
 
 import { memo, startTransition, useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
-import { AlertTriangle, BrainCircuit, Loader2, Radar, RefreshCw } from 'lucide-react';
+import { AlertTriangle, BrainCircuit, Check, Loader2, Radar, RefreshCw, Trash2, X } from 'lucide-react';
 import { apiFetch } from '@/lib/api';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -48,6 +48,8 @@ interface IAnomalyLiveResponse {
   latest: ILiveAnomalyState | null;
 }
 
+type AnomalyEventStatus = 'OPEN' | 'ACKNOWLEDGED' | 'CONFIRMED' | 'DISMISSED' | 'CLOSED';
+
 interface IAnomalyEvent {
   id: number;
   observedAt: string;
@@ -57,6 +59,11 @@ interface IAnomalyEvent {
   warm: boolean;
   sampleCount: number;
   topContributors: IAnomalyContributor[];
+  status: AnomalyEventStatus;
+  resolvedBy: string | null;
+  resolvedAt: string | null;
+  resolutionNote: string | null;
+  resolutionCategory: string | null;
   createdAt: string;
 }
 
@@ -121,6 +128,7 @@ export const MachineAnomalyCard = memo(function MachineAnomalyCard({
   const [replayLoading, setReplayLoading] = useState<ReplayPreset | null>(null);
   const [replaySummary, setReplaySummary] = useState<IAnomalyReplayResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [actionLoading, setActionLoading] = useState<number | null>(null);
 
   const loadCard = useCallback(async (signal?: AbortSignal) => {
     try {
@@ -193,6 +201,49 @@ export const MachineAnomalyCard = memo(function MachineAnomalyCard({
       });
     }
   }, []);
+
+  const handleAcknowledge = useCallback(async (id: number) => {
+    setActionLoading(id);
+    try {
+      await apiFetch(`/api/energy/anomaly/events/${id}/acknowledge`, { method: 'PATCH' });
+      void loadCard();
+    } catch (err) {
+      startTransition(() => setError((err as Error).message));
+    } finally {
+      setActionLoading(null);
+    }
+  }, [loadCard]);
+
+  const handleResolve = useCallback(async (id: number, status: 'CONFIRMED' | 'DISMISSED') => {
+    setActionLoading(id);
+    try {
+      await apiFetch(`/api/energy/anomaly/events/${id}/resolve`, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          status,
+          category: status === 'CONFIRMED' ? 'TRUE_POSITIVE' : 'FALSE_POSITIVE',
+        }),
+      });
+      void loadCard();
+    } catch (err) {
+      startTransition(() => setError((err as Error).message));
+    } finally {
+      setActionLoading(null);
+    }
+  }, [loadCard]);
+
+  const handleDelete = useCallback(async (id: number) => {
+    if (!confirm(t('anomaly.actions.confirmDelete'))) return;
+    setActionLoading(id);
+    try {
+      await apiFetch(`/api/energy/anomaly/events/${id}`, { method: 'DELETE' });
+      startTransition(() => setEvents((prev) => prev.filter((e) => e.id !== id)));
+    } catch (err) {
+      startTransition(() => setError((err as Error).message));
+    } finally {
+      setActionLoading(null);
+    }
+  }, [t]);
 
   const topContributor = useMemo(() => {
     return live?.latest?.topContributors[0] ?? null;
@@ -370,34 +421,90 @@ export const MachineAnomalyCard = memo(function MachineAnomalyCard({
                 </div>
               ) : (
                 <div className="space-y-2">
-                  {events.map((event) => (
-                    <div
-                      key={event.id}
-                      className="rounded-lg border border-border/60 bg-background/40 px-4 py-3"
-                    >
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <div className="flex items-center gap-2">
-                          <Badge variant={event.flagged ? 'destructive' : 'secondary'}>
-                            {event.flagged ? t('anomaly.state.flagged') : t('anomaly.state.normal')}
-                          </Badge>
-                          <span className="text-sm font-semibold tabular-nums">
-                            {t('anomaly.scoreLabel', { score: formatNumber(event.score, locale) })}
+                  {events.map((event) => {
+                    const isOpen = event.status === 'OPEN';
+                    const isAcked = event.status === 'ACKNOWLEDGED';
+                    const isResolved = event.status === 'CONFIRMED' || event.status === 'DISMISSED';
+                    const busy = actionLoading === event.id;
+                    const statusVariant = isOpen ? 'destructive' as const
+                      : isAcked ? 'outline' as const
+                      : isResolved && event.status === 'CONFIRMED' ? 'default' as const
+                      : 'secondary' as const;
+
+                    return (
+                      <div
+                        key={event.id}
+                        className="rounded-lg border border-border/60 bg-background/40 px-4 py-3"
+                      >
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="flex items-center gap-2">
+                            <Badge variant={statusVariant}>
+                              {t(`anomaly.status.${event.status}`)}
+                            </Badge>
+                            <span className="text-sm font-semibold tabular-nums">
+                              {t('anomaly.scoreLabel', { score: formatNumber(event.score, locale) })}
+                            </span>
+                          </div>
+                          <span className="text-xs text-muted-foreground">
+                            {formatDateTime(event.observedAt, locale)}
                           </span>
                         </div>
-                        <span className="text-xs text-muted-foreground">
-                          {formatDateTime(event.observedAt, locale)}
-                        </span>
+                        <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                          <span>{t('anomaly.modeLabel', { mode: event.modeKey })}</span>
+                          <span>
+                            {t('anomaly.driverLabel', {
+                              driver: event.topContributors[0]?.feature ?? t('states.notAvailable'),
+                            })}
+                          </span>
+                          {event.resolvedBy && (
+                            <span>{t('anomaly.resolvedBy', { user: event.resolvedBy })}</span>
+                          )}
+                        </div>
+                        {(isOpen || isAcked) && (
+                          <div className="mt-2 flex flex-wrap gap-1.5">
+                            {isOpen && (
+                              <Button
+                                type="button" size="sm" variant="outline"
+                                className="h-7 text-xs"
+                                disabled={busy}
+                                onClick={() => void handleAcknowledge(event.id)}
+                              >
+                                {busy ? <Loader2 className="mr-1 size-3 animate-spin" /> : <Check className="mr-1 size-3" />}
+                                {t('anomaly.actions.acknowledge')}
+                              </Button>
+                            )}
+                            <Button
+                              type="button" size="sm" variant="outline"
+                              className="h-7 text-xs text-green-600"
+                              disabled={busy}
+                              onClick={() => void handleResolve(event.id, 'CONFIRMED')}
+                            >
+                              <Check className="mr-1 size-3" />
+                              {t('anomaly.actions.confirm')}
+                            </Button>
+                            <Button
+                              type="button" size="sm" variant="outline"
+                              className="h-7 text-xs text-amber-600"
+                              disabled={busy}
+                              onClick={() => void handleResolve(event.id, 'DISMISSED')}
+                            >
+                              <X className="mr-1 size-3" />
+                              {t('anomaly.actions.dismiss')}
+                            </Button>
+                            <Button
+                              type="button" size="sm" variant="ghost"
+                              className="h-7 text-xs text-destructive"
+                              disabled={busy}
+                              onClick={() => void handleDelete(event.id)}
+                            >
+                              <Trash2 className="mr-1 size-3" />
+                              {t('anomaly.actions.delete')}
+                            </Button>
+                          </div>
+                        )}
                       </div>
-                      <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
-                        <span>{t('anomaly.modeLabel', { mode: event.modeKey })}</span>
-                        <span>
-                          {t('anomaly.driverLabel', {
-                            driver: event.topContributors[0]?.feature ?? t('states.notAvailable'),
-                          })}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>

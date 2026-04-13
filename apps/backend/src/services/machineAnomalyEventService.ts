@@ -2,6 +2,9 @@ import { sql } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import type { ILiveAnomalyState } from './machineAnomalyService.js';
 
+export type AnomalyEventStatus = 'OPEN' | 'ACKNOWLEDGED' | 'CONFIRMED' | 'DISMISSED' | 'CLOSED';
+export type ResolutionCategory = 'TRUE_POSITIVE' | 'FALSE_POSITIVE' | 'PLANNED_MAINTENANCE' | 'SENSOR_FAULT';
+
 export interface IMachineAnomalyEvent {
   id: number;
   observedAt: string;
@@ -11,6 +14,11 @@ export interface IMachineAnomalyEvent {
   warm: boolean;
   sampleCount: number;
   topContributors: Array<{ feature: string; zScore: number }>;
+  status: AnomalyEventStatus;
+  resolvedBy: string | null;
+  resolvedAt: string | null;
+  resolutionNote: string | null;
+  resolutionCategory: ResolutionCategory | null;
   createdAt: string;
 }
 
@@ -23,6 +31,11 @@ interface IEventRow {
   warm: boolean;
   sample_count: number | string;
   top_contributors: unknown;
+  status: string | null;
+  resolved_by: string | null;
+  resolved_at: Date | string | null;
+  resolution_note: string | null;
+  resolution_category: string | null;
   created_at: Date | string;
 }
 
@@ -42,6 +55,11 @@ function mapRow(row: IEventRow): IMachineAnomalyEvent {
     topContributors: Array.isArray(row.top_contributors)
       ? (row.top_contributors as Array<{ feature: string; zScore: number }>)
       : [],
+    status: (row.status ?? 'OPEN') as AnomalyEventStatus,
+    resolvedBy: row.resolved_by ?? null,
+    resolvedAt: row.resolved_at ? asIso(row.resolved_at) : null,
+    resolutionNote: row.resolution_note ?? null,
+    resolutionCategory: row.resolution_category as ResolutionCategory | null,
     createdAt: asIso(row.created_at),
   };
 }
@@ -68,6 +86,20 @@ export class MachineAnomalyEventService {
     await db.execute(sql`
       CREATE INDEX IF NOT EXISTS machine_anomaly_events_flagged_idx
         ON machine_anomaly_events (flagged, observed_at DESC)
+    `);
+
+    // C1: Event lifecycle columns (idempotent ALTER TABLE)
+    await db.execute(sql`
+      ALTER TABLE machine_anomaly_events
+        ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'OPEN',
+        ADD COLUMN IF NOT EXISTS resolved_by TEXT,
+        ADD COLUMN IF NOT EXISTS resolved_at TIMESTAMPTZ,
+        ADD COLUMN IF NOT EXISTS resolution_note TEXT,
+        ADD COLUMN IF NOT EXISTS resolution_category TEXT
+    `);
+    await db.execute(sql`
+      CREATE INDEX IF NOT EXISTS machine_anomaly_events_status_idx
+        ON machine_anomaly_events (status, observed_at DESC)
     `);
   }
 
@@ -134,5 +166,44 @@ export class MachineAnomalyEventService {
         `);
 
     return (result.rows as unknown as IEventRow[]).map(mapRow);
+  }
+
+  static async acknowledgeEvent(id: number, username: string): Promise<IMachineAnomalyEvent | null> {
+    const result = await db.execute(sql`
+      UPDATE machine_anomaly_events
+      SET status = 'ACKNOWLEDGED',
+          resolved_by = ${username},
+          resolved_at = NOW()
+      WHERE id = ${id} AND status = 'OPEN'
+      RETURNING *
+    `);
+    const row = (result.rows as unknown as IEventRow[])[0];
+    return row ? mapRow(row) : null;
+  }
+
+  static async resolveEvent(
+    id: number,
+    username: string,
+    resolution: { status: 'CONFIRMED' | 'DISMISSED'; note?: string; category?: ResolutionCategory },
+  ): Promise<IMachineAnomalyEvent | null> {
+    const result = await db.execute(sql`
+      UPDATE machine_anomaly_events
+      SET status = ${resolution.status},
+          resolved_by = ${username},
+          resolved_at = NOW(),
+          resolution_note = ${resolution.note ?? null},
+          resolution_category = ${resolution.category ?? null}
+      WHERE id = ${id} AND status IN ('OPEN', 'ACKNOWLEDGED')
+      RETURNING *
+    `);
+    const row = (result.rows as unknown as IEventRow[])[0];
+    return row ? mapRow(row) : null;
+  }
+
+  static async deleteEvent(id: number): Promise<boolean> {
+    const result = await db.execute(sql`
+      DELETE FROM machine_anomaly_events WHERE id = ${id}
+    `);
+    return (result.rowCount ?? 0) > 0;
   }
 }

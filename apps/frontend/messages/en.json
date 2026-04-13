@@ -232,7 +232,33 @@
         "normal": "Normal",
         "ready": "Ready",
         "warming": "Warming up"
-      }
+      },
+      "status": {
+        "OPEN": "Open",
+        "ACKNOWLEDGED": "Acknowledged",
+        "CONFIRMED": "Confirmed",
+        "DISMISSED": "Dismissed",
+        "CLOSED": "Closed"
+      },
+      "actions": {
+        "acknowledge": "Acknowledge",
+        "confirm": "Confirm",
+        "dismiss": "Dismiss",
+        "delete": "Delete",
+        "confirmDelete": "Delete this event permanently?",
+        "resolveTitle": "Resolve event",
+        "noteLabel": "Note (optional)",
+        "notePlaceholder": "e.g. planned maintenance, sensor noise",
+        "categoryLabel": "Category",
+        "categories": {
+          "TRUE_POSITIVE": "True positive",
+          "FALSE_POSITIVE": "False positive",
+          "PLANNED_MAINTENANCE": "Planned maintenance",
+          "SENSOR_FAULT": "Sensor fault"
+        }
+      },
+      "resolvedBy": "Resolved by {user}",
+      "resolvedAt": "Resolved {date}"
     },
     "staleData": "Last update: {seconds}s ago",
     "noData": "---",

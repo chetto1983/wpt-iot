@@ -232,7 +232,33 @@
         "normal": "Normale",
         "ready": "Pronta",
         "warming": "In warmup"
-      }
+      },
+      "status": {
+        "OPEN": "Aperto",
+        "ACKNOWLEDGED": "Preso in carico",
+        "CONFIRMED": "Confermato",
+        "DISMISSED": "Scartato",
+        "CLOSED": "Chiuso"
+      },
+      "actions": {
+        "acknowledge": "Prendi in carico",
+        "confirm": "Conferma",
+        "dismiss": "Scarta",
+        "delete": "Elimina",
+        "confirmDelete": "Eliminare questo evento permanentemente?",
+        "resolveTitle": "Risolvi evento",
+        "noteLabel": "Nota (opzionale)",
+        "notePlaceholder": "es. manutenzione programmata, rumore sensore",
+        "categoryLabel": "Categoria",
+        "categories": {
+          "TRUE_POSITIVE": "Vero positivo",
+          "FALSE_POSITIVE": "Falso positivo",
+          "PLANNED_MAINTENANCE": "Manutenzione programmata",
+          "SENSOR_FAULT": "Guasto sensore"
+        }
+      },
+      "resolvedBy": "Risolto da {user}",
+      "resolvedAt": "Risolto {date}"
     },
     "staleData": "Ultimo aggiornamento: {seconds}s fa",
     "noData": "---",
