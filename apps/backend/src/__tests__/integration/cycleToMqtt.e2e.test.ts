@@ -2,7 +2,7 @@
  * Phase 24 Wave 5 — E2E test for full cycle close to MQTT publish flow.
  *
  * Tests the complete flow:
- * 1. UDP packet with Cycle_Status transition triggers cycle:closed event
+ * 1. dataHub.emitCycleClosed() fires with V03 cycle closed event
  * 2. cyclePersister writes to cycle_records
  * 3. CloudUplinkWorker publishes to MQTT immediately
  * 4. On puback, published_at timestamp is updated
@@ -304,7 +304,7 @@ describe('cycleToMqtt E2E', () => {
     expect(payloadStr.length).toBeGreaterThan(0);
   });
 
-  it('should mark cycle record as published after successful MQTT publish', async () => {
+  itWithDb('should mark cycle record as published after successful MQTT publish', async () => {
     // Insert a test cycle record
     const result = await db.execute(sql`
       INSERT INTO cycle_records
@@ -363,7 +363,7 @@ describe('cycleToMqtt E2E', () => {
     expect((afterCheck.rows[0] as { published_at: Date | null }).published_at).not.toBeNull();
   });
 
-  it('should leave published_at NULL when MQTT publish fails', async () => {
+  itWithDb('should leave published_at NULL when MQTT publish fails', async () => {
     // Simulate connection failure
     mockClientConnected = false;
 
@@ -414,7 +414,7 @@ describe('cycleToMqtt E2E', () => {
     expect((check.rows[0] as { published_at: Date | null }).published_at).toBeNull();
   });
 
-  it('60s drain should retry unpublished records', async () => {
+  itWithDb('60s drain should retry unpublished records', async () => {
     // First simulate failure
     mockClientConnected = false;
 
@@ -450,7 +450,31 @@ describe('cycleToMqtt E2E', () => {
     expect((afterDrain.rows[0] as { published_at: Date | null }).published_at).not.toBeNull();
   });
 
-  it('should verify all 14 metrics are present in MQTT payload', async () => {
+  it('should log WARN when first snapshot has cycleStatus===0 (V03 WARN-on-zero)', async () => {
+    // Import v03CycleTracker to test WARN behavior
+    const { startV03CycleTracker } = await import('../../persistence/v03CycleTracker.js');
+
+    const warnLogger = {
+      info: vi.fn(),
+      warn: vi.fn(),
+      error: vi.fn(),
+    };
+
+    // Start tracker with mock logger
+    startV03CycleTracker(warnLogger);
+
+    // Emit a snapshot with cycleStatus=0
+    const snapshot = _makeSnapshot({ cycleStatus: CycleStatus.NONE });
+    dataHub.emit('machine:data', snapshot, new Date());
+
+    // Verify WARN was logged
+    expect(warnLogger.warn).toHaveBeenCalledWith(
+      expect.objectContaining({ name: 'V03CycleTracker' }),
+      expect.stringContaining('V03 Cycle_Status is 0'),
+    );
+  });
+
+  itWithDb('should verify all 14 metrics are present in MQTT payload', async () => {
     const event: ICycleClosedEvent = {
       cycleNumber: 555,
       resetEpoch: 0,
