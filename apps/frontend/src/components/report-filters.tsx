@@ -1,6 +1,6 @@
 'use client';
 
-import type { DateRange } from 'react-day-picker';
+import type { DateRange, Locale } from 'react-day-picker';
 import { Loader2, Download } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -31,6 +31,8 @@ interface ReportFiltersProps {
   showCycleFilter?: boolean;
   cycleNumber?: string;
   onCycleNumberChange?: (val: string) => void;
+  /** date-fns locale for the calendar (e.g. `it` for Italian) */
+  calendarLocale?: Locale;
   translations: {
     dateRangeLabel: string;
     dateRangePlaceholder: string;
@@ -60,6 +62,7 @@ export function ReportFilters({
   showCycleFilter = false,
   cycleNumber,
   onCycleNumberChange,
+  calendarLocale,
   translations,
   children,
 }: ReportFiltersProps) {
@@ -78,6 +81,7 @@ export function ReportFilters({
               value={dateRange}
               onChange={onDateRangeChange}
               placeholder={translations.dateRangePlaceholder}
+              locale={calendarLocale}
             />
           </div>
 

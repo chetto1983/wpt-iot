@@ -9,6 +9,8 @@ import { formatEnumValue } from '../i18n/enumLabels.js';
 /**
  * Machine data report endpoints (CSV + PDF).
  * All authenticated users can access; CLIENT gets limited columns.
+ * Optional `fields` query param: comma-separated field names to include
+ * (intersected with role-allowed fields for security).
  */
 export const reportRoutes: FastifyPluginAsync = async (server) => {
   server.addHook('preHandler', requireAuth);
@@ -23,9 +25,7 @@ export const reportRoutes: FastifyPluginAsync = async (server) => {
     }
 
     const role = request.session.role as UserRole;
-    const fields: readonly string[] =
-      role === UserRole.CLIENT ? CLIENT_VISIBLE_FIELDS : WPT_VISIBLE_FIELDS;
-    const allFields = ['timestamp', ...fields] as const;
+    const allFields = resolveFields(role, query.fields);
     const headers = allFields.map((f) => getFieldLabel(f, lang));
 
     const rows = await ReportService.querySnapshots({ from, to, cycle });
@@ -55,9 +55,7 @@ export const reportRoutes: FastifyPluginAsync = async (server) => {
     }
 
     const role = request.session.role as UserRole;
-    const fields: readonly string[] =
-      role === UserRole.CLIENT ? CLIENT_VISIBLE_FIELDS : WPT_VISIBLE_FIELDS;
-    const allFields = ['timestamp', ...fields] as const;
+    const allFields = resolveFields(role, query.fields);
     const headers = allFields.map((f) => getFieldLabel(f, lang));
 
     const rows = await ReportService.querySnapshots({
@@ -91,9 +89,7 @@ export const reportRoutes: FastifyPluginAsync = async (server) => {
     }
 
     const role = request.session.role as UserRole;
-    const fields: readonly string[] =
-      role === UserRole.CLIENT ? CLIENT_VISIBLE_FIELDS : WPT_VISIBLE_FIELDS;
-    const allFields = ['timestamp', ...fields] as const;
+    const allFields = resolveFields(role, query.fields);
     const headers = allFields.map((f) => getFieldLabel(f, lang));
 
     const rows = await ReportService.querySnapshots({
@@ -146,6 +142,30 @@ function parseReportQuery(
     | 'en';
 
   return { from, to, cycle, lang };
+}
+
+/**
+ * Resolve the field list for a report request.
+ * If `fieldsParam` is provided (comma-separated), intersect with role-allowed
+ * fields to prevent privilege escalation. Always prepends 'timestamp'.
+ */
+function resolveFields(role: UserRole, fieldsParam?: string): string[] {
+  const roleFields: readonly string[] =
+    role === UserRole.CLIENT ? CLIENT_VISIBLE_FIELDS : WPT_VISIBLE_FIELDS;
+
+  if (!fieldsParam) {
+    return ['timestamp', ...roleFields];
+  }
+
+  const requested = fieldsParam.split(',').map((f) => f.trim()).filter(Boolean);
+  const allowed = new Set<string>(roleFields);
+  const filtered = requested.filter((f) => allowed.has(f));
+
+  if (filtered.length === 0) {
+    return ['timestamp', ...roleFields];
+  }
+
+  return ['timestamp', ...filtered];
 }
 
 function formatDateForFile(d: Date): string {

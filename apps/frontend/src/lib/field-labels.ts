@@ -4,6 +4,14 @@
  */
 
 const itLabels: Record<string, string> = {
+  user: 'Utente',
+  supervisor: 'Supervisore',
+  orderNumber: 'Numero ordine',
+  serialNumber: 'Numero seriale',
+  spareString01: 'Stringa riserva 1',
+  selectedCycle: 'Ciclo selezionato',
+  currentPhase: 'Fase corrente',
+  machineStatus: 'Stato macchina',
   garbageTemp: 'Temperatura rifiuti',
   chamberPressure: 'Pressione camera',
   mainMotorSpeed: 'Velocita motore',
@@ -53,6 +61,14 @@ const itLabels: Record<string, string> = {
 };
 
 const enLabels: Record<string, string> = {
+  user: 'User',
+  supervisor: 'Supervisor',
+  orderNumber: 'Order Number',
+  serialNumber: 'Serial Number',
+  spareString01: 'Spare String 1',
+  selectedCycle: 'Selected Cycle',
+  currentPhase: 'Current Phase',
+  machineStatus: 'Machine Status',
   garbageTemp: 'Garbage Temperature',
   chamberPressure: 'Chamber Pressure',
   mainMotorSpeed: 'Main Motor Speed',

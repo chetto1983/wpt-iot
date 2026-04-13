@@ -15,7 +15,8 @@ const pdfmake = require('pdfmake') as typeof pdfmakeType;
 export class PdfService {
   /**
    * Generate a PDF buffer with tabular data.
-   * Uses landscape orientation and small font for wide tables.
+   * Landscape A4 with proper pagination: repeating headers, page numbers,
+   * dontBreakRows, auto column widths, and page margins.
    */
   static async generatePdf(
     rows: Record<string, unknown>[],
@@ -26,38 +27,80 @@ export class PdfService {
   ): Promise<Buffer> {
     ensurePdfFonts(pdfmake);
 
+    const colCount = fields.length;
+    // Scale font size based on column count for readability
+    const fontSize = colCount > 25 ? 5 : colCount > 15 ? 6 : 7;
+
     // Build table body: header row + data rows
     const headerRow = headers.map((h) => ({
       text: h,
       bold: true,
-      fontSize: 7,
+      fontSize,
+      fillColor: '#f0f0f0',
     }));
 
     const dataRows = rows.map((row) =>
       fields.map((field) => {
         const val = row[field];
-        if (val === null || val === undefined) return '';
-        if (val instanceof Date) return val.toISOString();
-        return formatEnumValue(field, val, locale);
+        if (val === null || val === undefined) return { text: '', fontSize };
+        if (val instanceof Date) return { text: val.toISOString(), fontSize };
+        return { text: formatEnumValue(field, val, locale), fontSize };
       }),
     );
 
+    // Auto column widths: timestamp gets more space, rest auto
+    const widths = fields.map((f) =>
+      f === 'timestamp' ? 'auto' : '*',
+    );
+
     const docDefinition = {
+      pageSize: 'A4' as const,
       pageOrientation: 'landscape' as const,
-      defaultStyle: { fontSize: 7 },
+      pageMargins: [20, 40, 20, 30] as [number, number, number, number],
+      defaultStyle: { font: 'Roboto', fontSize },
+      header: {
+        text: title,
+        fontSize: 10,
+        bold: true,
+        margin: [20, 15, 20, 0] as [number, number, number, number],
+        color: '#333333',
+      },
+      footer: (currentPage: number, pageCount: number) => ({
+        columns: [
+          {
+            text: title,
+            fontSize: 7,
+            color: '#999999',
+            margin: [20, 0, 0, 0] as [number, number, number, number],
+          },
+          {
+            text: `${currentPage} / ${pageCount}`,
+            fontSize: 7,
+            color: '#999999',
+            alignment: 'right' as const,
+            margin: [0, 0, 20, 0] as [number, number, number, number],
+          },
+        ],
+        margin: [0, 8, 0, 0] as [number, number, number, number],
+      }),
       content: [
-        {
-          text: title,
-          fontSize: 14,
-          bold: true,
-          margin: [0, 0, 0, 10] as [number, number, number, number],
-        },
         {
           table: {
             headerRows: 1,
+            widths,
+            dontBreakRows: true,
             body: [headerRow, ...dataRows],
           },
-          layout: 'lightHorizontalLines',
+          layout: {
+            hLineWidth: (i: number, _node: { table: { body: unknown[][] } }) =>
+              i === 0 || i === 1 || i === _node.table.body.length ? 1 : 0.5,
+            vLineWidth: () => 0,
+            hLineColor: (i: number) => (i <= 1 ? '#aaaaaa' : '#dddddd'),
+            paddingLeft: () => 3,
+            paddingRight: () => 3,
+            paddingTop: () => 2,
+            paddingBottom: () => 2,
+          },
         },
       ],
     };

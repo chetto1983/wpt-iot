@@ -121,12 +121,19 @@ export class CycleService {
     }>;
 
     // Map to response format (timestamptz comes back as ISO string from PostgreSQL)
-    const data = rows.map((row) => ({
+    const data = rows.map((row) => {
+      const start = new Date(row.startedAt);
+      const end = new Date(row.endedAt);
+      const pad2 = (n: number) => String(n).padStart(2, '0');
+      return {
       id: row.id,
       resetEpoch: row.resetEpoch,
       cycleNumber: row.cycleNumber,
       startedAt: row.startedAt,
       endedAt: row.endedAt,
+      date: `${pad2(start.getDate())}/${pad2(start.getMonth() + 1)}/${start.getFullYear()}`,
+      startTime: `${pad2(start.getHours())}:${pad2(start.getMinutes())}`,
+      endTime: `${pad2(end.getHours())}:${pad2(end.getMinutes())}`,
       cycleType: row.cycleType,
       cycleStatusLabel: row.cycleStatusLabel,
       materialInputKg: row.materialInputKg,
@@ -139,7 +146,7 @@ export class CycleService {
       endWaterL: row.endWaterL,
       operator: row.operator,
       orderNumber: row.orderNumber,
-    }));
+    };});
 
     const totalPages = Math.ceil(total / limit);
 

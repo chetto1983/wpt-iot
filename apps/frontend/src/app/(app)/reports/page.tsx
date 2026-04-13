@@ -1,15 +1,18 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import type { DateRange } from 'react-day-picker';
 import { format as formatDate } from 'date-fns';
+import { it as itLocale } from 'date-fns/locale';
 import { useTranslations } from 'next-intl';
 import { useQueryStates, parseAsString } from 'nuqs';
 import { CalendarDays } from 'lucide-react';
 import { toast } from 'sonner';
+import { CLIENT_VISIBLE_FIELDS, WPT_VISIBLE_FIELDS, UserRole } from '@wpt/types';
 
 import { useAuth } from '@/lib/auth-context';
 import { apiFetch } from '@/lib/api';
+import { getFieldLabel } from '@/lib/field-labels';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -22,6 +25,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { ReportFilters } from '@/components/report-filters';
+import { FieldSelector, REPORT_FIELD_CATEGORIES } from '@/components/field-selector';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || '';
 
@@ -42,7 +46,26 @@ function buildDateTimeISO(date: Date, time: string): string {
 export default function ReportsPage() {
   const t = useTranslations('reports');
   const { user } = useAuth();
-  const locale = user?.language ?? 'it';
+  const locale = (user?.language ?? 'it') as 'it' | 'en';
+  const role = user?.role ?? UserRole.CLIENT;
+
+  // All meaningful fields for the role (no spareIntNN)
+  const reportFields = useMemo(() => {
+    const allCatFields = new Set(Object.values(REPORT_FIELD_CATEGORIES).flat());
+    const baseFields: readonly string[] =
+      role === UserRole.CLIENT ? CLIENT_VISIBLE_FIELDS : WPT_VISIBLE_FIELDS;
+    return baseFields.filter((f) => allCatFields.has(f));
+  }, [role]);
+
+  const reportFieldLabels = useMemo(() => {
+    const labels: Record<string, string> = {};
+    for (const f of reportFields) {
+      labels[f] = getFieldLabel(f, locale);
+    }
+    return labels;
+  }, [reportFields, locale]);
+
+  const [selectedFields, setSelectedFields] = useState<string[]>(() => reportFields);
 
   const [filters, setFilters] = useQueryStates({
     from: parseAsString,
@@ -87,6 +110,9 @@ export default function ReportsPage() {
       to: buildDateTimeISO(new Date(filters.to), filters.toTime),
       lang: locale,
     });
+    if (selectedFields.length > 0) {
+      params.set('fields', selectedFields.join(','));
+    }
 
     apiFetch<IMachinePreview>(`/api/reports/machine?${params.toString()}`, { signal: controller.signal })
       .then((data) => {
@@ -102,7 +128,8 @@ export default function ReportsPage() {
       });
 
     return () => controller.abort();
-  }, [filters.from, filters.to, filters.fromTime, filters.toTime, locale, t]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- selectedFields identity changes on every toggle; stringify for stable dep
+  }, [filters.from, filters.to, filters.fromTime, filters.toTime, locale, selectedFields.join(','), t]);
 
   const downloadReport = useCallback(async () => {
     if (!dateRange?.from || !dateRange?.to) return;
@@ -114,6 +141,9 @@ export default function ReportsPage() {
         to: buildDateTimeISO(dateRange.to, filters.toTime),
         lang: locale,
       });
+      if (selectedFields.length > 0) {
+        params.set('fields', selectedFields.join(','));
+      }
 
       const res = await fetch(
         `${API_BASE}/api/reports/machine/${exportFormat}?${params.toString()}`,
@@ -142,7 +172,7 @@ export default function ReportsPage() {
     } finally {
       setDownloading(false);
     }
-  }, [dateRange, filters.fromTime, filters.toTime, exportFormat, locale, t]);
+  }, [dateRange, filters.fromTime, filters.toTime, exportFormat, locale, selectedFields, t]);
 
   const hasDateRange = Boolean(dateRange?.from && dateRange?.to);
 
@@ -167,6 +197,7 @@ export default function ReportsPage() {
         onFormatChange={setExportFormat}
         onDownload={downloadReport}
         downloading={downloading}
+        calendarLocale={locale === 'it' ? itLocale : undefined}
         translations={{
           dateRangeLabel: t('dateRangeLabel'),
           dateRangePlaceholder: t('dateRangePlaceholder'),
@@ -177,6 +208,17 @@ export default function ReportsPage() {
           downloading: t('downloading'),
           disabledTooltip: t('tooltip.selectDateRange'),
         }}
+      />
+
+      <FieldSelector
+        role={role}
+        selected={selectedFields}
+        onChange={setSelectedFields}
+        fieldLabels={reportFieldLabels}
+        maxFields={0}
+        availableFields={reportFields}
+        fieldCategories={REPORT_FIELD_CATEGORIES}
+        translationNamespace="reports"
       />
 
       <Card>

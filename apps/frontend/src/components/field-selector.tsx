@@ -68,6 +68,17 @@ const FIELD_CATEGORIES: Record<string, string[]> = {
   timers: ['completedCycles'],
 };
 
+/** Report-mode categories — all meaningful fields (no spareIntNN). */
+export const REPORT_FIELD_CATEGORIES: Record<string, string[]> = {
+  general: ['user', 'supervisor', 'orderNumber', 'serialNumber'],
+  status: ['selectedCycle', 'currentPhase', 'machineStatus', 'cycleStatus', 'container'],
+  ...FIELD_CATEGORIES,
+  thermoSelection: [
+    'thermoLeftLowSel', 'thermoLeftMedSel', 'thermoLeftHighSel',
+    'thermoRightLowSel', 'thermoRightMedSel', 'thermoRightHighSel',
+  ],
+};
+
 const MAX_FIELDS = 8;
 
 export function getChartableFields(role: string): string[] {
@@ -81,6 +92,14 @@ interface FieldSelectorProps {
   selected: string[];
   onChange: (fields: string[]) => void;
   fieldLabels: Record<string, string>;
+  /** Override max selectable fields (0 = no limit). Default: 8 */
+  maxFields?: number;
+  /** Override available fields instead of computing from role + NON_CHARTABLE */
+  availableFields?: string[];
+  /** Override field categories. Default: FIELD_CATEGORIES (chart mode) */
+  fieldCategories?: Record<string, string[]>;
+  /** i18n namespace for translations. Default: 'charts' */
+  translationNamespace?: string;
 }
 
 export function FieldSelector({
@@ -88,30 +107,35 @@ export function FieldSelector({
   selected,
   onChange,
   fieldLabels,
+  maxFields: maxFieldsProp,
+  availableFields,
+  fieldCategories = FIELD_CATEGORIES,
+  translationNamespace = 'charts',
 }: FieldSelectorProps) {
-  const t = useTranslations('charts');
+  const t = useTranslations(translationNamespace);
+  const effectiveMax = maxFieldsProp ?? MAX_FIELDS;
 
-  const chartableSet = useMemo(() => {
-    const fields = getChartableFields(role);
-    return new Set(fields);
-  }, [role]);
+  const fieldSet = useMemo(() => {
+    if (availableFields) return new Set(availableFields);
+    return new Set(getChartableFields(role));
+  }, [role, availableFields]);
 
   const categories = useMemo(() => {
     const result: Array<{ key: string; fields: string[] }> = [];
-    for (const [key, fields] of Object.entries(FIELD_CATEGORIES)) {
-      const filtered = fields.filter((f) => chartableSet.has(f));
+    for (const [key, fields] of Object.entries(fieldCategories)) {
+      const filtered = fields.filter((f) => fieldSet.has(f));
       if (filtered.length > 0) {
         result.push({ key, fields: filtered });
       }
     }
     return result;
-  }, [chartableSet]);
+  }, [fieldSet, fieldCategories]);
 
-  const atMax = selected.length >= MAX_FIELDS;
+  const atMax = effectiveMax > 0 && selected.length >= effectiveMax;
 
   function handleToggle(field: string, checked: boolean) {
     if (checked) {
-      if (selected.length < MAX_FIELDS) {
+      if (effectiveMax === 0 || selected.length < effectiveMax) {
         onChange([...selected, field]);
       }
     } else {
@@ -180,7 +204,7 @@ export function FieldSelector({
         <p className="mt-3 text-xs text-muted-foreground">
           {selected.length === 0
             ? t('fieldCountNone')
-            : selected.length === MAX_FIELDS
+            : effectiveMax > 0 && selected.length === effectiveMax
               ? t('fieldCountMax')
               : t('fieldCount', { count: selected.length })}
         </p>
