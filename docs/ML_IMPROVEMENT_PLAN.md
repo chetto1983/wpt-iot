@@ -165,15 +165,15 @@ topDrivers: chamberPressure=1.8, garbageTemp=1.1, vacuumPumpSpeed01=0.7
 | Quarantine: tighter threshold during grace period | Correct — rejects transition spikes |
 | `maxFeatureZScore` cap of 25 | Prevents single-feature domination |
 | Event persistence with 15-min per-mode cooldown | Prevents DB flooding |
-| 12 numeric features | Good coverage of motor/process state |
+| 12 numeric features (of 33 operational) | Motor/process core covered; see Phase D for expansion |
 | Correlated feature grouping (rmsCurrL1/L2/L3) | Correct — max-per-group before top-K prevents inflation |
 | Auth on all anomaly endpoints | Correct — matches rest of energy API |
 
 ---
 
-## Schema Inconsistency
+## Schema Inconsistency ✅ RESOLVED (C8)
 
-`machine_anomaly_events` table is created via raw DDL inside `MachineAnomalyEventService.ensureSchema()`, NOT through a Drizzle schema file in `db/schema/`. Every other table uses Drizzle. Deferred to Phase C8.
+`machine_anomaly_events` now defined in `db/schema/anomaly.ts` (Drizzle). `ensureSchema()` retained for idempotent migration of pre-C8 deployments.
 
 ---
 
@@ -189,7 +189,11 @@ topDrivers: chamberPressure=1.8, garbageTemp=1.1, vacuumPumpSpeed01=0.7
 | `minReliableSamples` | 200 | 200 | OK — ~33 min at 10s polls |
 | `modeChangeGraceMs` | 30000 | 30000 | OK — reasonable for industrial transients |
 | `quarantineMultiplier` | 1.5 | 1.5 | OK — effective now that grace-period branch is fixed |
-| `topK` | 3 | 3 | OK — but should group correlated features first (Phase C) |
+| `topK` | 3 | 3–5 | OK with C5 grouping; raise to 5 when Phase D adds 17+ features |
+| `cusumK` | 0.5 | 0.5 | ISO 7870-4 standard allowance for 1-sigma shift detection |
+| `cusumH` | 4.0 | 4.0 | Decision boundary — ARL₀ ≈ 168 at k=0.5 |
+| `persistenceN` | 3 | 3 | N-of-M: 3 anomalous samples required |
+| `persistenceM` | 5 | 5 | N-of-M: sliding window of 5 samples |
 
 ---
 
@@ -266,6 +270,85 @@ All anomaly interfaces moved to `packages/types/src/anomaly.ts`: `IAnomalyResult
 
 ---
 
+## Phase D: Feature Expansion (PLC Field Audit)
+
+*Audit date: 2026-04-13 | Source: UDP 9090 parser, IMachineSnapshot, machineSnapshots schema*
+
+### Coverage Summary
+
+The PLC sends **33 operational numeric fields** on UDP 9090. The ML detector currently tracks **12 (36%)**. The remaining 21 fields contain high-value anomaly signals across thermal, electrical, and process domains.
+
+| Category | Total | Tracked | Gap | Coverage |
+|---|---|---|---|---|
+| Thermal (zone temps + garbage) | 12 | 1 | 11 | 8% |
+| Motor (speed, current, torque, pumps) | 6 | 4 | 2 | 67% |
+| Material (input/output weight) | 2 | 2 | 0 | 100% |
+| Electrical: RMS currents | 5 | 3 | 2 | 60% |
+| Electrical: Line voltages | 6 | 0 | 6 | 0% |
+| Power/utilities (energy, PF, water) | 3 | 1 | 2 | 33% |
+| **Total** | **34** | **12** | **22** | **35%** |
+
+### D1 — Tier 1: Core Process Signals (+10 features → 22 total)
+
+| Field | Type | Rationale |
+|---|---|---|
+| `vacuumPumpSpeed02` | INT | Dual-pump asymmetry detection |
+| `rmsCurrN` | REAL | Neutral current imbalance = ground fault risk |
+| `thermoLeftLower` | INT | Chamber zone gradient anomalies |
+| `thermoLeftMedium` | INT | (heating element failure, circulation blockage) |
+| `thermoLeftUpper` | INT | |
+| `thermoRightLower` | INT | |
+| `thermoRightMedium` | INT | |
+| `thermoRightUpper` | INT | |
+| `holdingTempSetpoint` | INT | Setpoint-vs-actual gap = PID drift |
+| `waterConsumption` | REAL | Spike with stable output = seal leak |
+
+**Correlation groups to add:** `thermoLeft*` (3 fields), `thermoRight*` (3 fields).
+
+### D2 — Tier 2: Electrical Grid Health (+7 features → 29 total)
+
+| Field | Type | Rationale |
+|---|---|---|
+| `lineVoltL1L2` | REAL | Voltage imbalance >3% = transformer/grid issue |
+| `lineVoltL2L3` | REAL | |
+| `lineVoltL3L1` | REAL | |
+| `lineNeutralVoltL1` | REAL | Neutral shift >50V = phase imbalance, loose neutral |
+| `lineNeutralVoltL2` | REAL | |
+| `lineNeutralVoltL3` | REAL | |
+| `pfTotal` | REAL | PF degradation = capacitor bank failure or aging |
+
+**Correlation groups to add:** `lineVolt*` (3 fields), `lineNeutralVolt*` (3 fields).
+
+**Note:** Line voltages and pfTotal currently read 400/230/0 from PLC (bench-day firmware issue, see `project_bench_day_voltage_cosfi_fix.md`). Add fields now but they'll only produce meaningful anomalies after Paolo's PLC firmware fix.
+
+### D3 — Tier 3: High-Temp Zones (+4 features → 33 total)
+
+| Field | Type | Rationale |
+|---|---|---|
+| `thermoLeftHighLower` | INT | Rare independent anomalies but multi-field |
+| `thermoLeftHighMedium` | INT | correlation patterns signal furnace |
+| `thermoLeftHighUpper` | INT | stratification or burner issues |
+| `thermoRightHighLower` | INT | |
+
+### Implementation Scope
+
+**Files to modify:**
+- `onlineAnomalyDetector.ts` — `IAnomalyInput` interface, `NUMERIC_FEATURES` array, `FEATURE_GROUPS`
+- `machineAnomalyService.ts` — `mapSnapshotToDetectorInput()` mapper
+- `anomaly-feature-chart.tsx` — `featureLabel()` lookup table
+- `onlineAnomalyDetector.test.ts` — test data `makeSample()` defaults
+- Config: raise `topK` from 3 to 5 for wider coverage
+
+### Priority Matrix
+
+| Priority | Enhancement | Impact | Effort |
+|---|---|---|---|
+| **P0** | D1 — Core process signals (+10) | Thermal + pump + water anomaly detection | Low |
+| **P1** | D2 — Electrical grid health (+7) | Voltage imbalance, ground fault, PF degradation | Low |
+| **P2** | D3 — High-temp zones (+4) | Furnace stratification patterns | Low |
+
+---
+
 ## References
 
 ### Standards
@@ -295,4 +378,4 @@ All anomaly interfaces moved to `packages/types/src/anomaly.ts`: `IAnomalyResult
 
 ---
 
-*Generated: 2026-04-13 | Based on: full code audit, 10/10 bug fixes deployed to production, CDP E2E 33/33, unit tests 5/5, industrial ML dashboard research across ISA-18.2, AWS Lookout, OSIsoft PI, Seeq, Grafana ML*
+*Generated: 2026-04-13 | Based on: full code audit, 10/10 bug fixes deployed, Phase C 9/9 complete, Phase D PLC field audit (33 operational fields mapped), CDP E2E 33/33, unit tests 7/7, ISA-18.2/ISA-101/ISO 7870-4 compliance*
