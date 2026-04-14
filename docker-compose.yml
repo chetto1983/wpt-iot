@@ -126,19 +126,20 @@ services:
       context: .
       dockerfile: apps/frontend/Dockerfile
       args:
-        # NEXT_PUBLIC_* is BAKED into the Next.js client bundle at build
-        # time, NOT read at runtime. Override via .env (NEXT_PUBLIC_API_URL=...)
-        # before `docker compose build frontend` to point a LAN deploy at
-        # the right host. Default localhost is for the on-host dev case.
-        # See scripts/install-linux.sh for the LAN-IP overlay generator.
-        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3000}
+        # Phase 37.3: same-origin architecture. NEXT_PUBLIC_API_URL defaults
+        # empty so the Next.js bundle uses relative URLs — nginx (prod) and
+        # Next dev rewrites (dev) route /api/* to the backend on the same
+        # origin. The image is IP- and hostname-agnostic: rename the device
+        # or change LAN IP without rebuild. Override only for the rare case
+        # where the backend lives on a different origin than the frontend.
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-}
     ports:
       - "3001:3001"
     depends_on:
       backend:
         condition: service_healthy
     environment:
-      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3000}
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-}
     healthcheck:
       test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:3001"]
       interval: 10s
