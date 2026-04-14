@@ -290,6 +290,16 @@ export class SparkplugService {
     return this.client?.connected === true;
   }
 
+  /** Current sequence counter state, for admin UI debugging. */
+  static getSessionState(): { bdSeq: number; seq: number; edgeNodeId: string | null; clientId: string | null } {
+    return {
+      bdSeq: this.bdSeq,
+      seq: this.seq,
+      edgeNodeId: this.edgeNodeId,
+      clientId: this.edgeNodeId ? `wpt-sparkplug-${this.edgeNodeId}` : null,
+    };
+  }
+
   /**
    * Republish NBIRTH + all DBIRTHs on demand. `seq` resets to 0 per §6.4.3.
    * Intended for operator-initiated rebirth from the admin UI when alias maps

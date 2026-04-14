@@ -809,7 +809,16 @@
       "rebirthSuccess": "NBIRTH + DBIRTHs republished",
       "rebirthFailed": "Rebirth failed",
       "rebirthDisabledTitle": "Sparkplug uplink is not connected — rebirth unavailable",
-      "refreshStatus": "Refresh status"
+      "refreshStatus": "Refresh status",
+      "loadError": "Status unavailable — {error}",
+      "loading": "Loading status…",
+      "localBroker": "Local broker",
+      "sparkplugUplink": "Sparkplug uplink",
+      "localClientId": "Local client ID",
+      "sparkplugClientId": "Sparkplug client ID",
+      "notYetAssigned": "Not yet assigned — waiting for PLC",
+      "alarmCatalog": "Alarm catalog",
+      "topicPreview": "Topic namespace preview"
     },
     "config": {
       "title": "Configuration",
@@ -840,7 +849,11 @@
       "sparkplugEdgeNodeIdHelp": "Derived automatically from the connected PLC's serial number in production. The configured value above is a fallback used only in dev/test when no PLC packet has been received, preventing identity spoofing on the broker.",
       "publishCycleRecords": "Publish Cycle Records",
       "telemetryIntervalSeconds": "Telemetry Interval (seconds)",
-      "telemetryIntervalHelp": "Interval between machine telemetry snapshots sent to cloud (5\u20133600 s)"
+      "telemetryIntervalHelp": "Interval between machine telemetry snapshots sent to cloud (5\u20133600 s)",
+      "topicPreviewLabel": "Topic namespace preview",
+      "topicPreviewHelp": "Live preview of the NBIRTH topic computed from Group ID and Edge Node ID. The same path prefix is used for every DBIRTH, NDATA, and DDATA message.",
+      "disabledBanner": "Gateway is disabled. Configuration below will apply the next time you enable it.",
+      "saveNoChanges": "No changes to save"
     },
     "users": {
       "title": "MQTT Users",

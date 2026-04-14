@@ -170,9 +170,9 @@ export function MqttUserDialog({ open, onOpenChange, onSaved, editUser }: MqttUs
           </div>
 
           <div className="grid gap-2">
-            <Label>{t('users.role')}</Label>
+            <Label htmlFor="mqtt-user-role">{t('users.role')}</Label>
             <Select value={role} onValueChange={(v) => { if (v) setRole(v); }}>
-              <SelectTrigger className="w-full">
+              <SelectTrigger id="mqtt-user-role" className="w-full" aria-label={t('users.role')}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>

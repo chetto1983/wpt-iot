@@ -8,6 +8,7 @@ import { DynSecClient } from '../mqtt/dynSecClient.js';
 import { getEvents } from '../mqtt/activityLog.js';
 import { getMqttClient, reloadMqttConnection } from '../mqtt/connectionManager.js';
 import { SparkplugService } from '../mqtt/sparkplugService.js';
+import { ALARM_CATALOG_VERSION } from '../mqtt/alarmCatalogVersion.js';
 
 /**
  * Sparkplug B 3.0 group_id / edge_node_id slug.
@@ -177,12 +178,19 @@ export const mqttRoutes: FastifyPluginAsync = async (server) => {
   server.get('/mqtt/status', async (_request, _reply) => {
     const config = await MqttConfigService.getConfig();
     const live = getMqttClient();
+    const spState = SparkplugService.getSessionState();
     return {
       connected: live?.connected ?? false,
       enabled: config.enabled,
       brokerHost: config.brokerHost,
       brokerPort: config.brokerPort,
       clientId: `wpt-backend-${process.pid}`,
+      sparkplugConnected: SparkplugService.isConnected(),
+      sparkplugClientId: spState.clientId,
+      sparkplugEdgeNodeId: spState.edgeNodeId,
+      bdSeq: spState.bdSeq,
+      seq: spState.seq,
+      alarmCatalogVersion: ALARM_CATALOG_VERSION,
     };
   });
 

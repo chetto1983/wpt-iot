@@ -51,6 +51,12 @@ interface MqttStatus {
   brokerHost: string;
   brokerPort: number;
   clientId: string;
+  sparkplugConnected: boolean;
+  sparkplugClientId: string | null;
+  sparkplugEdgeNodeId: string | null;
+  bdSeq: number;
+  seq: number;
+  alarmCatalogVersion: string;
 }
 
 interface MqttConfig {
@@ -126,6 +132,7 @@ export default function MqttPage() {
   const [rebirthing, setRebirthing] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [logEvents, setLogEvents] = useState<MqttLogEvent[]>([]);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
     if (user && user.role !== 'SUPER_ADMIN') {
@@ -137,8 +144,10 @@ export default function MqttPage() {
     try {
       const data = await apiFetch<MqttStatus>('/api/mqtt/status');
       setStatus(data);
-    } catch {
-      // status unavailable
+      setLoadError(null);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Failed to load status';
+      setLoadError(msg);
     }
   }, []);
 
@@ -146,8 +155,10 @@ export default function MqttPage() {
     try {
       const data = await apiFetch<MqttConfig>('/api/mqtt/config');
       setConfig(data);
-    } catch {
-      // config unavailable
+      setLoadError(null);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Failed to load config';
+      setLoadError(msg);
     }
   }, []);
 
@@ -182,9 +193,10 @@ export default function MqttPage() {
     if (user?.role !== 'SUPER_ADMIN') return;
     const interval = setInterval(() => {
       void loadLog();
+      void loadStatus();
     }, 5000);
     return () => clearInterval(interval);
-  }, [user, loadLog]);
+  }, [user, loadLog, loadStatus]);
 
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -309,6 +321,11 @@ export default function MqttPage() {
               </div>
             </CardHeader>
             <CardContent className="grid gap-4">
+              {loadError ? (
+                <div className="rounded-2xl border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+                  {t('status.loadError', { error: loadError })}
+                </div>
+              ) : null}
               {status ? (
                 <>
                   <div className="flex flex-wrap items-center gap-2">
@@ -318,7 +335,10 @@ export default function MqttPage() {
                       <WifiOff className="size-5 text-destructive" />
                     )}
                     <Badge variant={status.connected ? 'default' : 'destructive'} className="rounded-full">
-                      {status.connected ? t('status.connected') : t('status.disconnected')}
+                      {t('status.localBroker')}: {status.connected ? t('status.connected') : t('status.disconnected')}
+                    </Badge>
+                    <Badge variant={status.sparkplugConnected ? 'default' : 'secondary'} className="rounded-full">
+                      {t('status.sparkplugUplink')}: {status.sparkplugConnected ? t('status.connected') : t('status.disconnected')}
                     </Badge>
                     <Badge variant={status.enabled ? 'default' : 'secondary'} className="rounded-full">
                       {status.enabled ? t('status.enabled') : t('status.disabled')}
@@ -335,10 +355,34 @@ export default function MqttPage() {
                     </div>
                     <div className="rounded-2xl border border-border/70 bg-background/70 p-4">
                       <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                        {t('status.clientId')}
+                        {t('status.sparkplugClientId')}
+                      </p>
+                      <p className="mt-2 break-all font-mono text-sm text-foreground">
+                        {status.sparkplugClientId ?? t('status.notYetAssigned')}
+                      </p>
+                    </div>
+                    <div className="rounded-2xl border border-border/70 bg-background/70 p-4">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                        {t('status.localClientId')}
                       </p>
                       <p className="mt-2 break-all font-mono text-sm text-foreground">
                         {status.clientId}
+                      </p>
+                    </div>
+                    <div className="rounded-2xl border border-border/70 bg-background/70 p-4">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                        bdSeq / seq
+                      </p>
+                      <p className="mt-2 font-mono text-sm text-foreground">
+                        {status.bdSeq} / {status.seq}
+                      </p>
+                    </div>
+                    <div className="rounded-2xl border border-border/70 bg-background/70 p-4">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                        {t('status.alarmCatalog')}
+                      </p>
+                      <p className="mt-2 font-mono text-sm text-foreground">
+                        v{status.alarmCatalogVersion}
                       </p>
                     </div>
                     <div className="rounded-2xl border border-border/70 bg-background/70 p-4">
@@ -353,7 +397,7 @@ export default function MqttPage() {
                 </>
               ) : (
                 <div className="text-sm text-muted-foreground">
-                  {t('status.disconnected')}
+                  {loadError ? null : t('status.loading')}
                 </div>
               )}
             </CardContent>
@@ -533,9 +577,12 @@ export default function MqttPage() {
           ) : (
             <div className="max-h-96 space-y-2 overflow-y-auto">
               {[...logEvents].reverse().map((event, i) => {
-                const time = event.timestamp.slice(11, 19);
+                const time = new Date(event.timestamp).toLocaleTimeString();
                 return (
-                  <div key={i} className={`flex items-center gap-3 rounded-2xl border px-3 py-2 ${LOG_ROW_ACCENT[event.type]}`}>
+                  <div
+                    key={`${event.timestamp}-${event.type}-${i}`}
+                    className={`flex items-center gap-3 rounded-2xl border px-3 py-2 ${LOG_ROW_ACCENT[event.type]}`}
+                  >
                     <span className="shrink-0 rounded-full bg-background/80 px-2 py-1 font-mono text-[11px] text-muted-foreground">
                       {time}
                     </span>

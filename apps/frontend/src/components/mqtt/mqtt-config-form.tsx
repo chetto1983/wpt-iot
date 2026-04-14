@@ -107,21 +107,22 @@ export function MqttConfigForm({ config, onSaved }: MqttConfigFormProps) {
     }
   }, [applyConfig, config]);
 
-  useEffect(() => {
-    const hasDraftChanges =
-      enabled !== config.enabled ||
-      brokerHost !== config.brokerHost ||
-      brokerPort !== config.brokerPort ||
-      username !== config.username ||
-      siteId !== config.siteId ||
-      machineId !== config.machineId ||
-      useTls !== config.useTls ||
-      caCert !== (config.caCert ?? '') ||
-      sparkplugGroupId !== config.sparkplugGroupId ||
-      sparkplugEdgeNodeId !== config.sparkplugEdgeNodeId ||
-      publishCycleRecords !== config.publishCycleRecords ||
-      telemetryIntervalSeconds !== config.telemetryIntervalSeconds;
+  const hasDraftChanges =
+    enabled !== config.enabled ||
+    brokerHost !== config.brokerHost ||
+    brokerPort !== config.brokerPort ||
+    username !== config.username ||
+    siteId !== config.siteId ||
+    machineId !== config.machineId ||
+    useTls !== config.useTls ||
+    caCert !== (config.caCert ?? '') ||
+    sparkplugGroupId !== config.sparkplugGroupId ||
+    sparkplugEdgeNodeId !== config.sparkplugEdgeNodeId ||
+    publishCycleRecords !== config.publishCycleRecords ||
+    telemetryIntervalSeconds !== config.telemetryIntervalSeconds ||
+    password.length > 0;
 
+  useEffect(() => {
     if (!hasDraftChanges) {
       clearSessionDraft(MQTT_CONFIG_DRAFT_KEY);
       return;
@@ -155,6 +156,7 @@ export function MqttConfigForm({ config, onSaved }: MqttConfigFormProps) {
     sparkplugEdgeNodeId,
     publishCycleRecords,
     telemetryIntervalSeconds,
+    hasDraftChanges,
   ]);
 
   const handleSave = useCallback(async () => {
@@ -211,6 +213,11 @@ export function MqttConfigForm({ config, onSaved }: MqttConfigFormProps) {
             onCheckedChange={setEnabled}
           />
         </div>
+        {!enabled ? (
+          <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-400">
+            {t('config.disabledBanner')}
+          </div>
+        ) : null}
 
         {/* ─── Section 1: Cloud Uplink (Sparkplug B) ─── */}
         <div className="grid gap-4 border-t pt-4">
@@ -260,10 +267,27 @@ export function MqttConfigForm({ config, onSaved }: MqttConfigFormProps) {
               type="number"
               value={telemetryIntervalSeconds}
               onChange={(e) => setTelemetryIntervalSeconds(Number(e.target.value))}
+              onBlur={() =>
+                setTelemetryIntervalSeconds((v) =>
+                  Number.isFinite(v) ? Math.max(5, Math.min(3600, Math.round(v))) : 30,
+                )
+              }
               min={5}
               max={3600}
             />
             <p className="text-xs text-muted-foreground">{t('config.telemetryIntervalHelp')}</p>
+          </div>
+
+          <div className="rounded-2xl border border-border/60 bg-muted/40 p-3">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+              {t('config.topicPreviewLabel')}
+            </p>
+            <p className="mt-2 break-all font-mono text-xs text-foreground">
+              spBv1.0/{sparkplugGroupId || '…'}/NBIRTH/{sparkplugEdgeNodeId || '…'}
+            </p>
+            <p className="mt-2 text-[11px] text-muted-foreground">
+              {t('config.topicPreviewHelp')}
+            </p>
           </div>
         </div>
 
@@ -361,7 +385,14 @@ export function MqttConfigForm({ config, onSaved }: MqttConfigFormProps) {
               <Switch
                 id="mqtt-use-tls"
                 checked={useTls}
-                onCheckedChange={setUseTls}
+                onCheckedChange={(next) => {
+                  setUseTls(next);
+                  // Operations runbook recommends TLS on 8883. Auto-suggest
+                  // the switch only when the port is still at the plaintext
+                  // default 1883 (or vice-versa), never overwrite a custom port.
+                  if (next && brokerPort === 1883) setBrokerPort(8883);
+                  else if (!next && brokerPort === 8883) setBrokerPort(1883);
+                }}
               />
             </div>
 
@@ -384,8 +415,14 @@ export function MqttConfigForm({ config, onSaved }: MqttConfigFormProps) {
           </div>
         </div>
 
-        {/* Save */}
-        <Button onClick={handleSave} disabled={saving} className="w-full">
+        {/* Save — gated on dirtiness so a no-op click cannot trigger a full
+            disconnect/reconnect cycle on reloadMqttConnection. */}
+        <Button
+          onClick={handleSave}
+          disabled={saving || !hasDraftChanges}
+          className="w-full"
+          title={!hasDraftChanges ? t('config.saveNoChanges') : undefined}
+        >
           {saving ? <Loader2 className="mr-2 size-4 animate-spin" /> : null}
           {t('config.save')}
         </Button>

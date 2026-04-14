@@ -809,7 +809,16 @@
       "rebirthSuccess": "NBIRTH + DBIRTH ripubblicati",
       "rebirthFailed": "Rebirth fallito",
       "rebirthDisabledTitle": "Uplink Sparkplug non connesso — rebirth non disponibile",
-      "refreshStatus": "Aggiorna stato"
+      "refreshStatus": "Aggiorna stato",
+      "loadError": "Stato non disponibile — {error}",
+      "loading": "Caricamento stato…",
+      "localBroker": "Broker locale",
+      "sparkplugUplink": "Uplink Sparkplug",
+      "localClientId": "ID client locale",
+      "sparkplugClientId": "ID client Sparkplug",
+      "notYetAssigned": "Non ancora assegnato — in attesa del PLC",
+      "alarmCatalog": "Catalogo allarmi",
+      "topicPreview": "Anteprima namespace topic"
     },
     "config": {
       "title": "Configurazione",
@@ -840,7 +849,11 @@
       "sparkplugEdgeNodeIdHelp": "Derivato automaticamente dal numero di serie del PLC connesso in produzione. Il valore configurato sopra è un fallback usato solo in dev/test quando non è stato ricevuto alcun pacchetto dal PLC, evitando spoofing d'identità sul broker.",
       "publishCycleRecords": "Pubblica Registri Ciclo",
       "telemetryIntervalSeconds": "Intervallo Telemetria (secondi)",
-      "telemetryIntervalHelp": "Intervallo tra snapshot di telemetria macchina inviati al cloud (5\u20133600 s)"
+      "telemetryIntervalHelp": "Intervallo tra snapshot di telemetria macchina inviati al cloud (5\u20133600 s)",
+      "topicPreviewLabel": "Anteprima namespace topic",
+      "topicPreviewHelp": "Anteprima live del topic NBIRTH calcolata da Group ID ed Edge Node ID. Lo stesso prefisso è usato per ogni DBIRTH, NDATA e DDATA.",
+      "disabledBanner": "Gateway disabilitato. La configurazione sotto verrà applicata alla prossima abilitazione.",
+      "saveNoChanges": "Nessuna modifica da salvare"
     },
     "users": {
       "title": "Utenti MQTT",
