@@ -23,6 +23,7 @@ import { mqttRoutes } from './routes/mqtt.js';
 import { plcConfigRoutes } from './routes/plcConfig.js';
 import { energyRoutes } from './routes/energy.js';
 import { cycleRoutes } from './routes/cycles.js';
+import { alarmCatalogRoutes } from './routes/alarmCatalog.js';
 import { wsRoute } from './ws/route.js';
 
 const isDev = process.env.NODE_ENV !== 'production';
@@ -191,6 +192,9 @@ export function buildServer(): FastifyInstance {
 
   // 21. Cycle register routes (Phase 24 Plan 24-03a) — /api/cycles page API
   server.register(cycleRoutes, apiOpts);
+
+  // 22. Alarm catalog route — /api/alarms/catalog?lang=en|it
+  server.register(alarmCatalogRoutes, apiOpts);
 
   return server;
 }
