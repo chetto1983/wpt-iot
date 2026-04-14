@@ -27,6 +27,23 @@ export default tseslint.config(
         { argsIgnorePattern: '^_', varsIgnorePattern: '^_' },
       ],
       '@typescript-eslint/consistent-type-imports': 'error',
+
+      /*
+       * D-01 (Phase 31, 2026-04-14): detect-object-injection disabled
+       * globally. Validated empirically — all 79 findings in the Phase 27
+       * scan were typed-record iteration, enum lookups, or React form-field
+       * setters; zero were prototype-pollution vectors. The true-positive
+       * surface (user input reaching computed property access) is covered
+       * by Zod validation at HTTP route boundaries (@wpt/types).
+       *
+       * Per the D-01 locked user decision, per-site
+       * `eslint-disable-next-line` comments are NOT permitted. Re-enable
+       * if copy-pasting this config to a project without that Zod
+       * boundary discipline. See
+       * .planning/phases/31-bug-fixes-security-hardening/31-RESEARCH.md
+       * §Common Pitfalls #3 and §Architecture Patterns.
+       */
+      'security/detect-object-injection': 'off',
     },
   },
   {
