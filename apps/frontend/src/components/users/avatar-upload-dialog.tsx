@@ -93,7 +93,6 @@ export function AvatarUploadDialog({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const fileInputId = useId();
   const zoomInputId = useId();
-  const zoomPercent = Math.round(zoom * 100);
 
   const [imageSrc, setImageSrc] = useState<string | null>(null);
   const [crop, setCrop] = useState({ x: 0, y: 0 });
@@ -102,6 +101,7 @@ export function AvatarUploadDialog({
   const [uploading, setUploading] = useState(false);
   const [removing, setRemoving] = useState(false);
   const [showRemoveConfirm, setShowRemoveConfirm] = useState(false);
+  const zoomPercent = Math.round(zoom * 100);
 
   // Reset state when dialog opens/closes
   useEffect(() => {
