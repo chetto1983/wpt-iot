@@ -26,10 +26,6 @@ export class MqttConfigService {
         password VARCHAR(255) NOT NULL DEFAULT 'wpt_mqtt_dev_password',
         site_id VARCHAR(100) NOT NULL DEFAULT 'site-01',
         machine_id VARCHAR(100) NOT NULL DEFAULT 'wpt40-001',
-        publish_machine BOOLEAN NOT NULL DEFAULT true,
-        publish_alarms BOOLEAN NOT NULL DEFAULT true,
-        publish_rfid BOOLEAN NOT NULL DEFAULT false,
-        publish_jobs BOOLEAN NOT NULL DEFAULT false,
         use_tls BOOLEAN NOT NULL DEFAULT false,
         ca_cert VARCHAR(10000),
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -62,6 +58,25 @@ export class MqttConfigService {
       ALTER TABLE mqtt_config ADD COLUMN IF NOT EXISTS telemetry_interval_seconds INTEGER NOT NULL DEFAULT 30
     `);
 
+    // Phase 37 D-10 (dev-env destructive authorization 2026-04-14):
+    // Drop legacy publish_* columns. The ad-hoc cloud publisher (publisher.ts) was
+    // deleted in plan 37-01; the GET/PUT API contract narrowed in plan 37-03 task 1
+    // no longer exposes these fields. This block reconciles existing dev databases
+    // so no inert legacy state remains. site_id/machine_id columns stay (D-09 —
+    // Local command namespace for the cmd/+/req local broker topics).
+    await db.execute(sql`
+      ALTER TABLE mqtt_config DROP COLUMN IF EXISTS publish_machine
+    `);
+    await db.execute(sql`
+      ALTER TABLE mqtt_config DROP COLUMN IF EXISTS publish_alarms
+    `);
+    await db.execute(sql`
+      ALTER TABLE mqtt_config DROP COLUMN IF EXISTS publish_rfid
+    `);
+    await db.execute(sql`
+      ALTER TABLE mqtt_config DROP COLUMN IF EXISTS publish_jobs
+    `);
+
     const existing = await db.execute(
       sql`SELECT id FROM mqtt_config WHERE id = 1`,
     );
@@ -71,13 +86,11 @@ export class MqttConfigService {
         INSERT INTO mqtt_config (
           id, enabled, broker_host, broker_port, username, password,
           site_id, machine_id,
-          publish_machine, publish_alarms, publish_rfid, publish_jobs,
           use_tls, ca_cert,
           sparkplug_group_id, sparkplug_edge_node_id, publish_cycle_records, telemetry_interval_seconds
         ) VALUES (
           1, false, 'localhost', 1883, 'wpt-backend', 'wpt_mqtt_dev_password',
           'site-01', 'wpt40-001',
-          true, true, false, false,
           false, NULL,
           'WPT', 'iot-box-01', false, 30
         )
