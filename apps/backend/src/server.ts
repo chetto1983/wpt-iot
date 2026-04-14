@@ -1,6 +1,6 @@
 import path from 'node:path';
 import fs from 'node:fs';
-import Fastify from 'fastify';
+import Fastify, { type FastifyInstance } from 'fastify';
 import cors from '@fastify/cors';
 import fastifyCookie from '@fastify/cookie';
 import fastifySession from '@fastify/session';
@@ -27,8 +27,8 @@ import { wsRoute } from './ws/route.js';
 
 const isDev = process.env.NODE_ENV !== 'production';
 
-export function buildServer(): ReturnType<typeof Fastify> {
-  const server = Fastify({
+export function buildServer(): FastifyInstance {
+  const server: FastifyInstance = Fastify({
     trustProxy: config.trustProxy,
     logger: isDev
       ? {
