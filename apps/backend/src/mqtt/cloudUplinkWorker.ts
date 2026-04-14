@@ -47,6 +47,22 @@ export class CloudUplinkWorker {
   }
 
   /**
+   * Trigger an out-of-band drain on MQTT reconnect.
+   *
+   * Called by SparkplugService whenever its mqtt.js client fires the `connect`
+   * event after a re-establishment (the initial connect does not count — births
+   * are published first and the immediate drain in start() covers that path).
+   *
+   * Guards against concurrent runs via the existing `isRunning` flag in
+   * drainOutbox(), so calling this while a 60s-tick drain is in progress is safe.
+   */
+  static onMqttReconnect(): void {
+    this.logger?.info({ name: 'CloudUplinkWorker', reason: 'reconnect-drain' },
+      'MQTT reconnect detected — triggering out-of-band outbox drain');
+    void this.drainOutbox();
+  }
+
+  /**
    * Publish a cycle record and mark it as published on success.
    * Called both by immediate handler and drain loop.
    */

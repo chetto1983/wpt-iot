@@ -6,6 +6,7 @@ import { z } from 'zod/v4';
 import { MqttConfigService } from './configService.js';
 import { pushEvent } from './activityLog.js';
 import { dataHub } from '../events/hub.js';
+import { CloudUplinkWorker } from './cloudUplinkWorker.js';
 import { latestState } from '../cache/latestState.js';
 import type { IMachineSnapshot } from '@wpt/types';
 import { DATA_EVENTS, type IAlarmTransition } from '../events/types.js';
@@ -236,6 +237,26 @@ export class SparkplugService {
       log.info({ name: 'Sparkplug', edgeNodeId }, 'Sparkplug Cloud Uplink connected');
       pushEvent('connect', `Sparkplug connected to ${cfg.brokerHost}`);
 
+      // Wire reconnect-drain hook (D1 fix): on every subsequent `connect` event
+      // (mqtt.js fires this on re-establishment after a network drop), trigger an
+      // out-of-band outbox drain so cycle records are delivered as soon as the
+      // broker is reachable again — not up to 60 s later.
+      // The `connect` event does NOT fire for the initial connection made via
+      // connectAsync(), so this listener covers only reconnects, not the first
+      // connect. The CloudUplinkWorker.start() immediate drain covers the first run.
+      let firstConnect = true;
+      this.client.on('connect', () => {
+        if (firstConnect) {
+          // connectAsync() already completed above; skip the first synthetic fire
+          // in case mqtt.js emits it retroactively (library-version-dependent).
+          firstConnect = false;
+          return;
+        }
+        pushEvent('connect', `Sparkplug reconnected to ${cfg.brokerHost}`);
+        void this.publishBirths();
+        CloudUplinkWorker.onMqttReconnect();
+      });
+
       await this.publishBirths();
 
       // Subscribe to real-time machine telemetry
@@ -298,7 +319,9 @@ export class SparkplugService {
       ],
     });
     if (!nbirthPayload) throw new Error('Sparkplug NBIRTH encoding failed');
-    await this.client.publishAsync(nbirthTopic, Buffer.from(nbirthPayload), { qos: 1, retain: false });
+    // QoS 0 per Sparkplug B 3.0 §5.5: NBIRTH MUST be published at QoS 0.
+    // The broker delivers at-most-once; consumers resync on next birth cycle.
+    await this.client.publishAsync(nbirthTopic, Buffer.from(nbirthPayload), { qos: 0, retain: false });
     pushEvent('publish', `${nbirthTopic} (${nbirthPayload.length} B)`);
 
     // --- DBIRTH /cycle: canonical cycle metric set (§14) ---
