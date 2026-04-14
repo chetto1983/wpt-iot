@@ -47,8 +47,8 @@ export class DrizzleSessionStore {
             .catch((err: unknown) => callback(err));
           return;
         }
-        const data = row.data ? JSON.parse(row.data) : null;
-        callback(null, data);
+        const data: unknown = row.data ? JSON.parse(row.data) : null;
+        callback(null, data as Session | null);
       })
       .catch((err: unknown) => callback(err));
   }
