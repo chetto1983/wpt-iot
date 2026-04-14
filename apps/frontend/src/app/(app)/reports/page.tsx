@@ -240,8 +240,8 @@ export default function ReportsPage() {
                 </span>
               )}
             </div>
-            <div className="overflow-x-auto">
-              <Table>
+            <div className="px-4 pb-4">
+              <Table className="min-w-[900px]">
                 <TableHeader>
                   <TableRow>
                     {preview.fields.map((f) => (
@@ -260,7 +260,7 @@ export default function ReportsPage() {
                           className={
                             f === 'timestamp'
                               ? 'font-mono text-xs whitespace-nowrap'
-                              : 'text-sm'
+                              : 'max-w-[18rem] text-sm'
                           }
                         >
                           {f === 'timestamp'

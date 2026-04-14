@@ -59,10 +59,21 @@ export interface ICycleExportRequest {
  */
 export const VALID_SORT_COLUMNS = [
   'startedAt',
+  'date',
+  'startTime',
   'cycleNumber',
   'cycleStatusLabel',
   'cycleType',
   'endedAt',
+  'endTime',
+  'materialInputKg',
+  'materialOutputKg',
+  'containers',
+  'grossInputKg',
+  'startEnergyKwh',
+  'endEnergyKwh',
+  'startWaterL',
+  'endWaterL',
   'operator',
   'orderNumber',
 ] as const;

@@ -50,10 +50,21 @@ export class CycleService {
     // Map sort column to SQL column name
     const columnMap: Record<string, string> = {
       startedAt: 'started_at',
+      date: 'started_at',
+      startTime: 'started_at',
       cycleNumber: 'cycle_number',
       cycleStatusLabel: 'cycle_status_label',
       cycleType: 'cycle_type',
       endedAt: 'ended_at',
+      endTime: 'ended_at',
+      materialInputKg: 'material_input_kg',
+      materialOutputKg: 'material_output_kg',
+      containers: 'containers',
+      grossInputKg: 'gross_input_kg',
+      startEnergyKwh: 'start_energy_kwh',
+      endEnergyKwh: 'end_energy_kwh',
+      startWaterL: 'start_water_l',
+      endWaterL: 'end_water_l',
       operator: 'operator',
       orderNumber: 'order_number',
     };

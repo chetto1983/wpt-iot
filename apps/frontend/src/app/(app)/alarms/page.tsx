@@ -286,40 +286,84 @@ function AlarmsContent({ locale }: { locale: string }) {
             )}
           </CardContent>
         ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>{t('columnCode')}</TableHead>
-                <TableHead>{t('columnDescription')}</TableHead>
-                <TableHead>{t('columnActivated')}</TableHead>
-                <TableHead>{t('columnReset')}</TableHead>
-                <TableHead>{t('columnDuration')}</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
+          <>
+            <div className="grid gap-3 p-4 md:hidden">
               {events.map((event, i) => (
-                <TableRow key={i} className="hover:bg-muted/50">
-                  <TableCell className="font-mono text-xs">
-                    {event.alarmCode}
-                  </TableCell>
-                  <TableCell className="text-sm">{event.description}</TableCell>
-                  <TableCell className="font-mono text-xs">
-                    {event.activatedAt}
-                  </TableCell>
-                  <TableCell>
+                <div key={i} className="rounded-2xl border border-border/70 bg-card p-4 shadow-sm">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="font-mono text-xs text-muted-foreground">{event.alarmCode}</p>
+                      <p className="mt-1 text-sm font-medium">{event.description}</p>
+                    </div>
                     {event.isActive ? (
                       <Badge className="bg-wpt-gold/15 text-wpt-gold">
                         {t('activeBadge')}
                       </Badge>
-                    ) : (
-                      <span className="font-mono text-xs">{event.resetAt}</span>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-sm">{event.duration}</TableCell>
-                </TableRow>
+                    ) : null}
+                  </div>
+                  <dl className="mt-4 grid gap-3 sm:grid-cols-2">
+                    <div className="rounded-xl bg-muted/30 p-3">
+                      <dt className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                        {t('columnActivated')}
+                      </dt>
+                      <dd className="mt-1 font-mono text-xs">{event.activatedAt}</dd>
+                    </div>
+                    <div className="rounded-xl bg-muted/30 p-3">
+                      <dt className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                        {t('columnReset')}
+                      </dt>
+                      <dd className="mt-1 font-mono text-xs">
+                        {event.isActive ? t('activeBadge') : event.resetAt}
+                      </dd>
+                    </div>
+                    <div className="rounded-xl bg-muted/30 p-3 sm:col-span-2">
+                      <dt className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                        {t('columnDuration')}
+                      </dt>
+                      <dd className="mt-1 text-sm">{event.duration}</dd>
+                    </div>
+                  </dl>
+                </div>
               ))}
-            </TableBody>
-          </Table>
+            </div>
+
+            <div className="hidden md:block">
+              <Table className="min-w-[760px]">
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>{t('columnCode')}</TableHead>
+                    <TableHead>{t('columnDescription')}</TableHead>
+                    <TableHead>{t('columnActivated')}</TableHead>
+                    <TableHead>{t('columnReset')}</TableHead>
+                    <TableHead>{t('columnDuration')}</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {events.map((event, i) => (
+                    <TableRow key={i} className="hover:bg-muted/50">
+                      <TableCell className="font-mono text-xs whitespace-nowrap">
+                        {event.alarmCode}
+                      </TableCell>
+                      <TableCell className="max-w-[28rem] text-sm">{event.description}</TableCell>
+                      <TableCell className="font-mono text-xs whitespace-nowrap">
+                        {event.activatedAt}
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap">
+                        {event.isActive ? (
+                          <Badge className="bg-wpt-gold/15 text-wpt-gold">
+                            {t('activeBadge')}
+                          </Badge>
+                        ) : (
+                          <span className="font-mono text-xs">{event.resetAt}</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-sm whitespace-nowrap">{event.duration}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </>
         )}
       </Card>
     </div>

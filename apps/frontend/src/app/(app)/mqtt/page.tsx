@@ -490,7 +490,7 @@ export default function MqttPage() {
                   </div>
 
                   <div className="hidden md:block">
-                    <Table>
+                    <Table className="min-w-[720px]">
                       <TableHeader>
                         <TableRow>
                           <TableHead>{t('users.username')}</TableHead>

@@ -170,7 +170,7 @@ export function UserTable() {
           </div>
 
           <div className="hidden rounded-lg border bg-card md:block">
-            <Table>
+            <Table className="min-w-[640px]">
               <TableHeader>
                 <TableRow>
                   <TableHead>{t('table.username')}</TableHead>

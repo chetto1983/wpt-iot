@@ -74,7 +74,7 @@ function formatStatusLabel(
     case 'ABORTED':
       return t('status.ABORTED');
     default:
-      return status || '—';
+      return status || '-';
   }
 }
 
@@ -119,35 +119,35 @@ export function CyclesTable({
   function formatCellValue(column: ColumnDef, cycle: ICycleRecordResponse): string {
     switch (column.key) {
       case 'date':
-        return cycle.date || '—';
+        return cycle.date || '-';
       case 'startTime':
-        return cycle.startTime || '—';
+        return cycle.startTime || '-';
       case 'endTime':
-        return cycle.endTime || '—';
+        return cycle.endTime || '-';
       case 'materialInputKg':
-        return cycle.materialInputKg != null ? `${cycle.materialInputKg} kg` : '—';
+        return cycle.materialInputKg != null ? `${cycle.materialInputKg} kg` : '-';
       case 'materialOutputKg':
-        return cycle.materialOutputKg != null ? `${cycle.materialOutputKg} kg` : '—';
+        return cycle.materialOutputKg != null ? `${cycle.materialOutputKg} kg` : '-';
       case 'grossInputKg':
-        return cycle.grossInputKg != null ? `${cycle.grossInputKg} kg` : '—';
+        return cycle.grossInputKg != null ? `${cycle.grossInputKg} kg` : '-';
       case 'startEnergyKwh':
-        return cycle.startEnergyKwh != null ? `${cycle.startEnergyKwh.toFixed(2)} kWh` : '—';
+        return cycle.startEnergyKwh != null ? `${cycle.startEnergyKwh.toFixed(2)} kWh` : '-';
       case 'endEnergyKwh':
-        return cycle.endEnergyKwh != null ? `${cycle.endEnergyKwh.toFixed(2)} kWh` : '—';
+        return cycle.endEnergyKwh != null ? `${cycle.endEnergyKwh.toFixed(2)} kWh` : '-';
       case 'startWaterL':
-        return cycle.startWaterL != null ? `${cycle.startWaterL.toFixed(1)} L` : '—';
+        return cycle.startWaterL != null ? `${cycle.startWaterL.toFixed(1)} L` : '-';
       case 'endWaterL':
-        return cycle.endWaterL != null ? `${cycle.endWaterL.toFixed(1)} L` : '—';
+        return cycle.endWaterL != null ? `${cycle.endWaterL.toFixed(1)} L` : '-';
       case 'operator':
-        return cycle.operator || '—';
+        return cycle.operator || '-';
       case 'cycleStatusLabel':
         return formatStatusLabel(cycle.cycleStatusLabel, t);
       default: {
         const value = (cycle as unknown as Record<string, unknown>)[column.key];
-        if (value == null) return '—';
+        if (value == null) return '-';
         if (typeof value === 'string') return value;
         if (typeof value === 'number' || typeof value === 'boolean') return String(value);
-        return '—';
+        return '-';
       }
     }
   }
@@ -208,58 +208,118 @@ export function CyclesTable({
   return (
     <div className="space-y-4">
       <div className="overflow-hidden rounded-lg border">
-        <Table>
-          <TableHeader>
-            <TableRow className="bg-muted/50 hover:bg-muted/50">
-              {visibleColumns.map((column) => (
-                <TableHead
-                  key={column.key}
-                  className={cn(
-                    'cursor-pointer select-none px-4 py-3 text-xs uppercase tracking-wider text-muted-foreground/60',
-                    !column.sortable && 'cursor-default',
-                  )}
-                  onClick={() => column.sortable && handleSort(column.key)}
-                >
-                  <div className="flex items-center gap-1">
-                    {column.label}
-                    {column.sortable && sortColumn === column.key && (
-                      <span className="inline-flex">
-                        {sortOrder === 'asc' ? (
-                          <ChevronUp className="size-3" />
-                        ) : (
-                          <ChevronDown className="size-3" />
-                        )}
-                      </span>
-                    )}
+        <div className="grid gap-3 p-3 md:hidden">
+          {cycles.map((cycle) => {
+            const secondaryColumns = visibleColumns.filter(
+              (column) =>
+                !['cycleNumber', 'date', 'startTime', 'endTime', 'cycleStatusLabel'].includes(
+                  column.key,
+                ),
+            );
+
+            return (
+              <div key={cycle.cycleNumber} className="rounded-2xl border bg-card p-4 shadow-sm">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 space-y-1">
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                      {t('columns.cycleNumber')}
+                    </p>
+                    <p className="text-lg font-semibold">{cycle.cycleNumber}</p>
+                    <p className="text-sm text-muted-foreground">{cycle.date || '-'}</p>
                   </div>
-                </TableHead>
-              ))}
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {cycles.map((cycle, index) => (
-              <TableRow
-                key={cycle.cycleNumber}
-                className={cn(
-                  'min-h-11 hover:bg-muted/40',
-                  index % 2 === 1 && 'bg-muted/20',
-                )}
-              >
+                  {renderStatusBadge(cycle)}
+                </div>
+
+                <div className="mt-4 grid grid-cols-2 gap-3 rounded-xl bg-muted/30 p-3">
+                  <div>
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                      {t('columns.startTime')}
+                    </p>
+                    <p className="mt-1 text-sm font-medium">{cycle.startTime || '-'}</p>
+                  </div>
+                  <div>
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                      {t('columns.endTime')}
+                    </p>
+                    <p className="mt-1 text-sm font-medium">{cycle.endTime || '-'}</p>
+                  </div>
+                </div>
+
+                {secondaryColumns.length > 0 ? (
+                  <dl className="mt-4 grid gap-3 sm:grid-cols-2">
+                    {secondaryColumns.map((column) => (
+                      <div key={column.key} className="rounded-xl border border-border/70 bg-background/80 p-3">
+                        <dt className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                          {column.label}
+                        </dt>
+                        <dd className="mt-1 text-sm font-medium text-foreground">
+                          {column.key === 'cycleStatusLabel'
+                            ? formatStatusLabel(cycle.cycleStatusLabel, t)
+                            : formatCellValue(column, cycle)}
+                        </dd>
+                      </div>
+                    ))}
+                  </dl>
+                ) : null}
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="hidden md:block">
+          <Table className={cn(viewMode === 'detail' ? 'min-w-[1180px]' : 'min-w-[760px]')}>
+            <TableHeader>
+              <TableRow className="bg-muted/50 hover:bg-muted/50">
                 {visibleColumns.map((column) => (
-                  <TableCell key={column.key} className="px-4 py-3 text-sm">
-                    {column.key === 'cycleStatusLabel'
-                      ? renderStatusBadge(cycle)
-                      : formatCellValue(column, cycle)}
-                  </TableCell>
+                  <TableHead
+                    key={column.key}
+                    className={cn(
+                      'cursor-pointer select-none px-4 py-3 text-xs uppercase tracking-wider text-muted-foreground/60',
+                      !column.sortable && 'cursor-default',
+                    )}
+                    onClick={() => column.sortable && handleSort(column.key)}
+                  >
+                    <div className="flex items-center gap-1">
+                      {column.label}
+                      {column.sortable && sortColumn === column.key && (
+                        <span className="inline-flex">
+                          {sortOrder === 'asc' ? (
+                            <ChevronUp className="size-3" />
+                          ) : (
+                            <ChevronDown className="size-3" />
+                          )}
+                        </span>
+                      )}
+                    </div>
+                  </TableHead>
                 ))}
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {cycles.map((cycle, index) => (
+                <TableRow
+                  key={cycle.cycleNumber}
+                  className={cn(
+                    'min-h-11 hover:bg-muted/40',
+                    index % 2 === 1 && 'bg-muted/20',
+                  )}
+                >
+                  {visibleColumns.map((column) => (
+                    <TableCell key={column.key} className="px-4 py-3 text-sm whitespace-nowrap">
+                      {column.key === 'cycleStatusLabel'
+                        ? renderStatusBadge(cycle)
+                        : formatCellValue(column, cycle)}
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
       </div>
 
       {pagination && pagination.totalPages > 1 && onPageChange && (
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-xs text-muted-foreground">
             {t('pagination.showing', {
               from: startIndex,
