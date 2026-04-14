@@ -60,19 +60,6 @@ export const ALIAS_MAP: Readonly<Record<string, number>> = Object.freeze({
   'cycle/supervisor': 116,
   'cycle/timestamp_source': 117,
 
-  // --- Phase 24 legacy cycle DDATA fields retained for the existing 15-metric payload ---
-  // (shipped in v1.2; names that overlap with §14 re-use the §14 alias above)
-  'cycle/cycles': 151,
-  'cycle/date': 152,
-  'cycle/start_time': 153,
-  'cycle/end_time': 154,
-  'cycle/weight_input_kg': 155,
-  'cycle/weight_output_kg': 156,
-  'cycle/containers': 157,
-  'cycle/gross_input_kg': 158,
-  'cycle/start_water_l': 159,
-  'cycle/end_water_l': 160,
-
   // --- Telemetry device DBIRTH (one alias per V03 IMachineSnapshot field that ships) ---
   'telemetry/serial_number': 200,
   'telemetry/model': 201,
@@ -228,6 +215,8 @@ export class SparkplugService {
         clientId: `wpt-sparkplug-${edgeNodeId}`,
         username: cfg.username,
         password: cfg.password,
+        clean: true,      // §5.4.2 MUST: each session starts clean (no durable state)
+        keepalive: 60,    // §5.4.3 SHOULD: explicit 60-second keepalive for dead-node detection
         will: {
           topic: deathTopic,
           payload: Buffer.from(deathPayload ?? []),
@@ -298,6 +287,7 @@ export class SparkplugService {
 
   private static async publishBirths(): Promise<void> {
     if (!this.client || !spb) return;
+    this.seq = 0; // §6.4.3 MUST: seq MUST be reset to 0 with each new NBIRTH message
     const cfg = await MqttConfigService.getConfig();
     const edgeNodeId = this.requireEdgeNodeId();
     const snapshot = latestState.getMachineSnapshot();
@@ -479,27 +469,27 @@ export class SparkplugService {
     const startedAtMs = toEpoch(validated.startedAt);
     const endedAtMs = toEpoch(validated.endedAt);
 
-    // 15-field DDATA payload — alias-only metrics (Sparkplug B 3.0 §6.4.4).
-    // Aliases are drawn from ALIAS_MAP using the pre-Phase-37 metric names
-    // (contract preserved for downstream consumers already built against v1.2).
+    // Canonical §14 DDATA payload — alias-only metrics (Sparkplug B 3.0 §6.4.4).
+    // Every alias used here is declared in DBIRTH/cycle (aliases 100..117).
+    // Legacy aliases 151..160 were retired in v2.1.0: they were never declared in any
+    // DBIRTH, making them undecipherable by a spec-compliant consumer. No v1.2 consumers
+    // exist so the removal is safe. grossInputKg has no §14 canonical alias and is dropped.
     const payload = spb.encodePayload({
       timestamp: Date.now(),
       seq: this.nextSeq(),
       metrics: [
         { type: 'String', value: validated.orderNumber ?? '', alias: aliasOf('cycle/order_number') },
-        { type: 'Int32', value: validated.cycleNumber, alias: aliasOf('cycle/cycles') },
-        { type: 'DateTime', value: startedAtMs, alias: aliasOf('cycle/date') },
-        { type: 'DateTime', value: startedAtMs, alias: aliasOf('cycle/start_time') },
-        { type: 'DateTime', value: endedAtMs, alias: aliasOf('cycle/end_time') },
+        { type: 'Int32', value: validated.cycleNumber, alias: aliasOf('cycle/cycle_count') },
+        { type: 'DateTime', value: startedAtMs, alias: aliasOf('cycle/start_at') },
+        { type: 'DateTime', value: endedAtMs, alias: aliasOf('cycle/end_at') },
         { type: 'String', value: validated.cycleStatusLabel ?? 'UNKNOWN', alias: aliasOf('cycle/cycle_status_label') },
-        { type: 'Float', value: validated.materialInputKg ?? 0, alias: aliasOf('cycle/weight_input_kg') },
-        { type: 'Float', value: validated.materialOutputKg ?? 0, alias: aliasOf('cycle/weight_output_kg') },
-        { type: 'Int32', value: validated.containers ?? 0, alias: aliasOf('cycle/containers') },
-        { type: 'Float', value: validated.grossInputKg ?? 0, alias: aliasOf('cycle/gross_input_kg') },
+        { type: 'Float', value: validated.materialInputKg ?? 0, alias: aliasOf('cycle/material_input_kg') },
+        { type: 'Float', value: validated.materialOutputKg ?? 0, alias: aliasOf('cycle/material_output_kg') },
+        { type: 'Int32', value: validated.containers ?? 0, alias: aliasOf('cycle/container_count') },
         { type: 'Float', value: validated.startEnergyKwh ?? 0, alias: aliasOf('cycle/start_energy_kwh') },
         { type: 'Float', value: validated.endEnergyKwh ?? 0, alias: aliasOf('cycle/end_energy_kwh') },
-        { type: 'Float', value: validated.startWaterL ?? 0, alias: aliasOf('cycle/start_water_l') },
-        { type: 'Float', value: validated.endWaterL ?? 0, alias: aliasOf('cycle/end_water_l') },
+        { type: 'Float', value: validated.startWaterL ?? 0, alias: aliasOf('cycle/start_water_lt') },
+        { type: 'Float', value: validated.endWaterL ?? 0, alias: aliasOf('cycle/end_water_lt') },
         { type: 'String', value: validated.operator ?? '', alias: aliasOf('cycle/operator') },
       ],
     });
