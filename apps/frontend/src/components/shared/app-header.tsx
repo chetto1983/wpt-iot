@@ -16,13 +16,21 @@ import { cn } from '@/lib/utils';
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || '';
 
 function getPageTitleKey(path: string): string {
+  if (path.startsWith('/settings/energy')) return 'nav.energySettings';
+  if (path.startsWith('/dashboards/')) return 'nav.dashboards';
+  if (path === '/dashboards') return 'nav.dashboards';
   if (path === '/dashboard') return 'nav.dashboard';
   if (path === '/users') return 'nav.users';
   if (path === '/rfid') return 'nav.rfid';
   if (path === '/jobs') return 'nav.jobs';
   if (path === '/reports') return 'nav.reports';
+  if (path === '/energy') return 'nav.energy';
+  if (path === '/cycles') return 'nav.cycles';
+  if (path === '/anomaly') return 'nav.anomaly';
   if (path === '/alarms') return 'nav.alarms';
   if (path === '/charts') return 'nav.charts';
+  if (path === '/mqtt') return 'nav.mqtt';
+  if (path === '/plc') return 'nav.plc';
   return 'nav.dashboard';
 }
 
@@ -53,13 +61,18 @@ export function AppHeader() {
     month: '2-digit',
     year: 'numeric',
   });
+  const pageTitle = t(getPageTitleKey(pathname));
+
+  useEffect(() => {
+    document.title = `${pageTitle} | WPT IoT`;
+  }, [pageTitle]);
 
   return (
     <header className="flex flex-wrap items-center gap-2 border-b border-border px-4 py-2 sm:h-14 sm:flex-nowrap sm:gap-4 sm:py-0">
       {/* Left: sidebar trigger + page title */}
       <div className="flex min-w-0 items-center gap-2 sm:gap-3">
         <SidebarTrigger className="size-11 sm:size-7" />
-        <h1 className="text-sm font-semibold">{t(getPageTitleKey(pathname))}</h1>
+        <h1 className="text-sm font-semibold">{pageTitle}</h1>
       </div>
 
       {/* Spacer */}

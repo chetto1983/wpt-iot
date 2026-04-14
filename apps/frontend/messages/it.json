@@ -968,8 +968,9 @@
     "subtitle": "Configura intestazione cliente, modello tariffario, flusso baseline e accesso al report campione del modulo energia.",
     "banner": {
       "missingConfig": "Configurazione energia non impostata. Completa i dati cliente, tariffa ed emissioni prima di usare il flusso milestone.",
-      "pending": "Il form valida il contratto admin in locale finche' i route backend config non sono collegati.",
-      "ready": "La bozza locale e' valida e pronta per il collegamento backend."
+      "readyTitle": "Configurazione energia pronta.",
+      "pending": "Completa tutti i campi obbligatori prima di salvare e usare baseline e report campione.",
+      "ready": "La configurazione e' completa e coerente con il contratto backend."
     },
     "sections": {
       "customer": "Intestazione cliente",
@@ -979,15 +980,17 @@
     },
     "descriptions": {
       "customer": "Identificativi visibili al cliente usati nell'intestazione PDF e nel flusso milestone.",
-      "tariff": "Valori tariffari ed emissioni versionati. L'input con virgola decimale italiana viene normalizzato prima della validazione.",
-      "baseline": "Qui verra' riusato il flusso esistente di blocco baseline quando il backend sara' collegato.",
-      "sampleReport": "Questo pulsante riusera' il route PDF esistente per uno smoke test sulle ultime 24 ore."
+      "tariff": "Valori tariffari, cosphi, turno e fattore di emissione vengono validati lato client e salvati nel profilo energia attivo.",
+      "baseline": "Apre il flusso esistente di blocco baseline sul backend per definire la finestra di riferimento.",
+      "sampleReport": "Genera un PDF di test sulle ultime 24 ore usando il route report energia gia' attivo."
     },
     "fields": {
       "customerName": "Nome cliente",
       "machineSerial": "Seriale macchina",
       "machineModel": "Modello macchina",
       "installSite": "Sito installazione",
+      "cosphi": "Cosphi",
+      "shiftStartHour": "Ora inizio turno",
       "effectiveFrom": "Valido da",
       "emissionFactorKgPerKwh": "Fattore emissione (kg CO2 / kWh)",
       "emissionFactorYear": "Anno fattore emissione",
@@ -1005,14 +1008,18 @@
     "helpers": {
       "decimalPreview": "Valore canonico: {value}",
       "invalidPreview": "Inserisci un numero valido",
+      "shiftStartHour": "Valore intero da 0 a 23, usato come inizio del giorno operativo energia.",
       "submitHint": "L'invio mantiene numerico il payload anche quando l'input visibile usa la virgola decimale."
     },
     "validation": {
       "required": "Campo obbligatorio.",
       "invalidNumber": "Inserisci un numero valido.",
+      "invalidDate": "Inserisci una data e ora valide.",
+      "cosphiRange": "Il cosphi deve restare tra 0 e 1.",
       "emissionFactorRange": "Il fattore di emissione deve restare tra 0.05 e 2.0.",
       "tariffRange": "Le tariffe devono restare tra 0.001 e 2.0.",
       "yearNumeric": "L'anno del fattore di emissione deve essere numerico.",
+      "shiftStartHourRange": "L'ora di inizio turno deve essere un intero tra 0 e 23.",
       "sourceRequired": "La fonte del fattore di emissione e' obbligatoria.",
       "tariffBandsRequired": "F1, F2 e F3 sono obbligatori quando e' selezionata la tariffa a 3 fasce."
     },

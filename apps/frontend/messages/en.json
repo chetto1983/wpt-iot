@@ -968,8 +968,9 @@
     "subtitle": "Configure the customer header, tariff model, baseline workflow, and sample report entry point for the energy module.",
     "banner": {
       "missingConfig": "Energy configuration not set yet. Complete the customer, tariff, and emission data before using the milestone workflow.",
-      "pending": "The form is validating the admin contract locally until the backend config routes are wired.",
-      "ready": "The local draft is valid and ready for backend wiring."
+      "readyTitle": "Energy configuration ready.",
+      "pending": "Complete all required fields before saving and using baseline and sample report actions.",
+      "ready": "The configuration is complete and consistent with the backend contract."
     },
     "sections": {
       "customer": "Customer header",
@@ -979,15 +980,17 @@
     },
     "descriptions": {
       "customer": "Customer-facing identifiers used in the PDF header and milestone flow.",
-      "tariff": "Versioned tariff and emission values. Italian decimal-comma input is normalized before validation.",
-      "baseline": "The existing baseline lock flow will be reused here once backend wiring lands.",
-      "sampleReport": "This button will reuse the existing PDF route for a last-24-hours smoke test."
+      "tariff": "Tariffs, cosphi, shift start, and emission values are validated on the client and saved into the active energy profile.",
+      "baseline": "Opens the existing backend baseline lock flow to define the reference window.",
+      "sampleReport": "Generates a test PDF for the last 24 hours using the already active energy report route."
     },
     "fields": {
       "customerName": "Customer name",
       "machineSerial": "Machine serial",
       "machineModel": "Machine model",
       "installSite": "Install site",
+      "cosphi": "Cosphi",
+      "shiftStartHour": "Shift start hour",
       "effectiveFrom": "Effective from",
       "emissionFactorKgPerKwh": "Emission factor (kg CO2 / kWh)",
       "emissionFactorYear": "Emission factor year",
@@ -1005,14 +1008,18 @@
     "helpers": {
       "decimalPreview": "Canonical value: {value}",
       "invalidPreview": "Enter a valid number",
+      "shiftStartHour": "Integer from 0 to 23, used as the start of the operational energy day.",
       "submitHint": "Submitting keeps numeric payloads canonical even when the visible input uses a comma decimal."
     },
     "validation": {
       "required": "This field is required.",
       "invalidNumber": "Enter a valid number.",
+      "invalidDate": "Enter a valid date and time.",
+      "cosphiRange": "Cosphi must stay between 0 and 1.",
       "emissionFactorRange": "Emission factor must stay between 0.05 and 2.0.",
       "tariffRange": "Tariff values must stay between 0.001 and 2.0.",
       "yearNumeric": "Emission factor year must be numeric.",
+      "shiftStartHourRange": "Shift start hour must be an integer between 0 and 23.",
       "sourceRequired": "Emission factor source is required.",
       "tariffBandsRequired": "F1, F2, and F3 values are required when the 3-band tariff is selected."
     },

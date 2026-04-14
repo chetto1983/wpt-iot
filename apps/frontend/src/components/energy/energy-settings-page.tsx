@@ -3,7 +3,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { TriangleAlert } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { type IEnergyAdminConfigResponse, type IEnergyConfigUpdateRequest } from '@wpt/types';
+import {
+  EnergyConfigUpdateSchema,
+  type IEnergyAdminConfigResponse,
+  type IEnergyConfigUpdateRequest,
+} from '@wpt/types';
 import { toast } from 'sonner';
 
 import { apiFetch } from '@/lib/api';
@@ -14,7 +18,13 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || '';
+function getApiBase() {
+  const apiBase = process.env.NEXT_PUBLIC_API_URL;
+  if (!apiBase) {
+    throw new Error('NEXT_PUBLIC_API_URL is not set.');
+  }
+  return apiBase;
+}
 
 function buildFormValue(configResponse: IEnergyAdminConfigResponse): Partial<IEnergyConfigUpdateRequest> {
   return {
@@ -117,10 +127,8 @@ export function EnergySettingsPage() {
       to,
     };
   }, []);
-  const missingConfig = !config
-    || !config.config.customerName.trim()
-    || !config.config.machineSerial.trim()
-    || !config.activePeriod.emissionFactorSource.trim();
+  const configValidation = config ? EnergyConfigUpdateSchema.safeParse(buildFormValue(config)) : null;
+  const missingConfig = !configValidation?.success;
 
   async function handleSave(value: IEnergyConfigUpdateRequest) {
     setSaving(true);
@@ -139,6 +147,7 @@ export function EnergySettingsPage() {
   async function handleSampleReport() {
     setSampleReportPending(true);
     try {
+      const apiBase = getApiBase();
       const to = new Date();
       to.setUTCMinutes(0, 0, 0);
       const from = new Date(to.getTime() - 24 * 60 * 60 * 1000);
@@ -148,7 +157,7 @@ export function EnergySettingsPage() {
         to: to.toISOString(),
         lang,
       });
-      const response = await fetch(`${API_BASE}/api/energy/reports/iso50001/pdf?${params.toString()}`, {
+      const response = await fetch(`${apiBase}/api/energy/reports/iso50001/pdf?${params.toString()}`, {
         method: 'POST',
         credentials: 'include',
       });
@@ -188,13 +197,13 @@ export function EnergySettingsPage() {
         <p className="max-w-3xl text-sm text-muted-foreground">{t('subtitle')}</p>
       </header>
 
-      <Card className="border border-amber-500/30 bg-amber-500/10">
+      <Card className="border border-amber-300 bg-amber-50 dark:border-amber-500/30 dark:bg-amber-500/10">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-amber-100">
-            <TriangleAlert className="size-5 text-amber-300" />
-            {t('banner.missingConfig')}
+          <CardTitle className="flex items-center gap-2 text-amber-950 dark:text-amber-100">
+            <TriangleAlert className="size-5 text-amber-700 dark:text-amber-300" />
+            {missingConfig ? t('banner.missingConfig') : t('banner.readyTitle')}
           </CardTitle>
-          <CardDescription className="text-amber-50/80">
+          <CardDescription className="text-amber-800 dark:text-amber-50/80">
             {missingConfig ? t('banner.pending') : t('banner.ready')}
           </CardDescription>
         </CardHeader>

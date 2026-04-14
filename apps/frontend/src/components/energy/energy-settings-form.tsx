@@ -53,6 +53,14 @@ interface EnergySettingsDraft {
   tariffBandF3: string;
 }
 
+type NumericFieldName =
+  | 'cosphi'
+  | 'emissionFactorKgPerKwh'
+  | 'tariffSingleEurPerKwh'
+  | 'tariffBandF1'
+  | 'tariffBandF2'
+  | 'tariffBandF3';
+
 const TARIFF_BAND_FIELD_MAP: Record<EnergyTariffBandKey, TariffBandFieldName> = {
   f1: 'tariffBandF1',
   f2: 'tariffBandF2',
@@ -78,6 +86,7 @@ function toLocalizedNumberInput(value: number | undefined, locale: string, fallb
 
 function parseLocalizedNumber(raw: string): number {
   const normalized = raw.replace(/\s/g, '').replace(',', '.');
+  if (!normalized) return Number.NaN;
   return Number(normalized);
 }
 
@@ -158,6 +167,7 @@ export function EnergySettingsForm({
 
   const decimalPreview = useMemo(
     () => ({
+      cosphi: formatLocalizedPreview(draft.cosphi, locale, 3),
       emissionFactorKgPerKwh: formatLocalizedPreview(draft.emissionFactorKgPerKwh, locale),
       tariffSingleEurPerKwh: formatLocalizedPreview(draft.tariffSingleEurPerKwh, locale),
       tariffBandF1: formatLocalizedPreview(draft.tariffBandF1, locale),
@@ -177,8 +187,13 @@ export function EnergySettingsForm({
     });
   }
 
-  function getNumericError(field: 'emissionFactorKgPerKwh' | 'tariffSingleEurPerKwh' | 'tariffBandF1' | 'tariffBandF2' | 'tariffBandF3') {
+  function getNumericError(field: NumericFieldName) {
     return errors[field] ?? (decimalPreview[field] ? null : t('validation.invalidNumber'));
+  }
+
+  function describedBy(...ids: Array<string | null | undefined>) {
+    const value = ids.filter(Boolean).join(' ');
+    return value || undefined;
   }
 
   async function handleSubmit(event: React.FormEvent) {
@@ -187,9 +202,17 @@ export function EnergySettingsForm({
     const nextErrors: FieldErrors = {};
     const emissionFactorKgPerKwh = parseLocalizedNumber(draft.emissionFactorKgPerKwh);
     const tariffSingleEurPerKwh = parseLocalizedNumber(draft.tariffSingleEurPerKwh);
-    const year = Number(draft.emissionFactorYear);
+    const year = draft.emissionFactorYear.trim() === '' ? Number.NaN : Number(draft.emissionFactorYear);
     const cosphi = parseLocalizedNumber(draft.cosphi);
-    const shiftStartHour = Number(draft.shiftStartHour);
+    const shiftStartHour = draft.shiftStartHour.trim() === ''
+      ? Number.NaN
+      : Number(draft.shiftStartHour);
+    const effectiveFrom = draft.effectiveFrom.trim();
+    const effectiveFromDate = effectiveFrom ? new Date(effectiveFrom) : null;
+
+    if (!effectiveFromDate || !Number.isFinite(effectiveFromDate.getTime())) {
+      nextErrors.effectiveFrom = t('validation.invalidDate');
+    }
 
     const tariffBandsJson: IEnergyConfigUpdateRequest['tariffBandsJson'] = {};
     for (const key of ENERGY_TARIFF_BAND_KEYS) {
@@ -211,8 +234,14 @@ export function EnergySettingsForm({
     if (!draft.emissionFactorSource.trim()) {
       nextErrors.emissionFactorSource = t('validation.sourceRequired');
     }
+    if (!Number.isFinite(cosphi)) {
+      nextErrors.cosphi = t('validation.invalidNumber');
+    }
     if (!Number.isFinite(year)) {
       nextErrors.emissionFactorYear = t('validation.yearNumeric');
+    }
+    if (!Number.isFinite(shiftStartHour)) {
+      nextErrors.shiftStartHour = t('validation.shiftStartHourRange');
     }
 
     const payload = {
@@ -222,7 +251,7 @@ export function EnergySettingsForm({
       installSite: draft.installSite.trim(),
       cosphi,
       shiftStartHour,
-      effectiveFrom: new Date(draft.effectiveFrom).toISOString(),
+      effectiveFrom: effectiveFromDate?.toISOString() ?? '',
       emissionFactorKgPerKwh,
       emissionFactorYear: year,
       emissionFactorSource: draft.emissionFactorSource.trim(),
@@ -238,10 +267,16 @@ export function EnergySettingsForm({
         if (typeof field !== 'string' || nextErrors[field]) continue;
         if (field === 'emissionFactorKgPerKwh') {
           nextErrors[field] = t('validation.emissionFactorRange');
+        } else if (field === 'cosphi') {
+          nextErrors[field] = t('validation.cosphiRange');
+        } else if (field === 'shiftStartHour') {
+          nextErrors[field] = t('validation.shiftStartHourRange');
         } else if (field === 'tariffSingleEurPerKwh') {
           nextErrors[field] = t('validation.tariffRange');
         } else if (field === 'emissionFactorYear') {
           nextErrors[field] = t('validation.yearNumeric');
+        } else if (field === 'effectiveFrom') {
+          nextErrors[field] = t('validation.invalidDate');
         } else if (field === 'emissionFactorSource') {
           nextErrors[field] = t('validation.sourceRequired');
         } else {
@@ -326,6 +361,55 @@ export function EnergySettingsForm({
           <CardDescription>{t('descriptions.tariff')}</CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4">
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-2">
+              <Label htmlFor="energy-settings-cosphi">{t('fields.cosphi')}</Label>
+              <Input
+                id="energy-settings-cosphi"
+                inputMode="decimal"
+                value={draft.cosphi}
+                onChange={(event) => setField('cosphi', event.target.value)}
+                aria-invalid={Boolean(getNumericError('cosphi'))}
+                aria-describedby={describedBy(
+                  'energy-settings-cosphi-preview',
+                  getNumericError('cosphi') ? 'energy-settings-cosphi-error' : null,
+                )}
+              />
+              <p id="energy-settings-cosphi-preview" className="text-xs text-muted-foreground">
+                {t('helpers.decimalPreview', {
+                  value: decimalPreview.cosphi ?? t('helpers.invalidPreview'),
+                })}
+              </p>
+              {getNumericError('cosphi') ? (
+                <p id="energy-settings-cosphi-error" className="text-xs text-destructive">
+                  {getNumericError('cosphi')}
+                </p>
+              ) : null}
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="energy-settings-shift-start-hour">{t('fields.shiftStartHour')}</Label>
+              <Input
+                id="energy-settings-shift-start-hour"
+                inputMode="numeric"
+                value={draft.shiftStartHour}
+                onChange={(event) => setField('shiftStartHour', event.target.value)}
+                aria-invalid={Boolean(errors.shiftStartHour)}
+                aria-describedby={describedBy(
+                  'energy-settings-shift-start-hour-help',
+                  errors.shiftStartHour ? 'energy-settings-shift-start-hour-error' : null,
+                )}
+              />
+              <p id="energy-settings-shift-start-hour-help" className="text-xs text-muted-foreground">
+                {t('helpers.shiftStartHour')}
+              </p>
+              {errors.shiftStartHour ? (
+                <p id="energy-settings-shift-start-hour-error" className="text-xs text-destructive">
+                  {errors.shiftStartHour}
+                </p>
+              ) : null}
+            </div>
+          </div>
+
           <div className="grid gap-4 md:grid-cols-3">
             <div className="grid gap-2">
               <Label htmlFor="energy-settings-effective-from">{t('fields.effectiveFrom')}</Label>
@@ -334,8 +418,16 @@ export function EnergySettingsForm({
                 type="datetime-local"
                 value={draft.effectiveFrom}
                 onChange={(event) => setField('effectiveFrom', event.target.value)}
+                aria-invalid={Boolean(errors.effectiveFrom)}
+                aria-describedby={errors.effectiveFrom ? 'energy-settings-effective-from-error' : undefined}
               />
-              {errors.effectiveFrom ? <p className="text-xs text-destructive">{errors.effectiveFrom}</p> : null}
+              {errors.effectiveFrom ? (
+                <p id="energy-settings-effective-from-error" className="text-xs text-destructive">
+                  {errors.effectiveFrom}
+                </p>
+              ) : (
+                <p className="min-h-4 text-xs text-transparent" aria-hidden="true">.</p>
+              )}
             </div>
             <div className="grid gap-2">
               <Label htmlFor="energy-settings-emission-factor">{t('fields.emissionFactorKgPerKwh')}</Label>
@@ -344,14 +436,21 @@ export function EnergySettingsForm({
                 inputMode="decimal"
                 value={draft.emissionFactorKgPerKwh}
                 onChange={(event) => setField('emissionFactorKgPerKwh', event.target.value)}
+                aria-invalid={Boolean(getNumericError('emissionFactorKgPerKwh'))}
+                aria-describedby={describedBy(
+                  'energy-settings-emission-factor-preview',
+                  getNumericError('emissionFactorKgPerKwh') ? 'energy-settings-emission-factor-error' : null,
+                )}
               />
-              <p className="text-xs text-muted-foreground">
+              <p id="energy-settings-emission-factor-preview" className="text-xs text-muted-foreground">
                 {t('helpers.decimalPreview', {
                   value: decimalPreview.emissionFactorKgPerKwh ?? t('helpers.invalidPreview'),
                 })}
               </p>
               {getNumericError('emissionFactorKgPerKwh') ? (
-                <p className="text-xs text-destructive">{getNumericError('emissionFactorKgPerKwh')}</p>
+                <p id="energy-settings-emission-factor-error" className="text-xs text-destructive">
+                  {getNumericError('emissionFactorKgPerKwh')}
+                </p>
               ) : null}
             </div>
             <div className="grid gap-2">
@@ -361,8 +460,16 @@ export function EnergySettingsForm({
                 inputMode="numeric"
                 value={draft.emissionFactorYear}
                 onChange={(event) => setField('emissionFactorYear', event.target.value)}
+                aria-invalid={Boolean(errors.emissionFactorYear)}
+                aria-describedby={errors.emissionFactorYear ? 'energy-settings-emission-year-error' : undefined}
               />
-              {errors.emissionFactorYear ? <p className="text-xs text-destructive">{errors.emissionFactorYear}</p> : null}
+              {errors.emissionFactorYear ? (
+                <p id="energy-settings-emission-year-error" className="text-xs text-destructive">
+                  {errors.emissionFactorYear}
+                </p>
+              ) : (
+                <p className="min-h-4 text-xs text-transparent" aria-hidden="true">.</p>
+              )}
             </div>
           </div>
 
@@ -372,13 +479,19 @@ export function EnergySettingsForm({
               id="energy-settings-emission-source"
               value={draft.emissionFactorSource}
               onChange={(event) => setField('emissionFactorSource', event.target.value)}
+              aria-invalid={Boolean(errors.emissionFactorSource)}
+              aria-describedby={errors.emissionFactorSource ? 'energy-settings-emission-source-error' : undefined}
             />
-            {errors.emissionFactorSource ? <p className="text-xs text-destructive">{errors.emissionFactorSource}</p> : null}
+            {errors.emissionFactorSource ? (
+              <p id="energy-settings-emission-source-error" className="text-xs text-destructive">
+                {errors.emissionFactorSource}
+              </p>
+            ) : null}
           </div>
 
           <div className="grid gap-4 md:grid-cols-2">
             <div className="grid gap-2">
-              <Label>{t('fields.tariffMode')}</Label>
+              <Label htmlFor="energy-settings-tariff-mode">{t('fields.tariffMode')}</Label>
               <Select
                 value={draft.tariffMode}
                 onValueChange={(value) => {
@@ -387,7 +500,7 @@ export function EnergySettingsForm({
                   }
                 }}
               >
-                <SelectTrigger className="w-full">
+                <SelectTrigger id="energy-settings-tariff-mode" className="w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -395,6 +508,7 @@ export function EnergySettingsForm({
                   <SelectItem value="tou3">{t('tariffModes.tou3')}</SelectItem>
                 </SelectContent>
               </Select>
+              <p className="min-h-4 text-xs text-transparent" aria-hidden="true">.</p>
             </div>
 
             <div className="grid gap-2">
@@ -404,14 +518,21 @@ export function EnergySettingsForm({
                 inputMode="decimal"
                 value={draft.tariffSingleEurPerKwh}
                 onChange={(event) => setField('tariffSingleEurPerKwh', event.target.value)}
+                aria-invalid={Boolean(getNumericError('tariffSingleEurPerKwh'))}
+                aria-describedby={describedBy(
+                  'energy-settings-single-rate-preview',
+                  getNumericError('tariffSingleEurPerKwh') ? 'energy-settings-single-rate-error' : null,
+                )}
               />
-              <p className="text-xs text-muted-foreground">
+              <p id="energy-settings-single-rate-preview" className="text-xs text-muted-foreground">
                 {t('helpers.decimalPreview', {
                   value: decimalPreview.tariffSingleEurPerKwh ?? t('helpers.invalidPreview'),
                 })}
               </p>
               {getNumericError('tariffSingleEurPerKwh') ? (
-                <p className="text-xs text-destructive">{getNumericError('tariffSingleEurPerKwh')}</p>
+                <p id="energy-settings-single-rate-error" className="text-xs text-destructive">
+                  {getNumericError('tariffSingleEurPerKwh')}
+                </p>
               ) : null}
             </div>
           </div>
@@ -430,16 +551,22 @@ export function EnergySettingsForm({
                     inputMode="decimal"
                     value={draft[field]}
                     onChange={(event) => setField(field, event.target.value)}
+                    aria-invalid={Boolean(getNumericError(field))}
+                    aria-describedby={describedBy(
+                      `energy-settings-${field}-preview`,
+                      getNumericError(field) ? `energy-settings-${field}-error` : null,
+                    )}
                   />
-                  <p className="text-xs text-muted-foreground">
+                  <p id={`energy-settings-${field}-preview`} className="text-xs text-muted-foreground">
                     {t('helpers.decimalPreview', {
                       value: decimalPreview[field] ?? t('helpers.invalidPreview'),
                     })}
                   </p>
                   {getNumericError(field) ? (
-                    <p className="text-xs text-destructive">{getNumericError(field)}</p>
+                    <p id={`energy-settings-${field}-error`} className="text-xs text-destructive">
+                      {getNumericError(field)}
+                    </p>
                   ) : null}
-                  <p className="text-xs text-muted-foreground">{label}</p>
                 </div>
               ))}
               {errors.tariffBandsJson ? (
