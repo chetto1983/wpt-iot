@@ -71,23 +71,60 @@ if [[ -n "${LAN_IP}" ]]; then
 fi
 desired_ips_sorted=$(printf '%s\n' "${!desired_set[@]}" | sort -u | paste -sd, -)
 
+# Resolve the serial hostname early so the short-circuit check can
+# compare DNS SANs accurately (serial changes → cert must refresh).
+_CHECK_SERIAL=""
+if [[ -n "${WPT_SERIAL:-}" ]]; then
+  _CHECK_SERIAL="${WPT_SERIAL}"
+elif [[ -r /etc/wpt/serial ]]; then
+  _CHECK_SERIAL="$(tr -d '\n\r \t' < /etc/wpt/serial 2>/dev/null || true)"
+fi
+declare -A desired_dns_set=()
+desired_dns_set["wpt.local"]=1
+desired_dns_set["localhost"]=1
+[[ -n "${_CHECK_SERIAL}" ]] && desired_dns_set["wpt-${_CHECK_SERIAL}.local"]=1
+desired_dns_sorted=$(printf '%s\n' "${!desired_dns_set[@]}" | sort -u | paste -sd, -)
+
 # Short-circuit: if the existing server cert already covers this exact
-# set AND the CA is intact, there is nothing to do.
+# IP + DNS set AND the CA is intact, there is nothing to do.
 if [[ "${FORCE}" != "1" && -f "${CA_CERT}" && -f "${CA_KEY}" && -f "${SERVER_CERT}" && -f "${SERVER_KEY}" ]]; then
   current_ips_sorted=$(openssl x509 -in "${SERVER_CERT}" -noout -ext subjectAltName 2>/dev/null \
     | grep -oE 'IP Address:[0-9.]+' \
     | awk -F: '{print $2}' \
     | sort -u \
     | paste -sd, -)
-  if [[ "${current_ips_sorted}" == "${desired_ips_sorted}" ]]; then
-    echo "TLS cert already covers current IPs (${desired_ips_sorted:-none}); nothing to do."
+  current_dns_sorted=$(openssl x509 -in "${SERVER_CERT}" -noout -ext subjectAltName 2>/dev/null \
+    | grep -oE 'DNS:[A-Za-z0-9.-]+' \
+    | awk -F: '{print $2}' \
+    | sort -u \
+    | paste -sd, -)
+  if [[ "${current_ips_sorted}" == "${desired_ips_sorted}" && "${current_dns_sorted}" == "${desired_dns_sorted}" ]]; then
+    echo "TLS cert already covers current SANs (DNS: ${desired_dns_sorted}; IPs: ${desired_ips_sorted:-none}); nothing to do."
     exit 0
   fi
-  echo "Cert SAN drift detected: have [${current_ips_sorted}] want [${desired_ips_sorted}]. Refreshing server cert."
+  echo "Cert SAN drift detected:"
+  echo "  DNS:  have [${current_dns_sorted}] want [${desired_dns_sorted}]"
+  echo "  IPs:  have [${current_ips_sorted}] want [${desired_ips_sorted}]"
+  echo "Refreshing server cert (CA preserved)."
+fi
+
+# DNS SAN entries. Include the device's serial hostname so clients on
+# multi-device customer sites can reach the disambiguated wpt-<serial>.local
+# without a cert warning. Serial is sourced from /etc/wpt/serial (baked
+# at install time) or $WPT_SERIAL env. Missing/unreadable → generic only.
+DNS_ENTRIES="DNS.1 = wpt.local"$'\n'"DNS.2 = localhost"
+SERIAL=""
+if [[ -n "${WPT_SERIAL:-}" ]]; then
+  SERIAL="${WPT_SERIAL}"
+elif [[ -r /etc/wpt/serial ]]; then
+  SERIAL="$(tr -d '\n\r \t' < /etc/wpt/serial 2>/dev/null || true)"
+fi
+if [[ -n "${SERIAL}" ]]; then
+  DNS_ENTRIES+=$'\n'"DNS.3 = wpt-${SERIAL}.local"
 fi
 
 # Build the openssl SAN list (numeric entries required by X.509).
-ALT_NAMES=$'DNS.1 = wpt.local\nDNS.2 = localhost'
+ALT_NAMES="${DNS_ENTRIES}"
 IP_COUNT=0
 while IFS= read -r ip; do
   [[ -z "${ip}" ]] && continue

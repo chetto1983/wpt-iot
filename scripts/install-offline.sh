@@ -84,6 +84,22 @@ ok "Conflicting host services stopped."
 
 step "Step 4/10  avahi-daemon + mDNS aliases"
 
+# Device serial — baked at manufacturing if possible, else derived from
+# /etc/machine-id. Drives wpt-<serial>.local mDNS + the cert DNS SAN.
+mkdir -p /etc/wpt
+if [[ ! -s /etc/wpt/serial ]]; then
+  if [[ -n "${WPT_SERIAL:-}" ]]; then
+    echo -n "${WPT_SERIAL}" > /etc/wpt/serial
+  elif [[ -r /etc/machine-id ]]; then
+    head -c 8 /etc/machine-id > /etc/wpt/serial
+  else
+    hostname | tr -dc 'a-z0-9' | head -c 8 > /etc/wpt/serial
+  fi
+  chmod 644 /etc/wpt/serial
+fi
+SERIAL="$(tr -d '\n\r \t' < /etc/wpt/serial)"
+info "Device serial: ${SERIAL} (wpt-${SERIAL}.local)"
+
 if ! command -v avahi-publish >/dev/null 2>&1; then
   warn "avahi-daemon/avahi-utils not installed. HTTPS will still work by IP override, but mDNS aliases will be missing."
 else

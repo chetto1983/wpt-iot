@@ -84,8 +84,25 @@ step "Step 3/7  Install dir + runtime files"
 apt-get update -qq
 apt-get install -y -qq avahi-daemon avahi-utils libnss-mdns openssl >/dev/null
 
-mkdir -p "${INSTALL_DIR}/docker/nginx/templates" "${INSTALL_DIR}/certs"
+mkdir -p "${INSTALL_DIR}/docker/nginx/templates" "${INSTALL_DIR}/certs" /etc/wpt
 cd "${INSTALL_DIR}"
+
+# Device serial — baked at manufacturing when possible, otherwise
+# derived from /etc/machine-id so every box has a deterministic unique
+# hostname like wpt-ab12cd34.local. This is what clients type in the
+# browser when wpt.local collides on a multi-device customer site.
+if [[ ! -s /etc/wpt/serial ]]; then
+  if [[ -n "${WPT_SERIAL:-}" ]]; then
+    echo -n "${WPT_SERIAL}" > /etc/wpt/serial
+  elif [[ -r /etc/machine-id ]]; then
+    head -c 8 /etc/machine-id > /etc/wpt/serial
+  else
+    hostname | tr -dc 'a-z0-9' | head -c 8 > /etc/wpt/serial
+  fi
+  chmod 644 /etc/wpt/serial
+fi
+SERIAL="$(tr -d '\n\r \t' < /etc/wpt/serial)"
+ok "Device serial: ${SERIAL} (wpt-${SERIAL}.local)"
 
 curl -fsSL "${RAW_URL}/docker-compose.yml" -o docker-compose.yml
 curl -fsSL "${RAW_URL}/docker/nginx/templates/wpt.conf.template" -o docker/nginx/templates/wpt.conf.template
@@ -184,6 +201,12 @@ ok "TLS assets ready in ${INSTALL_DIR}/certs (auto-detected NICs)."
 # boot and every 15 min. If the cert SAN drifts (customer changes LAN,
 # DHCP renews with a new IP, a NIC is added), the unit regenerates the
 # server cert and restarts nginx. Zero operator intervention.
+# /etc/default/wpt-iot carries INSTALL_DIR so the unit works with custom
+# install paths without editing the unit file.
+cat > /etc/default/wpt-iot <<DEFEOF
+INSTALL_DIR=${INSTALL_DIR}
+DEFEOF
+chmod 644 /etc/default/wpt-iot
 curl -fsSL "${RAW_URL}/scripts/wpt-tls-refresh.service" -o /etc/systemd/system/wpt-tls-refresh.service
 curl -fsSL "${RAW_URL}/scripts/wpt-tls-refresh.timer" -o /etc/systemd/system/wpt-tls-refresh.timer
 systemctl daemon-reload
