@@ -1,8 +1,19 @@
+# Single-file production+dev stack. Ship as-is on Linux (bench / customer edge).
+# Windows/macOS dev runs backend locally (host networking is Linux-only) and
+# only the db service here.
+#
+# Merged in Phase 37.3: former docker-compose.host.yml, docker-compose.https.yml,
+# docker-compose.prod.yml are deleted. network_mode: host on backend is the
+# default — PLC UDP requires it and there is no bench/prod scenario where
+# bridge networking is correct.
+
 services:
   db:
     image: timescale/timescaledb:latest-pg17
+    # Loopback-only binding. Backend reaches the DB via 127.0.0.1 because
+    # it runs on the host network; nothing on the LAN should touch pg.
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     environment:
       POSTGRES_DB: wpt
       POSTGRES_USER: wpt
@@ -22,9 +33,17 @@ services:
         max-size: "10m"
         max-file: "3"
 
+  # TEMPORARY — the local Mosquitto broker is present for the internal
+  # pub/sub bus while the cloud uplink via Sparkplug B is not yet the
+  # shipping path. In production with the remote MQTT broker over GSM the
+  # local broker is removed entirely. Do not build new features that assume
+  # a local broker exists.
   mosquitto:
     image: eclipse-mosquitto:2
     container_name: mosquitto
+    # Exposed on all interfaces for external MQTT test clients (mqtt-explorer,
+    # Sparkplug B listener on laptops). Production ships without this service
+    # entirely — cloud uplink replaces the local broker.
     ports:
       - "1883:1883"
       - "9001:9001"
@@ -45,37 +64,22 @@ services:
         max-size: "10m"
         max-file: "3"
 
-  # =====================================================================
-  # ⚠ UDP NETWORKING WARNING — READ BEFORE DEPLOYING WITH A REAL PLC ⚠
-  # =====================================================================
-  # This base compose uses Docker bridge networking + explicit UDP port
-  # mappings (9090-9093/udp). That WILL silently drop inbound packets
-  # from a real ABB AC500 PLC.
-  #
-  # For ANY deployment attached to a real PLC, layer the host override:
-  #   docker compose -f docker-compose.yml -f docker-compose.host.yml up -d
-  #
-  # docker-compose.host.yml applies network_mode: host and clears ports,
-  # which is the only configuration that lets PLC UDP frames reach the
-  # listener sockets. Do not "simplify" this requirement away.
-  # =====================================================================
+  # backend runs on the host network so PLC UDP frames (9090-9093) reach the
+  # listener sockets. Bridge networking silently drops them. Host mode also
+  # means Docker DNS doesn't resolve service names — the backend uses
+  # 127.0.0.1 for db and mosquitto (both are bound to loopback above).
   backend:
     build:
       context: .
       dockerfile: apps/backend/Dockerfile
-    ports:
-      - "3000:3000"
-      - "9090:9090/udp"
-      - "9091:9091/udp"
-      - "9092:9092/udp"
-      - "9093:9093/udp"
+    network_mode: host
     depends_on:
       db:
         condition: service_healthy
       mosquitto:
         condition: service_healthy
     environment:
-      PG_HOST: db
+      PG_HOST: 127.0.0.1
       PG_PORT: 5432
       PG_DB: wpt
       PG_USERNAME: wpt
@@ -93,12 +97,11 @@ services:
       SIM_ACK_PORT: 9093
       SIM_DATA_PORT: 9090
       SIM_USERS_PORT: 9092
-      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3001}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
       SESSION_SECRET: ${SESSION_SECRET:-dev-only-session-secret-minimum-32-chars!!}
-      SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-false}
-      TRUST_PROXY: ${TRUST_PROXY:-false}
-      MQTT_HOST: ${MQTT_HOST:-mosquitto}
+      SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-true}
+      TRUST_PROXY: ${TRUST_PROXY:-true}
+      MQTT_HOST: ${MQTT_HOST:-127.0.0.1}
       MQTT_PORT: ${MQTT_PORT:-1883}
       MQTT_USERNAME: ${MQTT_USERNAME:-wpt-backend}
       MQTT_PASSWORD: ${MQTT_PASSWORD:-wpt_mqtt_dev_password}
@@ -133,8 +136,7 @@ services:
         # or change LAN IP without rebuild. Override only for the rare case
         # where the backend lives on a different origin than the frontend.
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-}
-    ports:
-      - "3001:3001"
+    # No external port binding — nginx below proxies the frontend on 443.
     depends_on:
       backend:
         condition: service_healthy
@@ -146,6 +148,45 @@ services:
       timeout: 3s
       retries: 5
       start_period: 10s
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # TLS terminator + same-origin router. All browser traffic lands here;
+  # /api/* and /uploads/* go to the backend (on the host network via
+  # host.docker.internal), everything else to the frontend.
+  nginx:
+    image: nginx:1.28.3-alpine
+    depends_on:
+      backend:
+        condition: service_healthy
+      frontend:
+        condition: service_healthy
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOLLAR: "$"
+      FRONTEND_SERVER_NAME: ${WPT_FRONTEND_HOST:-wpt.local}
+      FRONTEND_UPSTREAM: frontend:3001
+      BACKEND_UPSTREAM: host.docker.internal:${PORT:-3000}
+      TLS_CERT_PATH: /etc/nginx/certs/server.crt
+      TLS_KEY_PATH: /etc/nginx/certs/server.key
+      NGINX_ENTRYPOINT_QUIET_LOGS: "1"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./docker/nginx/templates:/etc/nginx/templates:ro
+      - ${WPT_TLS_CERT_DIR:-./certs}:/etc/nginx/certs:ro
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1/nginx-health || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
     restart: unless-stopped
     logging:
       driver: json-file
