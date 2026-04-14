@@ -18,6 +18,9 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 
+// Phase 37-03 (D-10, D-11): the 4 legacy publish_* stream toggles were removed
+// from the API + DB. Sparkplug B is now the sole outbound cloud uplink; siteId
+// and machineId survive only as the Local command namespace (D-09).
 interface MqttConfig {
   enabled: boolean;
   brokerHost: string;
@@ -26,10 +29,6 @@ interface MqttConfig {
   passwordSet: boolean;
   siteId: string;
   machineId: string;
-  publishMachine: boolean;
-  publishAlarms: boolean;
-  publishRfid: boolean;
-  publishJobs: boolean;
   useTls: boolean;
   caCert: string | null;
   sparkplugGroupId: string;
@@ -58,10 +57,6 @@ export function MqttConfigForm({ config, onSaved }: MqttConfigFormProps) {
   const [password, setPassword] = useState('');
   const [siteId, setSiteId] = useState(config.siteId);
   const [machineId, setMachineId] = useState(config.machineId);
-  const [publishMachine, setPublishMachine] = useState(config.publishMachine);
-  const [publishAlarms, setPublishAlarms] = useState(config.publishAlarms);
-  const [publishRfid, setPublishRfid] = useState(config.publishRfid);
-  const [publishJobs, setPublishJobs] = useState(config.publishJobs);
   const [useTls, setUseTls] = useState(config.useTls);
   const [caCert, setCaCert] = useState(config.caCert ?? '');
   const [sparkplugGroupId, setSparkplugGroupId] = useState(config.sparkplugGroupId);
@@ -79,10 +74,6 @@ export function MqttConfigForm({ config, onSaved }: MqttConfigFormProps) {
     setPassword('');
     setSiteId(next.siteId);
     setMachineId(next.machineId);
-    setPublishMachine(next.publishMachine);
-    setPublishAlarms(next.publishAlarms);
-    setPublishRfid(next.publishRfid);
-    setPublishJobs(next.publishJobs);
     setUseTls(next.useTls);
     setCaCert(next.caCert ?? '');
     setSparkplugGroupId(next.sparkplugGroupId);
@@ -102,10 +93,6 @@ export function MqttConfigForm({ config, onSaved }: MqttConfigFormProps) {
     setUsername(draft.username);
     setSiteId(draft.siteId);
     setMachineId(draft.machineId);
-    setPublishMachine(draft.publishMachine);
-    setPublishAlarms(draft.publishAlarms);
-    setPublishRfid(draft.publishRfid);
-    setPublishJobs(draft.publishJobs);
     setUseTls(draft.useTls);
     setCaCert(draft.caCert ?? '');
     if ('sparkplugGroupId' in draft) setSparkplugGroupId((draft as MqttConfig).sparkplugGroupId);
@@ -128,10 +115,6 @@ export function MqttConfigForm({ config, onSaved }: MqttConfigFormProps) {
       username !== config.username ||
       siteId !== config.siteId ||
       machineId !== config.machineId ||
-      publishMachine !== config.publishMachine ||
-      publishAlarms !== config.publishAlarms ||
-      publishRfid !== config.publishRfid ||
-      publishJobs !== config.publishJobs ||
       useTls !== config.useTls ||
       caCert !== (config.caCert ?? '') ||
       sparkplugGroupId !== config.sparkplugGroupId ||
@@ -151,10 +134,6 @@ export function MqttConfigForm({ config, onSaved }: MqttConfigFormProps) {
       username,
       siteId,
       machineId,
-      publishMachine,
-      publishAlarms,
-      publishRfid,
-      publishJobs,
       useTls,
       caCert: caCert || null,
       sparkplugGroupId,
@@ -171,10 +150,6 @@ export function MqttConfigForm({ config, onSaved }: MqttConfigFormProps) {
     username,
     siteId,
     machineId,
-    publishMachine,
-    publishAlarms,
-    publishRfid,
-    publishJobs,
     useTls,
     sparkplugGroupId,
     sparkplugEdgeNodeId,
@@ -192,10 +167,6 @@ export function MqttConfigForm({ config, onSaved }: MqttConfigFormProps) {
         username,
         siteId,
         machineId,
-        publishMachine,
-        publishAlarms,
-        publishRfid,
-        publishJobs,
         useTls,
         caCert: caCert || null,
         sparkplugGroupId,
@@ -223,7 +194,7 @@ export function MqttConfigForm({ config, onSaved }: MqttConfigFormProps) {
     } finally {
       setSaving(false);
     }
-  }, [enabled, brokerHost, brokerPort, username, password, siteId, machineId, publishMachine, publishAlarms, publishRfid, publishJobs, useTls, caCert, sparkplugGroupId, sparkplugEdgeNodeId, publishCycleRecords, telemetryIntervalSeconds, onSaved, t, tCommon]);
+  }, [enabled, brokerHost, brokerPort, username, password, siteId, machineId, useTls, caCert, sparkplugGroupId, sparkplugEdgeNodeId, publishCycleRecords, telemetryIntervalSeconds, onSaved, t, tCommon]);
 
   return (
     <Card>
@@ -231,7 +202,7 @@ export function MqttConfigForm({ config, onSaved }: MqttConfigFormProps) {
         <CardTitle>{t('config.title')}</CardTitle>
       </CardHeader>
       <CardContent className="grid gap-6">
-        {/* Enable/Disable */}
+        {/* Enable/Disable — top-level */}
         <div className="flex items-center justify-between">
           <Label htmlFor="mqtt-enabled">{t('config.enabled')}</Label>
           <Switch
@@ -241,167 +212,8 @@ export function MqttConfigForm({ config, onSaved }: MqttConfigFormProps) {
           />
         </div>
 
-        {/* Broker Host + Port */}
-        <div className="grid gap-3 sm:grid-cols-3">
-          <div className="grid gap-2 sm:col-span-2">
-            <Label htmlFor="mqtt-broker-host">{t('config.brokerHost')}</Label>
-            <Input
-              id="mqtt-broker-host"
-              value={brokerHost}
-              onChange={(e) => setBrokerHost(e.target.value)}
-              placeholder="mosquitto"
-            />
-          </div>
-          <div className="grid gap-2">
-            <Label htmlFor="mqtt-broker-port">{t('config.brokerPort')}</Label>
-            <Input
-              id="mqtt-broker-port"
-              type="number"
-              value={brokerPort}
-              onChange={(e) => setBrokerPort(Number(e.target.value))}
-              min={1}
-              max={65535}
-            />
-          </div>
-        </div>
-
-        {/* Broker credentials */}
-        <div className="grid gap-2">
-          <Label htmlFor="mqtt-username">{t('config.username')}</Label>
-          <Input
-            id="mqtt-username"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            placeholder="wpt-backend"
-            autoComplete="off"
-          />
-        </div>
-
-        <div className="grid gap-2">
-          <Label htmlFor="mqtt-password">{t('config.password')}</Label>
-          <Input
-            id="mqtt-password"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder={
-              config.passwordSet
-                ? t('config.passwordKeepCurrent')
-                : t('config.passwordRequired')
-            }
-            autoComplete="new-password"
-          />
-          <p className="text-xs text-muted-foreground">
-            {config.passwordSet
-              ? t('config.passwordHelpKeepCurrent')
-              : t('config.passwordHelpRequired')}
-          </p>
-        </div>
-
-        {/* Site ID */}
-        <div className="grid gap-2">
-          <Label htmlFor="mqtt-site-id">{t('config.siteId')}</Label>
-          <Input
-            id="mqtt-site-id"
-            value={siteId}
-            onChange={(e) => setSiteId(e.target.value)}
-          />
-        </div>
-
-        {/* Machine ID */}
-        <div className="grid gap-2">
-          <Label htmlFor="mqtt-machine-id">{t('config.machineId')}</Label>
-          <Input
-            id="mqtt-machine-id"
-            value={machineId}
-            onChange={(e) => setMachineId(e.target.value)}
-          />
-        </div>
-
-        {/* Publish Streams */}
-        <div className="grid gap-4">
-          <Label className="text-sm font-medium">{t('config.publishStreams')}</Label>
-
-          <div className="flex items-center justify-between">
-            <Label htmlFor="mqtt-publish-machine" className="font-normal">
-              {t('config.publishMachine')}
-            </Label>
-            <Switch
-              id="mqtt-publish-machine"
-              checked={publishMachine}
-              onCheckedChange={setPublishMachine}
-            />
-          </div>
-
-          <div className="flex items-center justify-between">
-            <Label htmlFor="mqtt-publish-alarms" className="font-normal">
-              {t('config.publishAlarms')}
-            </Label>
-            <Switch
-              id="mqtt-publish-alarms"
-              checked={publishAlarms}
-              onCheckedChange={setPublishAlarms}
-            />
-          </div>
-
-          <div className="flex items-center justify-between">
-            <Label htmlFor="mqtt-publish-rfid" className="font-normal">
-              {t('config.publishRfid')}
-            </Label>
-            <Switch
-              id="mqtt-publish-rfid"
-              checked={publishRfid}
-              onCheckedChange={setPublishRfid}
-            />
-          </div>
-
-          <div className="flex items-center justify-between">
-            <Label htmlFor="mqtt-publish-jobs" className="font-normal">
-              {t('config.publishJobs')}
-            </Label>
-            <Switch
-              id="mqtt-publish-jobs"
-              checked={publishJobs}
-              onCheckedChange={setPublishJobs}
-            />
-          </div>
-        </div>
-
-        {/* Security / TLS */}
-        <div className="grid gap-4">
-          <Label className="text-sm font-medium">{t('config.securityTitle')}</Label>
-
-          <div className="flex items-center justify-between">
-            <Label htmlFor="mqtt-use-tls" className="font-normal">
-              {t('config.useTls')}
-            </Label>
-            <Switch
-              id="mqtt-use-tls"
-              checked={useTls}
-              onCheckedChange={setUseTls}
-            />
-          </div>
-
-          {useTls ? (
-            <div className="grid gap-2">
-              <Label htmlFor="mqtt-ca-cert">{t('config.caCert')}</Label>
-              <textarea
-                id="mqtt-ca-cert"
-                value={caCert}
-                onChange={(e) => setCaCert(e.target.value)}
-                rows={4}
-                className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                placeholder="-----BEGIN CERTIFICATE-----"
-              />
-              <p className="text-xs text-muted-foreground">
-                {t('config.caCertHelp')}
-              </p>
-            </div>
-          ) : null}
-        </div>
-
-        {/* Cloud Uplink (Sparkplug B) */}
-        <div className="grid gap-4">
+        {/* ─── Section 1: Cloud Uplink (Sparkplug B) ─── */}
+        <div className="grid gap-4 border-t pt-4">
           <Label className="text-sm font-medium">{t('config.sparkplugTitle')}</Label>
 
           <div className="grid gap-2">
@@ -448,6 +260,123 @@ export function MqttConfigForm({ config, onSaved }: MqttConfigFormProps) {
               max={3600}
             />
             <p className="text-xs text-muted-foreground">{t('config.telemetryIntervalHelp')}</p>
+          </div>
+        </div>
+
+        {/* ─── Section 2: Local broker settings ─── */}
+        <div className="grid gap-4 border-t pt-4">
+          <Label className="text-sm font-medium">{t('config.localBrokerTitle')}</Label>
+
+          {/* Broker Host + Port */}
+          <div className="grid gap-3 sm:grid-cols-3">
+            <div className="grid gap-2 sm:col-span-2">
+              <Label htmlFor="mqtt-broker-host">{t('config.brokerHost')}</Label>
+              <Input
+                id="mqtt-broker-host"
+                value={brokerHost}
+                onChange={(e) => setBrokerHost(e.target.value)}
+                placeholder="mosquitto"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="mqtt-broker-port">{t('config.brokerPort')}</Label>
+              <Input
+                id="mqtt-broker-port"
+                type="number"
+                value={brokerPort}
+                onChange={(e) => setBrokerPort(Number(e.target.value))}
+                min={1}
+                max={65535}
+              />
+            </div>
+          </div>
+
+          {/* Broker credentials */}
+          <div className="grid gap-2">
+            <Label htmlFor="mqtt-username">{t('config.username')}</Label>
+            <Input
+              id="mqtt-username"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              placeholder="wpt-backend"
+              autoComplete="off"
+            />
+          </div>
+
+          <div className="grid gap-2">
+            <Label htmlFor="mqtt-password">{t('config.password')}</Label>
+            <Input
+              id="mqtt-password"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder={
+                config.passwordSet
+                  ? t('config.passwordKeepCurrent')
+                  : t('config.passwordRequired')
+              }
+              autoComplete="new-password"
+            />
+            <p className="text-xs text-muted-foreground">
+              {config.passwordSet
+                ? t('config.passwordHelpKeepCurrent')
+                : t('config.passwordHelpRequired')}
+            </p>
+          </div>
+
+          {/* Site ID — relabeled as Local command namespace per D-09 */}
+          <div className="grid gap-2">
+            <Label htmlFor="mqtt-site-id">{t('config.siteId')}</Label>
+            <Input
+              id="mqtt-site-id"
+              value={siteId}
+              onChange={(e) => setSiteId(e.target.value)}
+            />
+            <p className="text-xs text-muted-foreground">{t('config.siteIdHelp')}</p>
+          </div>
+
+          {/* Machine ID — relabeled as Local command namespace per D-09 */}
+          <div className="grid gap-2">
+            <Label htmlFor="mqtt-machine-id">{t('config.machineId')}</Label>
+            <Input
+              id="mqtt-machine-id"
+              value={machineId}
+              onChange={(e) => setMachineId(e.target.value)}
+            />
+            <p className="text-xs text-muted-foreground">{t('config.machineIdHelp')}</p>
+          </div>
+
+          {/* Security / TLS */}
+          <div className="grid gap-4">
+            <Label className="text-sm font-medium">{t('config.securityTitle')}</Label>
+
+            <div className="flex items-center justify-between">
+              <Label htmlFor="mqtt-use-tls" className="font-normal">
+                {t('config.useTls')}
+              </Label>
+              <Switch
+                id="mqtt-use-tls"
+                checked={useTls}
+                onCheckedChange={setUseTls}
+              />
+            </div>
+
+            {useTls ? (
+              <div className="grid gap-2">
+                <Label htmlFor="mqtt-ca-cert">{t('config.caCert')}</Label>
+                <textarea
+                  id="mqtt-ca-cert"
+                  value={caCert}
+                  onChange={(e) => setCaCert(e.target.value)}
+                  rows={4}
+                  className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  placeholder="-----BEGIN CERTIFICATE-----"
+                />
+                <p className="text-xs text-muted-foreground">
+                  {t('config.caCertHelp')}
+                </p>
+              </div>
+            ) : null}
           </div>
         </div>
 
