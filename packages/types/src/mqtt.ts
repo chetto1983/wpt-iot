@@ -47,10 +47,6 @@ export interface IMqttConfig {
   password: string;
   siteId: string;
   machineId: string;
-  publishMachine: boolean;
-  publishAlarms: boolean;
-  publishRfid: boolean;
-  publishJobs: boolean;
   useTls: boolean;
   caCert: string | null;
   sparkplugGroupId: string;

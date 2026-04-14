@@ -95,19 +95,19 @@ export const mqttRoutes: FastifyPluginAsync = async (server) => {
       password: z.string().max(255).optional(),
       siteId: z.string().min(1).max(100).optional(),
       machineId: z.string().min(1).max(100).optional(),
-      publishMachine: z.boolean().optional(),
-      publishAlarms: z.boolean().optional(),
-      publishRfid: z.boolean().optional(),
-      publishJobs: z.boolean().optional(),
       useTls: z.boolean().optional(),
       caCert: z.string().max(10000).nullable().optional(),
       sparkplugGroupId: z.string().min(1).max(255).optional(),
       sparkplugEdgeNodeId: z.string().min(1).max(255).optional(),
       publishCycleRecords: z.boolean().optional(),
       telemetryIntervalSeconds: z.int().min(5).max(3600).optional(),
-    }).safeParse(request.body);
+    }).strict().safeParse(request.body);
 
     if (!result.success) {
+      // Phase 37 D-12: .strict() surfaces unknown keys (legacy publish_* stream
+      // toggles from stale clients) as Zod 'unrecognized_keys' issues. Passing them
+      // through result.error.issues ensures the field name is visible in the 400
+      // response so stale clients fail loudly rather than drift.
       return reply.code(400).send({ error: 'Invalid config', details: result.error.issues });
     }
 
