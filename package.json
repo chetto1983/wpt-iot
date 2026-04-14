@@ -24,7 +24,10 @@
   "pnpm": {
     "onlyBuiltDependencies": [
       "sharp"
-    ]
+    ],
+    "overrides": {
+      "vite": ">=7.3.2"
+    }
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
@@ -36,8 +39,5 @@
     "knip": "^6.4.1",
     "madge": "^8.0.0",
     "typescript-eslint": "^8.58.0"
-  },
-  "dependencies": {
-    "puppeteer-core": "^24.40.0"
   }
 }
