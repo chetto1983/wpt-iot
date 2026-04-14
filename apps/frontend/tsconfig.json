@@ -2,8 +2,8 @@
   "compilerOptions": {
     "target": "ES2017",
     "lib": [
-      "dom",
-      "dom.iterable",
+      "DOM",
+      "DOM.Iterable",
       "ES2017"
     ],
     "allowJs": true,

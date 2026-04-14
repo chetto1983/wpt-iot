@@ -1,7 +1,7 @@
 {
   "extends": "./tsconfig.json",
   "compilerOptions": {
-    "lib": ["webworker", "webworker.iterable", "ES2017"],
+    "lib": ["WebWorker", "WebWorker.Iterable", "ES2017"],
     "types": []
   },
   "include": ["src/app/sw.ts"]

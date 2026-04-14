@@ -1,0 +1,1 @@
+{"modes":{},"config":{"minWarmSamples":30,"minReliableSamples":200,"warningThreshold":2.5,"criticalThreshold":3.5,"baseRate":0.08,"varianceDecayFactor":0.999,"adaptiveRate":true,"quarantineMultiplier":1.5,"maxFeatureZScore":25,"topK":5,"modeChangeGraceMs":30000,"cusumK":0.5,"cusumH":4,"persistenceN":3,"persistenceM":5},"startedAt":null,"totalObservations":0,"totalFlagged":0}

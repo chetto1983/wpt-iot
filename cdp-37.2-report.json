@@ -1,0 +1,55 @@
+{
+  "passed": 8,
+  "failed": 1,
+  "results": [
+    {
+      "name": "SW registered and activated",
+      "pass": true,
+      "detail": "scope=http://localhost:3001/ state=activated"
+    },
+    {
+      "name": "sw.js served with no-cache, no-store, must-revalidate",
+      "pass": true,
+      "detail": "no-cache, no-store, must-revalidate"
+    },
+    {
+      "name": "page is controlled by SW (controller.scriptURL ends /sw.js)",
+      "pass": true,
+      "detail": "http://localhost:3001/sw.js"
+    },
+    {
+      "name": "cache storage contains Serwist runtime caches",
+      "pass": true,
+      "detail": "caches=[\"pages\",\"serwist-precache-v2-http://localhost:3001/\",\"static-js-assets\",\"others\",\"next-image-cache\",\"rsc-cache\"]"
+    },
+    {
+      "name": "at least one /_next/static/*.js entry in next-static-js cache",
+      "pass": false,
+      "detail": "no static JS entries"
+    },
+    {
+      "name": "no /api/auth/* URL appears in any cache",
+      "pass": true,
+      "detail": "no auth leaks"
+    },
+    {
+      "name": "POST /api/auth/login is not cached (NetworkOnly)",
+      "pass": true,
+      "detail": "no POST leak"
+    },
+    {
+      "name": "navigation to unvisited route while offline serves app /offline page",
+      "pass": true,
+      "detail": "url=/never-visited-1776193598156 body=\"Sei offline La shell dell'app e' disponibile, ma i dati live...\""
+    },
+    {
+      "name": "clear next-static-js cache and navigate -- no ChunkLoadError",
+      "pass": true,
+      "detail": "cleared=[\"pages\",\"next-static-js\"] total_errors=2"
+    }
+  ],
+  "consoleErrors": [
+    "console: Failed to load resource: the server responded with a status of 404 (Not Found)",
+    "console: Failed to load resource: the server responded with a status of 404 (Not Found)"
+  ]
+}
