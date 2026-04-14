@@ -27,7 +27,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 
 import { UserDialog } from '@/components/user-dialog';
-import { DeleteDialog } from '@/components/delete-dialog';
+import { DeleteDialog } from '@/components/shared/delete-dialog';
 import { PasswordDialog } from '@/components/password-dialog';
 
 interface UserRow {

@@ -9,7 +9,7 @@ import { apiFetch } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { PasswordInput } from '@/components/password-input';
+import { PasswordInput } from '@/components/shared/password-input';
 import {
   Dialog,
   DialogContent,

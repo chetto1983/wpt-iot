@@ -6,7 +6,7 @@ import type { ChartType, IPanel, IPanelConfig } from '@wpt/types';
 import { getFieldLabel } from '@wpt/types';
 import { useAuth } from '@/lib/auth-context';
 import { fieldsShareUnit } from '@/lib/field-units';
-import { FieldSelector, getChartableFields } from '@/components/field-selector';
+import { FieldSelector, getChartableFields } from '@/components/shared/field-selector';
 import { AlertTriangle } from 'lucide-react';
 import {
   Dialog,

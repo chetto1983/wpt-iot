@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { DateRangePicker } from '@/components/date-range-picker';
+import { DateRangePicker } from '@/components/shared/date-range-picker';
 import {
   Tooltip,
   TooltipContent,

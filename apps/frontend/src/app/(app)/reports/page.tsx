@@ -23,8 +23,8 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { ReportFilters } from '@/components/report-filters';
-import { FieldSelector, REPORT_FIELD_CATEGORIES } from '@/components/field-selector';
+import { ReportFilters } from '@/components/shared/report-filters';
+import { FieldSelector, REPORT_FIELD_CATEGORIES } from '@/components/shared/field-selector';
 import { buildDateTimeISO } from '@/lib/date-utils';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || '';

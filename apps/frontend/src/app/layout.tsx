@@ -3,7 +3,7 @@ import { NextIntlClientProvider } from 'next-intl';
 import { getLocale, getMessages } from 'next-intl/server';
 import { NuqsAdapter } from 'nuqs/adapters/next/app';
 import { AuthProvider } from '@/lib/auth-context';
-import { ThemeProvider } from '@/components/theme-provider';
+import { ThemeProvider } from '@/components/shared/theme-provider';
 import { PwaManager } from '@/components/pwa/pwa-manager';
 import { Toaster } from '@/components/ui/sonner';
 import './globals.css';

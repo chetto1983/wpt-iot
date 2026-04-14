@@ -27,8 +27,8 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { TimeRangePicker } from '@/components/time-range-picker';
-import { FieldSelector, getChartableFields } from '@/components/field-selector';
+import { TimeRangePicker } from '@/components/shared/time-range-picker';
+import { FieldSelector, getChartableFields } from '@/components/shared/field-selector';
 
 interface IChartResponse {
   resolution: 'raw' | '5min' | '1h';

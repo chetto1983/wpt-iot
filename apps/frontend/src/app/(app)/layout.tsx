@@ -7,7 +7,7 @@ import { Loader2 } from 'lucide-react';
 import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
 import { AppSidebar } from '@/components/app-sidebar';
 import { WebSocketProvider } from '@/lib/ws-context';
-import { AppHeader } from '@/components/app-header';
+import { AppHeader } from '@/components/shared/app-header';
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();

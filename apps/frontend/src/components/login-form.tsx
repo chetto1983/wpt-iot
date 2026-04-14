@@ -9,7 +9,7 @@ import Image from 'next/image';
 import { useAuth } from '@/lib/auth-context';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { PasswordInput } from '@/components/password-input';
+import { PasswordInput } from '@/components/shared/password-input';
 import { Label } from '@/components/ui/label';
 import {
   Card,

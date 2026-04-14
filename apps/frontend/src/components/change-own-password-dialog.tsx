@@ -15,7 +15,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { PasswordInput } from '@/components/password-input';
+import { PasswordInput } from '@/components/shared/password-input';
 
 interface ChangeOwnPasswordDialogProps {
   open: boolean;

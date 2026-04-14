@@ -9,8 +9,8 @@ import { Wifi, WifiOff } from 'lucide-react';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import { ModeToggle } from '@/components/mode-toggle';
-import { LanguageSelector } from '@/components/language-selector';
+import { ModeToggle } from '@/components/shared/mode-toggle';
+import { LanguageSelector } from '@/components/shared/language-selector';
 import { cn } from '@/lib/utils';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || '';

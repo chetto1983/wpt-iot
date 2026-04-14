@@ -3,7 +3,7 @@
 import { useTranslations } from 'next-intl';
 import { Plus, Save, Lock, Unlock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { TimeRangePicker } from '@/components/time-range-picker';
+import { TimeRangePicker } from '@/components/shared/time-range-picker';
 
 interface DashboardToolbarProps {
   dashboardName: string;

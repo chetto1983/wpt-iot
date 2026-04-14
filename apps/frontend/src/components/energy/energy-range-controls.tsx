@@ -6,7 +6,7 @@ import { useTranslations } from 'next-intl';
 import { computePresetRange } from '@/lib/chart-colors';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { TimeRangePicker } from '@/components/time-range-picker';
+import { TimeRangePicker } from '@/components/shared/time-range-picker';
 
 interface EnergyRangeControlsProps {
   from: Date;
