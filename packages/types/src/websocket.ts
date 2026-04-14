@@ -17,3 +17,9 @@ export interface IActiveAlarm {
   descriptionEn: string;
   activatedAt: string; // ISO 8601
 }
+
+/** PLC liveness signal pushed on state transitions and on client connect */
+export interface IPlcStatus {
+  connected: boolean;
+  lastPacketAt: string | null; // ISO 8601 or null
+}

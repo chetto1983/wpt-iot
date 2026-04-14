@@ -1,7 +1,7 @@
 import { WebSocket } from 'ws';
 import { eq } from 'drizzle-orm';
 import { WsMessageType } from '@wpt/types';
-import type { IActiveAlarm, UserRole, IMachineSnapshot } from '@wpt/types';
+import type { IActiveAlarm, IPlcStatus, UserRole, IMachineSnapshot } from '@wpt/types';
 import { dataHub } from '../events/hub.js';
 import type { IAlarmTransition } from '../events/types.js';
 import { DATA_EVENTS } from '../events/types.js';
@@ -20,6 +20,11 @@ const clients = new Set<IWsClient>();
 const activeAlarms = new Map<number, IActiveAlarm>();
 let sessionCheckInterval: NodeJS.Timeout | null = null;
 let log: ILogger;
+
+// PLC liveness: fresh-data threshold must exceed the 5-15s machine packet cadence
+const STALE_MS = 20_000;
+let plcConnected: boolean = false;
+let plcStatusInterval: NodeJS.Timeout | null = null;
 
 /** Send data to a WebSocket client, removing on failure */
 function safeSend(socket: WebSocket, data: unknown): void {
@@ -49,8 +54,42 @@ function buildActiveAlarm(alarmIndex: number, timestamp: Date): IActiveAlarm {
   };
 }
 
+/** Compute whether the PLC is currently live (last packet within STALE_MS) */
+function computePlcConnected(): boolean {
+  const ts = latestState.getLastMachineTimestamp();
+  if (!ts) return false;
+  return Date.now() - ts.getTime() < STALE_MS;
+}
+
+/** Build PLC_STATUS envelope */
+function buildPlcStatusEnvelope(): { type: WsMessageType; payload: IPlcStatus; timestamp: string } {
+  return {
+    type: WsMessageType.PLC_STATUS,
+    payload: {
+      connected: plcConnected,
+      lastPacketAt: latestState.getLastMachineTimestamp()?.toISOString() ?? null,
+    },
+    timestamp: new Date().toISOString(),
+  };
+}
+
+/** Send current PLC_STATUS to all connected clients */
+function broadcastPlcStatus(): void {
+  const envelope = buildPlcStatusEnvelope();
+  for (const client of clients) {
+    safeSend(client.socket, envelope);
+  }
+}
+
 /** Handle machine data events: push role-filtered snapshots to all clients */
 function onMachineData(snapshot: IMachineSnapshot, timestamp: Date): void {
+  // Fast-path: first packet after being offline — flip immediately without waiting for the 2s poll
+  if (!plcConnected) {
+    plcConnected = true;
+    log.info({ name: 'WsBroadcaster', plcConnected }, 'PLC status changed');
+    broadcastPlcStatus();
+  }
+
   const anomalyState = machineAnomalyService.getLatest();
 
   for (const client of clients) {
@@ -177,6 +216,16 @@ export async function initBroadcaster(logger: ILogger): Promise<void> {
     void checkSessionExpiry();
   }, 300_000);
 
+  // PLC liveness poll: broadcast only on state transitions
+  plcStatusInterval = setInterval(() => {
+    const current = computePlcConnected();
+    if (current !== plcConnected) {
+      plcConnected = current;
+      log.info({ name: 'WsBroadcaster', plcConnected }, 'PLC status changed');
+      broadcastPlcStatus();
+    }
+  }, 2_000);
+
   log.info(
     { name: 'WsBroadcaster', activeAlarms: activeAlarms.size, clients: clients.size },
     'WebSocket broadcaster initialized',
@@ -214,6 +263,9 @@ export function addClient(socket: WebSocket, role: UserRole, sessionId: string):
     timestamp: new Date().toISOString(),
   });
 
+  // Push current PLC liveness to new client (D-01 parity)
+  safeSend(socket, buildPlcStatusEnvelope());
+
   log.info(
     { name: 'WsBroadcaster', sessionId, role, clients: clients.size },
     'Client connected',
@@ -244,6 +296,11 @@ export function shutdownBroadcaster(): void {
     clearInterval(sessionCheckInterval);
     sessionCheckInterval = null;
   }
+  if (plcStatusInterval) {
+    clearInterval(plcStatusInterval);
+    plcStatusInterval = null;
+  }
+  plcConnected = false;
   for (const client of clients) {
     clearInterval(client.heartbeatTimer);
     if (client.pongTimeout) {
