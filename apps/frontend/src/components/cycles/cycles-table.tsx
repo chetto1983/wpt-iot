@@ -60,15 +60,19 @@ function getStatusBadgeClasses(status: string): string {
   }
 }
 
-function formatStatusLabel(status: string): string {
+function formatStatusLabel(
+  status: string,
+  t: ReturnType<typeof useTranslations>,
+): string {
   switch (status?.toUpperCase()) {
     case 'OK':
+      return t('status.OK');
     case 'COMPLETED':
-      return 'OK';
+      return t('status.COMPLETED');
     case 'FAILED':
-      return 'FAILED';
+      return t('status.FAILED');
     case 'ABORTED':
-      return 'ABORTED';
+      return t('status.ABORTED');
     default:
       return status || '—';
   }
@@ -104,7 +108,7 @@ export function CyclesTable({
   ];
 
   const visibleColumns = columns.filter(
-    (col) => viewMode === 'detail' || !col.registerOnly
+    (col) => viewMode === 'detail' || !col.registerOnly,
   );
 
   function handleSort(columnKey: string) {
@@ -137,7 +141,7 @@ export function CyclesTable({
       case 'operator':
         return cycle.operator || '—';
       case 'cycleStatusLabel':
-        return formatStatusLabel(cycle.cycleStatusLabel);
+        return formatStatusLabel(cycle.cycleStatusLabel, t);
       default: {
         const value = (cycle as unknown as Record<string, unknown>)[column.key];
         if (value == null) return '—';
@@ -150,7 +154,7 @@ export function CyclesTable({
 
   function renderStatusBadge(cycle: ICycleRecordResponse) {
     const status = cycle.cycleStatusLabel?.toUpperCase() || '';
-    const displayLabel = formatStatusLabel(cycle.cycleStatusLabel);
+    const displayLabel = formatStatusLabel(cycle.cycleStatusLabel, t);
     const badgeClasses = getStatusBadgeClasses(status);
 
     return (
@@ -166,15 +170,13 @@ export function CyclesTable({
 
   if (isLoading) {
     return (
-      <div className="rounded-lg border overflow-hidden">
+      <div className="overflow-hidden rounded-lg border">
         <div className="space-y-0">
-          {/* Header skeleton */}
           <div className="flex items-center gap-4 border-b bg-muted/50 px-4 py-3">
             {visibleColumns.map((_, i) => (
               <Skeleton key={i} className="h-4 flex-1" />
             ))}
           </div>
-          {/* Body skeleton */}
           {Array.from({ length: 5 }).map((_, rowIdx) => (
             <div key={rowIdx} className="flex items-center gap-4 border-b px-4 py-3 last:border-b-0">
               {visibleColumns.map((_, colIdx) => (
@@ -189,10 +191,10 @@ export function CyclesTable({
 
   if (!cycles || cycles.length === 0) {
     return (
-      <div className="rounded-lg border overflow-hidden">
+      <div className="overflow-hidden rounded-lg border">
         <div className="flex flex-col items-center justify-center py-12 text-center">
           <p className="text-sm font-medium text-muted-foreground">{t('empty')}</p>
-          <p className="text-xs text-muted-foreground/60 mt-1">{t('emptyDescription')}</p>
+          <p className="mt-1 text-xs text-muted-foreground/60">{t('emptyDescription')}</p>
         </div>
       </div>
     );
@@ -205,7 +207,7 @@ export function CyclesTable({
 
   return (
     <div className="space-y-4">
-      <div className="rounded-lg border overflow-hidden">
+      <div className="overflow-hidden rounded-lg border">
         <Table>
           <TableHeader>
             <TableRow className="bg-muted/50 hover:bg-muted/50">
@@ -213,8 +215,8 @@ export function CyclesTable({
                 <TableHead
                   key={column.key}
                   className={cn(
-                    'text-xs uppercase tracking-wider text-muted-foreground/60 px-4 py-3',
-                    column.sortable && 'cursor-pointer select-none'
+                    'cursor-pointer select-none px-4 py-3 text-xs uppercase tracking-wider text-muted-foreground/60',
+                    !column.sortable && 'cursor-default',
                   )}
                   onClick={() => column.sortable && handleSort(column.key)}
                 >
@@ -240,7 +242,7 @@ export function CyclesTable({
                 key={cycle.cycleNumber}
                 className={cn(
                   'min-h-11 hover:bg-muted/40',
-                  index % 2 === 1 && 'bg-muted/20'
+                  index % 2 === 1 && 'bg-muted/20',
                 )}
               >
                 {visibleColumns.map((column) => (
@@ -256,7 +258,6 @@ export function CyclesTable({
         </Table>
       </div>
 
-      {/* Pagination */}
       {pagination && pagination.totalPages > 1 && onPageChange && (
         <div className="flex items-center justify-between">
           <p className="text-xs text-muted-foreground">
@@ -277,7 +278,6 @@ export function CyclesTable({
                 />
               </PaginationItem>
 
-              {/* Page numbers */}
               {Array.from({ length: Math.min(5, pagination.totalPages) }, (_, i) => {
                 let pageNum: number;
                 if (pagination.totalPages <= 5) {

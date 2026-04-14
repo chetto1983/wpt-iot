@@ -41,9 +41,19 @@
     },
     "avatar": {
       "title": "Avatar",
+      "subtitle": "Ritaglia e centra l'immagine prima di salvarla.",
       "choosePhoto": "Scegli foto",
+      "replacePhoto": "Sostituisci foto",
       "remove": "Rimuovi",
       "zoom": "Zoom",
+      "zoomIn": "Aumenta zoom",
+      "zoomOut": "Riduci zoom",
+      "resetZoom": "Reimposta zoom",
+      "adjustTitle": "Regola inquadratura",
+      "adjustHint": "Usa zoom e trascinamento per centrare il volto nel ritaglio circolare.",
+      "preview": "Anteprima",
+      "previewHint": "L'avatar verra salvato in formato quadrato con ritaglio rotondo.",
+      "emptyHint": "Carica un file JPG o PNG e prepara l'immagine nel ritaglio.",
       "changeAvatar": "Cambia avatar",
       "uploadSuccess": "Avatar aggiornato",
       "removeSuccess": "Avatar rimosso"
@@ -766,8 +776,21 @@
   },
   "mqtt": {
     "title": "Gateway MQTT",
+    "subtitle": "Controlla uplink cloud Sparkplug B, broker locale, utenti operativi e attivita' recenti da una console unica.",
+    "hero": {
+      "kicker": "Control Bus",
+      "cards": {
+        "link": "Link broker",
+        "gateway": "Gateway",
+        "users": "Utenti",
+        "usersValue": "{count} account configurati",
+        "endpoint": "Endpoint broker",
+        "identity": "Identita' client"
+      }
+    },
     "status": {
       "title": "Stato Broker",
+      "subtitle": "Monitora in tempo reale connettivita', abilitazione del gateway e identita' MQTT attiva.",
       "connected": "Connesso",
       "disconnected": "Disconnesso",
       "enabled": "Gateway Abilitato",
@@ -812,6 +835,7 @@
     },
     "users": {
       "title": "Utenti MQTT",
+      "subtitle": "Gestisci ruoli operativi e credenziali dedicate al broker locale.",
       "username": "Nome Utente",
       "password": "Password",
       "role": "Ruolo",
@@ -831,10 +855,12 @@
       "deleteConfirm": "Eliminare l'utente MQTT \"{username}\"?",
       "deleteDescription": "Questo rimuovera' l'accesso dell'utente al broker MQTT. Questa azione non puo' essere annullata.",
       "noUsers": "Nessun utente MQTT configurato",
+      "cancel": "Annulla",
       "systemAccount": "Sistema"
     },
     "activityLog": {
       "title": "Log Attivita'",
+      "subtitle": "Eventi recenti del broker e del gateway aggiornati automaticamente.",
       "empty": "Nessuna attivita' registrata",
       "connect": "Connessione",
       "disconnect": "Disconnessione",
@@ -1075,6 +1101,12 @@
       "pdf": "Esporta PDF",
       "success": "Esportazione completata",
       "error": "Errore durante l'esportazione"
+    },
+    "status": {
+      "OK": "OK",
+      "COMPLETED": "Completato",
+      "FAILED": "Fallito",
+      "ABORTED": "Interrotto"
     },
     "empty": "Nessun ciclo trovato",
     "emptyDescription": "Nessun ciclo completato nel periodo selezionato",

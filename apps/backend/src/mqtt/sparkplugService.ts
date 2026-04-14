@@ -285,6 +285,7 @@ export class SparkplugService {
     });
     if (!nbirthPayload) throw new Error('Sparkplug NBIRTH encoding failed');
     await this.client.publishAsync(nbirthTopic, Buffer.from(nbirthPayload), { qos: 1, retain: false });
+    pushEvent('publish', `${nbirthTopic} (${nbirthPayload.length} B)`);
 
     // --- DBIRTH /cycle: canonical cycle metric set (§14) ---
     const cycleDbirthTopic = `spBv1.0/${cfg.sparkplugGroupId}/DBIRTH/${edgeNodeId}/cycle`;
@@ -314,6 +315,7 @@ export class SparkplugService {
     });
     if (!cycleDbirthPayload) throw new Error('Sparkplug DBIRTH(cycle) encoding failed');
     await this.client.publishAsync(cycleDbirthTopic, Buffer.from(cycleDbirthPayload), { qos: 1, retain: false });
+    pushEvent('publish', `${cycleDbirthTopic} (${cycleDbirthPayload.length} B)`);
 
     // --- DBIRTH /telemetry: V03 machine-snapshot projection (§14) ---
     // (D-03: renamed from /machine to /telemetry)
@@ -343,6 +345,7 @@ export class SparkplugService {
     });
     if (!telemetryDbirthPayload) throw new Error('Sparkplug DBIRTH(telemetry) encoding failed');
     await this.client.publishAsync(telemetryDbirthTopic, Buffer.from(telemetryDbirthPayload), { qos: 1, retain: false });
+    pushEvent('publish', `${telemetryDbirthTopic} (${telemetryDbirthPayload.length} B)`);
 
     // --- DBIRTH /alarms: bitmask-per-word layout (Phase 37 D-06) ---
     // Dynamic import keeps Drizzle out of eager graph; tests mock this path.
@@ -357,6 +360,7 @@ export class SparkplugService {
     });
     if (!alarmsDbirthPayload) throw new Error('Sparkplug DBIRTH(alarms) encoding failed');
     await this.client.publishAsync(alarmsDbirthTopic, Buffer.from(alarmsDbirthPayload), { qos: 1, retain: false });
+    pushEvent('publish', `${alarmsDbirthTopic} (${alarmsDbirthPayload.length} B)`);
 
     this.bdSeq = (this.bdSeq + 1) % 256;
     this.logger?.info({ name: 'Sparkplug' }, 'NBIRTH and DBIRTHs (cycle, telemetry, alarms) published');
@@ -405,6 +409,7 @@ export class SparkplugService {
     if (!payload) throw new Error('Sparkplug machine-telemetry encoding failed');
 
     await this.client.publishAsync(topic, Buffer.from(payload), { qos: 0, retain: false });
+    pushEvent('publish', `${topic} (${payload.length} B)`);
   }
 
   // record is `unknown` to admit the caller's existing
@@ -458,6 +463,7 @@ export class SparkplugService {
     if (!payload) throw new Error('Sparkplug cycle-record encoding failed');
 
     await this.client.publishAsync(topic, Buffer.from(payload), { qos: 1, retain: false });
+    pushEvent('publish', `${topic} (${payload.length} B)`);
   }
 
   /**
@@ -486,6 +492,7 @@ export class SparkplugService {
     if (!payload) throw new Error('Sparkplug DDATA(alarms) encoding failed');
 
     await this.client.publishAsync(topic, Buffer.from(payload), { qos: 1, retain: false });
+    pushEvent('publish', `${topic} (${payload.length} B)`);
   }
 
   static async stop(): Promise<void> {

@@ -41,9 +41,19 @@
     },
     "avatar": {
       "title": "Avatar",
+      "subtitle": "Crop and center the image before saving it.",
       "choosePhoto": "Choose photo",
+      "replacePhoto": "Replace photo",
       "remove": "Remove",
       "zoom": "Zoom",
+      "zoomIn": "Increase zoom",
+      "zoomOut": "Decrease zoom",
+      "resetZoom": "Reset zoom",
+      "adjustTitle": "Adjust framing",
+      "adjustHint": "Use zoom and drag to center the face inside the circular crop.",
+      "preview": "Preview",
+      "previewHint": "The avatar will be saved as a square image with a round crop.",
+      "emptyHint": "Upload a JPG or PNG file and prepare the image in the crop area.",
       "changeAvatar": "Change avatar",
       "uploadSuccess": "Avatar updated",
       "removeSuccess": "Avatar removed"
@@ -766,8 +776,21 @@
   },
   "mqtt": {
     "title": "MQTT Gateway",
+    "subtitle": "Control Sparkplug B cloud uplink, local broker settings, operational users, and recent activity from one console.",
+    "hero": {
+      "kicker": "Control Bus",
+      "cards": {
+        "link": "Broker link",
+        "gateway": "Gateway",
+        "users": "Users",
+        "usersValue": "{count} configured accounts",
+        "endpoint": "Broker endpoint",
+        "identity": "Client identity"
+      }
+    },
     "status": {
       "title": "Broker Status",
+      "subtitle": "Monitor live connectivity, gateway enablement, and the active MQTT identity.",
       "connected": "Connected",
       "disconnected": "Disconnected",
       "enabled": "Gateway Enabled",
@@ -812,6 +835,7 @@
     },
     "users": {
       "title": "MQTT Users",
+      "subtitle": "Manage operational roles and credentials dedicated to the local broker.",
       "username": "Username",
       "password": "Password",
       "role": "Role",
@@ -831,10 +855,12 @@
       "deleteConfirm": "Delete MQTT user \"{username}\"?",
       "deleteDescription": "This will remove the user's access to the MQTT broker. This action cannot be undone.",
       "noUsers": "No MQTT users configured",
+      "cancel": "Cancel",
       "systemAccount": "System"
     },
     "activityLog": {
       "title": "Activity Log",
+      "subtitle": "Recent broker and gateway events refreshed automatically.",
       "empty": "No activity recorded",
       "connect": "Connect",
       "disconnect": "Disconnect",
@@ -1075,6 +1101,12 @@
       "pdf": "Export PDF",
       "success": "Export completed",
       "error": "Export failed"
+    },
+    "status": {
+      "OK": "OK",
+      "COMPLETED": "Completed",
+      "FAILED": "Failed",
+      "ABORTED": "Aborted"
     },
     "empty": "No cycles found",
     "emptyDescription": "No completed cycles in the selected period",

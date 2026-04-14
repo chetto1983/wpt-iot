@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import Cropper from 'react-easy-crop';
 import type { Area } from 'react-easy-crop';
-import { Loader2, Trash2, Upload } from 'lucide-react';
+import { ImagePlus, Loader2, Minus, RotateCcw, Trash2, Upload, ZoomIn } from 'lucide-react';
 import { toast } from 'sonner';
 import { useTranslations } from 'next-intl';
 
@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button';
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -92,6 +93,7 @@ export function AvatarUploadDialog({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const fileInputId = useId();
   const zoomInputId = useId();
+  const zoomPercent = Math.round(zoom * 100);
 
   const [imageSrc, setImageSrc] = useState<string | null>(null);
   const [crop, setCrop] = useState({ x: 0, y: 0 });
@@ -128,6 +130,15 @@ export function AvatarUploadDialog({
 
   const onCropComplete = useCallback((_: Area, croppedPixels: Area) => {
     setCroppedAreaPixels(croppedPixels);
+  }, []);
+
+  const updateZoom = useCallback((nextZoom: number) => {
+    setZoom(Math.min(3, Math.max(1, Number(nextZoom.toFixed(1)))));
+  }, []);
+
+  const resetEditor = useCallback(() => {
+    setCrop({ x: 0, y: 0 });
+    setZoom(1);
   }, []);
 
   const handleSave = useCallback(async () => {
@@ -173,58 +184,149 @@ export function AvatarUploadDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
+      <DialogContent className="overflow-hidden p-0 sm:max-w-2xl">
+        <DialogHeader className="gap-1 border-b bg-muted/30 px-6 py-5">
           <DialogTitle>{tAvatar('title')}</DialogTitle>
+          <DialogDescription>{tAvatar('subtitle')}</DialogDescription>
         </DialogHeader>
 
-        {/* Cropper area */}
         {imageSrc ? (
-          <div className="flex flex-col gap-3">
-            <div className="relative h-64 w-full overflow-hidden rounded-lg bg-muted">
-              <Cropper
-                image={imageSrc}
-                crop={crop}
-                onCropChange={setCrop}
-                zoom={zoom}
-                onZoomChange={setZoom}
-                onCropComplete={onCropComplete}
-                aspect={1}
-                cropShape="round"
-                showGrid={false}
-              />
+          <div className="space-y-5 px-6 py-5">
+            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+              <div className="space-y-1">
+                <p className="text-sm font-medium">{tAvatar('adjustTitle')}</p>
+                <p className="text-xs text-muted-foreground">{tAvatar('adjustHint')}</p>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploading || removing}
+                >
+                  <ImagePlus className="size-4" />
+                  {tAvatar('replacePhoto')}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={resetEditor}
+                  disabled={uploading || removing}
+                >
+                  <RotateCcw className="size-4" />
+                  {tAvatar('resetZoom')}
+                </Button>
+              </div>
             </div>
-            {/* Zoom slider */}
-            <div className="flex items-center gap-3 px-1">
-              <label
-                htmlFor={zoomInputId}
-                className="text-xs text-muted-foreground"
-              >
-                {tAvatar('zoom')}
-              </label>
-              <input
-                id={zoomInputId}
-                type="range"
-                min={1}
-                max={3}
-                step={0.1}
-                value={zoom}
-                onChange={(e) => setZoom(Number(e.target.value))}
-                className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-muted accent-wpt-teal"
-              />
+
+            <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_220px]">
+              <div className="relative overflow-hidden rounded-2xl border bg-[radial-gradient(circle_at_top,theme(colors.white),theme(colors.muted))] p-3 dark:bg-[radial-gradient(circle_at_top,theme(colors.zinc.800),theme(colors.zinc.950))]">
+                <div className="relative h-[320px] overflow-hidden rounded-xl bg-black/50 sm:h-[420px]">
+                  <Cropper
+                    image={imageSrc}
+                    crop={crop}
+                    onCropChange={setCrop}
+                    zoom={zoom}
+                    onZoomChange={updateZoom}
+                    onCropComplete={onCropComplete}
+                    aspect={1}
+                    cropShape="round"
+                    showGrid={false}
+                  />
+                </div>
+              </div>
+
+              <div className="flex flex-col justify-between gap-4 rounded-2xl border bg-muted/30 p-4">
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <label
+                      htmlFor={zoomInputId}
+                      className="text-sm font-medium text-foreground"
+                    >
+                      {tAvatar('zoom')}
+                    </label>
+                    <span className="rounded-full bg-background px-2.5 py-1 text-xs font-medium text-muted-foreground ring-1 ring-border">
+                      {zoomPercent}%
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon-sm"
+                      aria-label={tAvatar('zoomOut')}
+                      onClick={() => updateZoom(zoom - 0.1)}
+                      disabled={zoom <= 1 || uploading || removing}
+                    >
+                      <Minus className="size-4" />
+                    </Button>
+                    <input
+                      id={zoomInputId}
+                      type="range"
+                      min={1}
+                      max={3}
+                      step={0.1}
+                      value={zoom}
+                      onChange={(e) => updateZoom(Number(e.target.value))}
+                      className="h-2 w-full cursor-pointer appearance-none rounded-full bg-background accent-wpt-teal"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon-sm"
+                      aria-label={tAvatar('zoomIn')}
+                      onClick={() => updateZoom(zoom + 0.1)}
+                      disabled={zoom >= 3 || uploading || removing}
+                    >
+                      <ZoomIn className="size-4" />
+                    </Button>
+                  </div>
+
+                  <div className="flex items-center justify-between text-xs text-muted-foreground">
+                    <span>100%</span>
+                    <span>300%</span>
+                  </div>
+                </div>
+
+                <div className="rounded-xl bg-background/80 p-4 ring-1 ring-border">
+                  <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
+                    {tAvatar('preview')}
+                  </p>
+                  <div className="mt-3 flex justify-center">
+                    <div
+                      className="flex size-24 items-center justify-center overflow-hidden rounded-full bg-muted ring-4 ring-background shadow-sm"
+                      style={{
+                        backgroundImage: `url(${imageSrc})`,
+                        backgroundPosition: `${50 - crop.x / 6}% ${50 - crop.y / 6}%`,
+                        backgroundSize: `${zoom * 100}%`,
+                      }}
+                    />
+                  </div>
+                  <p className="mt-3 text-center text-xs text-muted-foreground">
+                    {tAvatar('previewHint')}
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
         ) : (
-          <div className="flex h-48 flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-border">
-            <Upload className="size-8 text-muted-foreground" />
-            <Button
+          <div className="px-6 py-5">
+            <button
               type="button"
-              variant="outline"
-              size="sm"
+              className="flex h-72 w-full flex-col items-center justify-center gap-4 rounded-2xl border border-dashed border-border bg-muted/20 px-6 text-center transition-colors hover:border-wpt-teal/60 hover:bg-wpt-teal/5"
               onClick={() => fileInputRef.current?.click()}
             >
-              {tAvatar('choosePhoto')}
-            </Button>
+              <div className="flex size-14 items-center justify-center rounded-full bg-background text-wpt-teal ring-1 ring-border">
+                <Upload className="size-7" />
+              </div>
+              <div className="space-y-1">
+                <p className="text-sm font-medium">{tAvatar('choosePhoto')}</p>
+                <p className="text-xs text-muted-foreground">{tAvatar('emptyHint')}</p>
+              </div>
+            </button>
           </div>
         )}
 
@@ -238,7 +340,7 @@ export function AvatarUploadDialog({
           onChange={onFileSelect}
         />
 
-        <DialogFooter>
+        <DialogFooter className="px-6">
           {currentAvatar ? (
             <Button
               type="button"

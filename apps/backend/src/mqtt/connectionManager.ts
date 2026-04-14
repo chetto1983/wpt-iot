@@ -21,6 +21,19 @@ import { initCommandHandler, shutdownCommandHandler } from './commandHandler.js'
 
 let currentClient: MqttClient | null = null;
 
+/**
+ * Gate for the `error` event handler. mqtt.js emits `error` during a graceful
+ * `client.endAsync(true)` teardown with `message === 'client disconnecting'`.
+ * That is expected behavior on reload — NOT a real fault. We demote it to a
+ * debug-level log and skip the activity-log pushEvent during this exact window.
+ *
+ * Scope is intentionally narrow: only the `doDisconnect()` call site sets this
+ * flag, and it is cleared immediately after `endAsync` resolves. Any other
+ * error path (connect failure, broker disconnect, TLS error) still emits
+ * `pushEvent('error', ...)` loudly.
+ */
+let teardownInFlight = false;
+
 // Serialize connect / disconnect / reload behind a single chain so concurrent
 // PUT /api/mqtt/config requests cannot interleave broker connections.
 let chain: Promise<unknown> = Promise.resolve();
@@ -125,11 +138,9 @@ async function doConnect(log: FastifyBaseLogger): Promise<void> {
 
   // Online retained status
   try {
-    await client.publishAsync(
-      connectionTopic,
-      JSON.stringify({ online: true, timestamp: new Date().toISOString() }),
-      { qos: 1, retain: true },
-    );
+    const onlinePayload = JSON.stringify({ online: true, timestamp: new Date().toISOString() });
+    await client.publishAsync(connectionTopic, onlinePayload, { qos: 1, retain: true });
+    pushEvent('publish', `${connectionTopic} (${Buffer.byteLength(onlinePayload)} B, LWT online)`);
   } catch (err) {
     log.warn({ name: 'MQTT', err }, 'Failed to publish online status');
   }
@@ -142,6 +153,14 @@ async function doConnect(log: FastifyBaseLogger): Promise<void> {
     pushEvent('disconnect', `Disconnected from ${cfg.brokerHost}:${String(cfg.brokerPort)}`);
   });
   client.on('error', (err) => {
+    // Bug C fix: mqtt.js emits `error` during graceful endAsync(true) with
+    // `message === 'client disconnecting'`. Demote that exact case to debug
+    // and skip the activity-log pushEvent; any other error is still logged
+    // loudly as before.
+    if (teardownInFlight && err.message === 'client disconnecting') {
+      log.debug({ name: 'MQTT', err }, 'Benign "client disconnecting" during teardown (demoted)');
+      return;
+    }
     pushEvent('error', `MQTT error: ${err.message}`);
   });
 
@@ -178,21 +197,25 @@ async function doDisconnect(log: FastifyBaseLogger): Promise<void> {
       cfg.machineId,
       ...MQTT_TOPIC_SUFFIXES.CONNECTION.split('/'),
     );
-    await client.publishAsync(
-      connectionTopic,
-      JSON.stringify({ online: false, timestamp: new Date().toISOString() }),
-      { qos: 1, retain: true },
-    );
+    const offlinePayload = JSON.stringify({ online: false, timestamp: new Date().toISOString() });
+    await client.publishAsync(connectionTopic, offlinePayload, { qos: 1, retain: true });
+    pushEvent('publish', `${connectionTopic} (${Buffer.byteLength(offlinePayload)} B, LWT offline)`);
   } catch (err) {
     log.warn({ name: 'MQTT', err }, 'Best-effort offline publish failed during disconnect');
   }
 
   shutdownCommandHandler();
 
+  // Bug C fix: scope the teardown window tightly around endAsync(true). The
+  // `error` event handler above checks this flag to demote the expected
+  // "client disconnecting" emission instead of treating it as a real fault.
+  teardownInFlight = true;
   try {
     await client.endAsync(true);
   } catch (err) {
     log.warn({ name: 'MQTT', err }, 'client.endAsync errored during disconnect');
+  } finally {
+    teardownInFlight = false;
   }
 
   currentClient = null;

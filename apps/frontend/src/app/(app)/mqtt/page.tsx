@@ -12,6 +12,12 @@ import {
   Trash2,
   RefreshCw,
   Loader2,
+  Server,
+  ShieldCheck,
+  Activity,
+  RadioTower,
+  Cloud,
+  Users,
 } from 'lucide-react';
 
 import { apiFetch } from '@/lib/api';
@@ -23,6 +29,7 @@ import { Badge } from '@/components/ui/badge';
 import {
   Card,
   CardContent,
+  CardDescription,
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
@@ -57,8 +64,6 @@ interface MqttConfig {
   brokerHost: string;
   brokerPort: number;
   username: string;
-  // GET responses never include the broker password — only `passwordSet`
-  // tells the form whether the input is required or can be left blank.
   passwordSet: boolean;
   siteId: string;
   machineId: string;
@@ -102,6 +107,14 @@ const ROLE_BADGE_VARIANT: Record<string, 'secondary' | 'outline' | 'destructive'
   'mqtt-admin': 'destructive',
 };
 
+const LOG_ROW_ACCENT: Record<MqttLogEvent['type'], string> = {
+  connect: 'border-emerald-500/30 bg-emerald-500/5',
+  disconnect: 'border-amber-500/30 bg-amber-500/5',
+  publish: 'border-sky-500/30 bg-sky-500/5',
+  subscribe: 'border-violet-500/30 bg-violet-500/5',
+  error: 'border-destructive/30 bg-destructive/5',
+};
+
 export default function MqttPage() {
   const t = useTranslations('mqtt');
   const { user } = useAuth();
@@ -118,7 +131,6 @@ export default function MqttPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [logEvents, setLogEvents] = useState<MqttLogEvent[]>([]);
 
-  // Guard: SUPER_ADMIN only
   useEffect(() => {
     if (user && user.role !== 'SUPER_ADMIN') {
       router.replace('/dashboard');
@@ -170,10 +182,11 @@ export default function MqttPage() {
     }
   }, [user, loadStatus, loadConfig, loadUsers, loadLog]);
 
-  // Auto-refresh activity log every 5 seconds
   useEffect(() => {
     if (user?.role !== 'SUPER_ADMIN') return;
-    const interval = setInterval(() => { void loadLog(); }, 5000);
+    const interval = setInterval(() => {
+      void loadLog();
+    }, 5000);
     return () => clearInterval(interval);
   }, [user, loadLog]);
 
@@ -222,22 +235,100 @@ export default function MqttPage() {
 
   if (!user || user.role !== 'SUPER_ADMIN') return null;
 
-  const primaryRole = (u: MqttUser): string => {
-    // Find first wpt-specific role (skip generic Mosquitto roles)
-    return u.roles.find((r) => r.startsWith('mqtt-')) ?? u.roles[0] ?? '';
+  const primaryRole = (u: MqttUser): string =>
+    u.roles.find((r) => r.startsWith('mqtt-')) ?? u.roles[0] ?? '';
+
+  const roleLabel = (role: string): string => {
+    if (role === 'mqtt-reader') return t('users.roleReader');
+    if (role === 'mqtt-operator') return t('users.roleOperator');
+    if (role === 'mqtt-admin') return t('users.roleAdmin');
+    return role;
   };
 
   return (
     <div className="mx-auto w-full max-w-6xl space-y-6 p-4 sm:p-6">
-      <h1 className="text-2xl font-semibold">{t('title')}</h1>
+      <section className="overflow-hidden rounded-[28px] border border-border/70 bg-gradient-to-br from-card via-card to-muted/40 shadow-sm">
+        <div className="grid gap-6 p-6 lg:grid-cols-[1.4fr_0.9fr] lg:p-8">
+          <div className="space-y-4">
+            <div className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-background/80 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
+              <RadioTower className="size-3.5 text-wpt-teal" />
+              {t('hero.kicker')}
+            </div>
+            <div className="space-y-2">
+              <h1 className="text-3xl font-semibold tracking-tight">{t('title')}</h1>
+              <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
+                {t('subtitle')}
+              </p>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-3">
+              <div className="rounded-2xl border border-border/70 bg-background/80 p-4">
+                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                  <Activity className="size-3.5 text-wpt-teal" />
+                  {t('hero.cards.link')}
+                </div>
+                <div className="mt-3 flex items-center gap-2">
+                  {status?.connected ? (
+                    <Wifi className="size-4 text-emerald-600" />
+                  ) : (
+                    <WifiOff className="size-4 text-destructive" />
+                  )}
+                  <span className="text-sm font-medium">
+                    {status?.connected ? t('status.connected') : t('status.disconnected')}
+                  </span>
+                </div>
+              </div>
+              <div className="rounded-2xl border border-border/70 bg-background/80 p-4">
+                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                  <Cloud className="size-3.5 text-wpt-gold" />
+                  {t('hero.cards.gateway')}
+                </div>
+                <div className="mt-3 text-sm font-medium">
+                  {status?.enabled ? t('status.enabled') : t('status.disabled')}
+                </div>
+              </div>
+              <div className="rounded-2xl border border-border/70 bg-background/80 p-4">
+                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                  <Users className="size-3.5 text-wpt-teal" />
+                  {t('hero.cards.users')}
+                </div>
+                <div className="mt-3 text-sm font-medium">
+                  {t('hero.cards.usersValue', { count: users.length })}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid gap-3 self-start">
+            <div className="rounded-2xl border border-border/70 bg-background/80 p-4">
+              <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                <Server className="size-3.5 text-wpt-teal" />
+                {t('hero.cards.endpoint')}
+              </div>
+              <p className="mt-3 break-all font-mono text-sm text-foreground">
+                {status ? `${status.brokerHost}:${String(status.brokerPort)}` : '—'}
+              </p>
+            </div>
+            <div className="rounded-2xl border border-border/70 bg-background/80 p-4">
+              <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                <ShieldCheck className="size-3.5 text-wpt-gold" />
+                {t('hero.cards.identity')}
+              </div>
+              <p className="mt-3 break-all font-mono text-sm text-foreground">
+                {status?.clientId || '—'}
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        {/* Left Column */}
         <div className="space-y-6">
-          {/* Broker Status */}
-          <Card>
+          <Card className={status?.connected ? 'border-emerald-500/20 bg-emerald-500/[0.03]' : 'border-border/70'}>
             <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <CardTitle>{t('status.title')}</CardTitle>
+              <div className="space-y-1">
+                <CardTitle>{t('status.title')}</CardTitle>
+                <CardDescription>{t('status.subtitle')}</CardDescription>
+              </div>
               <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
                 <Button
                   variant="outline"
@@ -246,9 +337,7 @@ export default function MqttPage() {
                   disabled={testing}
                   className="w-full sm:w-auto"
                 >
-                  {testing ? (
-                    <Loader2 className="mr-1 size-4 animate-spin" />
-                  ) : null}
+                  {testing ? <Loader2 className="mr-1 size-4 animate-spin" /> : null}
                   {t('status.testConnection')}
                 </Button>
                 <Button
@@ -258,46 +347,50 @@ export default function MqttPage() {
                   disabled={refreshing}
                   className="self-end sm:self-auto"
                 >
-                  <RefreshCw
-                    className={`size-4 ${refreshing ? 'animate-spin' : ''}`}
-                  />
+                  <RefreshCw className={`size-4 ${refreshing ? 'animate-spin' : ''}`} />
                 </Button>
               </div>
             </CardHeader>
-            <CardContent className="grid gap-3">
+            <CardContent className="grid gap-4">
               {status ? (
                 <>
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     {status.connected ? (
-                      <Wifi className="size-5 text-green-500" />
+                      <Wifi className="size-5 text-emerald-600" />
                     ) : (
-                      <WifiOff className="size-5 text-red-500" />
+                      <WifiOff className="size-5 text-destructive" />
                     )}
-                    <Badge
-                      variant={status.connected ? 'default' : 'destructive'}
-                    >
-                      {status.connected
-                        ? t('status.connected')
-                        : t('status.disconnected')}
+                    <Badge variant={status.connected ? 'default' : 'destructive'} className="rounded-full">
+                      {status.connected ? t('status.connected') : t('status.disconnected')}
                     </Badge>
-                    <Badge variant={status.enabled ? 'default' : 'secondary'}>
-                      {status.enabled
-                        ? t('status.enabled')
-                        : t('status.disabled')}
+                    <Badge variant={status.enabled ? 'default' : 'secondary'} className="rounded-full">
+                      {status.enabled ? t('status.enabled') : t('status.disabled')}
                     </Badge>
                   </div>
-                  <div className="grid gap-1 text-sm text-muted-foreground">
-                    <div>
-                      <span className="font-medium text-foreground">
-                        {t('status.brokerHost')}:
-                      </span>{' '}
-                      {status.brokerHost}:{String(status.brokerPort)}
+                  <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                    <div className="rounded-2xl border border-border/70 bg-background/70 p-4">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                        {t('status.brokerHost')}
+                      </p>
+                      <p className="mt-2 break-all font-mono text-sm text-foreground">
+                        {status.brokerHost}:{String(status.brokerPort)}
+                      </p>
                     </div>
-                    <div>
-                      <span className="font-medium text-foreground">
-                        {t('status.clientId')}:
-                      </span>{' '}
-                      {status.clientId}
+                    <div className="rounded-2xl border border-border/70 bg-background/70 p-4">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                        {t('status.clientId')}
+                      </p>
+                      <p className="mt-2 break-all font-mono text-sm text-foreground">
+                        {status.clientId}
+                      </p>
+                    </div>
+                    <div className="rounded-2xl border border-border/70 bg-background/70 p-4">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                        {t('hero.cards.users')}
+                      </p>
+                      <p className="mt-2 text-sm text-foreground">
+                        {t('hero.cards.usersValue', { count: users.length })}
+                      </p>
                     </div>
                   </div>
                 </>
@@ -309,7 +402,6 @@ export default function MqttPage() {
             </CardContent>
           </Card>
 
-          {/* Configuration */}
           {config ? (
             <MqttConfigForm
               config={config}
@@ -321,11 +413,13 @@ export default function MqttPage() {
           ) : null}
         </div>
 
-        {/* Right Column - Users */}
         <div className="space-y-6">
           <Card>
             <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <CardTitle>{t('users.title')}</CardTitle>
+              <div className="space-y-1">
+                <CardTitle>{t('users.title')}</CardTitle>
+                <CardDescription>{t('users.subtitle')}</CardDescription>
+              </div>
               <Button
                 size="sm"
                 className="w-full sm:w-auto"
@@ -340,9 +434,7 @@ export default function MqttPage() {
             </CardHeader>
             <CardContent>
               {users.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  {t('users.noUsers')}
-                </p>
+                <p className="text-sm text-muted-foreground">{t('users.noUsers')}</p>
               ) : (
                 <>
                   <div className="grid gap-3 md:hidden">
@@ -350,25 +442,21 @@ export default function MqttPage() {
                       const role = primaryRole(u);
                       const isSystem = u.username === 'wpt-backend';
                       return (
-                        <div key={u.username} className="rounded-lg border p-4">
+                        <div key={u.username} className="rounded-2xl border border-border/70 bg-background/70 p-4 shadow-sm">
                           <div className="flex items-start justify-between gap-3">
                             <div className="min-w-0">
                               <p className="font-medium">{u.username}</p>
+                              {u.textName ? (
+                                <p className="mt-1 text-sm text-muted-foreground">{u.textName}</p>
+                              ) : null}
                               {isSystem ? (
-                                <Badge
-                                  variant="outline"
-                                  className="mt-2 text-xs"
-                                >
+                                <Badge variant="outline" className="mt-2 text-xs">
                                   {t('users.systemAccount')}
                                 </Badge>
                               ) : null}
                             </div>
-                            <Badge
-                              variant={
-                                ROLE_BADGE_VARIANT[role] ?? 'secondary'
-                              }
-                            >
-                              {role}
+                            <Badge variant={ROLE_BADGE_VARIANT[role] ?? 'secondary'}>
+                              {roleLabel(role)}
                             </Badge>
                           </div>
                           {!isSystem ? (
@@ -406,6 +494,7 @@ export default function MqttPage() {
                       <TableHeader>
                         <TableRow>
                           <TableHead>{t('users.username')}</TableHead>
+                          <TableHead>{t('users.textName')}</TableHead>
                           <TableHead>{t('users.role')}</TableHead>
                           <TableHead className="w-16" />
                         </TableRow>
@@ -419,21 +508,17 @@ export default function MqttPage() {
                               <TableCell className="font-medium">
                                 {u.username}
                                 {isSystem ? (
-                                  <Badge
-                                    variant="outline"
-                                    className="ml-2 text-xs"
-                                  >
+                                  <Badge variant="outline" className="ml-2 text-xs">
                                     {t('users.systemAccount')}
                                   </Badge>
                                 ) : null}
                               </TableCell>
+                              <TableCell className="text-muted-foreground">
+                                {u.textName || '—'}
+                              </TableCell>
                               <TableCell>
-                                <Badge
-                                  variant={
-                                    ROLE_BADGE_VARIANT[role] ?? 'secondary'
-                                  }
-                                >
-                                  {role}
+                                <Badge variant={ROLE_BADGE_VARIANT[role] ?? 'secondary'}>
+                                  {roleLabel(role)}
                                 </Badge>
                               </TableCell>
                               <TableCell>
@@ -472,10 +557,12 @@ export default function MqttPage() {
         </div>
       </div>
 
-      {/* Activity Log — full width below the 2-column grid */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>{t('activityLog.title')}</CardTitle>
+          <div className="space-y-1">
+            <CardTitle>{t('activityLog.title')}</CardTitle>
+            <CardDescription>{t('activityLog.subtitle')}</CardDescription>
+          </div>
           <Button
             variant="ghost"
             size="icon"
@@ -486,30 +573,23 @@ export default function MqttPage() {
         </CardHeader>
         <CardContent>
           {logEvents.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              {t('activityLog.empty')}
-            </p>
+            <p className="text-sm text-muted-foreground">{t('activityLog.empty')}</p>
           ) : (
-            <div className="max-h-80 space-y-2 overflow-y-auto">
+            <div className="max-h-96 space-y-2 overflow-y-auto">
               {[...logEvents].reverse().map((event, i) => {
                 const time = event.timestamp.slice(11, 19);
                 return (
-                  <div key={i} className="flex items-center gap-2">
-                    <span className="shrink-0 text-xs text-muted-foreground">
+                  <div key={i} className={`flex items-center gap-3 rounded-2xl border px-3 py-2 ${LOG_ROW_ACCENT[event.type]}`}>
+                    <span className="shrink-0 rounded-full bg-background/80 px-2 py-1 font-mono text-[11px] text-muted-foreground">
                       {time}
                     </span>
                     <Badge
-                      variant={
-                        EVENT_BADGE_VARIANT[event.type] ?? 'secondary'
-                      }
+                      variant={EVENT_BADGE_VARIANT[event.type] ?? 'secondary'}
                       className="shrink-0"
                     >
                       {t(`activityLog.${event.type}`)}
                     </Badge>
-                    <span
-                      className="truncate text-sm"
-                      title={event.detail}
-                    >
+                    <span className="truncate font-mono text-sm" title={event.detail}>
                       {event.detail}
                     </span>
                   </div>
@@ -520,7 +600,6 @@ export default function MqttPage() {
         </CardContent>
       </Card>
 
-      {/* Dialogs */}
       <MqttUserDialog
         open={userDialogOpen}
         onOpenChange={(open) => {
@@ -531,7 +610,6 @@ export default function MqttPage() {
         editUser={editTarget}
       />
 
-      {/* Delete Confirmation */}
       <Dialog
         open={deleteTarget !== null}
         onOpenChange={(open) => {
@@ -556,16 +634,14 @@ export default function MqttPage() {
               onClick={() => setDeleteTarget(null)}
               disabled={deleting}
             >
-              Cancel
+              {t('users.cancel')}
             </Button>
             <Button
               variant="destructive"
               onClick={handleDeleteUser}
               disabled={deleting}
             >
-              {deleting ? (
-                <Loader2 className="mr-2 size-4 animate-spin" />
-              ) : null}
+              {deleting ? <Loader2 className="mr-2 size-4 animate-spin" /> : null}
               {t('users.delete')}
             </Button>
           </DialogFooter>
