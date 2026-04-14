@@ -135,4 +135,9 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 }
-main();
+main().catch((err) => {
+  // Logger not initialised yet at top level — use console so Docker supervisor
+  // can see the stack trace before we exit non-zero for restart.
+  console.error('Fatal startup error:', err);
+  process.exit(1);
+});
