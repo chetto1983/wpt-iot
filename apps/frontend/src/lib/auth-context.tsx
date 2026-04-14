@@ -79,7 +79,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
 
       if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
+        const body: unknown = await res.json().catch(() => ({}));
         const msg =
           (body as Record<string, string>).error ?? `Request failed: ${res.status}`;
         throw new Error(msg);

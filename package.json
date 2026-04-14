@@ -8,6 +8,7 @@
     "lint": "pnpm -r run lint",
     "test": "pnpm -r run test",
     "clean": "pnpm -r run clean",
+    "validate:sparkplug:e2e": "pnpm --filter @wpt/backend run validate:sparkplug:e2e",
     "scan:knip": "knip --reporter json",
     "scan:jscpd": "jscpd apps/ packages/",
     "scan:madge:backend": "madge --circular --json --ts-config apps/backend/tsconfig.json --extensions ts apps/backend/src/",

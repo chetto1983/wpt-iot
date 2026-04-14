@@ -157,7 +157,7 @@ function AlarmsContent({ locale }: { locale: string }) {
       );
 
       if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
+        const body: unknown = await res.json().catch(() => ({}));
         throw new Error(
           (body as Record<string, string>).error ?? `Request failed: ${res.status}`,
         );

@@ -79,7 +79,7 @@ export function CyclesPageShell() {
       }
     }
 
-    fetchCycles();
+    void fetchCycles();
 
     return () => controller.abort();
   }, [fromDate, toDate, page, sortColumn, sortOrder, t]);
@@ -110,7 +110,7 @@ export function CyclesPageShell() {
       });
 
       if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
+        const body: unknown = await res.json().catch(() => ({}));
         const errorMessage =
           typeof (body as { error?: unknown }).error === 'string'
             ? (body as { error: string }).error

@@ -136,7 +136,7 @@ export default function JobsPage() {
   useEffect(() => {
     if (user?.role === 'CLIENT' || didAutoRead.current) return;
     didAutoRead.current = true;
-    handleRead();
+    void handleRead();
   }, []);
 
   useEffect(() => {

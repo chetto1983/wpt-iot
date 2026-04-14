@@ -154,7 +154,7 @@ export function EnergySettingsPage() {
       });
 
       if (!response.ok) {
-        const body = await response.json().catch(() => ({}));
+        const body: unknown = await response.json().catch(() => ({}));
         const message =
           typeof (body as { error?: unknown }).error === 'string'
             ? (body as { error: string }).error

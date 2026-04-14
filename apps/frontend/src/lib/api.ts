@@ -36,7 +36,7 @@ export async function apiFetch<T>(
     throw new Error('Session expired');
   }
   if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
+    const body: unknown = await res.json().catch(() => ({}));
     const errorMessage =
       typeof (body as { error?: unknown }).error === 'string'
         ? (body as { error: string }).error

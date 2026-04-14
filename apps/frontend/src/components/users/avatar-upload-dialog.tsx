@@ -141,7 +141,7 @@ export function AvatarUploadDialog({
         body: formData,
       });
       if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
+        const body: unknown = await res.json().catch(() => ({}));
         throw new Error(
           (body as Record<string, string>).error ?? `Upload failed: ${res.status}`,
         );

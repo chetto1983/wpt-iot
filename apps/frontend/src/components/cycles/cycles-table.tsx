@@ -139,9 +139,11 @@ export function CyclesTable({
       case 'cycleStatusLabel':
         return formatStatusLabel(cycle.cycleStatusLabel);
       default: {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const value = (cycle as any)[column.key];
-        return value != null ? String(value) : '—';
+        const value = (cycle as unknown as Record<string, unknown>)[column.key];
+        if (value == null) return '—';
+        if (typeof value === 'string') return value;
+        if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+        return '—';
       }
     }
   }

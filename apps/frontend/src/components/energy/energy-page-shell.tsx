@@ -218,7 +218,7 @@ export function EnergyPageShell() {
       }
 
       if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
+        const body: unknown = await res.json().catch(() => ({}));
         throw new Error(
           typeof (body as { error?: unknown }).error === 'string'
             ? (body as { error: string }).error
