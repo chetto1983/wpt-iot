@@ -4,6 +4,7 @@ import { WsMessageType } from '@wpt/types';
 import type { IActiveAlarm, UserRole, IMachineSnapshot } from '@wpt/types';
 import { dataHub } from '../events/hub.js';
 import type { IAlarmTransition } from '../events/types.js';
+import { DATA_EVENTS } from '../events/types.js';
 import { latestState } from '../cache/latestState.js';
 import { filterByRole } from '../services/filterByRole.js';
 import { getAlarmDescription } from '../i18n/alarmDescriptions.js';
@@ -237,7 +238,7 @@ export function removeClient(socket: WebSocket): void {
   }
 }
 
-/** Graceful shutdown: clear all timers and close connections */
+/** Graceful shutdown: clear all timers, close connections, and unsubscribe dataHub listeners */
 export function shutdownBroadcaster(): void {
   if (sessionCheckInterval) {
     clearInterval(sessionCheckInterval);
@@ -250,4 +251,8 @@ export function shutdownBroadcaster(): void {
     }
   }
   clients.clear();
+  activeAlarms.clear();
+  // Remove dataHub subscriptions so initBroadcaster() can re-register cleanly
+  dataHub.off(DATA_EVENTS.MACHINE_DATA, onMachineData);
+  dataHub.off(DATA_EVENTS.ALARM_CHANGE, onAlarmChange);
 }
