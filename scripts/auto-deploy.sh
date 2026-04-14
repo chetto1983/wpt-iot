@@ -42,7 +42,6 @@ LOG_FILE="${LOG_FILE:-/var/log/wpt-auto-deploy.log}"
 CUSTOMERS_CONF="${CUSTOMERS_CONF:-/etc/wpt-auto-deploy/customers.conf}"
 KEEP_BUNDLES="${KEEP_BUNDLES:-5}"
 SKIP_SHIP="${SKIP_SHIP:-0}"          # 1 = build only, do not ship to customers
-NEXT_PUBLIC_API_URL="${NEXT_PUBLIC_API_URL:-https://wpt.local}"
 
 # --- Logging helpers ---
 log() {
@@ -106,7 +105,6 @@ fi
 # =============================================================================
 log "build: scripts/build-bundle.sh"
 if ! OUTPUT_DIR="${BUNDLE_DIR}" \
-     NEXT_PUBLIC_API_URL="${NEXT_PUBLIC_API_URL}" \
      bash scripts/build-bundle.sh >>"${LOG_FILE}" 2>&1; then
   log_err "build-bundle.sh failed — see ${LOG_FILE}"
   exit 4

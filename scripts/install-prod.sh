@@ -88,30 +88,12 @@ mkdir -p "${INSTALL_DIR}/docker/nginx/templates" "${INSTALL_DIR}/certs"
 cd "${INSTALL_DIR}"
 
 curl -fsSL "${RAW_URL}/docker-compose.yml" -o docker-compose.yml
-curl -fsSL "${RAW_URL}/docker-compose.prod.yml" -o docker-compose.prod.yml
-curl -fsSL "${RAW_URL}/docker-compose.https.yml" -o docker-compose.https.yml
 curl -fsSL "${RAW_URL}/docker/nginx/templates/wpt.conf.template" -o docker/nginx/templates/wpt.conf.template
 curl -fsSL "${RAW_URL}/scripts/generate-local-tls.sh" -o generate-local-tls.sh
 curl -fsSL "${RAW_URL}/scripts/wpt-local-alias.sh" -o wpt-local-alias.sh
 chmod +x generate-local-tls.sh wpt-local-alias.sh
 
-cat > docker-compose.host.yml <<'HOSTEOF'
-services:
-  backend:
-    network_mode: host
-    ports: !override []
-    environment:
-      MQTT_HOST: 127.0.0.1
-      PG_HOST: 127.0.0.1
-      CORS_ORIGIN: https://wpt.local
-      SESSION_COOKIE_SECURE: "true"
-      TRUST_PROXY: "true"
-
-  frontend:
-    environment:
-      NEXT_PUBLIC_API_URL: https://wpt.local
-HOSTEOF
-ok "Compose files and helpers downloaded."
+ok "Compose file and helpers downloaded."
 
 step "Step 4/7  avahi-daemon (mDNS aliases)"
 
@@ -155,7 +137,7 @@ if [[ ! -f .env ]]; then
   PG_PASSWORD="$(head -c 24 /dev/urandom | base64 | tr -d '/+=' | head -c 24)"
 
   cat > .env <<ENVEOF
-PG_HOST=db
+PG_HOST=127.0.0.1
 PG_PORT=5432
 PG_DB=wpt
 PG_USERNAME=wpt
@@ -172,28 +154,35 @@ SIM_DATA_PORT=9090
 SIM_USERS_PORT=9092
 SESSION_SECRET=${SESSION_SECRET}
 ADMIN_PASSWORD=${ADMIN_PASSWORD}
-CORS_ORIGIN=https://wpt.local
-NEXT_PUBLIC_API_URL=https://wpt.local
+NEXT_PUBLIC_API_URL=
 SESSION_COOKIE_SECURE=true
 TRUST_PROXY=true
+MQTT_HOST=127.0.0.1
+MQTT_PORT=1883
+MQTT_USERNAME=wpt-backend
+MQTT_PASSWORD=wpt_mqtt_dev_password
+MQTT_ENABLED=true
+MQTT_SITE_ID=site-01
+MQTT_MACHINE_ID=wpt40-001
 ENVEOF
   chmod 600 .env
   ok ".env generated with random secrets."
 else
-  upsert_env .env "CORS_ORIGIN" "https://wpt.local"
-  upsert_env .env "NEXT_PUBLIC_API_URL" "https://wpt.local"
+  # Phase 37.3: CORS_ORIGIN retired (same-origin via nginx). Empty
+  # NEXT_PUBLIC_API_URL = relative URLs.
+  sed -i -e '/^CORS_ORIGIN=/d' .env || true
+  upsert_env .env "NEXT_PUBLIC_API_URL" ""
   upsert_env .env "SESSION_COOKIE_SECURE" "true"
   upsert_env .env "TRUST_PROXY" "true"
-  ok ".env preserved and updated for HTTPS."
+  ok ".env preserved and updated for same-origin HTTPS."
 fi
 
 bash ./generate-local-tls.sh ./certs "${LAN_IP}"
 ok "TLS assets ready in ${INSTALL_DIR}/certs."
 
-step "Step 6/7  docker compose pull + up"
+step "Step 6/7  docker compose up"
 
-docker compose -f docker-compose.yml -f docker-compose.host.yml -f docker-compose.https.yml -f docker-compose.prod.yml pull
-docker compose -f docker-compose.yml -f docker-compose.host.yml -f docker-compose.https.yml -f docker-compose.prod.yml up -d
+docker compose up -d --build
 
 info "Waiting for backend /health..."
 for i in {1..30}; do

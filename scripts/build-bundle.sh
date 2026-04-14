@@ -10,7 +10,7 @@
 # Produces a single tarball that contains everything an air-gapped edge PC
 # needs to bring up the stack:
 #   - All 5 Docker images (db, mosquitto, backend, frontend, nginx)
-#   - docker-compose.yml + docker-compose.https.yml
+#   - docker-compose.yml (single file — overlays removed in Phase 37.3)
 #   - nginx template + init-timescaledb.sql + mosquitto config
 #   - install.sh + internal helpers (install-offline.sh, generate-local-tls.sh, wpt-local-alias.sh)
 #   - VERSION file with the source git SHA + build timestamp
@@ -19,7 +19,6 @@
 set -euo pipefail
 
 OUTPUT_DIR="${OUTPUT_DIR:-/tmp}"
-NEXT_PUBLIC_API_URL="${NEXT_PUBLIC_API_URL:-https://wpt.local}"
 SKIP_BUILD="${SKIP_BUILD:-0}"
 
 RED='\033[0;31m'
@@ -49,7 +48,7 @@ BUNDLE_TARBALL="${OUTPUT_DIR}/${BUNDLE_NAME}.tar.gz"
 
 step "Bundle: ${BUNDLE_NAME}"
 info "Output dir: ${OUTPUT_DIR}"
-info "API URL baked into frontend: ${NEXT_PUBLIC_API_URL}"
+info "Frontend image is IP/host-agnostic (same-origin via nginx)"
 
 step "Step 1/5  Build backend + frontend images"
 
@@ -72,10 +71,10 @@ else
   docker pull nginx:1.28.3-alpine
 
   info "Building backend image..."
-  docker compose -f docker-compose.yml build backend
+  docker compose build backend
 
-  info "Building frontend image with NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}..."
-  NEXT_PUBLIC_API_URL="${NEXT_PUBLIC_API_URL}" docker compose -f docker-compose.yml build frontend
+  info "Building frontend image (same-origin, no NEXT_PUBLIC_API_URL bake)..."
+  docker compose build frontend
 fi
 ok "Images ready."
 
@@ -85,7 +84,6 @@ rm -rf "${BUNDLE_DIR}"
 mkdir -p "${BUNDLE_DIR}"
 
 cp docker-compose.yml "${BUNDLE_DIR}/"
-cp docker-compose.https.yml "${BUNDLE_DIR}/"
 mkdir -p "${BUNDLE_DIR}/docker"
 cp docker/init-timescaledb.sql "${BUNDLE_DIR}/docker/"
 mkdir -p "${BUNDLE_DIR}/docker/nginx/templates"
@@ -136,7 +134,6 @@ git_sha:           ${GIT_SHA}${GIT_DIRTY}
 built_at:          $(date -Iseconds)
 built_on_host:     $(hostname)
 built_by_user:     $(whoami)
-next_public_api:   ${NEXT_PUBLIC_API_URL}
 docker_version:    $(docker --version)
 compose_version:   $(docker compose version | head -1)
 

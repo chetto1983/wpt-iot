@@ -23,11 +23,11 @@ curl -fsSL https://raw.githubusercontent.com/chetto1983/wpt-iot/master/scripts/i
 What it does:
 1. Installs Docker Engine + Compose v2 if missing.
 2. Stops conflicting host services such as Grafana and host Mosquitto.
-3. Downloads `docker-compose.yml`, `docker-compose.prod.yml`, `docker-compose.https.yml`, the nginx template, and the TLS helper into `/opt/wpt-iot`.
+3. Downloads the single `docker-compose.yml`, nginx template, and TLS helper into `/opt/wpt-iot`.
 4. Publishes `wpt.local` over mDNS with Avahi.
 5. Generates `.env` with random secrets if needed.
 6. Generates a local CA plus the server cert for `wpt.local`.
-7. Pulls the GHCR images and starts the stack.
+7. Builds / pulls images and starts the stack with `docker compose up -d`.
 8. Verifies backend health, nginx health, and the HTTPS frontend.
 
 After install:
@@ -62,13 +62,12 @@ git commit -m "feat: ..."
 git push origin master
 ```
 
-GitHub Actions builds and publishes:
-- `ghcr.io/<owner>/wpt-backend:latest`
-- `ghcr.io/<owner>/wpt-frontend:latest`
-
-The workflow now bakes `NEXT_PUBLIC_API_URL=https://wpt.local/api` into the published frontend image so every customer machine can use the same frontend artifact.
-
-Watchtower updates the labelled backend/frontend containers automatically.
+The shipping path is a full bundle rebuild on the golden-master host
+(`scripts/auto-deploy.sh` or `scripts/build-bundle.sh` + `scp` + remote
+`sudo bash install.sh`). The frontend image is **same-origin** — no
+`NEXT_PUBLIC_API_URL` bake — so a single image works on any customer
+LAN regardless of hostname or IP. OTA automation (Mender) is the
+planned path forward; watchtower is no longer part of the stack.
 
 ## Post-Deploy Energy Step
 
@@ -82,21 +81,20 @@ This installs the TimescaleDB continuous aggregates and helper objects that back
 
 ## Roll Back a Machine
 
-Pin the backend or frontend image to a known-good tag:
+Roll back by re-shipping the last known-good bundle (keeps the shipping
+pipeline linear — no divergent per-machine image tags):
 
 ```bash
-cd /opt/wpt-iot
-sudo sed -i 's|wpt-backend:latest|wpt-backend:master-abc1234|' docker-compose.prod.yml
-docker compose -f docker-compose.yml -f docker-compose.host.yml -f docker-compose.https.yml -f docker-compose.prod.yml up -d backend
+# On the golden-master host
+ls -la /var/lib/wpt-deploy/bundles/
+# pick the previous bundle, e.g. wpt-iot-bundle-<older-sha>-<ts>.tar.gz
+
+scp /var/lib/wpt-deploy/bundles/<older>.tar.gz sacchi@<edge>:/tmp/
+ssh sacchi@<edge> "cd /tmp && tar xzf <older>.tar.gz && cd <older> && sudo bash install.sh"
 ```
 
-If you need to stop automatic pulls during investigation:
-
-```bash
-docker stop watchtower
-```
-
-Restore `:latest` when ready.
+Watchtower has been removed from the stack — there are no automatic
+pulls to stop during investigation.
 
 ## Set the Customer PLC IP
 
@@ -149,6 +147,6 @@ sudo tcpdump -i <iface> -n 'udp and port 9090 or port 9091' -c 5
 
 1. Trust the local CA on client devices. Without that, HTTPS exists but the browser will not treat the origin as trustworthy enough for service workers and PWA installability.
 2. `network_mode: host` on the backend is mandatory. Do not move the backend back to bridge networking if the machine talks to a real PLC.
-3. Access the app at `https://wpt.local`, not `http://<LAN_IP>:3001`. The published frontend image is baked for `https://wpt.local/api`.
+3. Access the app through nginx (`https://wpt.local` or `https://<LAN_IP>`), not the raw frontend container port. The frontend image is **IP/host-agnostic** (same-origin via nginx) so it works for any hostname the customer routes to it, but only through the TLS terminator.
 4. The only operator-facing installer is `scripts/install.sh`. `install-prod.sh` and `install-offline.sh` are internal entrypoints behind it.
 5. `wpt.local` depends on mDNS. If the client is on another VLAN or routed network, either fix name resolution or deploy real DNS with matching certificates.

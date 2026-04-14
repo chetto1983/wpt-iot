@@ -24,8 +24,17 @@ if ! command -v openssl >/dev/null 2>&1; then
 fi
 
 ALT_NAMES=$'DNS.1 = wpt.local\nDNS.2 = localhost\nIP.1 = 127.0.0.1'
+# LAN_IP accepts a comma-separated list so a multi-homed edge box gets a
+# single cert valid for every LAN interface (e.g. "192.168.0.10,192.168.101.151").
 if [[ -n "${LAN_IP}" ]]; then
-  ALT_NAMES+=$'\nIP.2 = '"${LAN_IP}"
+  IP_COUNT=1
+  IFS=',' read -ra IPS <<< "${LAN_IP}"
+  for ip in "${IPS[@]}"; do
+    ip="${ip// /}"
+    [[ -z "${ip}" ]] && continue
+    IP_COUNT=$((IP_COUNT + 1))
+    ALT_NAMES+=$'\nIP.'"${IP_COUNT}"$' = '"${ip}"
+  done
 fi
 
 cat > "${OPENSSL_CONFIG}" <<EOF

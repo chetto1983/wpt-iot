@@ -131,7 +131,6 @@ without a password prompt, but DOESN'T grant the deploy user blanket sudo.
 # LOG_FILE=/var/log/wpt-auto-deploy.log
 # CUSTOMERS_CONF=/etc/wpt-auto-deploy/customers.conf
 # KEEP_BUNDLES=10
-# NEXT_PUBLIC_API_URL=https://wpt.local
 # SKIP_SHIP=1   # build only, do not ship to customers (useful for staging)
 ```
 
