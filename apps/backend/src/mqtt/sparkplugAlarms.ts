@@ -84,7 +84,9 @@ export function buildAlarmsDbirthMetrics(
       value: initialBitmask[w] ?? 0,
     });
   }
-  metrics.push({ name: 'alarms/last_event_code', alias: alarmAlias('alarms/last_event_code'), type: 'String', value: '' });
+  // DBIRTH sentinel: -1 means "no alarm event has occurred since the IoT box started".
+  // Consumers MUST treat -1 as the "no data" state, not as a valid alarm index.
+  metrics.push({ name: 'alarms/last_event_code', alias: alarmAlias('alarms/last_event_code'), type: 'Int32', value: -1 });
   metrics.push({ name: 'alarms/last_event_state', alias: alarmAlias('alarms/last_event_state'), type: 'Int32', value: 0 });
   metrics.push({ name: 'alarms/last_event_at', alias: alarmAlias('alarms/last_event_at'), type: 'DateTime', value: 0 });
   metrics.push({ name: 'alarms/active_count', alias: alarmAlias('alarms/active_count'), type: 'Int32', value: activeCount });
@@ -116,7 +118,7 @@ export function buildAlarmsDdataMetrics(
       });
     }
   }
-  metrics.push({ alias: alarmAlias('alarms/last_event_code'), type: 'String', value: String(last.alarmIndex) });
+  metrics.push({ alias: alarmAlias('alarms/last_event_code'), type: 'Int32', value: last.alarmIndex });
   metrics.push({ alias: alarmAlias('alarms/last_event_state'), type: 'Int32', value: last.active ? 1 : 0 });
   metrics.push({ alias: alarmAlias('alarms/last_event_at'), type: 'DateTime', value: last.timestamp.getTime() });
   metrics.push({ alias: alarmAlias('alarms/active_count'), type: 'Int32', value: activeCount });

@@ -324,7 +324,9 @@ describe('Phase 37 Plan 02 — alarms Sparkplug device (D-06)', () => {
     const lastEventState = lastEncode!.metrics.find((m) => m.alias === ALIAS_MAP['alarms/last_event_state']);
     const lastEventAt = lastEncode!.metrics.find((m) => m.alias === ALIAS_MAP['alarms/last_event_at']);
 
-    expect(lastEventCode?.value).toBe('9');
+    // C1 (v2.0.0 BREAKING): last_event_code is now Int32, not String.
+    // Value is the raw alarm index integer; -1 is the DBIRTH sentinel for "no event yet".
+    expect(lastEventCode?.value).toBe(9);
     expect(lastEventState?.value).toBe(0);
     expect(lastEventAt?.value).toBe(t2.getTime());
   });
