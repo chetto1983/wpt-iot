@@ -4,7 +4,6 @@ import type { FastifyBaseLogger } from 'fastify';
 import { mqttTopic, MQTT_TOPIC_SUFFIXES } from '@wpt/types';
 import { MqttConfigService } from './configService.js';
 import { pushEvent } from './activityLog.js';
-import { initMqttPublisher, shutdownMqttPublisher } from './publisher.js';
 import { initCommandHandler, shutdownCommandHandler } from './commandHandler.js';
 
 /**
@@ -15,9 +14,9 @@ import { initCommandHandler, shutdownCommandHandler } from './commandHandler.js'
  * from environment variables. Only the broker username/password remain in
  * env vars (they are credentials, not configuration).
  *
- * The publisher and command handler are wired up here after a successful
- * connect, and torn down on disconnect. Reload performs a full
- * disconnect → connect cycle, which re-reads the DB for fresh values.
+ * The command handler is wired up here after a successful connect (the
+ * legacy outbound publisher was retired in Phase 37 — Sparkplug B is the
+ * sole cloud uplink, owned by SparkplugService).
  */
 
 let currentClient: MqttClient | null = null;
@@ -150,8 +149,10 @@ async function doConnect(log: FastifyBaseLogger): Promise<void> {
 
   // Wire up subsystems with this connection. Topic prefix is computed once
   // here from the DB values; on reload these are torn down and rebuilt.
+  // Phase 37 D-07: legacy initMqttPublisher retired — Sparkplug B is the sole
+  // cloud uplink, owned by SparkplugService (see mqtt/sparkplugService.ts).
+  // D-08 preserved: the local command handler (cmd/+/req namespace) stays.
   const topicPrefix = mqttTopic(cfg.siteId, cfg.machineId);
-  await initMqttPublisher(client, log);
   await initCommandHandler(client, log, topicPrefix);
 
   log.info(
@@ -186,7 +187,6 @@ async function doDisconnect(log: FastifyBaseLogger): Promise<void> {
     log.warn({ name: 'MQTT', err }, 'Best-effort offline publish failed during disconnect');
   }
 
-  shutdownMqttPublisher();
   shutdownCommandHandler();
 
   try {
