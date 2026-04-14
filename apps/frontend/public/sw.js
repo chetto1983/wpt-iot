@@ -1,79 +1,39 @@
-const VERSION = 'v1';
-const STATIC_CACHE = `wpt-static-${VERSION}`;
-const OFFLINE_URL = '/offline';
-const PRECACHE_URLS = [
-  OFFLINE_URL,
-  '/manifest.webmanifest',
-  '/logo.png',
-  '/icons/icon-192x192.png',
-  '/icons/icon-512x512.png',
-  '/icons/icon-maskable-512x512.png',
-  '/icons/apple-touch-icon.png',
-  '/favicon.ico',
-];
+// Kill-switch service worker — recovery pattern from
+// https://developer.chrome.com/docs/workbox/remove-buggy-service-workers
+//
+// Replaces the previous hand-rolled SW which had cacheFirst on /_next/static/*
+// with a hardcoded VERSION = 'v1' that never invalidated. After a Docker
+// rebuild, old chunk hashes disappeared server-side but stayed in the SW cache,
+// causing ChunkLoadError and ERR_FAILED on navigation for any browser that had
+// registered the old SW.
+//
+// This no-op SW has no fetch handler, so all requests fall through to the
+// network. On install it activates immediately; on activate it wipes every
+// cache this origin owns and reloads open tabs so users recover without
+// DevTools intervention.
+//
+// To be replaced by @serwist/next in Phase 37.3.
 
 self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(STATIC_CACHE).then((cache) => cache.addAll(PRECACHE_URLS)),
-  );
-  self.skipWaiting();
+  event.waitUntil(self.skipWaiting());
 });
 
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(
-        keys
-          .filter((key) => key.startsWith('wpt-static-') && key !== STATIC_CACHE)
-          .map((key) => caches.delete(key)),
-      ),
-    ),
+    (async () => {
+      const keys = await caches.keys();
+      await Promise.all(keys.map((key) => caches.delete(key)));
+      await self.clients.claim();
+      const clients = await self.clients.matchAll({ type: 'window' });
+      for (const client of clients) {
+        client.navigate(client.url).catch(() => {});
+      }
+    })(),
   );
-  self.clients.claim();
 });
 
 self.addEventListener('message', (event) => {
-  if (event.data?.type === 'SKIP_WAITING') {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
     self.skipWaiting();
-  }
-});
-
-async function cacheFirst(request) {
-  const cached = await caches.match(request);
-  if (cached) return cached;
-  const response = await fetch(request);
-  if (response.ok) {
-    const cache = await caches.open(STATIC_CACHE);
-    cache.put(request, response.clone());
-  }
-  return response;
-}
-
-self.addEventListener('fetch', (event) => {
-  const { request } = event;
-  if (request.method !== 'GET') return;
-
-  const url = new URL(request.url);
-
-  if (request.mode === 'navigate') {
-    event.respondWith(
-      fetch(request).catch(async () => {
-        const offline = await caches.match(OFFLINE_URL);
-        return offline || Response.error();
-      }),
-    );
-    return;
-  }
-
-  if (url.origin !== self.location.origin) return;
-
-  if (
-    url.pathname.startsWith('/_next/static/') ||
-    url.pathname.startsWith('/icons/') ||
-    url.pathname === '/manifest.webmanifest' ||
-    url.pathname === '/logo.png' ||
-    url.pathname === '/favicon.ico'
-  ) {
-    event.respondWith(cacheFirst(request));
   }
 });
