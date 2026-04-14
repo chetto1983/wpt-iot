@@ -12,6 +12,7 @@ import { EnergyConfigService, EnergyBaselineService } from './services/energy/in
 import { MachineAnomalyEventService } from './services/anomaly/index.js';
 import { PlcConfigService, setPlcConfigLogger } from './udp/plcConfigService.js';
 import { MachineSchemaMigrationService } from './db/machineSchemaMigrationService.js';
+import { applyMigrations } from './db/migrator.js';
 import { pool } from './db/index.js';
 
 function setupGracefulShutdown(server: ReturnType<typeof buildServer>): void {
@@ -70,6 +71,11 @@ async function main(): Promise<void> {
     // cycle_resets`. Functionally tolerated (resetEpoch falls back to 0)
     // but cosmetically ugly. Order: tables first, then listen.
     // ───────────────────────────────────────────────────────────────────
+
+    // Apply Drizzle migrations (idempotent — skips already-applied files).
+    // Must run first so every table exists before any service touches the DB.
+    // Emits Pino { name: 'Migrations' } logs before + after the run.
+    await applyMigrations(pool, server.log);
 
     // Seed default admin account if auth_users table is empty
     await seedDefaultAdmin(server.log);
