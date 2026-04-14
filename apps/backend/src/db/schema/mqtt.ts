@@ -7,7 +7,13 @@ export const mqttConfig = pgTable('mqtt_config', {
   brokerHost: varchar('broker_host', { length: 255 }).default('localhost').notNull(),
   brokerPort: integer('broker_port').default(1883).notNull(),
   username: varchar('username', { length: 255 }).default('wpt-backend').notNull(),
-  password: varchar('password', { length: 255 }).default('wpt_mqtt_dev_password').notNull(),
+  // Stored encrypted at rest (AES-256-GCM via secretCipher.ts). Plaintext
+  // values — including the legacy 'wpt_mqtt_dev_password' default that older
+  // deployments received — are auto-encrypted on startup by
+  // MqttConfigService.ensureTable(). Empty string means "no password set"
+  // and the form blocks enabling the gateway until one is provided.
+  // VARCHAR widened to 512 to fit the v1: envelope (iv + tag + ciphertext).
+  password: varchar('password', { length: 512 }).default('').notNull(),
   siteId: varchar('site_id', { length: 100 }).default('site-01').notNull(),
   machineId: varchar('machine_id', { length: 100 }).default('wpt40-001').notNull(),
   useTls: boolean('use_tls').default(false).notNull(),
