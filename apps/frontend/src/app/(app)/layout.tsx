@@ -8,6 +8,7 @@ import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
 import { AppSidebar } from '@/components/shared/app-sidebar';
 import { WebSocketProvider } from '@/lib/ws-context';
 import { AppHeader } from '@/components/shared/app-header';
+import { OfflineBanner } from '@/components/pwa/offline-banner';
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -43,6 +44,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         <AppSidebar />
         <SidebarInset className="min-h-0">
           <AppHeader />
+          <OfflineBanner />
           <div className="min-h-0 flex-1 overflow-auto">
             {children}
           </div>
