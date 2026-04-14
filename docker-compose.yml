@@ -99,6 +99,10 @@ services:
       SIM_USERS_PORT: 9092
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
       SESSION_SECRET: ${SESSION_SECRET:-dev-only-session-secret-minimum-32-chars!!}
+      # AES-256-GCM key for mqtt_config.password (and future secrets) at rest.
+      # MUST be set in .env on every deployment; MUST be identical across reboots.
+      # Losing this value makes encrypted secrets unrecoverable.
+      SECRETS_ENCRYPTION_KEY: ${SECRETS_ENCRYPTION_KEY:-}
       SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-true}
       TRUST_PROXY: ${TRUST_PROXY:-true}
       MQTT_HOST: ${MQTT_HOST:-127.0.0.1}

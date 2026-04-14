@@ -139,23 +139,33 @@ export class MqttConfigService {
 
     if (row.password === '' || isEncrypted(row.password)) return;
 
-    if (row.password === LEGACY_DEV_PASSWORD) {
-      await db
-        .update(mqttConfig)
-        .set({ password: '', enabled: false, updatedAt: new Date() })
-        .where(eq(mqttConfig.id, 1));
-      // eslint-disable-next-line no-console
-      console.warn(
-        '[mqtt] wiped legacy default password from mqtt_config. Gateway disabled; set a new password via the admin UI before re-enabling.',
-      );
-      return;
-    }
-
+    // Key check MUST come before the legacy-wipe path. Without a key we have
+    // no safe destination for the secret — wiping would sever an existing
+    // broker handshake (as happened on sacchi 2026-04-14 when the container
+    // had no SECRETS_ENCRYPTION_KEY injected), and encrypting is impossible.
+    // Leave the row untouched and log so the operator provisions the key.
     const key = loadEncryptionKey();
     if (!key) {
       // eslint-disable-next-line no-console
       console.warn(
         '[mqtt] mqtt_config.password is plaintext but SECRETS_ENCRYPTION_KEY is not set. The secret is stored unencrypted at rest. Provision SECRETS_ENCRYPTION_KEY and restart to migrate.',
+      );
+      return;
+    }
+
+    if (row.password === LEGACY_DEV_PASSWORD) {
+      // Legacy default — encrypt in place so the existing broker handshake
+      // keeps working, but log loudly so the operator rotates it to a fresh
+      // credential via the admin UI (see CHANGELOG: v2.1.0 shipped the
+      // encryption; the rotation is follow-up operator work).
+      const encrypted = encryptSecret(LEGACY_DEV_PASSWORD, key);
+      await db
+        .update(mqttConfig)
+        .set({ password: encrypted, updatedAt: new Date() })
+        .where(eq(mqttConfig.id, 1));
+      // eslint-disable-next-line no-console
+      console.warn(
+        '[mqtt] migrated legacy default password to AES-256-GCM at rest. ROTATE IT SOON — every deployment before this commit shipped the same plaintext default, so the credential is effectively public. Set a new password via /mqtt and re-key the broker with mosquitto_ctrl dynsec setClientPassword wpt-backend <new>.',
       );
       return;
     }
