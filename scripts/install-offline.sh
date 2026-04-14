@@ -181,8 +181,21 @@ fi
 
 step "Step 7/8  Generate local TLS certificates"
 
-( cd "${INSTALL_DIR}" && bash ./generate-local-tls.sh ./certs "${LAN_IP}" )
-ok "TLS assets ready in ${INSTALL_DIR}/certs."
+( cd "${INSTALL_DIR}" && bash ./generate-local-tls.sh ./certs )
+ok "TLS assets ready in ${INSTALL_DIR}/certs (auto-detected NICs)."
+
+# Zero-maintenance TLS refresh: systemd timer re-runs the generator at
+# boot and every 15 min. Cert SAN stays in sync with current LAN IPs
+# without operator intervention.
+if [[ -f "${BUNDLE_DIR}/wpt-tls-refresh.service" && -f "${BUNDLE_DIR}/wpt-tls-refresh.timer" ]]; then
+  install -m 0644 "${BUNDLE_DIR}/wpt-tls-refresh.service" /etc/systemd/system/wpt-tls-refresh.service
+  install -m 0644 "${BUNDLE_DIR}/wpt-tls-refresh.timer"   /etc/systemd/system/wpt-tls-refresh.timer
+  systemctl daemon-reload
+  systemctl enable --now wpt-tls-refresh.timer
+  ok "wpt-tls-refresh timer enabled (boot + every 15 min)."
+else
+  warn "wpt-tls-refresh service units missing from bundle — skipping auto-refresh install."
+fi
 
 step "Step 8/8  docker compose up -d + health checks"
 

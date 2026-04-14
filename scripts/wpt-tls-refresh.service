@@ -1,0 +1,28 @@
+[Unit]
+Description=WPT IoT — refresh local TLS cert if LAN IPs changed
+# Wait for the network so `ip addr show` reports the real NICs, not a
+# partial bring-up. Also wait for docker so we can restart nginx if the
+# cert actually changed.
+After=network-online.target docker.service
+Wants=network-online.target
+Requires=docker.service
+
+[Service]
+Type=oneshot
+# INSTALL_DIR is sourced from /etc/default/wpt-iot if present. Default
+# matches the production install path; dev/bench boxes drop an override:
+#   echo 'INSTALL_DIR=/home/sacchi/wpt-iot' | sudo tee /etc/default/wpt-iot
+EnvironmentFile=-/etc/default/wpt-iot
+Environment=INSTALL_DIR=/opt/wpt-iot
+ExecStart=/bin/bash -c '\
+  cd "${INSTALL_DIR}" || { echo "INSTALL_DIR=${INSTALL_DIR} missing" >&2; exit 1; }; \
+  PRE=$(openssl x509 -in certs/server.crt -noout -fingerprint -sha256 2>/dev/null || echo ""); \
+  bash scripts/generate-local-tls.sh certs; \
+  POST=$(openssl x509 -in certs/server.crt -noout -fingerprint -sha256 2>/dev/null || echo ""); \
+  if [ "$PRE" != "$POST" ]; then \
+    echo "cert changed — restarting nginx"; \
+    docker compose restart nginx || true; \
+  fi'
+
+[Install]
+WantedBy=multi-user.target

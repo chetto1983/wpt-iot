@@ -95,6 +95,8 @@ cp scripts/install.sh "${BUNDLE_DIR}/"
 cp scripts/install-offline.sh "${BUNDLE_DIR}/"
 cp scripts/generate-local-tls.sh "${BUNDLE_DIR}/"
 cp scripts/wpt-local-alias.sh "${BUNDLE_DIR}/"
+cp scripts/wpt-tls-refresh.service "${BUNDLE_DIR}/"
+cp scripts/wpt-tls-refresh.timer "${BUNDLE_DIR}/"
 chmod +x \
   "${BUNDLE_DIR}/install.sh" \
   "${BUNDLE_DIR}/install-offline.sh" \

@@ -177,8 +177,18 @@ else
   ok ".env preserved and updated for same-origin HTTPS."
 fi
 
-bash ./generate-local-tls.sh ./certs "${LAN_IP}"
-ok "TLS assets ready in ${INSTALL_DIR}/certs."
+bash ./generate-local-tls.sh ./certs
+ok "TLS assets ready in ${INSTALL_DIR}/certs (auto-detected NICs)."
+
+# Install systemd unit + timer that re-runs generate-local-tls on every
+# boot and every 15 min. If the cert SAN drifts (customer changes LAN,
+# DHCP renews with a new IP, a NIC is added), the unit regenerates the
+# server cert and restarts nginx. Zero operator intervention.
+curl -fsSL "${RAW_URL}/scripts/wpt-tls-refresh.service" -o /etc/systemd/system/wpt-tls-refresh.service
+curl -fsSL "${RAW_URL}/scripts/wpt-tls-refresh.timer" -o /etc/systemd/system/wpt-tls-refresh.timer
+systemctl daemon-reload
+systemctl enable --now wpt-tls-refresh.timer
+ok "wpt-tls-refresh timer enabled (boot + every 15 min)."
 
 step "Step 6/7  docker compose up"
 

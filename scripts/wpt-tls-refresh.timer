@@ -1,0 +1,12 @@
+[Unit]
+Description=WPT IoT — periodic TLS cert refresh (catches DHCP IP changes)
+
+[Timer]
+# Run 30s after boot, then every 15 min. The service itself is a no-op
+# when the cert already matches the current NICs, so the timer is cheap.
+OnBootSec=30s
+OnUnitActiveSec=15min
+Unit=wpt-tls-refresh.service
+
+[Install]
+WantedBy=timers.target
