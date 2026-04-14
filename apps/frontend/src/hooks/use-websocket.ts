@@ -3,7 +3,13 @@
 import { startTransition, useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { WsMessageType } from '@wpt/types';
-import type { IActiveAlarm, ILiveAnomalyState, IMachineSnapshot, IWsMessage } from '@wpt/types';
+import type {
+  IActiveAlarm,
+  ILiveAnomalyState,
+  IMachineSnapshot,
+  IPlcStatus,
+  IWsMessage,
+} from '@wpt/types';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || '';
 const MIN_RECONNECT_DELAY = 1000;
@@ -21,6 +27,8 @@ export interface WsState {
   anomaly: ILiveAnomalyState | null;
   connected: boolean;
   lastUpdate: Date | null;
+  plcConnected: boolean | null;
+  plcLastPacketAt: string | null;
 }
 
 export function useWebSocket(enabled: boolean): WsState {
@@ -29,6 +37,8 @@ export function useWebSocket(enabled: boolean): WsState {
   const [anomaly, setAnomaly] = useState<ILiveAnomalyState | null>(null);
   const [connected, setConnected] = useState(false);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
+  const [plcConnected, setPlcConnected] = useState<boolean | null>(null);
+  const [plcLastPacketAt, setPlcLastPacketAt] = useState<string | null>(null);
 
   const wsRef = useRef<WebSocket | null>(null);
   const attemptRef = useRef(0);
@@ -142,6 +152,14 @@ export function useWebSocket(enabled: boolean): WsState {
               setAnomaly(message.payload as ILiveAnomalyState);
             });
             break;
+          case WsMessageType.PLC_STATUS: {
+            const status = message.payload as IPlcStatus;
+            startTransition(() => {
+              setPlcConnected(status.connected);
+              setPlcLastPacketAt(status.lastPacketAt);
+            });
+            break;
+          }
           default:
             console.warn('[ws] unsupported message type', { type: message.type });
             break;
@@ -174,6 +192,8 @@ export function useWebSocket(enabled: boolean): WsState {
         socket.close();
       }
       setConnected(false);
+      setPlcConnected(null);
+      setPlcLastPacketAt(null);
     }
 
     return () => {
@@ -191,8 +211,10 @@ export function useWebSocket(enabled: boolean): WsState {
       }
 
       setConnected(false);
+      setPlcConnected(null);
+      setPlcLastPacketAt(null);
     };
   }, [enabled, connect]);
 
-  return { machineData, alarms, anomaly, connected, lastUpdate };
+  return { machineData, alarms, anomaly, connected, lastUpdate, plcConnected, plcLastPacketAt };
 }

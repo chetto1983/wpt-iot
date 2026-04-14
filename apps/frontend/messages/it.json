@@ -208,7 +208,10 @@
     },
     "states": {
       "notAvailable": "Non disponibile",
-      "reconnectingBanner": "Connessione persa. Mostro gli ultimi valori ricevuti mentre la riconnessione avviene automaticamente."
+      "reconnectingBanner": "Connessione persa. Mostro gli ultimi valori ricevuti mentre la riconnessione avviene automaticamente.",
+      "plcOfflineTitle": "PLC non raggiungibile",
+      "plcOfflineHint": "Nessun pacchetto dal PLC da oltre 20 s. Verificare alimentazione e cavo di rete del PLC.",
+      "plcOfflineLastSeen": "Ultimo pacchetto: {timestamp}"
     },
     "empty": {
       "liveWaitingTitle": "In attesa dei dati live",

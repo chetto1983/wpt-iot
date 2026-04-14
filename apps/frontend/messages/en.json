@@ -208,7 +208,10 @@
     },
     "states": {
       "notAvailable": "Not available",
-      "reconnectingBanner": "Connection lost. Showing the latest received values while reconnecting automatically."
+      "reconnectingBanner": "Connection lost. Showing the latest received values while reconnecting automatically.",
+      "plcOfflineTitle": "PLC not reachable",
+      "plcOfflineHint": "No packet from PLC for over 20 s. Check PLC power and network cable.",
+      "plcOfflineLastSeen": "Last packet: {timestamp}"
     },
     "empty": {
       "liveWaitingTitle": "Waiting for live data",
