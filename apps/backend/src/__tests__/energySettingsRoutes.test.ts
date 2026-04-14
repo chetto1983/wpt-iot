@@ -49,19 +49,19 @@ vi.mock('../services/anomaly/machineAnomalyService.js', () => ({
   },
 }));
 
-vi.mock('../services/energyAttributionService.js', () => ({
+vi.mock('../services/energy/energyAttributionService.js', () => ({
   EnergyAttributionService: {
     detectAndPersistClosedCycles: vi.fn(async () => 0),
   },
 }));
 
-vi.mock('../services/energyAggregateService.js', () => ({
+vi.mock('../services/energy/energyAggregateService.js', () => ({
   EnergyAggregateService: {
     getAggregate: vi.fn(),
   },
 }));
 
-vi.mock('../services/energyDashboardService.js', () => ({
+vi.mock('../services/energy/energyDashboardService.js', () => ({
   EnergyDashboardService: {
     getDashboardSummary: vi.fn(),
     getCycles: vi.fn(),
@@ -69,13 +69,13 @@ vi.mock('../services/energyDashboardService.js', () => ({
   },
 }));
 
-vi.mock('../services/energyPdfService.js', () => ({
+vi.mock('../services/energy/energyPdfService.js', () => ({
   EnergyPdfService: {
     generateIso50001Pdf: vi.fn(async () => Buffer.from('%PDF-1.4 settings-test')),
   },
 }));
 
-vi.mock('../services/energyBaselineService.js', () => {
+vi.mock('../services/energy/energyBaselineService.js', () => {
   class BaselineOverlapError extends Error {
     code = 'BASELINE_OVERLAP' as const;
     details = {};
@@ -113,7 +113,7 @@ vi.mock('../services/energyBaselineService.js', () => {
   };
 });
 
-vi.mock('../services/energyConfigService.js', () => ({
+vi.mock('../services/energy/energyConfigService.js', () => ({
   EnergyConfigService: {
     getConfig: getConfigMock,
     updateConfig: updateConfigMock,
@@ -180,7 +180,7 @@ describe('energy settings routes', () => {
   it('GET /api/energy/config requires SUPER_ADMIN', async () => {
     const response = await app.inject({
       method: 'GET',
-      url: '/api/energy/config',
+      url: '/energy/config',
       headers: { 'x-test-role': 'WPT' },
     });
 
@@ -192,7 +192,7 @@ describe('energy settings routes', () => {
   it('PUT /api/energy/config validates emission factor range', async () => {
     const response = await app.inject({
       method: 'PUT',
-      url: '/api/energy/config',
+      url: '/energy/config',
       headers: { 'x-test-role': 'SUPER_ADMIN' },
       payload: {
         customerName: 'WPT Demo',
@@ -248,7 +248,7 @@ describe('energy settings routes', () => {
 
     const response = await app.inject({
       method: 'PUT',
-      url: '/api/energy/config',
+      url: '/energy/config',
       headers: { 'x-test-role': 'SUPER_ADMIN' },
       payload: {
         customerName: 'Updated Demo',
