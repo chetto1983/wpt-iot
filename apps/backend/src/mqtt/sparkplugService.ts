@@ -8,6 +8,13 @@ import { pushEvent } from './activityLog.js';
 import { dataHub } from '../events/hub.js';
 import { latestState } from '../cache/latestState.js';
 import type { IMachineSnapshot } from '@wpt/types';
+import type { IAlarmTransition } from '../events/types.js';
+import {
+  ALARM_ALIASES,
+  bitmaskFromIndices,
+  buildAlarmsDbirthMetrics,
+  buildAlarmsDdataMetrics,
+} from './sparkplugAlarms.js';
 
 /**
  * Sparkplug B metric alias map. Stable across releases — bumping any alias
@@ -81,6 +88,12 @@ export const ALIAS_MAP: Readonly<Record<string, number>> = Object.freeze({
   'telemetry/line_neutral_l2': 214,
   'telemetry/line_neutral_l3': 215,
   'telemetry/pf_total': 216,
+
+  // --- Alarms device DBIRTH / DDATA (Phase 37 Plan 02, D-06) ---
+  // 40 word-bitmask entries (300..339) + 4 last_event scalars (340..343).
+  // Entries are generated in sparkplugAlarms.ts to keep this file under the
+  // 500-line cap — see ALARM_ALIASES.
+  ...ALARM_ALIASES,
 });
 
 /** Compile-time guard: alias lookup must hit a declared name in ALIAS_MAP. */
@@ -170,6 +183,8 @@ export class SparkplugService {
   private static bdSeq = 0;
   private static lastTelemetryTime = 0;
   private static edgeNodeId: string | null = null;
+  /** Last published alarm-word bitmask; feeds the delta compute in publishAlarmsDDATA (37-02 D-06). */
+  private static lastAlarmBitmask: number[] = new Array<number>(40).fill(0);
 
   static async init(log: FastifyBaseLogger): Promise<void> {
     this.logger = log;
@@ -217,6 +232,12 @@ export class SparkplugService {
           this.lastTelemetryTime = now;
           void this.publishMachineTelemetry(snapshot);
         }
+      });
+
+      // Subscribe to alarm transitions (Phase 37 D-06). Every transition batch
+      // emitted by the UDP 9091 diff pipeline publishes a DDATA on /alarms.
+      dataHub.onAlarmChange((transitions) => {
+        void this.publishAlarmsDDATA(transitions);
       });
     } catch (err) {
       log.error({ name: 'Sparkplug', err }, 'Failed to connect Sparkplug Cloud Uplink');
@@ -323,10 +344,22 @@ export class SparkplugService {
     if (!telemetryDbirthPayload) throw new Error('Sparkplug DBIRTH(telemetry) encoding failed');
     await this.client.publishAsync(telemetryDbirthTopic, Buffer.from(telemetryDbirthPayload), { qos: 1, retain: false });
 
-    // TODO(37-02): emit DBIRTH for /alarms device with bit-grouped alarm metrics (alias 300+)
+    // --- DBIRTH /alarms: bitmask-per-word layout (Phase 37 D-06) ---
+    // Dynamic import keeps Drizzle out of eager graph; tests mock this path.
+    const { getActiveAlarmIndices } = await import('../persistence/alarmStore.js');
+    const activeIndices = await getActiveAlarmIndices();
+    this.lastAlarmBitmask = bitmaskFromIndices(activeIndices);
+    const alarmsDbirthTopic = `spBv1.0/${cfg.sparkplugGroupId}/DBIRTH/${edgeNodeId}/alarms`;
+    const alarmsDbirthPayload = spb.encodePayload({
+      timestamp: Date.now(),
+      seq: this.nextSeq(),
+      metrics: buildAlarmsDbirthMetrics(this.lastAlarmBitmask, activeIndices.length),
+    });
+    if (!alarmsDbirthPayload) throw new Error('Sparkplug DBIRTH(alarms) encoding failed');
+    await this.client.publishAsync(alarmsDbirthTopic, Buffer.from(alarmsDbirthPayload), { qos: 1, retain: false });
 
     this.bdSeq = (this.bdSeq + 1) % 256;
-    this.logger?.info({ name: 'Sparkplug' }, 'NBIRTH and DBIRTHs (cycle, telemetry) published');
+    this.logger?.info({ name: 'Sparkplug' }, 'NBIRTH and DBIRTHs (cycle, telemetry, alarms) published');
   }
 
   /**
@@ -427,11 +460,40 @@ export class SparkplugService {
     await this.client.publishAsync(topic, Buffer.from(payload), { qos: 1, retain: false });
   }
 
+  /**
+   * DDATA on `/alarms`: delta word set + 4 last_event scalars. Phase 37 D-06.
+   * QoS 1 (§14), alias-only (§6.4.4). No-op on empty batch or cfg.enabled=false.
+   */
+  static async publishAlarmsDDATA(transitions: IAlarmTransition[]): Promise<void> {
+    if (!this.client || !spb || transitions.length === 0) return;
+    const cfg = await MqttConfigService.getConfig();
+    if (!cfg.enabled) return;
+
+    // Chronological batch — the last entry is the most recent transition,
+    // which always drives the last_event_* metrics.
+    const last = transitions[transitions.length - 1];
+    if (!last) return;
+
+    const { getActiveAlarmIndices } = await import('../persistence/alarmStore.js');
+    const activeNow = await getActiveAlarmIndices();
+    const newBitmask = bitmaskFromIndices(activeNow);
+    const metrics = buildAlarmsDdataMetrics(newBitmask, this.lastAlarmBitmask, last, activeNow.length);
+    this.lastAlarmBitmask = newBitmask;
+
+    const edgeNodeId = this.requireEdgeNodeId();
+    const topic = `spBv1.0/${cfg.sparkplugGroupId}/DDATA/${edgeNodeId}/alarms`;
+    const payload = spb.encodePayload({ timestamp: Date.now(), seq: this.nextSeq(), metrics });
+    if (!payload) throw new Error('Sparkplug DDATA(alarms) encoding failed');
+
+    await this.client.publishAsync(topic, Buffer.from(payload), { qos: 1, retain: false });
+  }
+
   static async stop(): Promise<void> {
     if (this.client) {
       await this.client.endAsync();
       this.client = null;
     }
     this.edgeNodeId = null;
+    this.lastAlarmBitmask = new Array<number>(40).fill(0);
   }
 }
