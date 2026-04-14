@@ -10,7 +10,11 @@ RUN pnpm install --frozen-lockfile --filter @wpt/frontend --filter @wpt/types
 
 FROM base AS builder
 WORKDIR /app
-ARG NEXT_PUBLIC_API_URL=http://localhost:3000
+# Default empty = same-origin (relative URLs). The production stack routes
+# all API traffic through nginx on the same origin as the frontend, so the
+# build does not need to know any hostname or IP. The ARG is retained only
+# for unusual deployments where the backend runs on a different origin.
+ARG NEXT_PUBLIC_API_URL=""
 ENV NEXT_OUTPUT=standalone
 ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
 COPY --from=deps /app ./

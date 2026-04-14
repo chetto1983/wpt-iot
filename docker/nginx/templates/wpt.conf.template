@@ -28,6 +28,23 @@ server {
   ssl_certificate ${TLS_CERT_PATH};
   ssl_certificate_key ${TLS_KEY_PATH};
   client_max_body_size 4m;
+  server_tokens off;
+
+  # Security headers — applied to every response (including error pages).
+  # CRA "secure by default" + NIS 2 Art. 21 posture. See Phase 37.3 research.
+  add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+  add_header X-Content-Type-Options "nosniff" always;
+  add_header X-Frame-Options "DENY" always;
+  add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+  add_header Permissions-Policy "geolocation=(), microphone=(), camera=(), payment=()" always;
+
+  # Strip any CORS headers that may leak from upstream apps. Defence in depth:
+  # the backend already emits none (origin: false), but this guarantees it
+  # even if a future plugin or misconfig puts them back.
+  proxy_hide_header Access-Control-Allow-Origin;
+  proxy_hide_header Access-Control-Allow-Credentials;
+  proxy_hide_header Access-Control-Allow-Methods;
+  proxy_hide_header Access-Control-Allow-Headers;
 
   location = /nginx-health {
     access_log off;

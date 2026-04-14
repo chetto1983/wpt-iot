@@ -1,8 +1,8 @@
-// Read from apps/frontend/.env — Next.js loads .env from its own app directory.
-// Empty string would silently send requests to the frontend itself.
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || (() => {
-  throw new Error('NEXT_PUBLIC_API_URL is not set. Create apps/frontend/.env with NEXT_PUBLIC_API_URL=http://localhost:3000');
-})();
+// Default to same-origin (empty string = relative URLs). The frontend is
+// served through nginx in production and through Next.js dev rewrites in
+// development, so /api/* resolves to the backend without cross-origin
+// traffic. NEXT_PUBLIC_API_URL is retained as an optional override only.
+const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? '';
 
 export async function apiFetch<T>(
   path: string,

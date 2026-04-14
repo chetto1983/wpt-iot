@@ -19,11 +19,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Skeleton } from '@/components/ui/skeleton';
 
 function getApiBase() {
-  const apiBase = process.env.NEXT_PUBLIC_API_URL;
-  if (!apiBase) {
-    throw new Error('NEXT_PUBLIC_API_URL is not set.');
-  }
-  return apiBase;
+  // Default to same-origin (empty string = relative URLs via nginx / dev rewrite).
+  return process.env.NEXT_PUBLIC_API_URL ?? '';
 }
 
 function buildFormValue(configResponse: IEnergyAdminConfigResponse): Partial<IEnergyConfigUpdateRequest> {

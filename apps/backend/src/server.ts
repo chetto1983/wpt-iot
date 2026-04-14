@@ -44,11 +44,37 @@ export function buildServer(): FastifyInstance {
       : { level: 'info' },
   });
 
-  // 1. CORS — must be first
+  // 1. CORS — deliberately disabled. No Access-Control-Allow-* headers are
+  // emitted. Browser traffic reaches /api only via the same origin as the
+  // frontend (nginx in prod, Next.js rewrite in dev), so the Same-Origin
+  // Policy enforces isolation without an allowlist to maintain. OWASP:
+  // "if you don't use the Access-Control-Allow-Origin header, your site is
+  // protected by default by the Same Origin Policy."
   server.register(cors, {
-    origin: config.corsOrigin,
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
+    origin: false,
+    credentials: false,
+  });
+
+  // 1b. Same-origin defense in depth. If an Origin header is present, it must
+  // match the request's Host (respecting X-Forwarded-Host when trustProxy is
+  // on). Blocks CSRF-style cross-site form submissions that slip past
+  // SameSite=Strict due to browser RFC bypasses.
+  server.addHook('onRequest', async (request, reply) => {
+    const origin = request.headers.origin;
+    if (!origin) return; // Same-origin navigations + server-to-server calls omit Origin — allow.
+    let originHost: string;
+    try {
+      originHost = new URL(origin).host;
+    } catch {
+      return reply.code(400).send({ error: 'Malformed Origin header' });
+    }
+    if (originHost !== request.hostname) {
+      request.log.warn(
+        { origin, host: request.hostname, ip: request.ip, url: request.url },
+        'Origin/Host mismatch — rejected',
+      );
+      return reply.code(403).send({ error: 'Cross-origin request rejected' });
+    }
   });
 
   // 2. Cookie parser
@@ -61,11 +87,32 @@ export function buildServer(): FastifyInstance {
     cookie: {
       httpOnly: true,
       secure: config.sessionCookieSecure,
-      sameSite: 'lax',
+      sameSite: 'strict',
       maxAge: 86400000, // 24h per D-02
       path: '/',
     },
     saveUninitialized: false,
+  });
+
+  // 3b. Structured audit log — one line per request with IP, method, URL,
+  // status, userId, User-Agent. Emitted via the existing Pino logger so it
+  // flows to stdout -> Docker -> host syslog/journald. Required for CRA
+  // "secure logging" and NIS 2 Art. 21 traceability.
+  server.addHook('onResponse', async (request, reply) => {
+    const session = (request as { session?: { userId?: string | number | null } }).session;
+    request.log.info(
+      {
+        audit: true,
+        ip: request.ip,
+        method: request.method,
+        url: request.url,
+        statusCode: reply.statusCode,
+        userId: session?.userId ?? null,
+        userAgent: request.headers['user-agent'] ?? null,
+        durationMs: reply.elapsedTime,
+      },
+      'request',
+    );
   });
 
   // 4. Multipart file upload

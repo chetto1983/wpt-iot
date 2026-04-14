@@ -30,18 +30,15 @@ export const config = {
   // Operators change it from the frontend UI (SUPER_ADMIN only).
   handshakeTimeoutMs: Number(process.env.HANDSHAKE_TIMEOUT_MS ?? 5000),
   sessionSecret: process.env.SESSION_SECRET ?? 'dev-only-session-secret-minimum-32-chars!!',
-  sessionCookieSecure: parseBoolean(process.env.SESSION_COOKIE_SECURE, false),
+  sessionCookieSecure: parseBoolean(process.env.SESSION_COOKIE_SECURE, true),
   adminPassword: process.env.ADMIN_PASSWORD ?? '',
   trustProxy: parseBoolean(process.env.TRUST_PROXY, false),
-  // Permissive dev/LAN default: wpt.local (mDNS alias), raw localhost, and
-  // a wildcard for any http://<anything>:3001 origin. Production deployments
-  // OVERRIDE this via CORS_ORIGIN in .env (install-linux.sh / install-prod.sh
-  // bake the current LAN IP in). The default exists so a misconfigured or
-  // stale .env does not silently lock browsers out of /auth/login.
-  corsOrigin: (
-    process.env.CORS_ORIGIN ??
-      'http://wpt.local:3001,http://localhost:3001'
-  ).split(','),
+
+  // CORS is deliberately eliminated as an attack surface — the backend emits
+  // no Access-Control-Allow-* headers. Browser traffic reaches the API only
+  // through the same origin as the frontend (nginx in prod, Next.js rewrite
+  // in dev). Same-Origin Policy enforces isolation with zero configuration
+  // and zero IP-coupled allowlist to maintain. See server.ts CORS block.
 
 } as const;
 
