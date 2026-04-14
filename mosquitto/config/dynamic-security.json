@@ -84,6 +84,21 @@
 					"topic":	"$SYS/#",
 					"priority":	-1,
 					"allow":	true
+				}, {
+					"acltype":	"publishClientSend",
+					"topic":	"spBv1.0/#",
+					"priority":	-1,
+					"allow":	true
+				}, {
+					"acltype":	"publishClientReceive",
+					"topic":	"spBv1.0/#",
+					"priority":	-1,
+					"allow":	true
+				}, {
+					"acltype":	"subscribePattern",
+					"topic":	"spBv1.0/#",
+					"priority":	-1,
+					"allow":	true
 				}]
 		}, {
 			"rolename":	"mqtt-admin",
@@ -116,6 +131,16 @@
 				}, {
 					"acltype":	"subscribePattern",
 					"topic":	"#",
+					"priority":	-1,
+					"allow":	true
+				}, {
+					"acltype":	"publishClientSend",
+					"topic":	"spBv1.0/#",
+					"priority":	-1,
+					"allow":	true
+				}, {
+					"acltype":	"subscribePattern",
+					"topic":	"spBv1.0/#",
 					"priority":	-1,
 					"allow":	true
 				}]
