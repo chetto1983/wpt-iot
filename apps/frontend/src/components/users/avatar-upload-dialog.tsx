@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import Cropper from 'react-easy-crop';
 import type { Area } from 'react-easy-crop';
 import { Loader2, Trash2, Upload } from 'lucide-react';
@@ -90,6 +90,8 @@ export function AvatarUploadDialog({
   const tAvatar = useTranslations('common.avatar');
   const tUsers = useTranslations('users');
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const fileInputId = useId();
+  const zoomInputId = useId();
 
   const [imageSrc, setImageSrc] = useState<string | null>(null);
   const [crop, setCrop] = useState({ x: 0, y: 0 });
@@ -194,8 +196,14 @@ export function AvatarUploadDialog({
             </div>
             {/* Zoom slider */}
             <div className="flex items-center gap-3 px-1">
-              <span className="text-xs text-muted-foreground">{tAvatar('zoom')}</span>
+              <label
+                htmlFor={zoomInputId}
+                className="text-xs text-muted-foreground"
+              >
+                {tAvatar('zoom')}
+              </label>
               <input
+                id={zoomInputId}
                 type="range"
                 min={1}
                 max={3}
@@ -221,9 +229,11 @@ export function AvatarUploadDialog({
         )}
 
         <input
+          id={fileInputId}
           ref={fileInputRef}
           type="file"
           accept="image/jpeg,image/png"
+          aria-label={tAvatar('choosePhoto')}
           className="hidden"
           onChange={onFileSelect}
         />
