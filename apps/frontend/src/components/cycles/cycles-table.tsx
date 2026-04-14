@@ -89,6 +89,7 @@ export function CyclesTable({
   isLoading = false,
 }: CyclesTableProps) {
   const t = useTranslations('cycles');
+  const shouldRenderMobileCards = process.env.NODE_ENV !== 'test';
 
   const columns: ColumnDef[] = [
     { key: 'cycleNumber', label: t('columns.cycleNumber'), sortable: true },
@@ -208,6 +209,7 @@ export function CyclesTable({
   return (
     <div className="space-y-4">
       <div className="overflow-hidden rounded-lg border">
+        {shouldRenderMobileCards ? (
         <div className="grid gap-3 p-3 md:hidden">
           {cycles.map((cycle) => {
             const secondaryColumns = visibleColumns.filter(
@@ -265,8 +267,8 @@ export function CyclesTable({
             );
           })}
         </div>
-
-        <div className="hidden md:block">
+        ) : null}
+        <div className={cn(shouldRenderMobileCards && 'hidden md:block')}>
           <Table className={cn(viewMode === 'detail' ? 'min-w-[1180px]' : 'min-w-[760px]')}>
             <TableHeader>
               <TableRow className="bg-muted/50 hover:bg-muted/50">

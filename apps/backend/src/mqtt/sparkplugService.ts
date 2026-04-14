@@ -8,7 +8,7 @@ import { pushEvent } from './activityLog.js';
 import { dataHub } from '../events/hub.js';
 import { latestState } from '../cache/latestState.js';
 import type { IMachineSnapshot } from '@wpt/types';
-import type { IAlarmTransition } from '../events/types.js';
+import { DATA_EVENTS, type IAlarmTransition } from '../events/types.js';
 import {
   ALARM_ALIASES,
   bitmaskFromIndices,
@@ -195,7 +195,21 @@ export class SparkplugService {
     }
 
     // Resolve once per init() — stays stable until stop()/init() cycle.
-    const edgeNodeId = resolveEdgeNodeId(cfg, log);
+    // In production, defer init until the first 9090 snapshot arrives so the
+    // edge_node_id can be set from the real machine serial (T-37-01-S1).
+    let edgeNodeId: string;
+    try {
+      edgeNodeId = resolveEdgeNodeId(cfg, log);
+    } catch (err) {
+      log.warn(
+        { name: 'Sparkplug', err: (err as Error).message },
+        'Sparkplug init deferred — waiting for first machine snapshot',
+      );
+      dataHub.once(DATA_EVENTS.MACHINE_DATA, () => {
+        void SparkplugService.init(log);
+      });
+      return;
+    }
     this.edgeNodeId = edgeNodeId;
 
     const deathTopic = `spBv1.0/${cfg.sparkplugGroupId}/NDEATH/${edgeNodeId}`;

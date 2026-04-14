@@ -3,6 +3,7 @@
 import { useTranslations } from 'next-intl';
 import { formatItKwh, type IEnergyCyclesResponse } from '@wpt/types';
 
+import { useIsMobile } from '@/hooks/use-mobile';
 import {
   Card,
   CardContent,
@@ -41,6 +42,7 @@ export function EnergyCyclesTable({
   error,
 }: EnergyCyclesTableProps) {
   const t = useTranslations('energy');
+  const isMobile = useIsMobile();
 
   return (
     <Card className="border border-border/70">
@@ -65,7 +67,8 @@ export function EnergyCyclesTable({
           </div>
         ) : (
           <>
-            <div className="grid gap-3 md:hidden">
+            {isMobile ? (
+            <div className="grid gap-3">
               {data.rows.map((row) => (
                 <div
                   key={row.cycleLabelKey}
@@ -105,8 +108,7 @@ export function EnergyCyclesTable({
                 </div>
               ))}
             </div>
-
-            <div className="hidden md:block">
+            ) : (
               <Table className="min-w-[640px]">
                 <TableHeader>
                   <TableRow>
@@ -139,7 +141,7 @@ export function EnergyCyclesTable({
                   ))}
                 </TableBody>
               </Table>
-            </div>
+            )}
           </>
         )}
       </CardContent>
