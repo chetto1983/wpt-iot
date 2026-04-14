@@ -41,8 +41,18 @@ async function notifyCacheFallback(): Promise<void> {
 // lifecycle — simpler: use a custom fetch handler for the /api/** GET rule.
 // ─────────────────────────────────────────────────────────────────────────────
 
+// The Serwist webpack plugin injects only built assets (`/_next/static/...`,
+// icons, etc.) into __SW_MANIFEST — it does NOT include Next.js route HTML.
+// `navigateFallback: '/offline'` below is a `matchPrecache` lookup, so /offline
+// must be explicitly added to the precache. Bump OFFLINE_REVISION whenever
+// /offline page content changes.
+const OFFLINE_REVISION = '37.2-1';
+
 const serwist = new Serwist({
-  precacheEntries: self.__SW_MANIFEST,
+  precacheEntries: [
+    ...(self.__SW_MANIFEST ?? []),
+    { url: '/offline', revision: OFFLINE_REVISION },
+  ],
 
   // When a navigation request cannot be served from cache AND the network is
   // unavailable, Serwist's NavigationRoute falls back to the precached /offline

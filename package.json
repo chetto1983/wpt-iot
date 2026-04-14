@@ -39,6 +39,7 @@
     "jscpd": "^4.0.9",
     "knip": "^6.4.1",
     "madge": "^8.0.0",
+    "puppeteer-core": "^24.40.0",
     "typescript-eslint": "^8.58.0"
   }
 }
