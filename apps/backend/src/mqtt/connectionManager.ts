@@ -149,7 +149,7 @@ async function doConnect(log: FastifyBaseLogger): Promise<void> {
 
   // Wire up subsystems with this connection. Topic prefix is computed once
   // here from the DB values; on reload these are torn down and rebuilt.
-  // Phase 37 D-07: legacy initMqttPublisher retired — Sparkplug B is the sole
+  // Phase 37 D-07: legacy outbound publisher retired — Sparkplug B is the sole
   // cloud uplink, owned by SparkplugService (see mqtt/sparkplugService.ts).
   // D-08 preserved: the local command handler (cmd/+/req namespace) stays.
   const topicPrefix = mqttTopic(cfg.siteId, cfg.machineId);
