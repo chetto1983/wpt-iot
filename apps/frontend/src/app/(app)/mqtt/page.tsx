@@ -297,9 +297,13 @@ export default function MqttPage() {
                   variant="outline"
                   size="sm"
                   onClick={handleRebirth}
-                  disabled={rebirthing || !status?.connected}
+                  disabled={rebirthing || !status?.sparkplugConnected}
                   className="w-full sm:w-auto"
-                  title={status?.connected ? undefined : t('status.rebirthDisabledTitle')}
+                  title={
+                    status?.sparkplugConnected
+                      ? undefined
+                      : t('status.rebirthDisabledTitle')
+                  }
                 >
                   {rebirthing ? (
                     <Loader2 className="mr-1 size-4 animate-spin" />
