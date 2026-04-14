@@ -16,6 +16,7 @@ import {
   buildAlarmsDbirthMetrics,
   buildAlarmsDdataMetrics,
 } from './sparkplugAlarms.js';
+import { ALARM_CATALOG_VERSION } from './alarmCatalogVersion.js';
 
 /**
  * Sparkplug B metric alias map. Stable across releases — bumping any alias
@@ -37,6 +38,7 @@ export const ALIAS_MAP: Readonly<Record<string, number>> = Object.freeze({
   'machine/firmware_version': 5,
   'machine/iot_version': 6,
   'machine/uptime_s': 7,
+  'machine/alarm_catalog_version': 8,
 
   // --- Cycle device DBIRTH (per §14 cycle DBIRTH metrics table) ---
   'cycle/cycle_count': 100,
@@ -316,6 +318,10 @@ export class SparkplugService {
         { name: 'machine/firmware_version', type: 'String', value: 'unknown', alias: aliasOf('machine/firmware_version') },
         { name: 'machine/iot_version', type: 'String', value: iotVersion, alias: aliasOf('machine/iot_version') },
         { name: 'machine/uptime_s', type: 'Int32', value: uptimeSec, alias: aliasOf('machine/uptime_s') },
+        // Alarm catalog version — published once in NBIRTH (not in NDATA).
+        // Consumers detect catalog drift when this value changes vs. their cached copy
+        // and refetch GET /api/alarms/catalog to refresh their description map.
+        { name: 'machine/alarm_catalog_version', type: 'String', value: ALARM_CATALOG_VERSION, alias: aliasOf('machine/alarm_catalog_version') },
       ],
     });
     if (!nbirthPayload) throw new Error('Sparkplug NBIRTH encoding failed');
