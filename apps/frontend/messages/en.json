@@ -845,6 +845,7 @@
       "sparkplugTitle": "Cloud Uplink (Sparkplug B)",
       "sparkplugGroupId": "Group ID",
       "sparkplugGroupIdHelp": "Sparkplug B namespace group (e.g. WPT)",
+      "sparkplugGroupIdPatternHint": "ASCII letters, digits, hyphens, underscores only — no slashes, wildcards, or Unicode.",
       "sparkplugEdgeNodeId": "Edge Node ID",
       "sparkplugEdgeNodeIdHelp": "Derived automatically from the connected PLC's serial number in production. The configured value above is a fallback used only in dev/test when no PLC packet has been received, preventing identity spoofing on the broker.",
       "publishCycleRecords": "Publish Cycle Records",
@@ -868,11 +869,13 @@
       "create": "Create User",
       "created": "User created",
       "edit": "Edit User",
+      "editUserLabel": "Edit MQTT user {username}",
       "save": "Save",
       "updated": "User updated",
       "passwordOptional": "Leave blank to keep current",
       "passwordMinLength": "Password must be at least 8 characters",
       "delete": "Delete User",
+      "deleteUserLabel": "Delete MQTT user {username}",
       "deleted": "User deleted",
       "deleteConfirm": "Delete MQTT user \"{username}\"?",
       "deleteDescription": "This will remove the user's access to the MQTT broker. This action cannot be undone.",
@@ -888,7 +891,8 @@
       "disconnect": "Disconnect",
       "publish": "Publish",
       "subscribe": "Subscribe",
-      "error": "Error"
+      "error": "Error",
+      "refresh": "Refresh activity log"
     }
   },
   "plc": {

@@ -230,8 +230,14 @@ export function MqttConfigForm({ config, onSaved }: MqttConfigFormProps) {
               value={sparkplugGroupId}
               onChange={(e) => setSparkplugGroupId(e.target.value)}
               placeholder="WPT"
+              pattern="[A-Za-z0-9]([A-Za-z0-9_-]*[A-Za-z0-9])?"
+              maxLength={64}
+              title={t('config.sparkplugGroupIdPatternHint')}
+              aria-describedby="mqtt-sparkplug-group-id-help"
             />
-            <p className="text-xs text-muted-foreground">{t('config.sparkplugGroupIdHelp')}</p>
+            <p id="mqtt-sparkplug-group-id-help" className="text-xs text-muted-foreground">
+              {t('config.sparkplugGroupIdHelp')}
+            </p>
           </div>
 
           <div className="grid gap-2">

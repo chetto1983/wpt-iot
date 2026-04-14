@@ -567,6 +567,7 @@ export default function MqttPage() {
             variant="ghost"
             size="icon"
             onClick={() => void loadLog()}
+            aria-label={t('activityLog.refresh')}
           >
             <RefreshCw className="size-4" />
           </Button>
