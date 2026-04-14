@@ -44,6 +44,15 @@ async function notifyCacheFallback(): Promise<void> {
 const serwist = new Serwist({
   precacheEntries: self.__SW_MANIFEST,
 
+  // When a navigation request cannot be served from cache AND the network is
+  // unavailable, Serwist's NavigationRoute falls back to the precached /offline
+  // page instead of the browser's built-in error screen. API routes are excluded
+  // so a failed /api/ request returns a network error (not the /offline HTML).
+  precacheOptions: {
+    navigateFallback: '/offline',
+    navigateFallbackDenylist: [/^\/api\//],
+  },
+
   // LOCKED: deferred user-prompted takeover only.
   // PwaManager sends { type: 'SKIP_WAITING' } when user clicks the update toast.
   skipWaiting: false,
@@ -53,9 +62,8 @@ const serwist = new Serwist({
   runtimeCaching: [
     // ── 0. HTML navigation (document): NetworkFirst — MUST be FIRST rule ─────
     // Matches all document navigations (page loads, back/forward, new tabs).
-    // The /offline fallback is configured via navigateFallback in next.config.ts
-    // (withSerwistInit option). This rule caches the navigation response so the
-    // dashboard shell is available when the network is down.
+    // The /offline fallback above ensures that when the network is down and the
+    // cache misses, the user sees the app's branded offline page.
     // Placed BEFORE the RSC rule to ensure document navigations match here first.
     {
       matcher: ({ request }: { request: Request }) =>
