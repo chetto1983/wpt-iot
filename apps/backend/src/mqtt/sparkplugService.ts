@@ -285,6 +285,25 @@ export class SparkplugService {
     return this.edgeNodeId;
   }
 
+  /** True when the uplink broker connection is currently open. */
+  static isConnected(): boolean {
+    return this.client?.connected === true;
+  }
+
+  /**
+   * Republish NBIRTH + all DBIRTHs on demand. `seq` resets to 0 per §6.4.3.
+   * Intended for operator-initiated rebirth from the admin UI when alias maps
+   * drift on a consumer or after a config change that didn't warrant a full
+   * reconnect. Throws if the service is not connected.
+   */
+  static async requestRebirth(): Promise<void> {
+    if (!this.isConnected()) {
+      throw new Error('Sparkplug is not connected — cannot rebirth');
+    }
+    await this.publishBirths();
+    pushEvent('publish', 'NBIRTH + DBIRTHs republished (operator-initiated rebirth)');
+  }
+
   private static async publishBirths(): Promise<void> {
     if (!this.client || !spb) return;
     this.seq = 0; // §6.4.3 MUST: seq MUST be reset to 0 with each new NBIRTH message

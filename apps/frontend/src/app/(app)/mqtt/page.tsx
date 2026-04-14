@@ -11,13 +11,8 @@ import {
   Pencil,
   Trash2,
   RefreshCw,
+  RotateCcw,
   Loader2,
-  Server,
-  ShieldCheck,
-  Activity,
-  RadioTower,
-  Cloud,
-  Users,
 } from 'lucide-react';
 
 import { apiFetch } from '@/lib/api';
@@ -128,6 +123,7 @@ export default function MqttPage() {
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [testing, setTesting] = useState(false);
+  const [rebirthing, setRebirthing] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [logEvents, setLogEvents] = useState<MqttLogEvent[]>([]);
 
@@ -215,6 +211,19 @@ export default function MqttPage() {
     }
   }, [t]);
 
+  const handleRebirth = useCallback(async () => {
+    setRebirthing(true);
+    try {
+      await apiFetch('/api/mqtt/rebirth', { method: 'POST' });
+      toast.success(t('status.rebirthSuccess'));
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : t('status.rebirthFailed');
+      toast.error(msg);
+    } finally {
+      setRebirthing(false);
+    }
+  }, [t]);
+
   const handleDeleteUser = useCallback(async () => {
     if (!deleteTarget) return;
     setDeleting(true);
@@ -247,83 +256,15 @@ export default function MqttPage() {
 
   return (
     <div className="mx-auto w-full max-w-6xl space-y-6 p-4 sm:p-6">
-      <section className="overflow-hidden rounded-[28px] border border-border/70 bg-gradient-to-br from-card via-card to-muted/40 shadow-sm">
-        <div className="grid gap-6 p-6 lg:grid-cols-[1.4fr_0.9fr] lg:p-8">
-          <div className="space-y-4">
-            <div className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-background/80 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
-              <RadioTower className="size-3.5 text-wpt-teal" />
-              {t('hero.kicker')}
-            </div>
-            <div className="space-y-2">
-              <h1 className="text-3xl font-semibold tracking-tight">{t('title')}</h1>
-              <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
-                {t('subtitle')}
-              </p>
-            </div>
-            <div className="grid gap-3 sm:grid-cols-3">
-              <div className="rounded-2xl border border-border/70 bg-background/80 p-4">
-                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                  <Activity className="size-3.5 text-wpt-teal" />
-                  {t('hero.cards.link')}
-                </div>
-                <div className="mt-3 flex items-center gap-2">
-                  {status?.connected ? (
-                    <Wifi className="size-4 text-emerald-600" />
-                  ) : (
-                    <WifiOff className="size-4 text-destructive" />
-                  )}
-                  <span className="text-sm font-medium">
-                    {status?.connected ? t('status.connected') : t('status.disconnected')}
-                  </span>
-                </div>
-              </div>
-              <div className="rounded-2xl border border-border/70 bg-background/80 p-4">
-                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                  <Cloud className="size-3.5 text-wpt-gold" />
-                  {t('hero.cards.gateway')}
-                </div>
-                <div className="mt-3 text-sm font-medium">
-                  {status?.enabled ? t('status.enabled') : t('status.disabled')}
-                </div>
-              </div>
-              <div className="rounded-2xl border border-border/70 bg-background/80 p-4">
-                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                  <Users className="size-3.5 text-wpt-teal" />
-                  {t('hero.cards.users')}
-                </div>
-                <div className="mt-3 text-sm font-medium">
-                  {t('hero.cards.usersValue', { count: users.length })}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="grid gap-3 self-start">
-            <div className="rounded-2xl border border-border/70 bg-background/80 p-4">
-              <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                <Server className="size-3.5 text-wpt-teal" />
-                {t('hero.cards.endpoint')}
-              </div>
-              <p className="mt-3 break-all font-mono text-sm text-foreground">
-                {status ? `${status.brokerHost}:${String(status.brokerPort)}` : '—'}
-              </p>
-            </div>
-            <div className="rounded-2xl border border-border/70 bg-background/80 p-4">
-              <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                <ShieldCheck className="size-3.5 text-wpt-gold" />
-                {t('hero.cards.identity')}
-              </div>
-              <p className="mt-3 break-all font-mono text-sm text-foreground">
-                {status?.clientId || '—'}
-              </p>
-            </div>
-          </div>
-        </div>
+      <section className="space-y-2">
+        <h1 className="text-3xl font-semibold tracking-tight">{t('title')}</h1>
+        <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
+          {t('subtitle')}
+        </p>
       </section>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <div className="space-y-6">
-          <Card className={status?.connected ? 'border-emerald-500/20 bg-emerald-500/[0.03]' : 'border-border/70'}>
+      <div className="space-y-6">
+        <Card className={status?.connected ? 'border-emerald-500/20 bg-emerald-500/[0.03]' : 'border-border/70'}>
             <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="space-y-1">
                 <CardTitle>{t('status.title')}</CardTitle>
@@ -341,11 +282,27 @@ export default function MqttPage() {
                   {t('status.testConnection')}
                 </Button>
                 <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleRebirth}
+                  disabled={rebirthing || !status?.connected}
+                  className="w-full sm:w-auto"
+                  title={status?.connected ? undefined : t('status.rebirthDisabledTitle')}
+                >
+                  {rebirthing ? (
+                    <Loader2 className="mr-1 size-4 animate-spin" />
+                  ) : (
+                    <RotateCcw className="mr-1 size-4" />
+                  )}
+                  {t('status.forceRebirth')}
+                </Button>
+                <Button
                   variant="ghost"
                   size="icon"
                   onClick={handleRefresh}
                   disabled={refreshing}
                   className="self-end sm:self-auto"
+                  aria-label={t('status.refreshStatus')}
                 >
                   <RefreshCw className={`size-4 ${refreshing ? 'animate-spin' : ''}`} />
                 </Button>
@@ -411,10 +368,8 @@ export default function MqttPage() {
               }}
             />
           ) : null}
-        </div>
 
-        <div className="space-y-6">
-          <Card>
+        <Card>
             <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="space-y-1">
                 <CardTitle>{t('users.title')}</CardTitle>
@@ -531,6 +486,7 @@ export default function MqttPage() {
                                         setEditTarget(u);
                                         setUserDialogOpen(true);
                                       }}
+                                      aria-label={t('users.editUserLabel', { username: u.username })}
                                     >
                                       <Pencil className="size-4" />
                                     </Button>
@@ -538,6 +494,7 @@ export default function MqttPage() {
                                       variant="ghost"
                                       size="icon"
                                       onClick={() => setDeleteTarget(u.username)}
+                                      aria-label={t('users.deleteUserLabel', { username: u.username })}
                                     >
                                       <Trash2 className="size-4 text-red-500" />
                                     </Button>
@@ -554,7 +511,6 @@ export default function MqttPage() {
               )}
             </CardContent>
           </Card>
-        </div>
       </div>
 
       <Card>
@@ -621,13 +577,10 @@ export default function MqttPage() {
             <DialogTitle>{t('users.delete')}</DialogTitle>
             <DialogDescription>
               {deleteTarget
-                ? t('users.deleteConfirm', { username: deleteTarget })
+                ? `${t('users.deleteConfirm', { username: deleteTarget })} ${t('users.deleteDescription')}`
                 : ''}
             </DialogDescription>
           </DialogHeader>
-          <p className="text-sm text-muted-foreground">
-            {t('users.deleteDescription')}
-          </p>
           <DialogFooter>
             <Button
               variant="outline"

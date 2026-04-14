@@ -232,10 +232,14 @@ export function MqttConfigForm({ config, onSaved }: MqttConfigFormProps) {
             <Input
               id="mqtt-sparkplug-edge-node-id"
               value={sparkplugEdgeNodeId}
-              onChange={(e) => setSparkplugEdgeNodeId(e.target.value)}
+              readOnly
+              disabled
               placeholder="iot-box-01"
+              aria-describedby="mqtt-sparkplug-edge-node-id-help"
             />
-            <p className="text-xs text-muted-foreground">{t('config.sparkplugEdgeNodeIdHelp')}</p>
+            <p id="mqtt-sparkplug-edge-node-id-help" className="text-xs text-muted-foreground">
+              {t('config.sparkplugEdgeNodeIdHelp')}
+            </p>
           </div>
 
           <div className="flex items-center justify-between">

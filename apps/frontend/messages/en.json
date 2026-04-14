@@ -804,7 +804,12 @@
       "clientId": "Client ID",
       "testConnection": "Test Connection",
       "testSuccess": "Connection active",
-      "testFailed": "Connection failed"
+      "testFailed": "Connection failed",
+      "forceRebirth": "Force Rebirth",
+      "rebirthSuccess": "NBIRTH + DBIRTHs republished",
+      "rebirthFailed": "Rebirth failed",
+      "rebirthDisabledTitle": "Sparkplug uplink is not connected — rebirth unavailable",
+      "refreshStatus": "Refresh status"
     },
     "config": {
       "title": "Configuration",
@@ -832,7 +837,7 @@
       "sparkplugGroupId": "Group ID",
       "sparkplugGroupIdHelp": "Sparkplug B namespace group (e.g. WPT)",
       "sparkplugEdgeNodeId": "Edge Node ID",
-      "sparkplugEdgeNodeIdHelp": "Unique node identifier for this IoT box (e.g. iot-box-01)",
+      "sparkplugEdgeNodeIdHelp": "Derived automatically from the connected PLC's serial number in production. The configured value above is a fallback used only in dev/test when no PLC packet has been received, preventing identity spoofing on the broker.",
       "publishCycleRecords": "Publish Cycle Records",
       "telemetryIntervalSeconds": "Telemetry Interval (seconds)",
       "telemetryIntervalHelp": "Interval between machine telemetry snapshots sent to cloud (5\u20133600 s)"

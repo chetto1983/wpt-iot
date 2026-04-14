@@ -7,6 +7,20 @@ import { MqttConfigService } from '../mqtt/configService.js';
 import { DynSecClient } from '../mqtt/dynSecClient.js';
 import { getEvents } from '../mqtt/activityLog.js';
 import { getMqttClient, reloadMqttConnection } from '../mqtt/connectionManager.js';
+import { SparkplugService } from '../mqtt/sparkplugService.js';
+
+/**
+ * Sparkplug B 3.0 group_id / edge_node_id slug.
+ * Hard requirements (Sparkplug §5 + MQTT 3.1.1 topic rules): no slashes
+ * (would split the topic path), no `+` / `#` (MQTT wildcards), no Unicode
+ * (breaks UTF-8 round-trips in downstream SCADA hosts). Must start and end
+ * with an alphanumeric so `foo-` / `-foo` / `--` are rejected.
+ *
+ * Case is left mixed for backward compatibility with the shipped default
+ * (`WPT`). The topic-namespace.md recommendation of all-lower-case is a
+ * style preference, not a wire-contract constraint.
+ */
+const SLUG_REGEX = /^[A-Za-z0-9]([A-Za-z0-9_-]*[A-Za-z0-9])?$/;
 
 const createUserSchema = z.object({
   username: z.string().min(3).max(50),
@@ -97,8 +111,18 @@ export const mqttRoutes: FastifyPluginAsync = async (server) => {
       machineId: z.string().min(1).max(100).optional(),
       useTls: z.boolean().optional(),
       caCert: z.string().max(10000).nullable().optional(),
-      sparkplugGroupId: z.string().min(1).max(255).optional(),
-      sparkplugEdgeNodeId: z.string().min(1).max(255).optional(),
+      sparkplugGroupId: z
+        .string()
+        .min(1)
+        .max(64)
+        .regex(SLUG_REGEX, 'must be ASCII alphanumerics, hyphens, or underscores; no slashes, wildcards, or Unicode (Sparkplug B topic-namespace rule)')
+        .optional(),
+      sparkplugEdgeNodeId: z
+        .string()
+        .min(1)
+        .max(64)
+        .regex(SLUG_REGEX, 'must be ASCII alphanumerics, hyphens, or underscores; no slashes, wildcards, or Unicode (Sparkplug B topic-namespace rule)')
+        .optional(),
       publishCycleRecords: z.boolean().optional(),
       telemetryIntervalSeconds: z.int().min(5).max(3600).optional(),
     }).strict().safeParse(request.body);
@@ -118,6 +142,30 @@ export const mqttRoutes: FastifyPluginAsync = async (server) => {
     await reloadMqttConnection(request.log);
     // Return the redacted public view (no password leak in the response).
     return MqttConfigService.getPublicConfig();
+  });
+
+  // ── Rebirth route ──────────────────────────────────────────────
+
+  /**
+   * POST /api/mqtt/rebirth
+   * Trigger operator-initiated NBIRTH + DBIRTH republish on the Sparkplug
+   * uplink. Resets `seq` to 0 per §6.4.3 MUST. Useful after a consumer reports
+   * alias-map drift or after a config change that didn't warrant a full
+   * reconnect cycle.
+   *
+   * Returns 503 if the Sparkplug uplink is not currently connected.
+   */
+  server.post('/mqtt/rebirth', async (_request, reply) => {
+    if (!SparkplugService.isConnected()) {
+      return reply.code(503).send({ error: 'Sparkplug uplink not connected' });
+    }
+    try {
+      await SparkplugService.requestRebirth();
+      return { success: true };
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Unknown error';
+      return reply.code(500).send({ error: msg });
+    }
   });
 
   // ── Status route ───────────────────────────────────────────────
