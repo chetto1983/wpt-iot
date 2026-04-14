@@ -6,7 +6,123 @@ import { z } from 'zod/v4';
 import { MqttConfigService } from './configService.js';
 import { pushEvent } from './activityLog.js';
 import { dataHub } from '../events/hub.js';
+import { latestState } from '../cache/latestState.js';
 import type { IMachineSnapshot } from '@wpt/types';
+
+/**
+ * Sparkplug B metric alias map. Stable across releases — bumping any alias
+ * is a CONTRACT BREAK and requires bumping wpt-sparkplug major version.
+ *
+ * Layout: 0-99 = node-level, 100-199 = cycle device, 200-299 = telemetry device,
+ * 300+ = alarms device (assigned in plan 37-02).
+ *
+ * Per Sparkplug B 3.0 §6.4.4: NBIRTH/DBIRTH MUST carry both `name` and `alias`;
+ * NDATA/DDATA SHOULD carry `alias` only (consumers maintain name<->alias map).
+ */
+export const ALIAS_MAP: Readonly<Record<string, number>> = Object.freeze({
+  // --- Node-level (NBIRTH) ---
+  'bdSeq': 0,
+  'Node Control/Rebirth': 1,
+  'machine/serial': 2,
+  'machine/model': 3,
+  'machine/customer': 4,
+  'machine/firmware_version': 5,
+  'machine/iot_version': 6,
+  'machine/uptime_s': 7,
+
+  // --- Cycle device DBIRTH (per §14 cycle DBIRTH metrics table) ---
+  'cycle/cycle_count': 100,
+  'cycle/cycle_status': 101,
+  'cycle/cycle_status_label': 102,
+  'cycle/selected_cycle': 103,
+  'cycle/selected_cycle_label': 104,
+  'cycle/container_count': 105,
+  'cycle/material_input_kg': 106,
+  'cycle/material_output_kg': 107,
+  'cycle/start_at': 108,
+  'cycle/end_at': 109,
+  'cycle/start_energy_kwh': 110,
+  'cycle/end_energy_kwh': 111,
+  'cycle/start_water_lt': 112,
+  'cycle/end_water_lt': 113,
+  'cycle/operator': 114,
+  'cycle/order_number': 115,
+  'cycle/supervisor': 116,
+  'cycle/timestamp_source': 117,
+
+  // --- Phase 24 legacy cycle DDATA fields retained for the existing 15-metric payload ---
+  // (shipped in v1.2; names that overlap with §14 re-use the §14 alias above)
+  'cycle/cycles': 151,
+  'cycle/date': 152,
+  'cycle/start_time': 153,
+  'cycle/end_time': 154,
+  'cycle/weight_input_kg': 155,
+  'cycle/weight_output_kg': 156,
+  'cycle/containers': 157,
+  'cycle/gross_input_kg': 158,
+  'cycle/start_water_l': 159,
+  'cycle/end_water_l': 160,
+
+  // --- Telemetry device DBIRTH (one alias per V03 IMachineSnapshot field that ships) ---
+  'telemetry/serial_number': 200,
+  'telemetry/model': 201,
+  'telemetry/garbage_temp': 202,
+  'telemetry/chamber_pressure': 203,
+  'telemetry/main_motor_speed': 204,
+  'telemetry/vacuum_pump_speed_01': 205,
+  'telemetry/completed_cycles': 206,
+  'telemetry/cycle_status': 207,
+  'telemetry/container': 208,
+  'telemetry/rms_curr_n': 209,
+  'telemetry/line_voltage_l12': 210,
+  'telemetry/line_voltage_l23': 211,
+  'telemetry/line_voltage_l31': 212,
+  'telemetry/line_neutral_l1': 213,
+  'telemetry/line_neutral_l2': 214,
+  'telemetry/line_neutral_l3': 215,
+  'telemetry/pf_total': 216,
+});
+
+/** Compile-time guard: alias lookup must hit a declared name in ALIAS_MAP. */
+type AliasKey = keyof typeof ALIAS_MAP;
+function aliasOf(name: AliasKey): number {
+  // Readonly<Record<string, number>> erases the literal keys; cast through
+  // the `as const`-like view kept by AliasKey to fail at call sites that
+  // pass an undeclared metric name. All callers in this file go through
+  // aliasOf() so ALIAS_MAP is the single source of truth for alias numbers.
+  const value = (ALIAS_MAP as Record<string, number>)[name];
+  if (value === undefined) {
+    throw new Error(`Unknown Sparkplug metric alias for "${name}" — missing from ALIAS_MAP`);
+  }
+  return value;
+}
+
+/**
+ * Resolve edge_node_id from the live machine serial. Fails loudly in production when
+ * no snapshot has been received — generic ids would let another node spoof the same
+ * identity on the broker (threat T-37-01-S1). In dev/test it falls back to the
+ * configured value with a WARN log so local loops work without a real PLC attached.
+ */
+function resolveEdgeNodeId(
+  cfg: { sparkplugEdgeNodeId: string },
+  log: FastifyBaseLogger,
+): string {
+  const snapshot = latestState.getMachineSnapshot();
+  const serial = snapshot?.serialNumber?.trim();
+  if (serial) return serial;
+  const env = process.env.NODE_ENV;
+  if (env === 'development' || env === 'test') {
+    log.warn(
+      { name: 'Sparkplug', fallback: cfg.sparkplugEdgeNodeId },
+      'Sparkplug edge_node_id resolver: no machine snapshot received yet, falling back to configured value (dev/test only)',
+    );
+    return cfg.sparkplugEdgeNodeId;
+  }
+  throw new Error(
+    'Sparkplug edge_node_id requires machine serial — no snapshot received yet. ' +
+      'Refusing to publish under generic id in production. Wait for first 9090 packet, then retry init.',
+  );
+}
 
 /**
  * Zod schema guarding the MQTT publish boundary (T-31-03 mitigation, Phase 31 Plan 03).
@@ -15,28 +131,8 @@ import type { IMachineSnapshot } from '@wpt/types';
  *   - packages/types/src/energy.ts `ICycleClosedEvent` (immediate path, emitted by v03CycleTracker)
  *   - apps/backend/src/db/schema/energy.ts `cycleRecords` table (drain path, DB row)
  *
- * DIVERGENCE FROM PLAN's literal schema (plan had z.number() / z.string() for many
- * fields — runtime shape is nullable):
- *   - `materialOutputKg` is NOT on ICycleClosedEvent and is `real` (nullable) on cycle_records.
- *     The encoder at line 159 already coalesces with `?? 0`, so .nullable() is correct.
- *   - `startEnergyKwh`, `endEnergyKwh`, `startWaterL`, `endWaterL`, `grossInputKg`,
- *     `materialInputKg`, `containers`, `operator`, `orderNumber` are all `number | null` /
- *     `string | null` on BOTH the event and the DB row (cloudUplinkWorker drains raw DB rows
- *     into publishCycleRecord). Existing encoder uses `?? 0` / `?? ''` coalesce — the nulls
- *     are expected runtime values.
- *   - `endedAt` is `Date` (non-nullable) on the event, `notNull()` timestamp on the DB row.
- *   - `cycleStatusLabel` is `string` (non-nullable) on the event, `varchar(16)` nullable on DB.
- *     Kept nullable here to admit both callers without silent coercion.
- *
- * The parameter to `publishCycleRecord` is typed as `unknown` (not `ICycleRecordPayload`)
- * so callers that pass the existing `ICycleClosedEvent | ({id, cycleNumber} & Record<string, unknown>)`
- * union in cloudUplinkWorker.ts continue to compile without modification (plan: "Do NOT
- * change any caller of publishCycleRecord"). The `.parse()` call produces the strongly-typed
- * `validated` binding at the boundary — the T-31-03 mitigation is unchanged.
- *
- * Deriving from runtime shape (not the plan's prescriptive shape) was explicitly called
- * out by the plan (A3 in 31-RESEARCH.md): "re-read the actual field access ... derive the
- * schema from *that* — it must describe the runtime shape exactly."
+ * See sparkplugService.ts original comment block for the full DIVERGENCE-FROM-PLAN rationale
+ * retained from Phase 31 Plan 03 — the validator is unchanged by Phase 37.
  */
 const CycleRecordPayloadSchema = z.object({
   orderNumber: z.string().nullable(),
@@ -56,21 +152,16 @@ const CycleRecordPayloadSchema = z.object({
 });
 type ICycleRecordPayload = z.infer<typeof CycleRecordPayloadSchema>;
 
-/**
- * T-31-03-B disposition note: the `sparkplug-payload` library ships with its own
- * TypeScript declarations (`.d.ts` files under lib/), so `sparkplugPayload.get('spBv1.0')`
- * is already well-typed. The baseline ESLint scan had ZERO `no-unsafe-*` findings on
- * `spb.*` calls — all 34 were cascading from `record: any`. The proposed `ISparkplugEncoder`
- * override is therefore unnecessary; retaining the library's native typing catches a
- * future version-bump shape change at compile time without re-declaring the contract.
- */
 const spb = sparkplugPayload.get('spBv1.0');
 
 /**
  * Sparkplug B v1.0 Service.
- * 
+ *
  * Manages the connection and protocol lifecycle for the Cloud Uplink.
- * Publishes NBIRTH, DBIRTH, NDATA, and DDATA messages.
+ * Publishes NBIRTH, DBIRTH, NDATA, and DDATA messages per WPT-SISTEMA-IOT-SPEC §14.
+ *
+ * Three devices under the edge node: `cycle`, `telemetry`, `alarms`.
+ * (alarms DBIRTH/DDATA is wired in plan 37-02.)
  */
 export class SparkplugService {
   private static client: MqttClient | null = null;
@@ -78,6 +169,7 @@ export class SparkplugService {
   private static seq = 0;
   private static bdSeq = 0;
   private static lastTelemetryTime = 0;
+  private static edgeNodeId: string | null = null;
 
   static async init(log: FastifyBaseLogger): Promise<void> {
     this.logger = log;
@@ -87,17 +179,21 @@ export class SparkplugService {
       return;
     }
 
-    const deathTopic = `spBv1.0/${cfg.sparkplugGroupId}/NDEATH/${cfg.sparkplugEdgeNodeId}`;
+    // Resolve once per init() — stays stable until stop()/init() cycle.
+    const edgeNodeId = resolveEdgeNodeId(cfg, log);
+    this.edgeNodeId = edgeNodeId;
+
+    const deathTopic = `spBv1.0/${cfg.sparkplugGroupId}/NDEATH/${edgeNodeId}`;
     const deathPayload = spb?.encodePayload({
       timestamp: Date.now(),
-      metrics: [{ name: 'bdSeq', type: 'UInt64', value: this.bdSeq }]
+      metrics: [{ name: 'bdSeq', type: 'UInt64', value: this.bdSeq, alias: aliasOf('bdSeq') }],
     });
 
     try {
       this.client = await mqtt.connectAsync({
         host: cfg.brokerHost,
         port: cfg.brokerPort,
-        clientId: `wpt-sparkplug-${cfg.sparkplugEdgeNodeId}`,
+        clientId: `wpt-sparkplug-${edgeNodeId}`,
         username: cfg.username,
         password: cfg.password,
         will: {
@@ -105,10 +201,10 @@ export class SparkplugService {
           payload: Buffer.from(deathPayload ?? []),
           qos: 1,
           retain: false,
-        }
+        },
       });
 
-      log.info({ name: 'Sparkplug' }, 'Sparkplug Cloud Uplink connected');
+      log.info({ name: 'Sparkplug', edgeNodeId }, 'Sparkplug Cloud Uplink connected');
       pushEvent('connect', `Sparkplug connected to ${cfg.brokerHost}`);
 
       await this.publishBirths();
@@ -122,7 +218,6 @@ export class SparkplugService {
           void this.publishMachineTelemetry(snapshot);
         }
       });
-
     } catch (err) {
       log.error({ name: 'Sparkplug', err }, 'Failed to connect Sparkplug Cloud Uplink');
       pushEvent('error', `Sparkplug connection failed: ${(err as Error).message}`);
@@ -135,56 +230,144 @@ export class SparkplugService {
     return s;
   }
 
+  /** Resolve the cached edge_node_id; throws if init() has not run yet. */
+  private static requireEdgeNodeId(): string {
+    if (!this.edgeNodeId) {
+      throw new Error('SparkplugService.init() must complete before publishing');
+    }
+    return this.edgeNodeId;
+  }
+
   private static async publishBirths(): Promise<void> {
     if (!this.client || !spb) return;
     const cfg = await MqttConfigService.getConfig();
+    const edgeNodeId = this.requireEdgeNodeId();
+    const snapshot = latestState.getMachineSnapshot();
+    const iotVersion = process.env.npm_package_version ?? 'dev';
+    const uptimeSec = Math.floor(process.uptime());
 
-    // NBIRTH
-    const nbirthTopic = `spBv1.0/${cfg.sparkplugGroupId}/NBIRTH/${cfg.sparkplugEdgeNodeId}`;
+    // --- NBIRTH: canonical machine-level metrics (§14) ---
+    const nbirthTopic = `spBv1.0/${cfg.sparkplugGroupId}/NBIRTH/${edgeNodeId}`;
     const nbirthPayload = spb.encodePayload({
       timestamp: Date.now(),
       seq: this.nextSeq(),
       metrics: [
-        { name: 'bdSeq', type: 'UInt64', value: this.bdSeq },
-        { name: 'Node Control/Rebirth', type: 'Boolean', value: false }
-      ]
+        { name: 'bdSeq', type: 'UInt64', value: this.bdSeq, alias: aliasOf('bdSeq') },
+        { name: 'Node Control/Rebirth', type: 'Boolean', value: false, alias: aliasOf('Node Control/Rebirth') },
+        { name: 'machine/serial', type: 'String', value: snapshot?.serialNumber ?? edgeNodeId, alias: aliasOf('machine/serial') },
+        { name: 'machine/model', type: 'String', value: 'WPT Industrial 4.0', alias: aliasOf('machine/model') },
+        { name: 'machine/customer', type: 'String', value: cfg.sparkplugGroupId, alias: aliasOf('machine/customer') },
+        { name: 'machine/firmware_version', type: 'String', value: 'unknown', alias: aliasOf('machine/firmware_version') },
+        { name: 'machine/iot_version', type: 'String', value: iotVersion, alias: aliasOf('machine/iot_version') },
+        { name: 'machine/uptime_s', type: 'Int32', value: uptimeSec, alias: aliasOf('machine/uptime_s') },
+      ],
     });
     if (!nbirthPayload) throw new Error('Sparkplug NBIRTH encoding failed');
     await this.client.publishAsync(nbirthTopic, Buffer.from(nbirthPayload), { qos: 1, retain: false });
 
-    // DBIRTH
-    const dbirthTopic = `spBv1.0/${cfg.sparkplugGroupId}/DBIRTH/${cfg.sparkplugEdgeNodeId}/machine`;
-    const dbirthPayload = spb.encodePayload({
+    // --- DBIRTH /cycle: canonical cycle metric set (§14) ---
+    const cycleDbirthTopic = `spBv1.0/${cfg.sparkplugGroupId}/DBIRTH/${edgeNodeId}/cycle`;
+    const cycleDbirthPayload = spb.encodePayload({
       timestamp: Date.now(),
       seq: this.nextSeq(),
       metrics: [
-        { name: 'Model', type: 'String', value: 'WPT Industrial 4.0' },
-        { name: 'Device Control/Rebirth', type: 'Boolean', value: false }
-      ]
+        { name: 'cycle/cycle_count', type: 'Int32', value: snapshot?.completedCycles ?? 0, alias: aliasOf('cycle/cycle_count') },
+        { name: 'cycle/cycle_status', type: 'Int32', value: snapshot?.cycleStatus ?? 0, alias: aliasOf('cycle/cycle_status') },
+        { name: 'cycle/cycle_status_label', type: 'String', value: '', alias: aliasOf('cycle/cycle_status_label') },
+        { name: 'cycle/selected_cycle', type: 'Int32', value: snapshot?.selectedCycle ?? 0, alias: aliasOf('cycle/selected_cycle') },
+        { name: 'cycle/selected_cycle_label', type: 'String', value: '', alias: aliasOf('cycle/selected_cycle_label') },
+        { name: 'cycle/container_count', type: 'Int32', value: snapshot?.container ?? 0, alias: aliasOf('cycle/container_count') },
+        { name: 'cycle/material_input_kg', type: 'Float', value: snapshot?.materialInputWeight ?? 0, alias: aliasOf('cycle/material_input_kg') },
+        { name: 'cycle/material_output_kg', type: 'Float', value: snapshot?.materialOutputWeight ?? 0, alias: aliasOf('cycle/material_output_kg') },
+        { name: 'cycle/start_at', type: 'DateTime', value: 0, alias: aliasOf('cycle/start_at') },
+        { name: 'cycle/end_at', type: 'DateTime', value: 0, alias: aliasOf('cycle/end_at') },
+        { name: 'cycle/start_energy_kwh', type: 'Float', value: 0, alias: aliasOf('cycle/start_energy_kwh') },
+        { name: 'cycle/end_energy_kwh', type: 'Float', value: 0, alias: aliasOf('cycle/end_energy_kwh') },
+        { name: 'cycle/start_water_lt', type: 'Float', value: 0, alias: aliasOf('cycle/start_water_lt') },
+        { name: 'cycle/end_water_lt', type: 'Float', value: 0, alias: aliasOf('cycle/end_water_lt') },
+        { name: 'cycle/operator', type: 'String', value: snapshot?.user ?? '', alias: aliasOf('cycle/operator') },
+        { name: 'cycle/order_number', type: 'String', value: snapshot?.orderNumber ?? '', alias: aliasOf('cycle/order_number') },
+        { name: 'cycle/supervisor', type: 'String', value: snapshot?.supervisor ?? '', alias: aliasOf('cycle/supervisor') },
+        { name: 'cycle/timestamp_source', type: 'String', value: 'iot_ntp', alias: aliasOf('cycle/timestamp_source') },
+      ],
     });
-    if (!dbirthPayload) throw new Error('Sparkplug DBIRTH encoding failed');
-    await this.client.publishAsync(dbirthTopic, Buffer.from(dbirthPayload), { qos: 1, retain: false });
+    if (!cycleDbirthPayload) throw new Error('Sparkplug DBIRTH(cycle) encoding failed');
+    await this.client.publishAsync(cycleDbirthTopic, Buffer.from(cycleDbirthPayload), { qos: 1, retain: false });
+
+    // --- DBIRTH /telemetry: V03 machine-snapshot projection (§14) ---
+    // (D-03: renamed from /machine to /telemetry)
+    const telemetryDbirthTopic = `spBv1.0/${cfg.sparkplugGroupId}/DBIRTH/${edgeNodeId}/telemetry`;
+    const telemetryDbirthPayload = spb.encodePayload({
+      timestamp: Date.now(),
+      seq: this.nextSeq(),
+      metrics: [
+        { name: 'telemetry/serial_number', type: 'String', value: snapshot?.serialNumber ?? edgeNodeId, alias: aliasOf('telemetry/serial_number') },
+        { name: 'telemetry/model', type: 'String', value: 'WPT Industrial 4.0', alias: aliasOf('telemetry/model') },
+        { name: 'telemetry/garbage_temp', type: 'Int32', value: snapshot?.garbageTemp ?? 0, alias: aliasOf('telemetry/garbage_temp') },
+        { name: 'telemetry/chamber_pressure', type: 'Int32', value: snapshot?.chamberPressure ?? 0, alias: aliasOf('telemetry/chamber_pressure') },
+        { name: 'telemetry/main_motor_speed', type: 'Int32', value: snapshot?.mainMotorSpeed ?? 0, alias: aliasOf('telemetry/main_motor_speed') },
+        { name: 'telemetry/vacuum_pump_speed_01', type: 'Int32', value: snapshot?.vacuumPumpSpeed01 ?? 0, alias: aliasOf('telemetry/vacuum_pump_speed_01') },
+        { name: 'telemetry/completed_cycles', type: 'Int32', value: snapshot?.completedCycles ?? 0, alias: aliasOf('telemetry/completed_cycles') },
+        { name: 'telemetry/cycle_status', type: 'Int32', value: snapshot?.cycleStatus ?? 0, alias: aliasOf('telemetry/cycle_status') },
+        { name: 'telemetry/container', type: 'Int32', value: snapshot?.container ?? 0, alias: aliasOf('telemetry/container') },
+        { name: 'telemetry/rms_curr_n', type: 'Float', value: snapshot?.rmsCurrN ?? 0, alias: aliasOf('telemetry/rms_curr_n') },
+        { name: 'telemetry/line_voltage_l12', type: 'Float', value: snapshot?.lineVoltL1L2 ?? 0, alias: aliasOf('telemetry/line_voltage_l12') },
+        { name: 'telemetry/line_voltage_l23', type: 'Float', value: snapshot?.lineVoltL2L3 ?? 0, alias: aliasOf('telemetry/line_voltage_l23') },
+        { name: 'telemetry/line_voltage_l31', type: 'Float', value: snapshot?.lineVoltL3L1 ?? 0, alias: aliasOf('telemetry/line_voltage_l31') },
+        { name: 'telemetry/line_neutral_l1', type: 'Float', value: snapshot?.lineNeutralVoltL1 ?? 0, alias: aliasOf('telemetry/line_neutral_l1') },
+        { name: 'telemetry/line_neutral_l2', type: 'Float', value: snapshot?.lineNeutralVoltL2 ?? 0, alias: aliasOf('telemetry/line_neutral_l2') },
+        { name: 'telemetry/line_neutral_l3', type: 'Float', value: snapshot?.lineNeutralVoltL3 ?? 0, alias: aliasOf('telemetry/line_neutral_l3') },
+        { name: 'telemetry/pf_total', type: 'Float', value: snapshot?.pfTotal ?? 0, alias: aliasOf('telemetry/pf_total') },
+      ],
+    });
+    if (!telemetryDbirthPayload) throw new Error('Sparkplug DBIRTH(telemetry) encoding failed');
+    await this.client.publishAsync(telemetryDbirthTopic, Buffer.from(telemetryDbirthPayload), { qos: 1, retain: false });
+
+    // TODO(37-02): emit DBIRTH for /alarms device with bit-grouped alarm metrics (alias 300+)
 
     this.bdSeq = (this.bdSeq + 1) % 256;
-    this.logger?.info({ name: 'Sparkplug' }, 'NBIRTH and DBIRTH published');
+    this.logger?.info({ name: 'Sparkplug' }, 'NBIRTH and DBIRTHs (cycle, telemetry) published');
   }
 
+  /**
+   * Publish machine telemetry as Sparkplug DDATA on the `/telemetry` device.
+   *
+   * D-03: topic renamed from /machine to /telemetry. D-10 removes `publishMachine`
+   * from cfg — the telemetry gate is now `cfg.enabled` + the telemetryIntervalSeconds
+   * throttle enforced by the caller in `init()`.
+   *
+   * DDATA metrics carry alias only per Sparkplug B 3.0 §6.4.4; consumers maintain
+   * the name<->alias map built from DBIRTH.
+   */
   static async publishMachineTelemetry(snapshot: IMachineSnapshot): Promise<void> {
     if (!this.client || !spb) return;
     const cfg = await MqttConfigService.getConfig();
-    if (!cfg.enabled || !cfg.publishMachine) return;
+    if (!cfg.enabled) return;
 
-    const topic = `spBv1.0/${cfg.sparkplugGroupId}/DDATA/${cfg.sparkplugEdgeNodeId}/machine`;
+    const edgeNodeId = this.requireEdgeNodeId();
+    const topic = `spBv1.0/${cfg.sparkplugGroupId}/DDATA/${edgeNodeId}/telemetry`;
     const payload = spb.encodePayload({
       timestamp: Date.now(),
       seq: this.nextSeq(),
       metrics: [
-        { name: 'Garbage Temperature', type: 'Int32', value: snapshot.garbageTemp },
-        { name: 'Chamber Pressure', type: 'Int32', value: snapshot.chamberPressure },
-        { name: 'Main Motor Speed', type: 'Int32', value: snapshot.mainMotorSpeed },
-        { name: 'Vacuum Pump Speed', type: 'Int32', value: snapshot.vacuumPumpSpeed01 },
-        { name: 'Completed Cycles', type: 'Int32', value: snapshot.completedCycles },
-      ]
+        { type: 'String', value: snapshot.serialNumber, alias: aliasOf('telemetry/serial_number') },
+        { type: 'String', value: 'WPT Industrial 4.0', alias: aliasOf('telemetry/model') },
+        { type: 'Int32', value: snapshot.garbageTemp, alias: aliasOf('telemetry/garbage_temp') },
+        { type: 'Int32', value: snapshot.chamberPressure, alias: aliasOf('telemetry/chamber_pressure') },
+        { type: 'Int32', value: snapshot.mainMotorSpeed, alias: aliasOf('telemetry/main_motor_speed') },
+        { type: 'Int32', value: snapshot.vacuumPumpSpeed01, alias: aliasOf('telemetry/vacuum_pump_speed_01') },
+        { type: 'Int32', value: snapshot.completedCycles, alias: aliasOf('telemetry/completed_cycles') },
+        { type: 'Int32', value: snapshot.cycleStatus, alias: aliasOf('telemetry/cycle_status') },
+        { type: 'Int32', value: snapshot.container, alias: aliasOf('telemetry/container') },
+        { type: 'Float', value: snapshot.rmsCurrN, alias: aliasOf('telemetry/rms_curr_n') },
+        { type: 'Float', value: snapshot.lineVoltL1L2, alias: aliasOf('telemetry/line_voltage_l12') },
+        { type: 'Float', value: snapshot.lineVoltL2L3, alias: aliasOf('telemetry/line_voltage_l23') },
+        { type: 'Float', value: snapshot.lineVoltL3L1, alias: aliasOf('telemetry/line_voltage_l31') },
+        { type: 'Float', value: snapshot.lineNeutralVoltL1, alias: aliasOf('telemetry/line_neutral_l1') },
+        { type: 'Float', value: snapshot.lineNeutralVoltL2, alias: aliasOf('telemetry/line_neutral_l2') },
+        { type: 'Float', value: snapshot.lineNeutralVoltL3, alias: aliasOf('telemetry/line_neutral_l3') },
+        { type: 'Float', value: snapshot.pfTotal, alias: aliasOf('telemetry/pf_total') },
+      ],
     });
     if (!payload) throw new Error('Sparkplug machine-telemetry encoding failed');
 
@@ -202,11 +385,11 @@ export class SparkplugService {
     if (!cfg.enabled || !cfg.publishCycleRecords) return;
 
     // Zod boundary validation (T-31-03 mitigation). Throws ZodError on malformed payload.
-    // Callers in mqtt/cloudUplinkWorker.ts already log+retry; we let the error propagate.
     const validated: ICycleRecordPayload = CycleRecordPayloadSchema.parse(record);
 
+    const edgeNodeId = this.requireEdgeNodeId();
     // Topic: spBv1.0/{groupId}/DDATA/{edgeNodeId}/cycle (per WPT-SISTEMA-IOT-SPEC.md §14)
-    const topic = `spBv1.0/${cfg.sparkplugGroupId}/DDATA/${cfg.sparkplugEdgeNodeId}/cycle`;
+    const topic = `spBv1.0/${cfg.sparkplugGroupId}/DDATA/${edgeNodeId}/cycle`;
 
     // Coerce Date|string → epoch ms. Schema allows both forms (DB rows arrive as Date objects
     // from drizzle timestamp columns; event-path emits Date; tests may pass ISO strings).
@@ -215,32 +398,29 @@ export class SparkplugService {
     const startedAtMs = toEpoch(validated.startedAt);
     const endedAtMs = toEpoch(validated.endedAt);
 
-    // 14-field DDATA payload per Base_registro_mensile_cicli.xls format
-    // Field order: order_number, cycles, date, start_time, end_time, cycle_status_label,
-    //              weight_input_kg, weight_output_kg, containers, gross_input_kg,
-    //              start_energy_kwh, end_energy_kwh, start_water_l, end_water_l, operator
+    // 15-field DDATA payload — alias-only metrics (Sparkplug B 3.0 §6.4.4).
+    // Aliases are drawn from ALIAS_MAP using the pre-Phase-37 metric names
+    // (contract preserved for downstream consumers already built against v1.2).
     const payload = spb.encodePayload({
       timestamp: Date.now(),
       seq: this.nextSeq(),
       metrics: [
-        // Original 5 fields
-        { name: 'cycle/order_number', type: 'String', value: validated.orderNumber ?? '' },
-        { name: 'cycle/cycles', type: 'Int32', value: validated.cycleNumber },
-        { name: 'cycle/date', type: 'DateTime', value: startedAtMs },
-        { name: 'cycle/start_time', type: 'DateTime', value: startedAtMs },
-        { name: 'cycle/end_time', type: 'DateTime', value: endedAtMs },
-        // Phase 24: New 9 fields
-        { name: 'cycle/cycle_status_label', type: 'String', value: validated.cycleStatusLabel ?? 'UNKNOWN' },
-        { name: 'cycle/weight_input_kg', type: 'Float', value: validated.materialInputKg ?? 0 },
-        { name: 'cycle/weight_output_kg', type: 'Float', value: validated.materialOutputKg ?? 0 },
-        { name: 'cycle/containers', type: 'Int32', value: validated.containers ?? 0 },
-        { name: 'cycle/gross_input_kg', type: 'Float', value: validated.grossInputKg ?? 0 },
-        { name: 'cycle/start_energy_kwh', type: 'Float', value: validated.startEnergyKwh ?? 0 },
-        { name: 'cycle/end_energy_kwh', type: 'Float', value: validated.endEnergyKwh ?? 0 },
-        { name: 'cycle/start_water_l', type: 'Float', value: validated.startWaterL ?? 0 },
-        { name: 'cycle/end_water_l', type: 'Float', value: validated.endWaterL ?? 0 },
-        { name: 'cycle/operator', type: 'String', value: validated.operator ?? '' },
-      ]
+        { type: 'String', value: validated.orderNumber ?? '', alias: aliasOf('cycle/order_number') },
+        { type: 'Int32', value: validated.cycleNumber, alias: aliasOf('cycle/cycles') },
+        { type: 'DateTime', value: startedAtMs, alias: aliasOf('cycle/date') },
+        { type: 'DateTime', value: startedAtMs, alias: aliasOf('cycle/start_time') },
+        { type: 'DateTime', value: endedAtMs, alias: aliasOf('cycle/end_time') },
+        { type: 'String', value: validated.cycleStatusLabel ?? 'UNKNOWN', alias: aliasOf('cycle/cycle_status_label') },
+        { type: 'Float', value: validated.materialInputKg ?? 0, alias: aliasOf('cycle/weight_input_kg') },
+        { type: 'Float', value: validated.materialOutputKg ?? 0, alias: aliasOf('cycle/weight_output_kg') },
+        { type: 'Int32', value: validated.containers ?? 0, alias: aliasOf('cycle/containers') },
+        { type: 'Float', value: validated.grossInputKg ?? 0, alias: aliasOf('cycle/gross_input_kg') },
+        { type: 'Float', value: validated.startEnergyKwh ?? 0, alias: aliasOf('cycle/start_energy_kwh') },
+        { type: 'Float', value: validated.endEnergyKwh ?? 0, alias: aliasOf('cycle/end_energy_kwh') },
+        { type: 'Float', value: validated.startWaterL ?? 0, alias: aliasOf('cycle/start_water_l') },
+        { type: 'Float', value: validated.endWaterL ?? 0, alias: aliasOf('cycle/end_water_l') },
+        { type: 'String', value: validated.operator ?? '', alias: aliasOf('cycle/operator') },
+      ],
     });
     if (!payload) throw new Error('Sparkplug cycle-record encoding failed');
 
@@ -252,5 +432,6 @@ export class SparkplugService {
       await this.client.endAsync();
       this.client = null;
     }
+    this.edgeNodeId = null;
   }
 }
