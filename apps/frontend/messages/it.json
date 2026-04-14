@@ -137,6 +137,10 @@
       "hint": "Riconnettiti e riprova quando PLC e backend sono di nuovo raggiungibili.",
       "retry": "Riprova",
       "login": "Torna al login"
+    },
+    "staleBanner": {
+      "title": "Offline — dati potrebbero non essere aggiornati",
+      "body": "Dati macchina live non disponibili. Visualizzazione ultima lettura in cache."
     }
   },
   "users": {

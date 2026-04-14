@@ -137,6 +137,10 @@
       "hint": "Reconnect and try again when the PLC and backend are reachable.",
       "retry": "Try again",
       "login": "Back to login"
+    },
+    "staleBanner": {
+      "title": "Offline — data may be stale",
+      "body": "Live machine data unavailable. Showing last cached reading."
     }
   },
   "users": {
