@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 
 import { apiFetch } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
-import { PlcConfigForm, type PlcConfig } from '@/components/plc-config-form';
+import { PlcConfigForm, type PlcConfig } from '@/components/plc/plc-config-form';
 
 export default function PlcPage() {
   const t = useTranslations('plc');

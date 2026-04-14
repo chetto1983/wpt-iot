@@ -26,9 +26,9 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 
-import { UserDialog } from '@/components/user-dialog';
+import { UserDialog } from '@/components/users/user-dialog';
 import { DeleteDialog } from '@/components/shared/delete-dialog';
-import { PasswordDialog } from '@/components/password-dialog';
+import { PasswordDialog } from '@/components/auth/password-dialog';
 
 interface UserRow {
   id: number;

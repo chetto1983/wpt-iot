@@ -27,8 +27,8 @@ import {
 import { useAuth } from '@/lib/auth-context';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import { AvatarUploadDialog } from '@/components/avatar-upload-dialog';
-import { ChangeOwnPasswordDialog } from '@/components/change-own-password-dialog';
+import { AvatarUploadDialog } from '@/components/users/avatar-upload-dialog';
+import { ChangeOwnPasswordDialog } from '@/components/auth/change-own-password-dialog';
 import {
   Sidebar,
   SidebarContent,

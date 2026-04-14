@@ -16,8 +16,8 @@ import {
 
 import { apiFetch } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
-import { MqttConfigForm } from '@/components/mqtt-config-form';
-import { MqttUserDialog } from '@/components/mqtt-user-dialog';
+import { MqttConfigForm } from '@/components/mqtt/mqtt-config-form';
+import { MqttUserDialog } from '@/components/mqtt/mqtt-user-dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
