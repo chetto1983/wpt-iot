@@ -308,5 +308,22 @@ describe('energy settings routes', () => {
     });
   });
 
-  it.todo('POST sample report route/path reuses the existing PDF route contract');
+  it('POST sample report route/path reuses the existing PDF route contract', async () => {
+    // Route is registered without /api prefix in buildTestServer(), so path is /energy/reports/iso50001/pdf
+    // EnergyPdfService.generateIso50001Pdf is mocked to return Buffer.from('%PDF-1.4 settings-test')
+    const response = await app.inject({
+      method: 'POST',
+      url: '/energy/reports/iso50001/pdf',
+      headers: { 'x-test-role': 'WPT' },
+      query: {
+        from: '2026-01-01T00:00:00.000Z',
+        to: '2026-01-31T23:59:59.000Z',
+        lang: 'it',
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.headers['content-type']).toContain('application/pdf');
+    expect(response.rawPayload.slice(0, 5).toString()).toBe('%PDF-');
+  });
 });
