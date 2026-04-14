@@ -13,6 +13,7 @@ import { MachineAnomalyEventService } from './services/anomaly/index.js';
 import { PlcConfigService, setPlcConfigLogger } from './udp/plcConfigService.js';
 import { MachineSchemaMigrationService } from './db/machineSchemaMigrationService.js';
 import { applyMigrations } from './db/migrator.js';
+import { applyTimescaleSetup } from './db/timescaleSetup.js';
 import { pool } from './db/index.js';
 
 function setupGracefulShutdown(server: ReturnType<typeof buildServer>): void {
@@ -76,6 +77,13 @@ async function main(): Promise<void> {
     // Must run first so every table exists before any service touches the DB.
     // Emits Pino { name: 'Migrations' } logs before + after the run.
     await applyMigrations(pool, server.log);
+
+    // Convert machine_snapshots to a hypertable and (re)create the snapshots_*
+    // + energy_* continuous aggregates. Both setup functions are idempotent.
+    // Closes the 2026-04-14 gap where /api/energy/* returned 500 because the
+    // runbook step SELECT setup_energy_aggregates() was never invoked on the
+    // VM deployment. Must run AFTER applyMigrations so machine_snapshots exists.
+    await applyTimescaleSetup(pool, server.log);
 
     // Seed default admin account if auth_users table is empty
     await seedDefaultAdmin(server.log);
