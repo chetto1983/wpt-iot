@@ -43,14 +43,14 @@ export function PlcStatusBar({ state, remainingSeconds, namespace }: PlcStatusBa
       <div
         className={cn(
           'flex w-full items-center gap-3 rounded-lg border-l-[3px] py-2 px-4',
-          'border-primary bg-muted',
+          'border-primary bg-background',
         )}
       >
-        <CircleCheck className="size-5 shrink-0 text-primary" />
-        <span className="text-sm text-primary">
+        <CircleCheck className="size-5 shrink-0 text-primary dark:text-wpt-teal-accessible" />
+        <span className="text-sm text-primary dark:text-wpt-teal-accessible">
           {t('status.loaded', { remaining: formatted })}
         </span>
-        <span className="ml-auto font-mono text-sm font-medium text-primary">
+        <span className="ml-auto font-mono text-sm font-medium text-primary dark:text-wpt-teal-accessible">
           {formatted}
         </span>
       </div>
