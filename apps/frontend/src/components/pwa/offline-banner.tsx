@@ -29,11 +29,11 @@ export function OfflineBanner() {
       aria-live="polite"
       className={cn(
         'flex w-full items-center gap-3 border-l-[3px] py-2 px-4',
-        'border-[#dc3545] bg-[#dc3545]/10',
+        'border-severity-high bg-severity-high/10',
       )}
     >
-      <WifiOff className="size-5 shrink-0 text-[#dc3545]" aria-hidden="true" />
-      <span className="text-sm font-medium text-[#dc3545]">
+      <WifiOff className="size-5 shrink-0 text-severity-high" aria-hidden="true" />
+      <span className="text-sm font-medium text-severity-high">
         {t('staleBanner.title')}
       </span>
       <span className="text-sm text-muted-foreground">
