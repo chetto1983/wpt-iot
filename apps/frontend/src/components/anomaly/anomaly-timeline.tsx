@@ -37,10 +37,10 @@ export const AnomalyTimeline = memo(function AnomalyTimeline({
     : 'oklch(0.577 0.245 27.3)';
   const mediumColor = typeof window !== 'undefined'
     ? getComputedStyle(document.documentElement).getPropertyValue('--severity-medium').trim()
-    : 'oklch(0.666 0.179 58.9)';
+    : 'oklch(0.58 0.179 59)';
   const lowColor = typeof window !== 'undefined'
     ? getComputedStyle(document.documentElement).getPropertyValue('--severity-low').trim()
-    : 'oklch(0.588 0.158 242.0)';
+    : 'oklch(0.56 0.158 242)';
 
   if (history.length < 2) {
     return (
