@@ -288,7 +288,7 @@ export default function RfidPage() {
               />
             ))}
           </div>
-          <div className="hidden overflow-auto md:block md:max-h-[calc(100dvh-280px)]">
+          <div className="hidden md:block overflow-auto md:max-h-[calc(100dvh-280px)]">
             <Table className="min-w-[640px]">
               <TableHeader className="sticky top-0 z-10 bg-card">
                 <TableRow>

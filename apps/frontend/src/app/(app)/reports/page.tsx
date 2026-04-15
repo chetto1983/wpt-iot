@@ -292,37 +292,75 @@ export default function ReportsPage() {
               )}
             </div>
             <div className="px-4 pb-4">
-              <Table className="min-w-[900px]">
-                <TableHeader>
-                  <TableRow>
-                    {preview.fields.map((f) => (
-                      <TableHead key={f}>
-                        {headerMap.get(f) ?? f}
-                      </TableHead>
-                    ))}
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {preview.rows.map((row, i) => (
-                    <TableRow key={i} className="hover:bg-muted/50">
+              {/* Mobile card-stack — hidden on md+ */}
+              <div className="space-y-3 md:hidden">
+                {preview.rows.map((row, i) => {
+                  const nonTimestampFields = preview.fields.filter((f) => f !== 'timestamp');
+                  const visibleFields = nonTimestampFields.slice(0, 3);
+                  const extraCount = nonTimestampFields.length - visibleFields.length;
+                  return (
+                    <Card key={i}>
+                      <CardContent className="space-y-2 p-4">
+                        <div className="text-sm font-semibold tabular-nums">
+                          {formatDateTime(new Date(row.timestamp as string))}
+                        </div>
+                        <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+                          {visibleFields.map((f) => (
+                            <div key={f} className="contents">
+                              <span className="text-muted-foreground">
+                                {headerMap.get(f) ?? f}
+                              </span>
+                              <span className="text-sm tabular-nums">
+                                {String(row[f] ?? '')}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                        {extraCount > 0 ? (
+                          <span className="text-xs text-muted-foreground">
+                            + {extraCount} more fields — view on desktop
+                          </span>
+                        ) : null}
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+
+              {/* Desktop table — hidden below md */}
+              <div className="hidden md:block">
+                <Table className="min-w-[900px]">
+                  <TableHeader>
+                    <TableRow>
                       {preview.fields.map((f) => (
-                        <TableCell
-                          key={f}
-                          className={
-                            f === 'timestamp'
-                              ? 'font-mono text-xs whitespace-nowrap'
-                              : 'max-w-[18rem] text-sm'
-                          }
-                        >
-                          {f === 'timestamp'
-                            ? formatDateTime(new Date(row[f] as string))
-                            : String(row[f] ?? '')}
-                        </TableCell>
+                        <TableHead key={f}>
+                          {headerMap.get(f) ?? f}
+                        </TableHead>
                       ))}
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {preview.rows.map((row, i) => (
+                      <TableRow key={i} className="hover:bg-muted/50">
+                        {preview.fields.map((f) => (
+                          <TableCell
+                            key={f}
+                            className={
+                              f === 'timestamp'
+                                ? 'font-mono text-xs whitespace-nowrap'
+                                : 'max-w-[18rem] text-sm'
+                            }
+                          >
+                            {f === 'timestamp'
+                              ? formatDateTime(new Date(row[f] as string))
+                              : String(row[f] ?? '')}
+                          </TableCell>
+                        ))}
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
             </div>
           </>
         ) : (

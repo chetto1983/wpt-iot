@@ -30,7 +30,6 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { ReportFilters } from '@/components/shared/report-filters';
-import { useIsMobile } from '@/hooks/use-mobile';
 import { buildDateTimeISO } from '@/lib/date-utils';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || '';
@@ -69,7 +68,6 @@ export default function AlarmsPage() {
 
 function AlarmsContent({ locale }: { locale: string }) {
   const t = useTranslations('alarms');
-  const isMobile = useIsMobile();
 
   const [filters, setFilters] = useQueryStates({
     from: parseAsString,
@@ -285,8 +283,8 @@ function AlarmsContent({ locale }: { locale: string }) {
           </CardContent>
         ) : (
           <>
-            {isMobile ? (
-            <div className="grid gap-3 p-4">
+            {/* Mobile card-stack — hidden on md+ */}
+            <div className="grid gap-3 p-4 md:hidden">
               {events.map((event, i) => (
                 <div key={i} className="rounded-2xl border border-border/70 bg-card p-4 shadow-sm">
                   <div className="flex items-start justify-between gap-3">
@@ -325,7 +323,9 @@ function AlarmsContent({ locale }: { locale: string }) {
                 </div>
               ))}
             </div>
-            ) : (
+
+            {/* Desktop table — hidden below md */}
+            <div className="hidden md:block">
               <Table className="min-w-[760px]">
                 <TableHeader>
                   <TableRow>
@@ -360,7 +360,7 @@ function AlarmsContent({ locale }: { locale: string }) {
                   ))}
                 </TableBody>
               </Table>
-            )}
+            </div>
           </>
         )}
       </Card>

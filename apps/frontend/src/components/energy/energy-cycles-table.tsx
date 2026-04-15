@@ -3,7 +3,6 @@
 import { useTranslations } from 'next-intl';
 import { formatItKwh, type IEnergyCyclesResponse } from '@wpt/types';
 
-import { useIsMobile } from '@/hooks/use-mobile';
 import {
   Card,
   CardContent,
@@ -42,7 +41,6 @@ export function EnergyCyclesTable({
   error,
 }: EnergyCyclesTableProps) {
   const t = useTranslations('energy');
-  const isMobile = useIsMobile();
 
   return (
     <Card className="border border-border/70">
@@ -67,8 +65,8 @@ export function EnergyCyclesTable({
           </div>
         ) : (
           <>
-            {isMobile ? (
-            <div className="grid gap-3">
+            {/* Mobile card-stack — hidden on md+ */}
+            <div className="grid gap-3 md:hidden">
               {data.rows.map((row) => (
                 <div
                   key={row.cycleLabelKey}
@@ -82,25 +80,25 @@ export function EnergyCyclesTable({
                       <dt className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
                         {t('cycles.count')}
                       </dt>
-                      <dd className="mt-1 text-sm font-medium">{row.cycleCount}</dd>
+                      <dd className="mt-1 text-sm font-medium tabular-nums">{row.cycleCount}</dd>
                     </div>
                     <div className="rounded-xl bg-muted/30 p-3">
                       <dt className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
                         {t('cycles.totalKwh')}
                       </dt>
-                      <dd className="mt-1 text-sm font-medium">{formatItKwh(row.totalKwh)}</dd>
+                      <dd className="mt-1 text-sm font-medium tabular-nums">{formatItKwh(row.totalKwh)}</dd>
                     </div>
                     <div className="rounded-xl bg-muted/30 p-3">
                       <dt className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
                         {t('cycles.totalKg')}
                       </dt>
-                      <dd className="mt-1 text-sm font-medium">{row.totalKg.toFixed(0)} kg</dd>
+                      <dd className="mt-1 text-sm font-medium tabular-nums">{row.totalKg.toFixed(0)} kg</dd>
                     </div>
                     <div className="rounded-xl bg-muted/30 p-3">
                       <dt className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
                         {t('cycles.avgKwhPerKg')}
                       </dt>
-                      <dd className="mt-1 text-sm font-medium">
+                      <dd className="mt-1 text-sm font-medium tabular-nums">
                         {row.avgKwhPerKg == null ? '-' : row.avgKwhPerKg.toFixed(2)}
                       </dd>
                     </div>
@@ -108,7 +106,9 @@ export function EnergyCyclesTable({
                 </div>
               ))}
             </div>
-            ) : (
+
+            {/* Desktop table — hidden below md */}
+            <div className="hidden md:block">
               <Table className="min-w-[640px]">
                 <TableHeader>
                   <TableRow>
@@ -125,23 +125,23 @@ export function EnergyCyclesTable({
                       <TableCell className="font-medium">
                         {row.cycleLabel.split('_').join(' ')}
                       </TableCell>
-                      <TableCell className="text-right whitespace-nowrap">
+                      <TableCell className="text-right whitespace-nowrap tabular-nums">
                         {row.cycleCount}
                       </TableCell>
-                      <TableCell className="text-right whitespace-nowrap">
+                      <TableCell className="text-right whitespace-nowrap tabular-nums">
                         {formatItKwh(row.totalKwh)}
                       </TableCell>
-                      <TableCell className="text-right whitespace-nowrap">
+                      <TableCell className="text-right whitespace-nowrap tabular-nums">
                         {row.totalKg.toFixed(0)} kg
                       </TableCell>
-                      <TableCell className="text-right whitespace-nowrap">
+                      <TableCell className="text-right whitespace-nowrap tabular-nums">
                         {row.avgKwhPerKg == null ? '-' : row.avgKwhPerKg.toFixed(2)}
                       </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
               </Table>
-            )}
+            </div>
           </>
         )}
       </CardContent>
