@@ -199,7 +199,7 @@ export function CyclesTable({
       <div className="overflow-hidden rounded-lg border">
         <div className="flex flex-col items-center justify-center py-12 text-center">
           <p className="text-sm font-medium text-muted-foreground">{t('empty')}</p>
-          <p className="mt-1 text-xs text-muted-foreground/60">{t('emptyDescription')}</p>
+          <p className="mt-1 text-xs text-muted-foreground">{t('emptyDescription')}</p>
         </div>
       </div>
     );
@@ -280,7 +280,7 @@ export function CyclesTable({
                   <TableHead
                     key={column.key}
                     className={cn(
-                      'cursor-pointer select-none px-4 py-3 text-xs uppercase tracking-wider text-muted-foreground/60',
+                      'cursor-pointer select-none px-4 py-3 text-xs uppercase tracking-wider text-muted-foreground',
                       !column.sortable && 'cursor-default',
                     )}
                     onClick={() => column.sortable && handleSort(column.key)}
