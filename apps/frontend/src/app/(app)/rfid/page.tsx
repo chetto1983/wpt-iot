@@ -124,6 +124,7 @@ const RfidUserCard = memo(function RfidUserCard({ user, onUpdate, t }: RfidUserR
           <Switch
             checked={user.enabled}
             onCheckedChange={(v) => onUpdate(user.tagId, 'enabled', v)}
+            aria-label={`${t('columns.enabled')} ${user.tagId}`}
           />
         </div>
       </div>
