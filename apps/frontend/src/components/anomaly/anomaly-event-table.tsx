@@ -20,12 +20,12 @@ function formatDateTime(value: string, locale: string): string {
   }).format(new Date(value));
 }
 
-function statusVariant(status: string) {
+function statusVariant(status: string): { variant?: 'outline' | 'default' | 'secondary'; severity?: 'high' } {
   switch (status) {
-    case 'OPEN': return 'destructive' as const;
-    case 'ACKNOWLEDGED': return 'outline' as const;
-    case 'CONFIRMED': return 'default' as const;
-    default: return 'secondary' as const;
+    case 'OPEN':         return { severity: 'high' };
+    case 'ACKNOWLEDGED': return { variant: 'outline' };
+    case 'CONFIRMED':    return { variant: 'default' };
+    default:             return { variant: 'secondary' };
   }
 }
 
@@ -88,7 +88,7 @@ export const AnomalyEventTable = memo(function AnomalyEventTable({
           <div key={ev.id} className="rounded-lg border border-border/60 bg-background/40 px-4 py-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="flex items-center gap-2">
-                <Badge variant={statusVariant(ev.status)}>
+                <Badge {...statusVariant(ev.status)}>
                   {t(`anomaly.status.${ev.status}`)}
                 </Badge>
                 <span className="text-sm font-semibold tabular-nums">
