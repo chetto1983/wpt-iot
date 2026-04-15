@@ -305,7 +305,7 @@ export default function JobsPage() {
                 }
                 disabled={disabled}
               >
-                <SelectTrigger>
+                <SelectTrigger aria-label={t('fields.remoteJobEnable')}>
                   <SelectValue>{t(`enums.remoteJobEnable.${job.remoteJobEnable}`)}</SelectValue>
                 </SelectTrigger>
                 <SelectContent>
@@ -333,7 +333,7 @@ export default function JobsPage() {
                 }
                 disabled={disabled}
               >
-                <SelectTrigger>
+                <SelectTrigger aria-label={t('fields.maintenanceRequest')}>
                   <SelectValue>{t(`enums.maintenanceRequest.${job.maintenanceRequest}`)}</SelectValue>
                 </SelectTrigger>
                 <SelectContent>
@@ -361,7 +361,7 @@ export default function JobsPage() {
                 }
                 disabled={disabled}
               >
-                <SelectTrigger>
+                <SelectTrigger aria-label={t('fields.remoteCycleSelection')}>
                   <SelectValue>{t(`enums.remoteCycleSelection.${job.remoteCycleSelection}`)}</SelectValue>
                 </SelectTrigger>
                 <SelectContent>
@@ -389,7 +389,7 @@ export default function JobsPage() {
                 }
                 disabled={disabled}
               >
-                <SelectTrigger>
+                <SelectTrigger aria-label={t('fields.cycleType')}>
                   <SelectValue>
                     {tDashboard(`cycleTypes.${CycleType[job.cycleType] ?? 'NO_CYCLE'}`)}
                   </SelectValue>
