@@ -336,6 +336,9 @@ export class HandshakeFSM {
 
   /** Force-reset the channel to IDLE (Pitfall 5: recovery after crash) */
   async resetChannel(ackSocket: dgram.Socket): Promise<void> {
+    // PlcConfigUnavailableError propagates to the caller if targetHost is NULL.
+    // On fresh deployments (no PLC address saved yet) this is expected — the
+    // outer try/catch in udp/index.ts absorbs it and logs a startup warning.
     await this.sendControl(ackSocket, HandshakeState.IDLE);
     this.state = HandshakeState.IDLE;
     this.busy = false;

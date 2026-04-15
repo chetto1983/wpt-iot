@@ -13,6 +13,27 @@ import type { IPlcConfig } from '@wpt/types';
  * the next handshake read/write picks up the new host immediately.
  */
 
+/**
+ * Thrown by getCachedPlcConfig when the PLC target host cannot be resolved.
+ *
+ * reason='NOT_CONFIGURED' — targetHost is NULL in the DB (fresh deployment,
+ *   operator has not saved the PLC address yet).
+ * reason='DB_UNREACHABLE' — the DB read threw an error.
+ *
+ * Callers (HandshakeFSM, routes) must not catch this silently — it must
+ * propagate as a 503 to the operator so the misconfiguration is visible.
+ */
+export class PlcConfigUnavailableError extends Error {
+  readonly code = 'PLC_CONFIG_UNAVAILABLE' as const;
+  constructor(readonly reason: 'NOT_CONFIGURED' | 'DB_UNREACHABLE', cause?: unknown) {
+    super(reason === 'NOT_CONFIGURED'
+      ? 'PLC target host not configured — set it in /plc settings'
+      : 'PLC config unavailable — DB read failed');
+    this.name = 'PlcConfigUnavailableError';
+    if (cause instanceof Error) this.cause = cause;
+  }
+}
+
 interface CachedPlcConfig {
   targetHost: string;
 }
@@ -31,12 +52,13 @@ export class PlcConfigService {
   /**
    * Ensure plc_config table exists and has a default row.
    * Called once at startup before any config reads.
+   * Fresh deployments insert NULL for target_host — no 'localhost' sentinel.
    */
   static async ensureTable(): Promise<void> {
     await db.execute(sql`
       CREATE TABLE IF NOT EXISTS plc_config (
         id SERIAL PRIMARY KEY,
-        target_host VARCHAR(255) NOT NULL DEFAULT 'localhost',
+        target_host VARCHAR(255),
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       )
     `);
@@ -47,7 +69,7 @@ export class PlcConfigService {
 
     if (existing.rows.length === 0) {
       await db.execute(sql`
-        INSERT INTO plc_config (id, target_host) VALUES (1, 'localhost')
+        INSERT INTO plc_config (id, target_host) VALUES (1, NULL)
       `);
     }
   }
@@ -102,9 +124,15 @@ export class PlcConfigService {
 
 /**
  * Read the PLC target host from a 30-second TTL cache. Called from the
- * handshake FSM on every send. Falls back to 'localhost' if the DB read
- * fails so the backend doesn't crash — the operator just needs to save
- * the form again once the DB is reachable.
+ * handshake FSM on every send.
+ *
+ * Throws PlcConfigUnavailableError('NOT_CONFIGURED') when targetHost is NULL
+ * (fresh deployment — operator must save the PLC address via /plc settings).
+ *
+ * Throws PlcConfigUnavailableError('DB_UNREACHABLE') when the DB read fails.
+ *
+ * There is NO silent fallback to 'localhost'. A misconfigured backend fails
+ * loudly with a typed error, not by looping packets back to itself.
  */
 export async function getCachedPlcConfig(): Promise<CachedPlcConfig> {
   const now = Date.now();
@@ -113,15 +141,21 @@ export async function getCachedPlcConfig(): Promise<CachedPlcConfig> {
   }
   try {
     const cfg = await PlcConfigService.getConfig();
+    if (!cfg.targetHost) {
+      throw new PlcConfigUnavailableError('NOT_CONFIGURED');
+    }
     cachedConfig = { targetHost: cfg.targetHost };
     configCacheExpiry = now + CACHE_TTL_MS;
     return cachedConfig;
   } catch (err) {
-    logger?.error(
+    // Re-throw PlcConfigUnavailableError (NOT_CONFIGURED path) unchanged.
+    if (err instanceof PlcConfigUnavailableError) throw err;
+    // DB read threw an unexpected error — wrap and re-throw.
+    logger?.warn(
       { name: 'PlcConfigService', err: (err as Error).message },
-      'Failed to read plc_config from DB — falling back to localhost',
+      'Failed to read plc_config from DB',
     );
-    return { targetHost: 'localhost' };
+    throw new PlcConfigUnavailableError('DB_UNREACHABLE', err);
   }
 }
 
