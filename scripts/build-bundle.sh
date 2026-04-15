@@ -20,6 +20,7 @@ set -euo pipefail
 
 OUTPUT_DIR="${OUTPUT_DIR:-/tmp}"
 SKIP_BUILD="${SKIP_BUILD:-0}"
+TARGET_ARCH="${TARGET_ARCH:-$(dpkg --print-architecture 2>/dev/null || uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/')}"
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -36,6 +37,10 @@ fail() { echo -e "  ${RED}!!${NC} $1" >&2; exit 1; }
 command -v docker >/dev/null 2>&1 || fail "docker not in PATH."
 docker compose version >/dev/null 2>&1 || fail "docker compose v2 not available."
 
+if [[ "$TARGET_ARCH" != "amd64" && "$TARGET_ARCH" != "arm64" ]]; then
+  fail "TARGET_ARCH must be amd64 or arm64 (got: $TARGET_ARCH)"
+fi
+
 GIT_SHA="$(git rev-parse --short HEAD 2>/dev/null || echo unknown)"
 GIT_DIRTY=""
 if ! git diff --quiet 2>/dev/null || ! git diff --cached --quiet 2>/dev/null; then
@@ -48,16 +53,17 @@ BUNDLE_TARBALL="${OUTPUT_DIR}/${BUNDLE_NAME}.tar.gz"
 
 step "Bundle: ${BUNDLE_NAME}"
 info "Output dir: ${OUTPUT_DIR}"
+info "Target arch: linux/${TARGET_ARCH}"
 info "Frontend image is IP/host-agnostic (same-origin via nginx)"
 
 step "Step 1/5  Build backend + frontend images"
 
 if [[ "${SKIP_BUILD}" == "1" ]]; then
   info "SKIP_BUILD=1 - reusing existing local images"
-  docker image inspect timescale/timescaledb:latest-pg17 >/dev/null 2>&1 || \
-    fail "timescale/timescaledb:latest-pg17 not found locally."
-  docker image inspect eclipse-mosquitto:2 >/dev/null 2>&1 || \
-    fail "eclipse-mosquitto:2 not found locally."
+  docker image inspect timescale/timescaledb:2.25.2-pg17 >/dev/null 2>&1 || \
+    fail "timescale/timescaledb:2.25.2-pg17 not found locally."
+  docker image inspect eclipse-mosquitto:2.0.22 >/dev/null 2>&1 || \
+    fail "eclipse-mosquitto:2.0.22 not found locally."
   docker image inspect wpt-iot-backend:latest >/dev/null 2>&1 || \
     fail "wpt-iot-backend:latest not found locally."
   docker image inspect wpt-iot-frontend:latest >/dev/null 2>&1 || \
@@ -65,11 +71,13 @@ if [[ "${SKIP_BUILD}" == "1" ]]; then
   docker image inspect nginx:1.28.3-alpine >/dev/null 2>&1 || \
     fail "nginx:1.28.3-alpine not found locally."
 else
-  info "Pulling base images (db, mosquitto, nginx)..."
-  docker pull timescale/timescaledb:latest-pg17
-  docker pull eclipse-mosquitto:2
-  docker pull nginx:1.28.3-alpine
+  info "Pulling base images (db, mosquitto, nginx) for linux/${TARGET_ARCH}..."
+  docker pull --platform "linux/${TARGET_ARCH}" timescale/timescaledb:2.25.2-pg17
+  docker pull --platform "linux/${TARGET_ARCH}" eclipse-mosquitto:2.0.22
+  docker pull --platform "linux/${TARGET_ARCH}" nginx:1.28.3-alpine
 
+  # NOTE: backend/frontend built for host arch. For cross-arch Pilz targets,
+  # prefer pulling CI images from GHCR with SKIP_BUILD=1.
   info "Building backend image..."
   docker compose build backend
 
@@ -109,11 +117,11 @@ step "Step 3/5  docker save images"
 
 mkdir -p "${BUNDLE_DIR}/images"
 
-info "Saving timescale/timescaledb:latest-pg17..."
-docker save timescale/timescaledb:latest-pg17 | gzip > "${BUNDLE_DIR}/images/db.tar.gz"
+info "Saving timescale/timescaledb:2.25.2-pg17..."
+docker save timescale/timescaledb:2.25.2-pg17 | gzip > "${BUNDLE_DIR}/images/db.tar.gz"
 
-info "Saving eclipse-mosquitto:2..."
-docker save eclipse-mosquitto:2 | gzip > "${BUNDLE_DIR}/images/mosquitto.tar.gz"
+info "Saving eclipse-mosquitto:2.0.22..."
+docker save eclipse-mosquitto:2.0.22 | gzip > "${BUNDLE_DIR}/images/mosquitto.tar.gz"
 
 info "Saving wpt-iot-backend:latest..."
 docker save wpt-iot-backend:latest | gzip > "${BUNDLE_DIR}/images/backend.tar.gz"
@@ -136,12 +144,13 @@ git_sha:           ${GIT_SHA}${GIT_DIRTY}
 built_at:          $(date -Iseconds)
 built_on_host:     $(hostname)
 built_by_user:     $(whoami)
+target_arch:       ${TARGET_ARCH}
 docker_version:    $(docker --version)
 compose_version:   $(docker compose version | head -1)
 
 # Image digests (sha256)
-db:                $(docker image inspect timescale/timescaledb:latest-pg17 --format '{{.Id}}')
-mosquitto:         $(docker image inspect eclipse-mosquitto:2 --format '{{.Id}}')
+db:                $(docker image inspect timescale/timescaledb:2.25.2-pg17 --format '{{.Id}}')
+mosquitto:         $(docker image inspect eclipse-mosquitto:2.0.22 --format '{{.Id}}')
 backend:           $(docker image inspect wpt-iot-backend:latest --format '{{.Id}}')
 frontend:          $(docker image inspect wpt-iot-frontend:latest --format '{{.Id}}')
 nginx:             $(docker image inspect nginx:1.28.3-alpine --format '{{.Id}}')
