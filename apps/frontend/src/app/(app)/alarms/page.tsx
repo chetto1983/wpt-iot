@@ -251,7 +251,7 @@ function AlarmsContent({ locale }: { locale: string }) {
           <Badge severity="medium">
             {t('summaryActive', { count: summary.active })}
           </Badge>
-          <Badge className="bg-wpt-teal/15 text-wpt-teal">
+          <Badge className="bg-wpt-teal/15 text-wpt-teal-accessible">
             {t('summaryResolved', { count: summary.resolved })}
           </Badge>
         </div>

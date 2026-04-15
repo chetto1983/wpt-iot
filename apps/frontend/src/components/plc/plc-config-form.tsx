@@ -19,7 +19,7 @@ import {
 
 export interface PlcConfig {
   id: number;
-  targetHost: string;
+  targetHost: string | null;
   updatedAt: string;
 }
 
@@ -34,8 +34,15 @@ export function PlcConfigForm({ config, onSaved }: PlcConfigFormProps) {
   const t = useTranslations('plc');
   const tCommon = useTranslations('common');
 
-  const [targetHost, setTargetHost] = useState(config.targetHost);
+  const [targetHost, setTargetHost] = useState(config.targetHost ?? '');
   const [saving, setSaving] = useState(false);
+  const [testing, setTesting] = useState(false);
+  const [lastTestResult, setLastTestResult] = useState<{
+    ok: boolean;
+    time: string;
+    durationMs?: number;
+    error?: string;
+  } | null>(null);
   const restoredDraftRef = useRef(false);
 
   useEffect(() => {
@@ -48,12 +55,12 @@ export function PlcConfigForm({ config, onSaved }: PlcConfigFormProps) {
 
   useEffect(() => {
     if (!restoredDraftRef.current) {
-      setTargetHost(config.targetHost);
+      setTargetHost(config.targetHost ?? '');
     }
   }, [config.targetHost]);
 
   useEffect(() => {
-    if (targetHost.trim() === config.targetHost.trim()) {
+    if (targetHost.trim() === (config.targetHost?.trim() ?? '')) {
       clearSessionDraft(PLC_CONFIG_DRAFT_KEY);
       return;
     }
@@ -80,12 +87,46 @@ export function PlcConfigForm({ config, onSaved }: PlcConfigFormProps) {
     }
   }, [targetHost, onSaved, t, tCommon]);
 
+  const handleTestConnection = useCallback(async () => {
+    setTesting(true);
+    try {
+      const result = await apiFetch<{ ok: boolean; durationMs: number; error?: string }>(
+        '/api/plc/test-connection',
+        { method: 'POST' },
+      );
+      const time = new Date().toLocaleTimeString();
+      if (result.ok) {
+        toast.success(t('testSuccess', { durationMs: result.durationMs }));
+        setLastTestResult({ ok: true, time, durationMs: result.durationMs });
+      } else {
+        const errorMsg = result.error ?? '';
+        const displayMsg = errorMsg.includes('Handshake in progress')
+          ? t('testBusy')
+          : t('testFailed', { error: errorMsg });
+        toast.error(displayMsg);
+        setLastTestResult({ ok: false, time, error: errorMsg });
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : tCommon('error');
+      toast.error(msg);
+      setLastTestResult({ ok: false, time: new Date().toLocaleTimeString(), error: msg });
+    } finally {
+      setTesting(false);
+    }
+  }, [t, tCommon]);
+
   return (
     <Card>
       <CardHeader>
         <CardTitle>{t('title')}</CardTitle>
       </CardHeader>
       <CardContent className="grid gap-6">
+        {config.targetHost === null && (
+          <p className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-700 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-300">
+            {t('notConfigured')}
+          </p>
+        )}
+
         <div className="grid gap-2">
           <Label htmlFor="plc-target-host">{t('targetHost')}</Label>
           <Input
@@ -97,7 +138,27 @@ export function PlcConfigForm({ config, onSaved }: PlcConfigFormProps) {
           <p className="text-xs text-muted-foreground">{t('targetHostHelp')}</p>
         </div>
 
-        <Button onClick={handleSave} disabled={saving || !targetHost} className="w-full">
+        <div className="flex items-center justify-between gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleTestConnection}
+            disabled={saving || testing}
+            title={t('testTooltip')}
+          >
+            {testing ? <Loader2 className="mr-1 size-4 animate-spin" /> : null}
+            {t('testConnection')}
+          </Button>
+          {lastTestResult && (
+            <span className={`text-xs ${lastTestResult.ok ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+              {lastTestResult.ok
+                ? t('testLastOk', { time: lastTestResult.time })
+                : t('testLastFail', { time: lastTestResult.time, error: lastTestResult.error ?? '' })}
+            </span>
+          )}
+        </div>
+
+        <Button onClick={handleSave} disabled={saving || testing || !targetHost} className="w-full">
           {saving ? <Loader2 className="mr-2 size-4 animate-spin" /> : null}
           {t('save')}
         </Button>
