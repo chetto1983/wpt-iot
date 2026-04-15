@@ -40,7 +40,7 @@ export const TechnicalSignalsCard = memo(function TechnicalSignalsCard({ machine
   return (
     <Card className="border-0 rounded-xl shadow-lg shadow-black/20">
       <CardHeader>
-        <p className="text-[11px] font-semibold text-wpt-gold/60 uppercase tracking-wider">
+        <p className="text-[11px] font-semibold text-wpt-gold-accessible uppercase tracking-wider">
           {t('sections.technical')}
         </p>
         <h3 className="text-xl font-semibold text-foreground">{t('sections.technical')}</h3>
