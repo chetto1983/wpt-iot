@@ -584,7 +584,7 @@ export default function MqttPage() {
           {logEvents.length === 0 ? (
             <p className="text-sm text-muted-foreground">{t('activityLog.empty')}</p>
           ) : (
-            <div className="max-h-96 space-y-2 overflow-y-auto">
+            <div className="max-h-96 space-y-2 overflow-y-auto" tabIndex={0}>
               {[...logEvents].reverse().map((event, i) => {
                 const time = new Date(event.timestamp).toLocaleTimeString();
                 return (
