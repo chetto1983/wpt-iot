@@ -18,16 +18,26 @@ interface AnomalyFeatureChartProps {
   live: IAnomalyLiveResponse | null;
 }
 
-function barColor(z: number): string {
-  if (z >= 3.5) return '#dc3545';
-  if (z >= 2.5) return '#f59e0b';
-  return '#1ABC9C';
-}
-
 export const AnomalyFeatureChart = memo(function AnomalyFeatureChart({
   live,
 }: AnomalyFeatureChartProps) {
   const t = useTranslations('dashboard');
+
+  const criticalColor = typeof window !== 'undefined'
+    ? getComputedStyle(document.documentElement).getPropertyValue('--severity-critical').trim()
+    : 'oklch(0.577 0.245 27.3)';
+  const mediumColor = typeof window !== 'undefined'
+    ? getComputedStyle(document.documentElement).getPropertyValue('--severity-medium').trim()
+    : 'oklch(0.666 0.179 58.9)';
+  const lowColor = typeof window !== 'undefined'
+    ? getComputedStyle(document.documentElement).getPropertyValue('--severity-low').trim()
+    : 'oklch(0.588 0.158 242.0)';
+
+  function barColor(z: number): string {
+    if (z >= 3.5) return criticalColor;
+    if (z >= 2.5) return mediumColor;
+    return lowColor;
+  }
 
   const data = useMemo(() => {
     const contributors = live?.latest?.topContributors ?? [];
@@ -80,8 +90,8 @@ export const AnomalyFeatureChart = memo(function AnomalyFeatureChart({
             }}
             formatter={(value) => [`z = ${Number(value).toFixed(2)}`, 'Z-Score']}
           />
-          <ReferenceLine x={2.5} stroke="#f59e0b" strokeDasharray="3 3" strokeOpacity={0.5} />
-          <ReferenceLine x={3.5} stroke="#dc3545" strokeDasharray="3 3" strokeOpacity={0.5} />
+          <ReferenceLine x={2.5} stroke={mediumColor} strokeDasharray="3 3" strokeOpacity={0.5} />
+          <ReferenceLine x={3.5} stroke={criticalColor} strokeDasharray="3 3" strokeOpacity={0.5} />
           <Bar dataKey="zScore" radius={[0, 4, 4, 0]} maxBarSize={20}>
             {data.map((entry, i) => (
               <Cell key={i} fill={barColor(entry.zScore)} />
