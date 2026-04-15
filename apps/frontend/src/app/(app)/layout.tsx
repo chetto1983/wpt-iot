@@ -45,7 +45,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         <SidebarInset className="min-h-0">
           <AppHeader />
           <OfflineBanner />
-          <div className="min-h-0 flex-1 overflow-auto">
+          <div className="min-h-0 flex-1 overflow-auto" tabIndex={0}>
             {children}
           </div>
         </SidebarInset>
