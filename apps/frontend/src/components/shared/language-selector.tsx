@@ -20,7 +20,7 @@ export function LanguageSelector() {
         className={cn(
           'min-h-11 min-w-11 rounded-l-md px-3 py-2 transition-colors sm:min-h-8 sm:min-w-0 sm:px-2 sm:py-1',
           locale === 'it'
-            ? 'bg-primary text-primary-foreground'
+            ? 'bg-primary text-primary-foreground dark:bg-[oklch(0.48_0.13_175)]'
             : 'text-muted-foreground hover:text-foreground',
         )}
       >
@@ -31,7 +31,7 @@ export function LanguageSelector() {
         className={cn(
           'min-h-11 min-w-11 rounded-r-md px-3 py-2 transition-colors sm:min-h-8 sm:min-w-0 sm:px-2 sm:py-1',
           locale === 'en'
-            ? 'bg-primary text-primary-foreground'
+            ? 'bg-primary text-primary-foreground dark:bg-[oklch(0.48_0.13_175)]'
             : 'text-muted-foreground hover:text-foreground',
         )}
       >
