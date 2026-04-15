@@ -9,7 +9,7 @@ const badgeVariants = cva(
   {
     variants: {
       variant: {
-        default: "bg-primary text-primary-foreground [a]:hover:bg-primary/80",
+        default: "bg-primary text-primary-foreground [a]:hover:bg-primary/80 dark:bg-[oklch(0.48_0.13_175)] dark:hover:bg-[oklch(0.44_0.13_175)]",
         secondary:
           "bg-secondary text-secondary-foreground [a]:hover:bg-secondary/80",
         destructive:
@@ -21,10 +21,10 @@ const badgeVariants = cva(
         link: "text-primary underline-offset-4 hover:underline",
       },
       severity: {
-        critical: "bg-card text-severity-critical dark:bg-severity-critical/20 [a]:hover:bg-severity-critical/20",
-        high:     "bg-card text-severity-high     dark:bg-severity-high/20     [a]:hover:bg-severity-high/20",
-        medium:   "bg-card text-severity-medium   dark:bg-severity-medium/20   [a]:hover:bg-severity-medium/20",
-        low:      "bg-card text-severity-low      dark:bg-severity-low/20      [a]:hover:bg-severity-low/20",
+        critical: "bg-card text-severity-critical dark:bg-background dark:border-severity-critical/40 [a]:hover:bg-severity-critical/20",
+        high:     "bg-card text-severity-high     dark:bg-background dark:border-severity-high/40     [a]:hover:bg-severity-high/20",
+        medium:   "bg-card text-severity-medium   dark:bg-background dark:border-severity-medium/40   [a]:hover:bg-severity-medium/20",
+        low:      "bg-card text-severity-low      dark:bg-background dark:border-severity-low/40      [a]:hover:bg-severity-low/20",
       },
     },
     defaultVariants: {
