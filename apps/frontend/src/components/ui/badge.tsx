@@ -13,7 +13,7 @@ const badgeVariants = cva(
         secondary:
           "bg-secondary text-secondary-foreground [a]:hover:bg-secondary/80",
         destructive:
-          "bg-destructive/10 text-destructive focus-visible:ring-destructive/20 dark:bg-destructive/20 dark:focus-visible:ring-destructive/40 [a]:hover:bg-destructive/20",
+          "bg-destructive/10 text-destructive focus-visible:ring-destructive/20 dark:bg-destructive/15 dark:text-foreground dark:focus-visible:ring-destructive/40 [a]:hover:bg-destructive/20",
         outline:
           "border-border text-foreground [a]:hover:bg-muted [a]:hover:text-muted-foreground",
         ghost:
@@ -21,10 +21,10 @@ const badgeVariants = cva(
         link: "text-primary underline-offset-4 hover:underline",
       },
       severity: {
-        critical: "bg-severity-critical/10 text-severity-critical dark:bg-severity-critical/20 [a]:hover:bg-severity-critical/20",
-        high:     "bg-severity-high/10     text-severity-high     dark:bg-severity-high/20     [a]:hover:bg-severity-high/20",
-        medium:   "bg-severity-medium/10   text-severity-medium   dark:bg-severity-medium/20   [a]:hover:bg-severity-medium/20",
-        low:      "bg-severity-low/10      text-severity-low      dark:bg-severity-low/20      [a]:hover:bg-severity-low/20",
+        critical: "bg-card text-severity-critical dark:bg-severity-critical/20 [a]:hover:bg-severity-critical/20",
+        high:     "bg-card text-severity-high     dark:bg-severity-high/20     [a]:hover:bg-severity-high/20",
+        medium:   "bg-card text-severity-medium   dark:bg-severity-medium/20   [a]:hover:bg-severity-medium/20",
+        low:      "bg-card text-severity-low      dark:bg-severity-low/20      [a]:hover:bg-severity-low/20",
       },
     },
     defaultVariants: {
