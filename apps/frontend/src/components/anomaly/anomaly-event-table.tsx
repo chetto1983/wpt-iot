@@ -113,7 +113,7 @@ export const AnomalyEventTable = memo(function AnomalyEventTable({
                     {t('anomaly.actions.acknowledge')}
                   </Button>
                 )}
-                <Button type="button" size="sm" variant="outline" className="h-7 text-xs text-green-700" disabled={loading}
+                <Button type="button" size="sm" variant="outline" className="h-7 text-xs text-green-700 dark:text-green-400" disabled={loading}
                   onClick={() => void handleResolve(ev.id, 'CONFIRMED')}>
                   <Check className="mr-1 size-3" />{t('anomaly.actions.confirm')}
                 </Button>
@@ -121,7 +121,7 @@ export const AnomalyEventTable = memo(function AnomalyEventTable({
                   onClick={() => void handleResolve(ev.id, 'DISMISSED')}>
                   <X className="mr-1 size-3" />{t('anomaly.actions.dismiss')}
                 </Button>
-                <Button type="button" size="sm" variant="ghost" className="h-7 text-xs text-destructive" disabled={loading}
+                <Button type="button" size="sm" variant="ghost" className="h-7 text-xs text-destructive dark:text-red-400" disabled={loading}
                   onClick={() => void handleDelete(ev.id)}>
                   <Trash2 className="mr-1 size-3" />{t('anomaly.actions.delete')}
                 </Button>
