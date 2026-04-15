@@ -225,7 +225,7 @@ function AlarmsContent({ locale }: { locale: string }) {
               setStatus(v as 'all' | 'active' | 'resolved')
             }
           >
-            <SelectTrigger className="w-[160px]">
+            <SelectTrigger className="w-[160px]" aria-label={t('statusLabel')}>
               <SelectValue>
                 {filters.status === 'all'
                   ? t('statusAll')
