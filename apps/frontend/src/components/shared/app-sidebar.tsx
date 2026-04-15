@@ -151,7 +151,7 @@ export function AppSidebar() {
       <SidebarContent className="px-3">
         {/* Main */}
         <SidebarGroup>
-          <SidebarGroupLabel className="mb-2 px-2 text-[11px] uppercase tracking-wider text-muted-foreground/60 group-data-[collapsible=icon]:hidden">
+          <SidebarGroupLabel className="mb-2 px-2 text-[11px] uppercase tracking-wider text-muted-foreground group-data-[collapsible=icon]:hidden">
             Menu
           </SidebarGroupLabel>
           <SidebarGroupContent>
@@ -165,7 +165,7 @@ export function AppSidebar() {
 
         {/* Reports - always visible */}
         <SidebarGroup className="mt-6">
-          <SidebarGroupLabel className="mb-2 px-2 text-[11px] uppercase tracking-wider text-muted-foreground/60 group-data-[collapsible=icon]:hidden">
+          <SidebarGroupLabel className="mb-2 px-2 text-[11px] uppercase tracking-wider text-muted-foreground group-data-[collapsible=icon]:hidden">
             {t('nav.reports')}
           </SidebarGroupLabel>
           <SidebarGroupContent>
@@ -179,7 +179,7 @@ export function AppSidebar() {
         {/* Admin */}
         {isSuperAdmin ? (
           <SidebarGroup className="mt-6">
-            <SidebarGroupLabel className="mb-2 px-2 text-[11px] uppercase tracking-wider text-muted-foreground/60 group-data-[collapsible=icon]:hidden">
+            <SidebarGroupLabel className="mb-2 px-2 text-[11px] uppercase tracking-wider text-muted-foreground group-data-[collapsible=icon]:hidden">
               Admin
             </SidebarGroupLabel>
             <SidebarGroupContent>
@@ -242,7 +242,7 @@ export function AppSidebar() {
             <div className="truncate text-sm font-medium text-foreground/80">
               {user.username}
             </div>
-            <div className="text-[11px] text-muted-foreground/60">
+            <div className="text-[11px] text-muted-foreground">
               {user.role === 'SUPER_ADMIN' ? 'Admin' : user.role}
             </div>
           </div>
