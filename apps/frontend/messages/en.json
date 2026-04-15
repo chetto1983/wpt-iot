@@ -904,7 +904,15 @@
     "targetHost": "PLC Address",
     "targetHostHelp": "IP address or hostname of the ABB AC500 PLC (or CODESYS simulator). The handshake FSM uses this for jobs and RFID reads/writes.",
     "save": "Save Configuration",
-    "saved": "PLC configuration saved"
+    "saved": "PLC configuration saved",
+    "notConfigured": "PLC address not configured — handshake operations will fail until this is set.",
+    "testConnection": "Test connection",
+    "testTooltip": "Tests the currently saved PLC address. Save your changes first to test a new address.",
+    "testSuccess": "PLC responded in {durationMs}ms",
+    "testFailed": "PLC did not respond: {error}",
+    "testLastOk": "Last test OK at {time}",
+    "testLastFail": "Last test failed at {time}: {error}",
+    "testBusy": "PLC busy (RFID operation in progress) — try again in a moment."
   },
   "energy": {
     "title": "Energy overview",

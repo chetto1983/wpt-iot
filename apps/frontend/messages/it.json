@@ -904,7 +904,15 @@
     "targetHost": "Indirizzo PLC",
     "targetHostHelp": "IP o hostname del PLC ABB AC500 (o del simulatore CODESYS). Usato dall'handshake FSM per leggere/scrivere commesse e utenti RFID.",
     "save": "Salva Configurazione",
-    "saved": "Configurazione PLC salvata"
+    "saved": "Configurazione PLC salvata",
+    "notConfigured": "Indirizzo PLC non configurato — le operazioni di handshake falliranno finché non viene impostato.",
+    "testConnection": "Testa connessione",
+    "testTooltip": "Testa l'indirizzo PLC attualmente salvato. Salva le modifiche prima di testare un nuovo indirizzo.",
+    "testSuccess": "PLC risposto in {durationMs}ms",
+    "testFailed": "PLC non risponde: {error}",
+    "testLastOk": "Ultimo test OK alle {time}",
+    "testLastFail": "Ultimo test fallito alle {time}: {error}",
+    "testBusy": "PLC occupato (operazione RFID in corso) — riprovare tra qualche istante."
   },
   "energy": {
     "title": "Panoramica energia",
