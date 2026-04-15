@@ -12,6 +12,12 @@ const alertVariants = cva(
         destructive:
           "bg-card text-destructive *:data-[slot=alert-description]:text-destructive/90 *:[svg]:text-current",
       },
+      severity: {
+        critical: "border-severity-critical/40 text-severity-critical [&>svg]:text-severity-critical",
+        high:     "border-severity-high/40     text-severity-high     [&>svg]:text-severity-high",
+        medium:   "border-severity-medium/40   text-severity-medium   [&>svg]:text-severity-medium",
+        low:      "border-severity-low/40      text-severity-low      [&>svg]:text-severity-low",
+      },
     },
     defaultVariants: {
       variant: "default",
@@ -22,13 +28,14 @@ const alertVariants = cva(
 function Alert({
   className,
   variant,
+  severity,
   ...props
 }: React.ComponentProps<"div"> & VariantProps<typeof alertVariants>) {
   return (
     <div
       data-slot="alert"
       role="alert"
-      className={cn(alertVariants({ variant }), className)}
+      className={cn(alertVariants({ variant, severity }), className)}
       {...props}
     />
   )
