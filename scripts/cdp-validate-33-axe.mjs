@@ -26,7 +26,7 @@ const axePath = require.resolve('axe-core', { paths: [new URL('../apps/frontend'
 const axeSource = readFileSync(axePath, 'utf8');
 
 const EDGE = 'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe';
-const BASE = 'http://localhost:3001';
+const BASE = process.env.AXE_BASE || 'http://localhost:3001';
 const EMAIL = process.env.ADMIN_EMAIL || 'admin';
 const PASSWORD = process.env.ADMIN_PASSWORD || '!Wpt2026!';
 
@@ -86,7 +86,8 @@ try {
     executablePath: EDGE,
     headless: false,
     protocolTimeout: 120000,
-    args: ['--no-first-run', '--disable-extensions', '--window-size=1280,900'],
+    args: ['--no-first-run', '--disable-extensions', '--window-size=1280,900', '--ignore-certificate-errors'],
+    ignoreHTTPSErrors: true,
     defaultViewport: { width: 1280, height: 900 },
   });
 
