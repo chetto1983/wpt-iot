@@ -5,6 +5,7 @@ import { requireRole } from '../auth/authHooks.js';
 import { readUsers, writeUsers } from '../udp/handshakeFsm.js';
 import { getSockets } from '../udp/sockets.js';
 import { dataHub } from '../events/hub.js';
+import { mapHandshakeError } from './_util/handshake-errors.js';
 import { z } from 'zod/v4';
 
 /**
@@ -27,10 +28,7 @@ export const rfidRoutes: FastifyPluginAsync = async (server) => {
       dataHub.emitUserData(users);
       return { users };
     } catch (err: unknown) {
-      if (err instanceof Error && err.message.includes('Handshake in progress')) {
-        return reply.code(409).send({ error: 'Handshake in progress' });
-      }
-      throw err;
+      return mapHandshakeError(err, reply);
     }
   });
 
@@ -56,10 +54,7 @@ export const rfidRoutes: FastifyPluginAsync = async (server) => {
       dataHub.emitUserData(parsed.data as IRfidUser[]);
       return { ok: true };
     } catch (err: unknown) {
-      if (err instanceof Error && err.message.includes('Handshake in progress')) {
-        return reply.code(409).send({ error: 'Handshake in progress' });
-      }
-      throw err;
+      return mapHandshakeError(err, reply);
     }
   });
 };

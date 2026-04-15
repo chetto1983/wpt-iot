@@ -33,7 +33,13 @@ export const plcConfigRoutes: FastifyPluginAsync = async (server) => {
    */
   server.put('/plc/config', async (request, reply) => {
     const result = z.object({
-      targetHost: z.string().min(1).max(255).optional(),
+      targetHost: z
+        .string()
+        .min(1)
+        .max(255)
+        .regex(/^[a-zA-Z0-9._-]+$/, 'Must be a valid IP or hostname')
+        .refine(v => v !== 'localhost', { message: 'Use the real PLC address, not "localhost"' })
+        .optional(),
     }).safeParse(request.body);
 
     if (!result.success) {

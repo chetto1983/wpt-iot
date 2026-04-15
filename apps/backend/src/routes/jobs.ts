@@ -6,6 +6,7 @@ import { writeJob } from '../udp/handshakeFsm.js';
 import { getSockets } from '../udp/sockets.js';
 import { dataHub } from '../events/hub.js';
 import { latestState } from '../cache/latestState.js';
+import { mapHandshakeError } from './_util/handshake-errors.js';
 
 export function mapMachineSnapshotToJobData(snap: IMachineSnapshot): IJobData {
   return {
@@ -81,10 +82,7 @@ export const jobRoutes: FastifyPluginAsync = async (server) => {
       dataHub.emitJobData(parsed.data as IJobData);
       return { ok: true };
     } catch (err: unknown) {
-      if (err instanceof Error && err.message.includes('Handshake in progress')) {
-        return reply.code(409).send({ error: 'Handshake in progress' });
-      }
-      throw err;
+      return mapHandshakeError(err, reply);
     }
   });
 };
