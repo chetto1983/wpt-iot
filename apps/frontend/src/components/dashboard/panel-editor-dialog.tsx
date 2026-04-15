@@ -165,7 +165,7 @@ export function PanelEditorDialog({
                   if (v) setChartType(v as ChartType);
                 }}
               >
-                <SelectTrigger className="w-full">
+                <SelectTrigger className="w-full" aria-label={t('editor.chartType')}>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
