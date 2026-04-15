@@ -43,7 +43,7 @@ export function PlcStatusBar({ state, remainingSeconds, namespace }: PlcStatusBa
       <div
         className={cn(
           'flex w-full items-center gap-3 rounded-lg border-l-[3px] py-2 px-4',
-          'border-primary bg-primary/10',
+          'border-primary bg-muted',
         )}
       >
         <CircleCheck className="size-5 shrink-0 text-primary" />
