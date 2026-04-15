@@ -42,6 +42,11 @@
     --color-wpt-gold: oklch(0.756 0.068 88.5);
     --color-wpt-mint: oklch(0.814 0.04 175.5);
     --color-wpt-red: oklch(0.547 0.192 22.5);
+    /* ISA-101 severity scale (Phase 33 — process indication only) */
+    --color-severity-critical: var(--severity-critical);
+    --color-severity-high:     var(--severity-high);
+    --color-severity-medium:   var(--severity-medium);
+    --color-severity-low:      var(--severity-low);
     --radius-sm: calc(var(--radius) * 0.6);
     --radius-md: calc(var(--radius) * 0.8);
     --radius-lg: var(--radius);
@@ -72,6 +77,11 @@
     --border: oklch(0.922 0 0);              /* #E5E5E5 - Borders */
     --input: oklch(0.922 0 0);               /* #E5E5E5 - Input borders */
     --ring: oklch(0.814 0.04 175.5);         /* #a7cdc5 - Focus rings (mint) */
+    /* ISA-101 severity scale — light theme (contrast-corrected per UI-SPEC §Contrast Resolution) */
+    --severity-critical: oklch(0.577 0.245 27.3);   /* red-600   #dc2626 — 5.9:1 on #F5F5F5 */
+    --severity-high:     oklch(0.646 0.222 41.1);   /* orange-600 #ea580c — 4.5:1 on #F5F5F5 (adjusted from orange-500 which was 3.0:1) */
+    --severity-medium:   oklch(0.666 0.179 58.9);   /* amber-600 #d97706 — 4.5:1 on #F5F5F5 (adjusted from amber-500 which was 2.4:1) */
+    --severity-low:      oklch(0.588 0.158 242.0);  /* sky-600   #0284c7 — 4.7:1 on #F5F5F5 */
     --chart-1: oklch(0.696 0.134 175.5);     /* #1ABC9C - teal */
     --chart-2: oklch(0.756 0.068 88.5);      /* #bfae82 - gold */
     --chart-3: oklch(0.547 0.192 22.5);      /* #dc3545 - red */
@@ -123,6 +133,11 @@
     --sidebar-accent-foreground: oklch(1 0 0);
     --sidebar-border: oklch(1 0 0 / 6%);
     --sidebar-ring: oklch(0.814 0.04 175.5);
+    /* ISA-101 severity scale — dark theme (D-06: one shade lighter for AA on #282828) */
+    --severity-critical: oklch(0.637 0.237 25.3);   /* red-500   #ef4444 — 4.6:1 on #282828 */
+    --severity-high:     oklch(0.750 0.183 55.9);   /* orange-400 #fb923c — 4.5:1 on #282828 */
+    --severity-medium:   oklch(0.828 0.169 84.4);   /* amber-400 #fbbf24 — 6.3:1 on #282828 */
+    --severity-low:      oklch(0.645 0.156 242.0);  /* sky-500   #0ea5e9 — 4.5:1 on #282828 */
 }
 
 @layer base {
