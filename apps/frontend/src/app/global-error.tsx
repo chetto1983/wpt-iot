@@ -3,6 +3,10 @@
 import { useEffect, useRef } from 'react';
 import { AlertTriangle } from 'lucide-react';
 
+// PHASE 33 EXEMPTION: This is the topmost error boundary.
+// Tailwind and CSS custom properties may not be loaded when this renders.
+// Hardcoded hex values are intentional. Do NOT migrate to severity tokens.
+// axe-core rule: ignore this file (see wpt-iot/scripts/cdp-validate-33-axe.mjs ignore list).
 export default function GlobalError({
   error,
   reset,
