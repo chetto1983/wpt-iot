@@ -33,7 +33,7 @@ export const ActiveAlarmsPanel = memo(function ActiveAlarmsPanel({ alarms }: Act
         {alarms.length === 0 ? (
           <div className="py-8 text-center">
             <p className="text-sm font-semibold text-muted-foreground">{t('empty.alarmsTitle')}</p>
-            <p className="text-xs text-muted-foreground/60 mt-1">{t('empty.alarmsBody')}</p>
+            <p className="text-xs text-muted-foreground mt-1">{t('empty.alarmsBody')}</p>
           </div>
         ) : (
           <div className="relative">
@@ -49,7 +49,7 @@ export const ActiveAlarmsPanel = memo(function ActiveAlarmsPanel({ alarms }: Act
                   <span className="text-sm text-foreground/80 flex-1">
                     {formatters.alarmDescription(alarm)}
                   </span>
-                  <span className="text-xs text-muted-foreground/60 shrink-0">
+                  <span className="text-xs text-muted-foreground shrink-0">
                     {new Date(alarm.activatedAt).toLocaleTimeString()}
                   </span>
                 </div>
