@@ -87,7 +87,7 @@ export function ExportDialog({ from, to, open, onOpenChange }: ExportDialogProps
           <div className="space-y-2">
             <label className="text-sm font-medium">Formato</label>
             <Select value={format} onValueChange={(v) => setFormat(v as ExportFormat)}>
-              <SelectTrigger>
+              <SelectTrigger aria-label="Formato esportazione">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
