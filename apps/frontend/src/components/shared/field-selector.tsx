@@ -166,7 +166,7 @@ export function FieldSelector({
                   {t(`categories.${key}`)}
                 </span>
                 {selectedInGroup > 0 && (
-                  <span className="ml-auto rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary sm:text-[10px]">
+                  <span className="ml-auto rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary dark:bg-wpt-teal-accessible/10 dark:text-wpt-teal-accessible sm:text-[10px]">
                     {selectedInGroup}
                   </span>
                 )}
