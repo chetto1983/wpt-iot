@@ -338,7 +338,11 @@ export default function MqttPage() {
                     ) : (
                       <WifiOff className="size-5 text-destructive" />
                     )}
-                    <Badge variant={status.connected ? 'default' : 'destructive'} className="rounded-full">
+                    <Badge
+                      variant={status.connected ? 'default' : undefined}
+                      severity={!status.connected ? 'high' : undefined}
+                      className="rounded-full"
+                    >
                       {t('status.localBroker')}: {status.connected ? t('status.connected') : t('status.disconnected')}
                     </Badge>
                     <Badge variant={status.sparkplugConnected ? 'default' : 'secondary'} className="rounded-full">
