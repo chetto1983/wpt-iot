@@ -42,6 +42,9 @@
     --color-wpt-gold: oklch(0.756 0.068 88.5);
     --color-wpt-mint: oklch(0.814 0.04 175.5);
     --color-wpt-red: oklch(0.547 0.192 22.5);
+    /* WCAG AA accessible variants — use for text/interactive elements (Phase 33-07) */
+    --color-wpt-teal-accessible: var(--wpt-teal-accessible);
+    --color-wpt-gold-accessible: var(--wpt-gold-accessible);
     /* ISA-101 severity scale (Phase 33 — process indication only) */
     --color-severity-critical: var(--severity-critical);
     --color-severity-high:     var(--severity-high);
@@ -64,7 +67,7 @@
     --card-foreground: oklch(0.278 0 0);     /* #333333 - Card text */
     --popover: oklch(1 0 0);                 /* #FFFFFF - Popover surfaces */
     --popover-foreground: oklch(0.278 0 0);  /* #333333 - Popover text */
-    --primary: oklch(0.696 0.134 175.5);     /* #1ABC9C - Accent teal CTA */
+    --primary: oklch(0.50 0.13 175);          /* #007a5f - Accessible teal (4.5:1 on white, WCAG AA) */
     --primary-foreground: oklch(1 0 0);      /* #FFFFFF - Text on primary */
     --secondary: oklch(0.97 0 0);            /* #F5F5F5 - Secondary surfaces */
     --secondary-foreground: oklch(0.278 0 0); /* #333333 - Text on secondary */
@@ -77,11 +80,14 @@
     --border: oklch(0.922 0 0);              /* #E5E5E5 - Borders */
     --input: oklch(0.922 0 0);               /* #E5E5E5 - Input borders */
     --ring: oklch(0.814 0.04 175.5);         /* #a7cdc5 - Focus rings (mint) */
-    /* ISA-101 severity scale — light theme (contrast-corrected per UI-SPEC §Contrast Resolution) */
-    --severity-critical: oklch(0.577 0.245 27.3);   /* red-600   #dc2626 — 5.9:1 on #F5F5F5 */
-    --severity-high:     oklch(0.646 0.222 41.1);   /* orange-600 #ea580c — 4.5:1 on #F5F5F5 (adjusted from orange-500 which was 3.0:1) */
-    --severity-medium:   oklch(0.666 0.179 58.9);   /* amber-600 #d97706 — 4.5:1 on #F5F5F5 (adjusted from amber-500 which was 2.4:1) */
-    --severity-low:      oklch(0.588 0.158 242.0);  /* sky-600   #0284c7 — 4.7:1 on #F5F5F5 */
+    /* WCAG AA accessible brand color variants (Phase 33-07) */
+    --wpt-teal-accessible: oklch(0.50 0.13 175);    /* #007a5f — 5.3:1 on white */
+    --wpt-gold-accessible: oklch(0.50 0.075 82);    /* #795f2d — 6.0:1 on white */
+    /* ISA-101 severity scale — light theme (browser-computed oklch, verified by axe-core) */
+    --severity-critical: oklch(0.577 0.245 27.3);   /* computes #e7000b — 4.8:1 on white ✓ */
+    --severity-high:     oklch(0.59 0.222 41);      /* computes #e13300 — 4.5:1 on white ✓ (was 0.646→#f54900→3.6:1) */
+    --severity-medium:   oklch(0.58 0.179 59);      /* computes #c35600 — 4.5:1 on white ✓ (was 0.666→#e17200→3.2:1) */
+    --severity-low:      oklch(0.56 0.158 242);     /* computes #007bc8 — 4.5:1 on white ✓ (was 0.588→#0084d1→4.0:1) */
     --chart-1: oklch(0.696 0.134 175.5);     /* #1ABC9C - teal */
     --chart-2: oklch(0.756 0.068 88.5);      /* #bfae82 - gold */
     --chart-3: oklch(0.547 0.192 22.5);      /* #dc3545 - red */
@@ -107,7 +113,7 @@
     --card-foreground: oklch(0.95 0 0);
     --popover: oklch(0.262 0 0);
     --popover-foreground: oklch(0.95 0 0);
-    --primary: oklch(0.696 0.134 175.5);
+    --primary: oklch(0.65 0.13 175);          /* #00a88b — 4.9:1 on #282828 (WCAG AA) */
     --primary-foreground: oklch(1 0 0);
     --secondary: oklch(0.262 0 0);
     --secondary-foreground: oklch(0.95 0 0);
@@ -115,7 +121,7 @@
     --muted-foreground: oklch(0.708 0 0);
     --accent: oklch(0.756 0.068 88.5);
     --accent-foreground: oklch(1 0 0);
-    --destructive: oklch(0.547 0.192 22.5);
+    --destructive: oklch(0.637 0.237 25.3);   /* brightened for dark bg — fixes badge contrast */
     --destructive-foreground: oklch(1 0 0);
     --border: oklch(1 0 0 / 10%);
     --input: oklch(1 0 0 / 15%);
@@ -130,14 +136,17 @@
     --sidebar-primary: oklch(0.696 0.134 175.5);
     --sidebar-primary-foreground: oklch(1 0 0);
     --sidebar-accent: oklch(0.756 0.068 88.5);
-    --sidebar-accent-foreground: oklch(1 0 0);
+    --sidebar-accent-foreground: oklch(0.10 0 0); /* dark text on gold active bg — was white (2.2:1), now ~7:1 */
     --sidebar-border: oklch(1 0 0 / 6%);
     --sidebar-ring: oklch(0.814 0.04 175.5);
-    /* ISA-101 severity scale — dark theme (D-06: one shade lighter for AA on #282828) */
-    --severity-critical: oklch(0.637 0.237 25.3);   /* red-500   #ef4444 — 4.6:1 on #282828 */
-    --severity-high:     oklch(0.750 0.183 55.9);   /* orange-400 #fb923c — 4.5:1 on #282828 */
-    --severity-medium:   oklch(0.828 0.169 84.4);   /* amber-400 #fbbf24 — 6.3:1 on #282828 */
-    --severity-low:      oklch(0.645 0.156 242.0);  /* sky-500   #0ea5e9 — 4.5:1 on #282828 */
+    /* WCAG AA accessible brand color variants — dark theme (Phase 33-07) */
+    --wpt-teal-accessible: oklch(0.75 0.12 172);    /* #32c8a9 — 7.0:1 on #282828 */
+    --wpt-gold-accessible: oklch(0.80 0.09 82);     /* brightened for dark bg */
+    /* ISA-101 severity scale — dark theme (browser-computed oklch, verified by axe-core) */
+    --severity-critical: oklch(0.71 0.237 25);      /* computes #ff4c4f — 4.5:1 on #282828 ✓ (was 0.637→#fb2c36→3.9:1) */
+    --severity-high:     oklch(0.750 0.183 55.9);   /* computes #ff8904 — 6.2:1 on #282828 ✓ */
+    --severity-medium:   oklch(0.828 0.169 84.4);   /* computes #f9bc07 — 8.6:1 on #282828 ✓ */
+    --severity-low:      oklch(0.645 0.156 242.0);  /* computes #0096e3 — 4.5:1 on #282828 ✓ */
 }
 
 @layer base {
