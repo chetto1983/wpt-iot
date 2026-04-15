@@ -84,7 +84,7 @@ const RfidUserRow = memo(function RfidUserRow({ user, onUpdate, t }: RfidUserRow
           value={String(user.group)}
           onValueChange={(v) => onUpdate(user.tagId, 'group', Number(v))}
         >
-          <SelectTrigger className="h-8">
+          <SelectTrigger className="h-8" aria-label={`${t('columns.group')} ${user.tagId}`}>
             <SelectValue placeholder={t(`groups.${GROUP_KEYS[user.group] ?? 'OPERATOR'}`)}>
               {t(`groups.${GROUP_KEYS[user.group] ?? 'OPERATOR'}`)}
             </SelectValue>
@@ -100,6 +100,7 @@ const RfidUserRow = memo(function RfidUserRow({ user, onUpdate, t }: RfidUserRow
         <Switch
           checked={user.enabled}
           onCheckedChange={(v) => onUpdate(user.tagId, 'enabled', v)}
+          aria-label={`${t('columns.enabled')} ${user.tagId}`}
         />
       </TableCell>
     </TableRow>
@@ -148,7 +149,7 @@ const RfidUserCard = memo(function RfidUserCard({ user, onUpdate, t }: RfidUserR
             value={String(user.group)}
             onValueChange={(v) => onUpdate(user.tagId, 'group', Number(v))}
           >
-            <SelectTrigger className="w-full">
+            <SelectTrigger className="w-full" aria-label={`${t('columns.group')} ${user.tagId}`}>
               <SelectValue placeholder={t(`groups.${GROUP_KEYS[user.group] ?? 'OPERATOR'}`)}>
                 {t(`groups.${GROUP_KEYS[user.group] ?? 'OPERATOR'}`)}
               </SelectValue>
