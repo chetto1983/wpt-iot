@@ -113,7 +113,7 @@
     --card-foreground: oklch(0.95 0 0);
     --popover: oklch(0.262 0 0);
     --popover-foreground: oklch(0.95 0 0);
-    --primary: oklch(0.65 0.13 175);          /* #00a88b — 4.9:1 on #282828 (WCAG AA) */
+    --primary: oklch(0.50 0.13 175);          /* #007a5f — 4.5:1 on white (WCAG AA); dark bg just raises contrast further */
     --primary-foreground: oklch(1 0 0);
     --secondary: oklch(0.262 0 0);
     --secondary-foreground: oklch(0.95 0 0);
