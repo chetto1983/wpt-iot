@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import type { DateRange } from 'react-day-picker';
 import { format as formatDate } from 'date-fns';
 import { useTranslations } from 'next-intl';
-import { useQueryStates, parseAsString } from 'nuqs';
+import { useQueryStates, parseAsString, parseAsInteger } from 'nuqs';
 import { CalendarDays } from 'lucide-react';
 import { toast } from 'sonner';
 import { CLIENT_VISIBLE_FIELDS, WPT_VISIBLE_FIELDS, UserRole, getFieldLabel } from '@wpt/types';
@@ -65,6 +65,7 @@ export default function ReportsPage() {
     to: parseAsString,
     fromTime: parseAsString.withDefault('00:00'),
     toTime: parseAsString.withDefault('23:59'),
+    cycle: parseAsInteger, // number | null; null = all cycles
   });
 
   const dateRange: DateRange | undefined = filters.from && filters.to
@@ -85,6 +86,7 @@ export default function ReportsPage() {
   const [downloading, setDownloading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [preview, setPreview] = useState<IMachinePreview | null>(null);
+  const [cycleOptions, setCycleOptions] = useState<number[]>([]);
 
   // Load preview when filters change
   // Deps must be the stable string values from nuqs, NOT dateRange.from/to:
@@ -106,6 +108,9 @@ export default function ReportsPage() {
     if (selectedFields.length > 0) {
       params.set('fields', selectedFields.join(','));
     }
+    if (filters.cycle != null) {
+      params.set('cycle', String(filters.cycle));
+    }
 
     apiFetch<IMachinePreview>(`/api/reports/machine?${params.toString()}`, { signal: controller.signal })
       .then((data) => {
@@ -121,8 +126,41 @@ export default function ReportsPage() {
       });
 
     return () => controller.abort();
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- selectedFields identity changes on every toggle; stringify for stable dep
-  }, [filters.from, filters.to, filters.fromTime, filters.toTime, locale, selectedFields.join(','), t]);
+ 
+  }, [filters.from, filters.to, filters.fromTime, filters.toTime, filters.cycle, locale, selectedFields.join(','), t]);
+
+  // Phase 35 UI-01 — fetch cycle options when the date range changes
+  useEffect(() => {
+    if (!filters.from || !filters.to) {
+      setCycleOptions([]);
+      return;
+    }
+
+    const controller = new AbortController();
+    const params = new URLSearchParams({
+      from: buildDateTimeISO(new Date(filters.from), filters.fromTime),
+      to: buildDateTimeISO(new Date(filters.to), filters.toTime),
+    });
+
+    apiFetch<{ cycles: number[] }>(`/api/cycles/list?${params.toString()}`, {
+      signal: controller.signal,
+    })
+      .then((data) => {
+        if (controller.signal.aborted) return;
+        setCycleOptions(data.cycles);
+        // If the currently-selected cycle is no longer in the list, clear it
+        if (filters.cycle != null && !data.cycles.includes(filters.cycle)) {
+          void setFilters({ cycle: null });
+        }
+      })
+      .catch((err: unknown) => {
+        if (err instanceof Error && err.name === 'AbortError') return;
+        // Silently fall back to empty options — failure should not break reports
+        setCycleOptions([]);
+      });
+
+    return () => controller.abort();
+  }, [filters.from, filters.to, filters.fromTime, filters.toTime]);
 
   const downloadReport = useCallback(async () => {
     if (!dateRange?.from || !dateRange?.to) return;
@@ -136,6 +174,9 @@ export default function ReportsPage() {
       });
       if (selectedFields.length > 0) {
         params.set('fields', selectedFields.join(','));
+      }
+      if (filters.cycle != null) {
+        params.set('cycle', String(filters.cycle));
       }
 
       const res = await fetch(
@@ -165,7 +206,7 @@ export default function ReportsPage() {
     } finally {
       setDownloading(false);
     }
-  }, [dateRange, filters.fromTime, filters.toTime, exportFormat, locale, selectedFields, t]);
+  }, [dateRange, filters.fromTime, filters.toTime, filters.cycle, exportFormat, locale, selectedFields, t]);
 
   const hasDateRange = Boolean(dateRange?.from && dateRange?.to);
 
@@ -190,11 +231,19 @@ export default function ReportsPage() {
         onFormatChange={setExportFormat}
         onDownload={downloadReport}
         downloading={downloading}
+        showCycleFilter
+        cycleNumber={filters.cycle}
+        onCycleNumberChange={(n) => { void setFilters({ cycle: n }); }}
+        cycleOptions={cycleOptions}
         translations={{
           dateRangeLabel: t('dateRangeLabel'),
           dateRangePlaceholder: t('dateRangePlaceholder'),
           fromTimeLabel: t('fromTimeLabel'),
           toTimeLabel: t('toTimeLabel'),
+          cycleLabel: t('cycleLabel'),
+          cyclePlaceholder: t('cyclePlaceholder'),
+          noCyclesInRange: t('noCyclesInRange'),
+          cycleOptionLabel: t('cycleOptionLabel'),
           downloadCsv: t('downloadCsv'),
           downloadPdf: t('downloadPdf'),
           downloading: t('downloading'),
@@ -219,11 +268,13 @@ export default function ReportsPage() {
             <div className="space-y-3">
               {Array.from({ length: 6 }).map((_, i) => (
                 <div key={i} className="flex gap-4">
-                  <Skeleton className="h-4 w-[140px]" />
-                  <Skeleton className="h-4 w-[80px]" />
-                  <Skeleton className="h-4 w-[80px]" />
-                  <Skeleton className="h-4 w-[80px]" />
-                  <Skeleton className="h-4 w-[60px]" />
+                  {selectedFields.length === 0 ? (
+                    <Skeleton className="h-4 w-full" />
+                  ) : (
+                    selectedFields.map((f) => (
+                      <Skeleton key={f} className="h-4 w-full flex-1" />
+                    ))
+                  )}
                 </div>
               ))}
             </div>

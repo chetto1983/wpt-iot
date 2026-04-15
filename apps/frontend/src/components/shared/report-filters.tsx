@@ -9,6 +9,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { DateRangePicker } from '@/components/shared/date-range-picker';
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
@@ -29,8 +36,9 @@ interface ReportFiltersProps {
   onDownload: () => void;
   downloading: boolean;
   showCycleFilter?: boolean;
-  cycleNumber?: string;
-  onCycleNumberChange?: (val: string) => void;
+  cycleNumber?: number | null;
+  onCycleNumberChange?: (val: number | null) => void;
+  cycleOptions?: number[];
   translations: {
     dateRangeLabel: string;
     dateRangePlaceholder: string;
@@ -38,6 +46,8 @@ interface ReportFiltersProps {
     toTimeLabel: string;
     cycleLabel?: string;
     cyclePlaceholder?: string;
+    noCyclesInRange?: string;
+    cycleOptionLabel?: string;
     downloadCsv: string;
     downloadPdf: string;
     downloading: string;
@@ -60,6 +70,7 @@ export function ReportFilters({
   showCycleFilter = false,
   cycleNumber,
   onCycleNumberChange,
+  cycleOptions,
   translations,
   children,
 }: ReportFiltersProps) {
@@ -112,13 +123,67 @@ export function ReportFilters({
               <Label className="text-xs font-medium text-muted-foreground">
                 {translations.cycleLabel}
               </Label>
-              <Input
-                type="number"
-                className="w-full sm:w-[140px]"
-                value={cycleNumber ?? ''}
-                onChange={(e) => onCycleNumberChange(e.target.value)}
-                placeholder={translations.cyclePlaceholder}
-              />
+              {cycleOptions ? (
+                <Select
+                  value={cycleNumber == null ? '__all__' : String(cycleNumber)}
+                  onValueChange={(v) =>
+                    onCycleNumberChange(v === '__all__' ? null : Number(v))
+                  }
+                  disabled={
+                    !dateRange?.from ||
+                    !dateRange?.to ||
+                    cycleOptions.length === 0
+                  }
+                >
+                  <SelectTrigger
+                    className="w-full sm:w-[160px] tabular-nums"
+                    aria-label={translations.cycleLabel}
+                  >
+                    <SelectValue
+                      placeholder={
+                        cycleOptions.length === 0 &&
+                        dateRange?.from &&
+                        dateRange?.to
+                          ? translations.noCyclesInRange
+                          : translations.cyclePlaceholder
+                      }
+                    />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__all__">
+                      {translations.cyclePlaceholder}
+                    </SelectItem>
+                    {cycleOptions.map((n) => (
+                      <SelectItem
+                        key={n}
+                        value={String(n)}
+                        className="tabular-nums"
+                      >
+                        {(translations.cycleOptionLabel ?? 'Cycle #{n}').replace(
+                          '{n}',
+                          String(n),
+                        )}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <Input
+                  type="number"
+                  className="w-full sm:w-[140px]"
+                  value={cycleNumber ?? ''}
+                  onChange={(e) => {
+                    const raw = e.target.value;
+                    if (raw === '') {
+                      onCycleNumberChange(null);
+                      return;
+                    }
+                    const n = Number(raw);
+                    onCycleNumberChange(Number.isFinite(n) ? n : null);
+                  }}
+                  placeholder={translations.cyclePlaceholder}
+                />
+              )}
             </div>
           )}
 

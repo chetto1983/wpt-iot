@@ -200,15 +200,11 @@ function AlarmsContent({ locale }: { locale: string }) {
         onDownload={downloadAlarmReport}
         downloading={downloading}
         showCycleFilter={false}
-        cycleNumber=""
-        onCycleNumberChange={() => {}}
         translations={{
           dateRangeLabel: t('dateRangeLabel'),
           dateRangePlaceholder: t('dateRangePlaceholder'),
           fromTimeLabel: t('fromTimeLabel'),
           toTimeLabel: t('toTimeLabel'),
-          cycleLabel: '',
-          cyclePlaceholder: '',
           downloadCsv: t('downloadCsv'),
           downloadPdf: t('downloadPdf'),
           downloading: t('downloading'),
