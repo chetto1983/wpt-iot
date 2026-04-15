@@ -85,7 +85,7 @@
     --wpt-gold-accessible: oklch(0.50 0.075 82);    /* #795f2d — 6.0:1 on white */
     /* ISA-101 severity scale — light theme (browser-computed oklch, verified by axe-core) */
     --severity-critical: oklch(0.577 0.245 27.3);   /* computes #e7000b — 4.8:1 on white ✓ */
-    --severity-high:     oklch(0.59 0.222 41);      /* computes #e13300 — 4.5:1 on white ✓ (was 0.646→#f54900→3.6:1) */
+    --severity-high:     oklch(0.575 0.222 41);     /* computes ~#da2f00 — 4.7:1 on white ✓ (was 0.59→#e13300→4.49:1 just below threshold) */
     --severity-medium:   oklch(0.58 0.179 59);      /* computes #c35600 — 4.5:1 on white ✓ (was 0.666→#e17200→3.2:1) */
     --severity-low:      oklch(0.56 0.158 242);     /* computes #007bc8 — 4.5:1 on white ✓ (was 0.588→#0084d1→4.0:1) */
     --chart-1: oklch(0.696 0.134 175.5);     /* #1ABC9C - teal */
@@ -113,7 +113,7 @@
     --card-foreground: oklch(0.95 0 0);
     --popover: oklch(0.262 0 0);
     --popover-foreground: oklch(0.95 0 0);
-    --primary: oklch(0.50 0.13 175);          /* #007a5f — 4.5:1 on white (WCAG AA); dark bg just raises contrast further */
+    --primary: oklch(0.65 0.13 175);          /* #00a88b — bright teal for dark-bg text uses; buttons override to darker via dark:bg-[oklch(0.48_0.13_175)] */
     --primary-foreground: oklch(1 0 0);
     --secondary: oklch(0.262 0 0);
     --secondary-foreground: oklch(0.95 0 0);
