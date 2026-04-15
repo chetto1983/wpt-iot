@@ -25,7 +25,7 @@ export const ActiveAlarmsPanel = memo(function ActiveAlarmsPanel({ alarms }: Act
         <div className="flex items-center gap-3">
           <h3 className="text-xl font-semibold text-foreground">{t('sections.alarms')}</h3>
           {alarms.length > 0 && (
-            <Badge variant="destructive">{alarms.length}</Badge>
+            <Badge severity="medium">{alarms.length}</Badge>
           )}
         </div>
       </CardHeader>
