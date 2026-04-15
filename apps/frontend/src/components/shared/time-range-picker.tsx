@@ -147,7 +147,7 @@ export function TimeRangePicker({
           <div className="w-full border-b border-border p-2 sm:w-48 sm:border-r sm:border-b-0">
             {PRESET_GROUPS.map((group) => (
               <div key={group.heading} className="mb-2">
-                <div className="px-2 py-1 text-[11px] uppercase tracking-wider text-muted-foreground/60">
+                <div className="px-2 py-1 text-[11px] uppercase tracking-wider text-muted-foreground">
                   {group.heading}
                 </div>
                 {group.presets.map((presetLabel) => (
