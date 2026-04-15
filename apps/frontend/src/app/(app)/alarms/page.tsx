@@ -248,7 +248,7 @@ function AlarmsContent({ locale }: { locale: string }) {
           <Badge variant="secondary">
             {t('summaryTotal', { count: summary.total })}
           </Badge>
-          <Badge className="bg-wpt-gold/15 text-wpt-gold">
+          <Badge severity="medium">
             {t('summaryActive', { count: summary.active })}
           </Badge>
           <Badge className="bg-wpt-teal/15 text-wpt-teal">
@@ -299,7 +299,7 @@ function AlarmsContent({ locale }: { locale: string }) {
                       <p className="mt-1 text-sm font-medium">{event.description}</p>
                     </div>
                     {event.isActive ? (
-                      <Badge className="bg-wpt-gold/15 text-wpt-gold">
+                      <Badge severity="medium">
                         {t('activeBadge')}
                       </Badge>
                     ) : null}
@@ -352,7 +352,7 @@ function AlarmsContent({ locale }: { locale: string }) {
                       </TableCell>
                       <TableCell className="whitespace-nowrap">
                         {event.isActive ? (
-                          <Badge className="bg-wpt-gold/15 text-wpt-gold">
+                          <Badge severity="medium">
                             {t('activeBadge')}
                           </Badge>
                         ) : (
