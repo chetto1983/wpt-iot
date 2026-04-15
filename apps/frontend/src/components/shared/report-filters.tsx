@@ -82,10 +82,11 @@ export function ReportFilters({
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <Label className="text-xs font-medium text-muted-foreground">
+            <Label htmlFor="report-filter-from-time" className="text-xs font-medium text-muted-foreground">
               {translations.fromTimeLabel}
             </Label>
             <Input
+              id="report-filter-from-time"
               type="time"
               className="w-full sm:w-[120px]"
               value={fromTime}
@@ -94,10 +95,11 @@ export function ReportFilters({
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <Label className="text-xs font-medium text-muted-foreground">
+            <Label htmlFor="report-filter-to-time" className="text-xs font-medium text-muted-foreground">
               {translations.toTimeLabel}
             </Label>
             <Input
+              id="report-filter-to-time"
               type="time"
               className="w-full sm:w-[120px]"
               value={toTime}
