@@ -174,7 +174,7 @@ export function TimeRangePicker({
             <div className="flex flex-col gap-3 p-3">
               <div className="grid gap-3 sm:grid-cols-2">
                 <div className="flex flex-col gap-1">
-                  <Label className="text-xs text-muted-foreground">
+                  <Label htmlFor="time-range-from-time" className="text-xs text-muted-foreground">
                     {t('timeRange.from')}
                   </Label>
                   <Calendar
@@ -184,6 +184,7 @@ export function TimeRangePicker({
                     disabled={{ after: endOfDay(new Date()) }}
                   />
                   <Input
+                    id="time-range-from-time"
                     type="time"
                     value={customFromTime}
                     onChange={(e) => setCustomFromTime(e.target.value)}
@@ -191,7 +192,7 @@ export function TimeRangePicker({
                   />
                 </div>
                 <div className="flex flex-col gap-1">
-                  <Label className="text-xs text-muted-foreground">
+                  <Label htmlFor="time-range-to-time" className="text-xs text-muted-foreground">
                     {t('timeRange.to')}
                   </Label>
                   <Calendar
@@ -201,6 +202,7 @@ export function TimeRangePicker({
                     disabled={{ after: endOfDay(new Date()) }}
                   />
                   <Input
+                    id="time-range-to-time"
                     type="time"
                     value={customToTime}
                     onChange={(e) => setCustomToTime(e.target.value)}
@@ -227,7 +229,7 @@ export function TimeRangePicker({
           if (interval) onRefreshIntervalChange(interval.ms);
         }}
       >
-        <SelectTrigger size="sm" className="gap-1.5">
+        <SelectTrigger size="sm" className="gap-1.5" aria-label={t('autoRefresh')}>
           {loading ? (
             <Loader2 className="size-3.5 animate-spin text-muted-foreground" />
           ) : (
