@@ -159,7 +159,7 @@ export default function SingleDashboardPage() {
   const fetchPanelData = useCallback(
     async (panelList: IPanel[]) => {
       const panelsWithFields = panelList.filter(
-        (p) => p.config.fields.length > 0,
+        (p) => (p.config?.fields?.length ?? 0) > 0,
       );
       if (panelsWithFields.length === 0) {
         setPanelData({});
