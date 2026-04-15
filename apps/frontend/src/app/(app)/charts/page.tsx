@@ -28,6 +28,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { TimeRangePicker } from '@/components/shared/time-range-picker';
+import { PageToolbar } from '@/components/shared/page-toolbar';
 import { FieldSelector, getChartableFields } from '@/components/shared/field-selector';
 
 interface IChartResponse {
@@ -198,22 +199,12 @@ export default function ChartsPage() {
 
   return (
     <div className="space-y-6 p-6">
-      <h1 className="text-xl font-semibold">{t('title')}</h1>
-
-      {/* Filter Bar Card */}
-      <Card>
-        <CardContent className="flex flex-wrap items-center gap-4 p-4">
-          <TimeRangePicker
-            from={rangeFrom}
-            to={rangeTo}
-            onRangeChange={handleRangeChange}
-            activePreset={activePreset}
-            onPresetChange={handlePresetChange}
-            refreshInterval={refreshInterval}
-            onRefreshIntervalChange={handleRefreshIntervalChange}
-            lastUpdated={lastUpdated}
-            loading={loading}
-          />
+      {/* Phase 35 UI-02: migrated off Card wrapper onto shared PageToolbar
+          primitive. /charts now shares layout primitive with /dashboards/[id]
+          — Card border around the toolbar area is intentionally removed. */}
+      <PageToolbar
+        title={t('title')}
+        actionsRight={
           <Button
             onClick={generateChart}
             disabled={!canGenerate}
@@ -228,8 +219,20 @@ export default function ChartsPage() {
               t('generateChart')
             )}
           </Button>
-        </CardContent>
-      </Card>
+        }
+      >
+        <TimeRangePicker
+          from={rangeFrom}
+          to={rangeTo}
+          onRangeChange={handleRangeChange}
+          activePreset={activePreset}
+          onPresetChange={handlePresetChange}
+          refreshInterval={refreshInterval}
+          onRefreshIntervalChange={handleRefreshIntervalChange}
+          lastUpdated={lastUpdated}
+          loading={loading}
+        />
+      </PageToolbar>
 
       {/* Field Selector */}
       <FieldSelector
