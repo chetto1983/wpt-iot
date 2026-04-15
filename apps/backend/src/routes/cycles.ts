@@ -7,6 +7,7 @@
  */
 
 import type { FastifyPluginAsync } from 'fastify';
+import { z } from 'zod';
 import {
   CyclesQuerySchema,
   CycleExportQuerySchema,
@@ -16,6 +17,15 @@ import {
 import { CycleService } from '../services/cycleService.js';
 import { CycleExportService } from '../services/cycleExportService.js';
 import { requireAuth, requireRole } from '../auth/authHooks.js';
+
+/**
+ * Phase 35 UI-01 — query schema for GET /cycles/list.
+ * Half-open interval [from, to). from and to must be ISO-8601 datetime strings.
+ */
+const CycleListQuerySchema = z.object({
+  from: z.string().datetime(),
+  to: z.string().datetime(),
+});
 
 /**
  * Fastify plugin for /api/cycles routes.
@@ -120,6 +130,63 @@ export const cycleRoutes: FastifyPluginAsync = async (server) => {
         server.log.error(
           { name: 'CycleService', err: (err as Error).message },
           'Failed to query cycle records',
+        );
+        return reply.code(500).send({ error: 'Internal error' });
+      }
+    },
+  );
+
+  /**
+   * GET /api/cycles/list
+   *
+   * Phase 35 UI-01 — list DISTINCT cycleNumbers for the /reports cycle filter
+   * dropdown. Ordered DESC, capped at 1000 rows. Half-open interval [from, to).
+   *
+   * Query parameters:
+   *   - from: ISO-8601 datetime (inclusive)
+   *   - to:   ISO-8601 datetime (exclusive)
+   *
+   * Access: any authenticated role (D-04 — no role gate).
+   */
+  server.get(
+    '/cycles/list',
+    { preHandler: requireAuth },
+    async (request, reply) => {
+      const parsed = CycleListQuerySchema.safeParse(request.query);
+      if (!parsed.success) {
+        return reply.code(422).send({
+          error: 'Invalid date format',
+          issues: parsed.error.issues,
+        });
+      }
+
+      const fromDate = new Date(parsed.data.from);
+      const toDate = new Date(parsed.data.to);
+
+      if (
+        !Number.isFinite(fromDate.getTime()) ||
+        !Number.isFinite(toDate.getTime())
+      ) {
+        return reply.code(422).send({
+          error: 'Invalid date format',
+          message: 'from and to must be valid ISO datetime strings',
+        });
+      }
+
+      if (fromDate >= toDate) {
+        return reply.code(422).send({
+          error: 'from must be before to',
+          message: 'from date must be strictly before to date',
+        });
+      }
+
+      try {
+        const cycles = await CycleService.listCycleNumbers(fromDate, toDate);
+        return reply.send({ cycles });
+      } catch (err) {
+        server.log.error(
+          { name: 'CycleService', err: (err as Error).message },
+          'Failed to query cycle numbers',
         );
         return reply.code(500).send({ error: 'Internal error' });
       }

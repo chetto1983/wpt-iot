@@ -22,6 +22,26 @@ import { VALID_SORT_COLUMNS } from '@wpt/types';
  */
 export class CycleService {
   /**
+   * Phase 35 UI-01 — list DISTINCT cycleNumbers for completed cycles in [from, to).
+   * Ordered DESC, capped at 1000 rows. Used by the reports page cycle filter dropdown.
+   *
+   * Per D-04: callers are only gated by requireAuth — no role gate.
+   */
+  static async listCycleNumbers(from: Date, to: Date): Promise<number[]> {
+    const result = await db.execute(sql`
+      SELECT DISTINCT cycle_number
+      FROM cycle_records
+      WHERE started_at >= ${from.toISOString()}::timestamptz
+        AND started_at < ${to.toISOString()}::timestamptz
+      ORDER BY cycle_number DESC
+      LIMIT 1000
+    `);
+    return result.rows.map((r) =>
+      Number((r as { cycle_number: number | string }).cycle_number),
+    );
+  }
+
+  /**
    * Query cycle records with date range filter, pagination, and sorting.
    *
    * Uses half-open interval [from, to) on the startedAt column.
