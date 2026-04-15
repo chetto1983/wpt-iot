@@ -20,7 +20,7 @@ export default async function NotFound() {
         <p className="text-sm text-muted-foreground mb-6">{t('description')}</p>
         <Link
           href="/dashboard"
-          className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-xs hover:bg-primary/90"
+          className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-xs hover:bg-primary/90 dark:bg-[oklch(0.48_0.13_175)] dark:hover:bg-[oklch(0.44_0.13_175)]"
         >
           {t('goToDashboard')}
         </Link>
