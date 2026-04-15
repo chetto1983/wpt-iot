@@ -147,7 +147,18 @@ export function ReportFilters({
                           ? translations.noCyclesInRange
                           : translations.cyclePlaceholder
                       }
-                    />
+                    >
+                      {cycleNumber == null
+                        ? (cycleOptions.length === 0 &&
+                            dateRange?.from &&
+                            dateRange?.to
+                            ? translations.noCyclesInRange
+                            : translations.cyclePlaceholder)
+                        : (translations.cycleOptionLabel ?? 'Cycle #{n}').replace(
+                            '{n}',
+                            String(cycleNumber),
+                          )}
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="__all__">

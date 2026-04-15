@@ -23,39 +23,56 @@ vi.mock('@/lib/api', () => ({
   apiFetch: (...args: unknown[]) => mockApiFetch(...args),
 }));
 
-// Auth context — return a WPT user so role-based field selection is broad
-vi.mock('@/lib/auth-context', () => ({
-  useAuth: () => ({
+// Auth context — return a WPT user so role-based field selection is broad.
+// Referentially stable to avoid effect-dep churn.
+vi.mock('@/lib/auth-context', () => {
+  const stableAuth = {
     user: { id: 1, username: 'tester', role: 'WPT', language: 'en' },
     loading: false,
-  }),
-}));
+  };
+  return {
+    useAuth: () => stableAuth,
+  };
+});
 
-// Locale hook — minimal shape needed by the page
-vi.mock('@/lib/locale', () => ({
-  useAppLocale: () => ({
+// Locale hook — minimal shape needed by the page. Return a referentially stable
+// object to avoid effect-dep churn and Maximum-update-depth loops.
+vi.mock('@/lib/locale', () => {
+  const stableLocale = {
     language: 'en',
     formatDateTime: (d: Date) => d.toISOString(),
     formatDate: (d: Date) => d.toISOString().slice(0, 10),
-  }),
-}));
+  };
+  return {
+    useAppLocale: () => stableLocale,
+  };
+});
 
-// next-intl — echo last key segment, plus simple param interpolation
-vi.mock('next-intl', () => ({
-  useTranslations: () => {
-    const t = (key: string, params?: Record<string, unknown>) => {
-      const label = key.split('.').pop() ?? key;
-      if (params) {
-        return Object.entries(params).reduce(
-          (s, [k, v]) => s.replace(`{${k}}`, String(v)),
-          label,
-        );
-      }
-      return label;
-    };
-    return t;
-  },
-}));
+// next-intl — echo last key segment, plus simple param interpolation.
+// CRITICAL: `t` must be referentially stable so that effects with `t` in their
+// dep array do not re-fire on every render and trigger a Maximum-update-depth loop.
+vi.mock('next-intl', () => {
+  // Real next-intl returns the raw template string with placeholders intact when
+  // called without params (e.g. `t('cycleOptionLabel')` → "Cycle #{n}"). Mirror
+  // that for parameterized keys so `.replace('{n}', …)` downstream works.
+  const templates: Record<string, string> = {
+    cycleOptionLabel: 'cycleOptionLabel #{n}',
+  };
+  const stableT = (key: string, params?: Record<string, unknown>) => {
+    const segment = key.split('.').pop() ?? key;
+    const label = templates[segment] ?? segment;
+    if (params) {
+      return Object.entries(params).reduce(
+        (s, [k, v]) => s.replace(`{${k}}`, String(v)),
+        label,
+      );
+    }
+    return label;
+  };
+  return {
+    useTranslations: () => stableT,
+  };
+});
 
 // sonner toast — no-op
 vi.mock('sonner', () => ({
@@ -109,7 +126,7 @@ describe('ReportsPage — cycle filter + skeleton', () => {
       'from=2026-04-01&to=2026-04-15&cycle=5',
     );
 
-    render(<ReportsPage />, { wrapper: Wrapper });
+    const { container } = render(<ReportsPage />, { wrapper: Wrapper });
 
     // Wait for /api/cycles/list effect to resolve
     await waitFor(() => {
@@ -119,10 +136,19 @@ describe('ReportsPage — cycle filter + skeleton', () => {
       expect(cycleListCalls.length).toBeGreaterThan(0);
     });
 
-    // Dropdown trigger should show "Cycle #5"
+    // Grab the Select trigger by its aria-label (SelectTrigger with
+    // aria-label={translations.cycleLabel} -> "cycleLabel" via our mock).
+    // Its text content must include "Cycle #5" (or the mock-translated
+    // equivalent after placeholder substitution: "cycleOptionLabel" with {n}
+    // -> "5"). We assert on textContent, which spans across multiple child
+    // nodes that getByText cannot match.
     await waitFor(() => {
-      // The select trigger renders the value label; regex allows "#5" or "5" with space variance
-      expect(screen.getByText(/Cycle\s*#?\s*5/)).toBeInTheDocument();
+      const trigger = container.querySelector(
+        '[data-slot="select-trigger"][aria-label="cycleLabel"]',
+      );
+      expect(trigger).not.toBeNull();
+      // textContent after GREEN: "cycleOptionLabel" template with {n}->5 -> "5"
+      expect(trigger!.textContent ?? '').toMatch(/5/);
     });
   });
 
