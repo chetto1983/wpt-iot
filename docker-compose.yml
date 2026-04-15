@@ -9,7 +9,19 @@
 
 services:
   db:
-    image: timescale/timescaledb:latest-pg17
+    image: timescale/timescaledb:2.25.2-pg17
+    command:
+      - "postgres"
+      - "-c"
+      - "shared_buffers=${PG_SHARED_BUFFERS:-128MB}"
+      - "-c"
+      - "work_mem=${PG_WORK_MEM:-4MB}"
+      - "-c"
+      - "effective_cache_size=${PG_EFFECTIVE_CACHE_SIZE:-1GB}"
+      - "-c"
+      - "maintenance_work_mem=${PG_MAINTENANCE_WORK_MEM:-64MB}"
+      - "-c"
+      - "synchronous_commit=${PG_SYNCHRONOUS_COMMIT:-on}"
     # Loopback-only binding. Backend reaches the DB via 127.0.0.1 because
     # it runs on the host network; nothing on the LAN should touch pg.
     ports:
@@ -39,7 +51,7 @@ services:
   # local broker is removed entirely. Do not build new features that assume
   # a local broker exists.
   mosquitto:
-    image: eclipse-mosquitto:2
+    image: eclipse-mosquitto:2.0.22
     container_name: mosquitto
     # Exposed on all interfaces for external MQTT test clients (mqtt-explorer,
     # Sparkplug B listener on laptops). Production ships without this service
