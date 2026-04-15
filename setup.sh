@@ -4,9 +4,7 @@
 # =============================================================================
 # Usage:
 #   ./setup.sh              # Production (db + backend + frontend)
-#   ./setup.sh --dev        # Production + simulator
 #   ./setup.sh --rebuild    # Force rebuild all images
-#   ./setup.sh --dev --rebuild
 # =============================================================================
 
 set -euo pipefail
@@ -24,16 +22,13 @@ warn()  { echo -e "${YELLOW}[WARN]${NC}  $1"; }
 fail()  { echo -e "${RED}[FAIL]${NC}  $1"; exit 1; }
 
 # ─── Parse args ──────────────────────────────────────────────────────────────
-DEV_MODE=false
 REBUILD=false
 
 for arg in "$@"; do
   case "$arg" in
-    --dev)     DEV_MODE=true ;;
     --rebuild) REBUILD=true ;;
     --help|-h)
-      echo "Usage: ./setup.sh [--dev] [--rebuild]"
-      echo "  --dev      Include simulator (dev profile)"
+      echo "Usage: ./setup.sh [--rebuild]"
       echo "  --rebuild  Force rebuild all Docker images"
       exit 0
       ;;
@@ -74,15 +69,9 @@ else
 fi
 
 # ─── Build & start containers ────────────────────────────────────────────────
-COMPOSE_FLAGS=""
 BUILD_FLAGS=""
 
-if [ "$DEV_MODE" = true ]; then
-  COMPOSE_FLAGS="--profile dev"
-  info "Mode: DEVELOPMENT (with simulator)"
-else
-  info "Mode: PRODUCTION"
-fi
+info "Mode: PRODUCTION"
 
 if [ "$REBUILD" = true ]; then
   BUILD_FLAGS="--build --force-recreate"
@@ -91,7 +80,7 @@ fi
 
 echo ""
 info "Starting containers..."
-docker compose $COMPOSE_FLAGS up -d $BUILD_FLAGS 2>&1
+docker compose up -d $BUILD_FLAGS 2>&1
 
 # ─── Wait for database ──────────────────────────────────────────────────────
 info "Waiting for database to become healthy..."
@@ -196,14 +185,10 @@ echo -e "  Frontend:   ${CYAN}http://localhost:3001${NC}"
 echo -e "  Backend:    ${CYAN}http://localhost:3000${NC}"
 echo -e "  Database:   ${CYAN}localhost:5432${NC}"
 
-if [ "$DEV_MODE" = true ]; then
-  echo -e "  Simulator:  ${CYAN}http://localhost:3002${NC}"
-fi
-
 echo ""
 echo -e "  Login:      ${YELLOW}admin${NC} / check .env for ADMIN_PASSWORD"
 echo ""
 
 # ─── Container status ───────────────────────────────────────────────────────
-docker compose $COMPOSE_FLAGS ps --format "table {{.Name}}\t{{.Status}}\t{{.Ports}}"
+docker compose ps --format "table {{.Name}}\t{{.Status}}\t{{.Ports}}"
 echo ""

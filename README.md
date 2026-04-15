@@ -8,7 +8,6 @@ Industrial IoT system for monitoring and controlling WPT waste processing machin
 git clone <repo-url> && cd wpt-iot
 chmod +x setup.sh
 ./setup.sh          # Production
-./setup.sh --dev    # + PLC simulator
 ```
 
 The `setup.sh` flow is for local development and lab use. It handles environment generation, container builds, database initialization, and TimescaleDB retention policies.
@@ -19,7 +18,6 @@ After local setup:
 |------------|------------------------|
 | Dashboard  | http://localhost:3001   |
 | API        | http://localhost:3000   |
-| Simulator  | http://localhost:3002   |
 | Database   | localhost:5432          |
 
 For Linux installs that use the compose HTTPS overlay, the user-facing URL is:
@@ -39,7 +37,7 @@ Login: `admin` / password in `.env` (`ADMIN_PASSWORD`)
 ## Architecture
 
 ```
-ABB AC500 PLC (or simulator)
+ABB AC500 PLC
   |
   |-- UDP 9090 --> Backend: machine data (326-byte logical payload, PLC pads frames to 328)
   |-- UDP 9091 --> Backend: alarm words (80 bytes, every 1s)
@@ -64,7 +62,6 @@ Backend (Fastify 5) --> TimescaleDB (PostgreSQL 17)
 | Backend   | Fastify 5, Drizzle ORM, Zod, Pino      |
 | Frontend  | Next.js 16 (App Router), React 19       |
 | Database  | TimescaleDB (PostgreSQL 17)             |
-| Simulator | Fastify 5, dgram UDP, Vitest            |
 | Types     | Shared Zod schemas + TypeScript 5.8     |
 | Container | Docker Compose                          |
 
@@ -75,7 +72,6 @@ wpt-iot/
   apps/
     backend/        # @wpt/backend  -- Fastify API + UDP listeners + WebSocket
     frontend/       # @wpt/frontend -- Next.js dashboard
-    simulator/      # @wpt/simulator -- PLC emulator (dev-only)
   packages/
     types/          # @wpt/types -- shared Zod schemas, enums, interfaces
   docker/
@@ -94,13 +90,12 @@ wpt-iot/
 
 ### Local Development (Windows)
 
-On Windows, Docker host networking doesn't forward UDP. Run backend and simulator locally:
+On Windows, Docker host networking doesn't forward UDP. Run backend locally:
 
 ```bash
 docker compose up -d db                              # Database only
 pnpm -r --filter @wpt/backend run db:push            # Push schema
 pnpm -r --filter @wpt/types run build                # Build shared types
-pnpm -r --filter @wpt/simulator run dev              # Start simulator
 pnpm -r --filter @wpt/backend run dev                # Start backend
 pnpm -r --filter @wpt/frontend run dev               # Start frontend
 ```
@@ -108,8 +103,8 @@ pnpm -r --filter @wpt/frontend run dev               # Start frontend
 ### Full Docker (Linux)
 
 ```bash
-./setup.sh --dev            # Everything in containers
-./setup.sh --dev --rebuild  # Force rebuild images
+./setup.sh            # Everything in containers
+./setup.sh --rebuild  # Force rebuild images
 ```
 
 ### Commands
@@ -119,7 +114,7 @@ pnpm install       # Install all dependencies
 pnpm build         # Build all packages (types first)
 pnpm dev           # Dev mode (all packages concurrent)
 pnpm lint          # ESLint all packages
-pnpm test          # Run tests (simulator)
+pnpm test          # Run tests (workspace-wide)
 ```
 
 ### Per-package
@@ -128,8 +123,6 @@ pnpm test          # Run tests (simulator)
 pnpm -r --filter @wpt/types run build              # Must build first
 pnpm -r --filter @wpt/backend run dev               # Fastify on :3000
 pnpm -r --filter @wpt/frontend run dev              # Next.js on :3001
-pnpm -r --filter @wpt/simulator run dev             # Simulator on :3002
-pnpm -r --filter @wpt/simulator run test            # Vitest
 ```
 
 ## Data Retention
