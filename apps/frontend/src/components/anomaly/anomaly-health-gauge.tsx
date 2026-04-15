@@ -32,10 +32,20 @@ export const AnomalyHealthGauge = memo(function AnomalyHealthGauge({
   const health = scoreToHealth(live?.latest?.score);
   const level = live?.latest?.level ?? 'normal';
 
+  const criticalColor = typeof window !== 'undefined'
+    ? getComputedStyle(document.documentElement).getPropertyValue('--severity-critical').trim()
+    : 'oklch(0.577 0.245 27.3)';
+  const mediumColor = typeof window !== 'undefined'
+    ? getComputedStyle(document.documentElement).getPropertyValue('--severity-medium').trim()
+    : 'oklch(0.666 0.179 58.9)';
+  const lowColor = typeof window !== 'undefined'
+    ? getComputedStyle(document.documentElement).getPropertyValue('--severity-low').trim()
+    : 'oklch(0.588 0.158 242.0)';
+
   const levelColor =
-    level === 'critical' ? '#dc3545' :
-    level === 'warning' ? '#f59e0b' :
-    '#1ABC9C';
+    level === 'critical' ? criticalColor :
+    level === 'warning' ? mediumColor :
+    lowColor;
 
   return (
     <div className="flex flex-col items-center gap-2">
@@ -49,9 +59,9 @@ export const AnomalyHealthGauge = memo(function AnomalyHealthGauge({
         maxValue={100}
         arc={{
           subArcs: [
-            { limit: 30, color: '#dc3545', showTick: true },
-            { limit: 60, color: '#f59e0b', showTick: true },
-            { limit: 100, color: '#1ABC9C', showTick: true },
+            { limit: 30, color: criticalColor, showTick: true },
+            { limit: 60, color: mediumColor, showTick: true },
+            { limit: 100, color: lowColor, showTick: true },
           ],
           padding: 0.02,
           width: 0.15,
