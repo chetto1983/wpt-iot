@@ -483,7 +483,7 @@ export default function MqttPage() {
                               <Button
                                 variant="destructive"
                                 size="sm"
-                                className="flex-1"
+                                className="flex-1 dark:text-red-400"
                                 onClick={() => setDeleteTarget(u.username)}
                               >
                                 <Trash2 className="size-4" />
