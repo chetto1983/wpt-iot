@@ -85,12 +85,12 @@ export function AppHeader() {
           <Badge
             className={cn(
               'text-xs px-2 py-0.5 rounded-full font-medium flex items-center gap-1',
-              connected
-                ? 'border-transparent bg-wpt-teal/15 text-wpt-teal-accessible'
-                : 'border-transparent bg-wpt-gold/15 text-wpt-gold-accessible',
+              'border-transparent bg-muted text-foreground',
             )}
           >
-            {connected ? <Wifi className="size-3" /> : <WifiOff className="size-3" />}
+            {connected
+              ? <Wifi className="size-3 text-wpt-teal-accessible" />
+              : <WifiOff className="size-3 text-wpt-gold-accessible" />}
             {connected ? t('header.online') : t('header.offline')}
           </Badge>
           {!connected && lastUpdate && (() => {
