@@ -34,7 +34,8 @@
     "header": {
       "online": "Online",
       "offline": "Offline",
-      "disconnected": "Connection lost. Attempting to reconnect..."
+      "disconnected": "Connection lost. Attempting to reconnect...",
+      "menuLabel": "Open header menu"
     },
     "theme": {
       "toggleLabel": "Toggle theme"

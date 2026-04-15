@@ -34,7 +34,8 @@
     "header": {
       "online": "Online",
       "offline": "Offline",
-      "disconnected": "Connessione persa. Riconnessione in corso..."
+      "disconnected": "Connessione persa. Riconnessione in corso...",
+      "menuLabel": "Apri menu intestazione"
     },
     "theme": {
       "toggleLabel": "Cambia tema"

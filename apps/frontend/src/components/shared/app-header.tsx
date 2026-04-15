@@ -5,10 +5,16 @@ import { usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useWsData } from '@/lib/ws-context';
 import { useAuth } from '@/lib/auth-context';
-import { Wifi, WifiOff } from 'lucide-react';
+import { MoreVertical, Wifi, WifiOff } from 'lucide-react';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { ModeToggle } from '@/components/shared/mode-toggle';
 import { LanguageSelector } from '@/components/shared/language-selector';
 import { cn } from '@/lib/utils';
@@ -76,10 +82,65 @@ export function AppHeader() {
       </div>
 
       {/* Spacer */}
-      <div className="hidden flex-1 sm:block" />
+      <div className="flex-1" />
 
-      {/* Right: connection status, language, theme, user */}
-      <div className="flex w-full items-center justify-between gap-2 sm:w-auto sm:justify-start sm:gap-3">
+      {/* Mobile overflow menu — collapses the right-hand cluster at <sm */}
+      <div className="sm:hidden">
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label={t('header.menuLabel')}
+              >
+                <MoreVertical className="size-5" />
+              </Button>
+            }
+          />
+          <DropdownMenuContent align="end" className="w-auto p-3">
+            <div className="flex flex-col gap-3">
+              <div className="flex items-center gap-2">
+                <Badge
+                  className={cn(
+                    'text-xs px-2 py-0.5 rounded-full font-medium flex items-center gap-1',
+                    'border-transparent bg-muted text-foreground',
+                  )}
+                >
+                  {connected
+                    ? <Wifi className="size-3 text-wpt-teal-accessible" />
+                    : <WifiOff className="size-3 text-wpt-gold-accessible" />}
+                  {connected ? t('header.online') : t('header.offline')}
+                </Badge>
+                <span className="text-xs text-muted-foreground tabular-nums">
+                  {timeStr}
+                </span>
+                <span className="text-xs text-muted-foreground">
+                  {dateStr}
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <LanguageSelector />
+                <ModeToggle />
+                {user && (
+                  <Avatar className="size-8">
+                    <AvatarImage
+                      src={user.avatar ? `${API_BASE}${user.avatar}` : '/logo.png'}
+                      alt={user.username}
+                    />
+                    <AvatarFallback className="bg-wpt-teal text-xs font-bold text-primary-foreground">
+                      {user.username.charAt(0).toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                )}
+              </div>
+            </div>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+
+      {/* Right cluster — visible at ≥sm only */}
+      <div className="hidden items-center gap-3 sm:flex">
         {/* Connection badge + last update timer */}
         <div className="flex min-w-0 items-center gap-2">
           <Badge
@@ -105,7 +166,7 @@ export function AppHeader() {
           <span className="text-xs text-muted-foreground tabular-nums">
             {timeStr}
           </span>
-          <span className="hidden text-xs text-muted-foreground sm:inline">
+          <span className="text-xs text-muted-foreground">
             {dateStr}
           </span>
         </div>
