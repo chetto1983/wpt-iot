@@ -113,11 +113,11 @@ export const AnomalyEventTable = memo(function AnomalyEventTable({
                     {t('anomaly.actions.acknowledge')}
                   </Button>
                 )}
-                <Button type="button" size="sm" variant="outline" className="h-7 text-xs text-green-600" disabled={loading}
+                <Button type="button" size="sm" variant="outline" className="h-7 text-xs text-green-700" disabled={loading}
                   onClick={() => void handleResolve(ev.id, 'CONFIRMED')}>
                   <Check className="mr-1 size-3" />{t('anomaly.actions.confirm')}
                 </Button>
-                <Button type="button" size="sm" variant="outline" className="h-7 text-xs text-amber-600" disabled={loading}
+                <Button type="button" size="sm" variant="outline" className="h-7 text-xs text-wpt-gold-accessible" disabled={loading}
                   onClick={() => void handleResolve(ev.id, 'DISMISSED')}>
                   <X className="mr-1 size-3" />{t('anomaly.actions.dismiss')}
                 </Button>
