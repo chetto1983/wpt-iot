@@ -46,19 +46,6 @@ interface ColumnDef {
   registerOnly?: boolean;
 }
 
-function getStatusBadgeClasses(status: string): string {
-  switch (status?.toUpperCase()) {
-    case 'OK':
-    case 'COMPLETED':
-      return 'bg-green-100 text-green-800 hover:bg-green-100';
-    case 'FAILED':
-      return 'bg-red-100 text-red-800 hover:bg-red-100';
-    case 'ABORTED':
-      return 'bg-amber-100 text-amber-800 hover:bg-amber-100';
-    default:
-      return 'bg-muted text-muted-foreground';
-  }
-}
 
 function formatStatusLabel(
   status: string,
@@ -154,19 +141,36 @@ export function CyclesTable({
   }
 
   function renderStatusBadge(cycle: ICycleRecordResponse) {
-    const status = cycle.cycleStatusLabel?.toUpperCase() || '';
+    const status = cycle.cycleStatusLabel?.toUpperCase() ?? '';
     const displayLabel = formatStatusLabel(cycle.cycleStatusLabel, t);
-    const badgeClasses = getStatusBadgeClasses(status);
 
-    return (
-      <Badge
-        variant="outline"
-        className={cn('text-[10px] font-medium uppercase tracking-wide', badgeClasses)}
-        data-status={status.toLowerCase()}
-      >
-        {displayLabel}
-      </Badge>
-    );
+    switch (status) {
+      case 'FAILED':
+        return (
+          <Badge severity="critical" className="text-[10px] font-medium uppercase tracking-wide" data-status="failed">
+            {displayLabel}
+          </Badge>
+        );
+      case 'ABORTED':
+        return (
+          <Badge severity="medium" className="text-[10px] font-medium uppercase tracking-wide" data-status="aborted">
+            {displayLabel}
+          </Badge>
+        );
+      case 'OK':
+      case 'COMPLETED':
+        return (
+          <Badge variant="secondary" className="text-[10px] font-medium uppercase tracking-wide" data-status={status.toLowerCase()}>
+            {displayLabel}
+          </Badge>
+        );
+      default:
+        return (
+          <Badge variant="outline" className="text-[10px] font-medium uppercase tracking-wide" data-status="unknown">
+            {displayLabel}
+          </Badge>
+        );
+    }
   }
 
   if (isLoading) {
