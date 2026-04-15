@@ -86,8 +86,8 @@ export function AppHeader() {
             className={cn(
               'text-xs px-2 py-0.5 rounded-full font-medium flex items-center gap-1',
               connected
-                ? 'border-transparent bg-wpt-teal/15 text-wpt-teal'
-                : 'border-transparent bg-wpt-gold/15 text-wpt-gold',
+                ? 'border-transparent bg-wpt-teal/15 text-wpt-teal-accessible'
+                : 'border-transparent bg-wpt-gold/15 text-wpt-gold-accessible',
             )}
           >
             {connected ? <Wifi className="size-3" /> : <WifiOff className="size-3" />}
