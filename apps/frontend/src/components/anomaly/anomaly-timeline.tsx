@@ -32,6 +32,16 @@ export const AnomalyTimeline = memo(function AnomalyTimeline({
   const t = useTranslations('dashboard');
   const locale = useLocale();
 
+  const criticalColor = typeof window !== 'undefined'
+    ? getComputedStyle(document.documentElement).getPropertyValue('--severity-critical').trim()
+    : 'oklch(0.577 0.245 27.3)';
+  const mediumColor = typeof window !== 'undefined'
+    ? getComputedStyle(document.documentElement).getPropertyValue('--severity-medium').trim()
+    : 'oklch(0.666 0.179 58.9)';
+  const lowColor = typeof window !== 'undefined'
+    ? getComputedStyle(document.documentElement).getPropertyValue('--severity-low').trim()
+    : 'oklch(0.588 0.158 242.0)';
+
   if (history.length < 2) {
     return (
       <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
@@ -51,8 +61,8 @@ export const AnomalyTimeline = memo(function AnomalyTimeline({
         <AreaChart data={history} margin={{ left: 0, right: 8, top: 4, bottom: 4 }}>
           <defs>
             <linearGradient id="scoreGrad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#1ABC9C" stopOpacity={0.3} />
-              <stop offset="100%" stopColor="#1ABC9C" stopOpacity={0} />
+              <stop offset="0%" stopColor="var(--color-severity-low)" stopOpacity={0.3} />
+              <stop offset="100%" stopColor="var(--color-severity-low)" stopOpacity={0} />
             </linearGradient>
           </defs>
           <XAxis
@@ -83,26 +93,26 @@ export const AnomalyTimeline = memo(function AnomalyTimeline({
           />
           <ReferenceLine
             y={warningThreshold}
-            stroke="#f59e0b"
+            stroke={mediumColor}
             strokeDasharray="4 4"
             strokeOpacity={0.6}
-            label={{ value: 'W', position: 'right', fontSize: 9, fill: '#f59e0b' }}
+            label={{ value: 'W', position: 'right', fontSize: 9, fill: mediumColor }}
           />
           <ReferenceLine
             y={criticalThreshold}
-            stroke="#dc3545"
+            stroke={criticalColor}
             strokeDasharray="4 4"
             strokeOpacity={0.6}
-            label={{ value: 'C', position: 'right', fontSize: 9, fill: '#dc3545' }}
+            label={{ value: 'C', position: 'right', fontSize: 9, fill: criticalColor }}
           />
           <Area
             type="monotone"
             dataKey="score"
-            stroke="#1ABC9C"
+            stroke={lowColor}
             strokeWidth={2}
             fill="url(#scoreGrad)"
             dot={false}
-            activeDot={{ r: 4, fill: '#1ABC9C', stroke: '#282828', strokeWidth: 2 }}
+            activeDot={{ r: 4, fill: lowColor, stroke: '#282828', strokeWidth: 2 }}
           />
         </AreaChart>
       </ResponsiveContainer>
