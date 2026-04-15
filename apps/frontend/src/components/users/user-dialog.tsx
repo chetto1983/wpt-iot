@@ -133,7 +133,7 @@ export function UserDialog({ open, onOpenChange, user, onSuccess }: UserDialogPr
           <div className="grid gap-2">
             <Label>{t('dialog.role')}</Label>
             <Select value={role} onValueChange={(v) => { if (v) setRole(v); }}>
-              <SelectTrigger className="w-full">
+              <SelectTrigger className="w-full" aria-label={t('dialog.role')}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
