@@ -47,6 +47,11 @@ export const AnomalyHealthGauge = memo(function AnomalyHealthGauge({
     level === 'warning' ? mediumColor :
     lowColor;
 
+  const levelClass =
+    level === 'critical' ? 'text-severity-critical' :
+    level === 'warning' ? 'text-severity-medium' :
+    'text-severity-low';
+
   return (
     <div className="flex flex-col items-center gap-2">
       <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
@@ -85,7 +90,7 @@ export const AnomalyHealthGauge = memo(function AnomalyHealthGauge({
           tickLabels: { hideMinMax: true },
         }}
       />
-      <p className="text-xs font-semibold" style={{ color: levelColor }}>
+      <p className={`text-xs font-semibold ${levelClass}`}>
         {t(`anomaly.state.${level === 'critical' ? 'flagged' : level === 'warning' ? 'flagged' : 'normal'}`)}
       </p>
     </div>
