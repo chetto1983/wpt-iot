@@ -22,7 +22,7 @@ export default function AppError({
       <h2 className="text-xl font-semibold text-foreground">{t('title')}</h2>
       <p className="text-sm text-muted-foreground max-w-md text-center">{t('description')}</p>
       {error.digest && (
-        <p className="text-xs text-muted-foreground/60">{error.digest}</p>
+        <p className="text-xs text-muted-foreground">{error.digest}</p>
       )}
       <Button ref={buttonRef} onClick={reset}>{t('retry')}</Button>
     </div>
