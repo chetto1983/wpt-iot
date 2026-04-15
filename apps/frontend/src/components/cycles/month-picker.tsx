@@ -123,7 +123,7 @@ export function MonthPicker({ value, onChange }: MonthPickerProps) {
         <div className="flex flex-col gap-3 p-3">
           {/* Quick presets */}
           <Select onValueChange={(v) => handlePresetChange(v as PresetKey)}>
-            <SelectTrigger className="w-full">
+            <SelectTrigger className="w-full" aria-label={t('selectPreset') || 'Selezione rapida'}>
               <SelectValue placeholder={t('selectPreset') || 'Quick select'} />
             </SelectTrigger>
             <SelectContent>
