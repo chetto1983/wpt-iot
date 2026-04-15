@@ -213,7 +213,7 @@ export const AnomalyDashboard = memo(function AnomalyDashboard() {
               <BrainCircuit className="size-5" />
             </div>
             <div>
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-wpt-gold/60">
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-wpt-gold-accessible">
                 {t('anomaly.recentEvents')}
               </p>
               <h3 className="text-xl font-semibold text-foreground">{t('anomaly.recentEvents')}</h3>
