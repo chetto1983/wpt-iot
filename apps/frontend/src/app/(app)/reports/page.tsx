@@ -251,6 +251,15 @@ export default function ReportsPage() {
         }}
       />
 
+      {!hasDateRange && (
+        <div className="rounded-lg border border-border/70 bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
+          <div className="flex items-center gap-2">
+            <CalendarDays className="h-4 w-4 shrink-0" />
+            <span>{t('selectDateRangeHint')}</span>
+          </div>
+        </div>
+      )}
+
       <FieldSelector
         role={role}
         selected={selectedFields}
