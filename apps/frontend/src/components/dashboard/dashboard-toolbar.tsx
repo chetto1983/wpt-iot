@@ -37,7 +37,7 @@ export function DashboardToolbar(props: DashboardToolbarProps) {
         variant="outline"
         size="sm"
         onClick={() => onEditModeChange(!editMode)}
-        title={editMode ? t('lockLayout') : t('unlockLayout')}
+        title={editMode ? t('timeRange.editModeHint') : t('unlockLayout')}
         className={cls}
       >
         {editMode ? <Unlock className="mr-1.5 h-4 w-4" /> : <Lock className="mr-1.5 h-4 w-4" />}

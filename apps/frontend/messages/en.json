@@ -688,6 +688,9 @@
     "fullscreen": "Fullscreen",
     "exitFullscreen": "Exit fullscreen",
     "resetZoom": "Reset zoom",
+    "tooltip": {
+      "selectFields": "Select at least one field to generate a chart"
+    },
     "categories": {
       "temperatures": "Temperatures",
       "pressures": "Pressures",
@@ -754,7 +757,8 @@
       "custom": "Custom range",
       "from": "From",
       "to": "To",
-      "apply": "Apply"
+      "apply": "Apply",
+      "editModeHint": "Click the lock to exit edit mode"
     },
     "autoRefresh": "Auto-refresh",
     "lastUpdated": "Updated {time}",

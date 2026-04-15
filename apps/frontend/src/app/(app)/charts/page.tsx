@@ -8,7 +8,7 @@ import {
   XAxis,
   YAxis,
   CartesianGrid,
-  Tooltip,
+  Tooltip as RechartsTooltip,
   Legend,
   Brush,
   ReferenceArea,
@@ -27,6 +27,12 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { TimeRangePicker } from '@/components/shared/time-range-picker';
 import { PageToolbar } from '@/components/shared/page-toolbar';
 import { FieldSelector, getChartableFields } from '@/components/shared/field-selector';
@@ -205,20 +211,39 @@ export default function ChartsPage() {
       <PageToolbar
         title={t('title')}
         actionsRight={
-          <Button
-            onClick={generateChart}
-            disabled={!canGenerate}
-            className="bg-primary text-primary-foreground"
-          >
-            {loading ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                {t('loading')}
-              </>
-            ) : (
-              t('generateChart')
-            )}
-          </Button>
+          !canGenerate && selectedFields.length === 0 ? (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger render={<span tabIndex={0} className="inline-flex" />}>
+                  <Button
+                    onClick={generateChart}
+                    disabled
+                    className="bg-primary text-primary-foreground"
+                  >
+                    {t('generateChart')}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>{t('tooltip.selectFields')}</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          ) : (
+            <Button
+              onClick={generateChart}
+              disabled={!canGenerate}
+              className="bg-primary text-primary-foreground"
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  {t('loading')}
+                </>
+              ) : (
+                t('generateChart')
+              )}
+            </Button>
+          )
         }
       >
         <TimeRangePicker
@@ -332,7 +357,7 @@ export default function ChartsPage() {
                       }}
                       domain={xDomain ? ['auto', 'auto'] : undefined}
                     />
-                    <Tooltip
+                    <RechartsTooltip
                       labelFormatter={(v) =>
                         formatTick(v as number, chartData.resolution)
                       }

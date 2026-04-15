@@ -688,6 +688,9 @@
     "fullscreen": "Schermo intero",
     "exitFullscreen": "Esci da schermo intero",
     "resetZoom": "Reimposta zoom",
+    "tooltip": {
+      "selectFields": "Seleziona almeno un campo per generare un grafico"
+    },
     "categories": {
       "temperatures": "Temperature",
       "pressures": "Pressioni",
@@ -754,7 +757,8 @@
       "custom": "Intervallo personalizzato",
       "from": "Da",
       "to": "A",
-      "apply": "Applica"
+      "apply": "Applica",
+      "editModeHint": "Clicca il lucchetto per uscire dalla modalità modifica"
     },
     "autoRefresh": "Aggiornamento automatico",
     "lastUpdated": "Aggiornato {time}",
