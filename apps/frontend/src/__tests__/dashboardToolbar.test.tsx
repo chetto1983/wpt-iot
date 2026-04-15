@@ -55,6 +55,20 @@ describe('DashboardToolbar', () => {
     const titleEl = container.querySelector('.shrink-0.text-xl.font-semibold');
     expect(titleEl).not.toBeNull();
     expect(titleEl?.textContent).toBe('My Dashboard');
+
+    // Post-migration guarantee (Task 3, Behavior 3 — PLAN 35-02):
+    // DashboardToolbar must NOT emit its own <h1>. The title slot is owned by
+    // PageToolbar's wrapping <div>. Consumer routes decide heading semantics.
+    expect(container.querySelector('h1')).toBeNull();
+
+    // The PageToolbar outer container must be present — proves the refactor routed
+    // through the shared primitive rather than re-implementing its layout CSS.
+    const toolbarRoot = container.querySelector(
+      '.flex.flex-col.gap-3.sm\\:flex-row.sm\\:flex-wrap.sm\\:items-center.sm\\:gap-4',
+    );
+    expect(toolbarRoot).not.toBeNull();
+    // The title element must be a direct child of the toolbar root (slot contract).
+    expect(titleEl?.parentElement).toBe(toolbarRoot);
   });
 
   it('passes TimeRangePicker props through (auto-refresh Select present)', () => {

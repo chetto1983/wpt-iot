@@ -4,6 +4,7 @@ import { useTranslations } from 'next-intl';
 import { Plus, Save, Lock, Unlock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { TimeRangePicker } from '@/components/shared/time-range-picker';
+import { PageToolbar } from '@/components/shared/page-toolbar';
 
 interface DashboardToolbarProps {
   dashboardName: string;
@@ -24,84 +25,52 @@ interface DashboardToolbarProps {
   dataLoading: boolean;
 }
 
-export function DashboardToolbar({
-  dashboardName,
-  editMode,
-  onEditModeChange,
-  onAddPanel,
-  onSave,
-  saving,
-  from,
-  to,
-  onRangeChange,
-  activePreset,
-  onPresetChange,
-  refreshInterval,
-  onRefreshIntervalChange,
-  lastUpdated,
-  dataLoading,
-}: DashboardToolbarProps) {
+export function DashboardToolbar(props: DashboardToolbarProps) {
+  const { dashboardName, editMode, onEditModeChange, onAddPanel, onSave, saving, dataLoading } =
+    props;
   const t = useTranslations('dashboards');
+  const cls = 'flex-1 sm:flex-none';
+
+  const actions = (
+    <>
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => onEditModeChange(!editMode)}
+        title={editMode ? t('lockLayout') : t('unlockLayout')}
+        className={cls}
+      >
+        {editMode ? <Unlock className="mr-1.5 h-4 w-4" /> : <Lock className="mr-1.5 h-4 w-4" />}
+        {editMode ? t('editing') : t('locked')}
+      </Button>
+      {editMode && (
+        <>
+          <Button variant="outline" size="sm" onClick={onAddPanel} className={cls}>
+            <Plus className="mr-1.5 h-4 w-4" />
+            {t('addPanel')}
+          </Button>
+          <Button size="sm" onClick={onSave} disabled={saving} className={cls}>
+            <Save className="mr-1.5 h-4 w-4" />
+            {saving ? t('saving') : t('save')}
+          </Button>
+        </>
+      )}
+    </>
+  );
 
   return (
-    <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-4">
-      {/* LEFT: Dashboard name */}
-      <h1 className="shrink-0 text-xl font-semibold">{dashboardName}</h1>
-
-      {/* CENTER: Time range picker (grows to fill) */}
-      <div className="flex w-full flex-1 items-center justify-start sm:w-auto sm:justify-center">
-        <TimeRangePicker
-          from={from}
-          to={to}
-          onRangeChange={onRangeChange}
-          activePreset={activePreset}
-          onPresetChange={onPresetChange}
-          refreshInterval={refreshInterval}
-          onRefreshIntervalChange={onRefreshIntervalChange}
-          lastUpdated={lastUpdated}
-          loading={dataLoading}
-        />
-      </div>
-
-      {/* RIGHT: Edit/View + Add Panel + Save */}
-      <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:shrink-0">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => onEditModeChange(!editMode)}
-          title={editMode ? t('lockLayout') : t('unlockLayout')}
-          className="flex-1 sm:flex-none"
-        >
-          {editMode ? (
-            <Unlock className="mr-1.5 h-4 w-4" />
-          ) : (
-            <Lock className="mr-1.5 h-4 w-4" />
-          )}
-          {editMode ? t('editing') : t('locked')}
-        </Button>
-        {editMode && (
-          <>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={onAddPanel}
-              className="flex-1 sm:flex-none"
-            >
-              <Plus className="mr-1.5 h-4 w-4" />
-              {t('addPanel')}
-            </Button>
-            <Button
-              size="sm"
-              onClick={onSave}
-              disabled={saving}
-              className="flex-1 sm:flex-none"
-            >
-              <Save className="mr-1.5 h-4 w-4" />
-              {saving ? t('saving') : t('save')}
-            </Button>
-          </>
-        )}
-      </div>
-    </div>
+    <PageToolbar title={dashboardName} actionsRight={actions}>
+      <TimeRangePicker
+        from={props.from}
+        to={props.to}
+        onRangeChange={props.onRangeChange}
+        activePreset={props.activePreset}
+        onPresetChange={props.onPresetChange}
+        refreshInterval={props.refreshInterval}
+        onRefreshIntervalChange={props.onRefreshIntervalChange}
+        lastUpdated={props.lastUpdated}
+        loading={dataLoading}
+      />
+    </PageToolbar>
   );
 }
