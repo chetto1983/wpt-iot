@@ -21,6 +21,30 @@ interface GaugeCardProps {
   className?: string;
 }
 
+// PHASE 33 (BRAND-06): gauges.json uses #1ABC9C (teal) for normal-range arcs and #dc3545
+// for critical arcs. Both are hardcoded on a process indication surface, violating BRAND-06
+// (teal reserved for navigation/interaction only) and the ISA-101 severity token contract.
+// This helper remaps known brand hex values to ISA-101 severity CSS vars at render time,
+// matching the getComputedStyle strategy used in anomaly/* (Plan 03).
+// gauges.json itself is kept stable to avoid a JSON config migration; the mapping lives here.
+function saColorToSeverity(color: string): string {
+  switch (color) {
+    case '#1ABC9C':
+      // Normal/healthy arc range: map to severity-low (sky-600) — not navigation-teal
+      return typeof window !== 'undefined'
+        ? getComputedStyle(document.documentElement).getPropertyValue('--color-severity-low').trim() || 'oklch(0.588 0.158 242.0)'
+        : 'oklch(0.588 0.158 242.0)';
+    case '#dc3545':
+      // Critical arc range: map to severity-critical (red-600)
+      return typeof window !== 'undefined'
+        ? getComputedStyle(document.documentElement).getPropertyValue('--color-severity-critical').trim() || 'oklch(0.577 0.245 27.3)'
+        : 'oklch(0.577 0.245 27.3)';
+    default:
+      // #5B8DEF (below-zero blue), #bfae82 (gold elevated zone), #8fd6b7 (mint) — leave as-is
+      return color;
+  }
+}
+
 export const GaugeCard = memo(function GaugeCard({ label, value, unit, min, max, subArcs, className }: GaugeCardProps) {
   const t = useTranslations('dashboard');
 
@@ -42,7 +66,7 @@ export const GaugeCard = memo(function GaugeCard({ label, value, unit, min, max,
               arc={{
                 subArcs: subArcs.map((sa) => ({
                   limit: sa.limit,
-                  color: sa.color,
+                  color: saColorToSeverity(sa.color),
                   showTick: true,
                 })),
                 padding: 0.02,
