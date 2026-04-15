@@ -10,6 +10,6 @@ import { pgTable, serial, varchar, timestamp } from 'drizzle-orm/pg-core';
  */
 export const plcConfig = pgTable('plc_config', {
   id: serial('id').primaryKey(),
-  targetHost: varchar('target_host', { length: 255 }).default('localhost').notNull(),
+  targetHost: varchar('target_host', { length: 255 }),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 });

@@ -9,6 +9,6 @@
  */
 export interface IPlcConfig {
   id: number;
-  targetHost: string;
+  targetHost: string | null;
   updatedAt: Date;
 }
