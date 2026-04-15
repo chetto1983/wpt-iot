@@ -15,7 +15,7 @@ export default async function NotFound() {
           height={48}
           className="mx-auto h-12 w-auto mb-6"
         />
-        <p className="text-2xl font-semibold text-muted-foreground/30 mb-2">404</p>
+        <p className="text-2xl font-semibold text-muted-foreground mb-2">404</p>
         <h1 className="text-xl font-semibold text-foreground mb-2">{t('title')}</h1>
         <p className="text-sm text-muted-foreground mb-6">{t('description')}</p>
         <Link
