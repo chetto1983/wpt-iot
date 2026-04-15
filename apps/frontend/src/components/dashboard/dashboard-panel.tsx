@@ -88,7 +88,7 @@ export function DashboardPanel({
           )}
         >
           {editMode && (
-            <GripVertical className="size-3 shrink-0 text-muted-foreground/60" />
+            <GripVertical className="size-3 shrink-0 text-muted-foreground" />
           )}
           <h3
             className={cn(
