@@ -38,6 +38,92 @@ After install:
 
 Important: client devices must trust `/opt/wpt-iot/certs/wpt-local-ca.crt` or the browser will reject the certificate and the PWA secure-context checks will still fail.
 
+## Pilz IndustrialPI 4 (ARM64) Deployment
+
+The Pilz IndustrialPI 4 (RPi 4 SoC, Quad Cortex-A72 1.5 GHz, 8 GB RAM, 32 GB eMMC, RPi OS with real-time patches) is the current target hardware for customer edge boxes. This section covers the ARM64-specific steps on top of the `## Provision a New Customer Machine` flow above.
+
+### Prerequisites on RPi OS
+
+- RPi OS 64-bit (Bookworm or newer). 32-bit is NOT supported (containers assume `linux/arm64`).
+- Docker Engine + Compose v2 installed. `install.sh` handles this if missing.
+- At least 12 GB free on the eMMC before install (images + working headroom — see disk budget below).
+- LAN access to `ghcr.io` (or a bundle tarball delivered via USB/scp if the site is air-gapped).
+- `wpt.local` mDNS resolution (Avahi) — same as the x86 path.
+
+### Image pull flow (online install)
+
+`docker compose pull` selects the ARM64 variant of each image automatically based on the host arch — no `--platform` flag required on the edge. The multi-arch manifests produced by the CI workflow in `.github/workflows/docker-build.yml` carry both `linux/amd64` and `linux/arm64` entries, so the same `:latest` / `:sha-<short>` tag resolves correctly on both amd64 bench hosts and the arm64 Pilz.
+
+### Bundle install (air-gapped site)
+
+The ship path for air-gapped customers is `scripts/build-bundle.sh` on an internet-connected golden-master host, followed by `scp` + `install.sh` on the Pilz. When targeting the Pilz from an amd64 golden-master, run:
+
+```bash
+TARGET_ARCH=arm64 bash scripts/build-bundle.sh
+```
+
+This pulls the `linux/arm64` variant of `timescale/timescaledb:2.25.2-pg17`, `eclipse-mosquitto:2.0.22`, and `nginx:1.28.3-alpine` before `docker save`. The resulting tarball's `VERSION` file records `target_arch: arm64`; `install.sh` on the Pilz sanity-checks this value before `docker load`.
+
+**Do NOT run `TARGET_ARCH=arm64` on an amd64 host for the backend/frontend images** — `docker compose build` produces the host arch regardless of pull platform. Backend and frontend arm64 images should be pulled from GHCR (CI-produced) or built on a native arm64 host (the Pilz itself).
+
+### PG tuning env-var overrides for 8 GB RAM
+
+The compose file's db service uses env-var substitution for Postgres runtime parameters; defaults are bench/dev-safe (small). On the Pilz, uncomment these lines in `/opt/wpt-iot/.env` before starting the stack:
+
+```
+PG_SHARED_BUFFERS=2GB
+PG_WORK_MEM=16MB
+PG_EFFECTIVE_CACHE_SIZE=5GB
+PG_MAINTENANCE_WORK_MEM=512MB
+PG_SYNCHRONOUS_COMMIT=off
+```
+
+Rationale:
+- `shared_buffers=2GB` — 25% of 8 GB RAM, within mainstream Postgres guidance. Leaves ~4 GB for the Node backend (~500 MB), Next frontend server (~300 MB), nginx, mosquitto, OS, and working memory.
+- `work_mem=16MB` / `effective_cache_size=5GB` — reflect the available RAM headroom on the Pilz.
+- `synchronous_commit=off` — eMMC wear mitigation. Up to `~1 s` of committed transactions may be lost if the Pilz loses power before WAL fsync. Acceptable because machine data is a rolling 30-day window and configuration/user writes survive round-trip through the PLC handshake FSM.
+
+Note: `wal_level` is intentionally NOT overridden. The TimescaleDB default (`replica`) is required for continuous aggregates, which back the v1.1 energy module (`setup_energy_aggregates()`).
+
+If you observe `OOMKilled` / exit 137 on the backend or frontend containers under load, lower `PG_SHARED_BUFFERS` to `1.5GB` and retry. Final numbers will be measured on DEPLOY-F01.
+
+### eMMC 32 GB disk budget (estimated, to be measured on DEPLOY-F01)
+
+| Component                                                  | Estimated size |
+|------------------------------------------------------------|----------------|
+| RPi OS base                                                | ~4 GB          |
+| Docker engine + five images (db, mosquitto, backend, frontend, nginx) | ~4 GB |
+| PostgreSQL data (rolling 30 days machine_snapshots + cycle_records + alarm_events) | ~8 GB ceiling |
+| Logs (json-file rotated, 10 MB × 3 files × ~6 services)    | ~200 MB        |
+| System headroom / swap / apt cache                         | ~4 GB          |
+| Working headroom (remainder)                               | ~10–12 GB      |
+
+These numbers are estimates derived from current bench measurements; real values will be captured and updated during DEPLOY-F01 on physical Pilz hardware.
+
+### Manifest verification record
+
+The CI-built `wpt-backend` and `wpt-frontend` multi-arch manifests are produced fresh on every master push (see `.github/workflows/docker-build.yml`). The three pinned third-party images and the watchtower candidate were verified 2026-04-15:
+
+| Image                                    | Pinned tag           | linux/arm64 digest (recorded) |
+|------------------------------------------|----------------------|-------------------------------|
+| `timescale/timescaledb`                  | `2.25.2-pg17`        | `sha256:d57a1cb97e478fd8963d037e5355e933247d423dcf9f2bcdb8d578026c21dcb2` |
+| `eclipse-mosquitto`                      | `2.0.22`             | `sha256:092b2db87a7b65b9e8f70652c94267a3fa4f062048368ba3794327a1e5626d02` |
+| `nginx`                                  | `1.28.3-alpine`      | (pre-existing pin; arm64 manifest confirmed) |
+| `containrrr/watchtower` (verify-only)    | `1.7.1`              | `sha256:f14f090fcc8235449da45ccbb1aea3b424ed3b101bcbd3de56526909397c2369` |
+
+Watchtower is NOT part of the current compose stack (the ship path is bundle deploy + future Mender). The manifest verification above is recorded so a later adoption phase can move fast.
+
+Verification command for future updates:
+
+```bash
+docker buildx imagetools inspect <image>:<tag> --format '{{range .Manifest.Manifests}}{{.Platform.OS}}/{{.Platform.Architecture}} {{.Digest}}{{"\n"}}{{end}}'
+```
+
+### Known-issue notes
+
+- Free `ubuntu-24.04-arm` GitHub Actions runners are public-repos-only (since 2025-01). If the repository is ever made private, CI multi-arch builds require a paid runner label or a QEMU fallback (which re-introduces the Next.js/SWC hang — avoid).
+- `network_mode: host` works identically on `linux/arm64` and `linux/amd64` Docker engines — no arch-specific code paths in the backend UDP listeners.
+
 ## GHCR Authentication
 
 If the GHCR images are public, skip this section.
