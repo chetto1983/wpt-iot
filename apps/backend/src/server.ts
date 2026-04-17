@@ -22,6 +22,7 @@ import { dashboardRoutes } from './routes/dashboards.js';
 import { mqttRoutes } from './routes/mqtt.js';
 import { plcConfigRoutes } from './routes/plcConfig.js';
 import { energyRoutes } from './routes/energy.js';
+import { anomalyRoutes } from './routes/anomaly.js';
 import { cycleRoutes } from './routes/cycles.js';
 import { alarmCatalogRoutes } from './routes/alarmCatalog.js';
 import { wsRoute } from './ws/route.js';
@@ -186,14 +187,23 @@ export function buildServer(): FastifyInstance {
   // replaces the legacy SIM_HOST env var. Handshake FSM reads via cache.
   server.register(plcConfigRoutes, apiOpts);
 
-  // 20. Energy routes (Phase 19 Plan 19-10) — read-side aggregate API
+  // 20. Anomaly routes (Phase 39 CLEAN-01) — anomaly handlers split out
+  // of energyRoutes into their own plugin. Uses a SCOPED PREFIX (not the
+  // shared apiOpts) so the 12 handlers can be written with short paths
+  // like `/live`, `/events`, `/simulate` — Fastify encapsulates the
+  // `/api/energy/anomaly` stem at register time. Registered BEFORE
+  // energyRoutes so the detector lifecycle (machineAnomalyService.start)
+  // initializes before any energy/cycle consumer reads anomaly state.
+  server.register(anomalyRoutes, { prefix: '/api/energy/anomaly' });
+
+  // 21. Energy routes (Phase 19 Plan 19-10) — read-side aggregate API
   // over the energy_5min/1h/1d/1mo CAGG hierarchy.
   server.register(energyRoutes, apiOpts);
 
-  // 21. Cycle register routes (Phase 24 Plan 24-03a) — /api/cycles page API
+  // 22. Cycle register routes (Phase 24 Plan 24-03a) — /api/cycles page API
   server.register(cycleRoutes, apiOpts);
 
-  // 22. Alarm catalog route — /api/alarms/catalog?lang=en|it
+  // 23. Alarm catalog route — /api/alarms/catalog?lang=en|it
   server.register(alarmCatalogRoutes, apiOpts);
 
   return server;
