@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState, memo } from 'react';
+import { useEffect, useMemo, useRef, useState, memo } from 'react';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
@@ -60,6 +60,7 @@ interface RfidUserRowProps {
   onUpdate: (tagId: number, field: keyof IRfidUser, value: unknown) => void;
   t: ReturnType<typeof useTranslations>;
   disabled: boolean;
+  isDirty: boolean;
 }
 
 const GROUP_KEYS: Record<number, string> = {
@@ -68,14 +69,16 @@ const GROUP_KEYS: Record<number, string> = {
   [RfidUserGroup.ADMIN]: 'ADMIN',
 };
 
-const RfidUserRow = memo(function RfidUserRow({ user, onUpdate, t, disabled }: RfidUserRowProps) {
+const RfidUserRow = memo(function RfidUserRow({ user, onUpdate, t, disabled, isDirty }: RfidUserRowProps) {
   const rowErr = user.enabled && user.name.trim().length === 0;
   return (
     <TableRow
       className={cn(
         'even:bg-muted/20',
         rowErr && 'bg-destructive/10',
+        isDirty && 'border-l-2 border-l-primary',
       )}
+      data-dirty={isDirty ? 'true' : undefined}
     >
       <TableCell className="py-2 px-4 text-xs text-muted-foreground font-mono">
         {user.tagId}
@@ -126,10 +129,17 @@ const RfidUserRow = memo(function RfidUserRow({ user, onUpdate, t, disabled }: R
   );
 });
 
-const RfidUserCard = memo(function RfidUserCard({ user, onUpdate, t, disabled }: RfidUserRowProps) {
+const RfidUserCard = memo(function RfidUserCard({ user, onUpdate, t, disabled, isDirty }: RfidUserRowProps) {
   const rowErr = user.enabled && user.name.trim().length === 0;
   return (
-    <div className={cn('rounded-lg border bg-card p-4', rowErr && 'border-destructive bg-destructive/5')}>
+    <div
+      className={cn(
+        'rounded-lg border bg-card p-4',
+        rowErr && 'border-destructive bg-destructive/5',
+        isDirty && 'border-l-2 border-l-primary',
+      )}
+      data-dirty={isDirty ? 'true' : undefined}
+    >
       <div className="mb-3 flex items-center justify-between gap-3">
         <div>
           <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
@@ -207,6 +217,27 @@ export default function RfidPage() {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const lock = usePlcWriteLock();
   const hydratedDraft = useRef(false);
+
+  // P2 #14 — derive dirty tagIds from readSnapshot. A row is dirty when
+  // ANY field (name/group/enabled) differs from the last snapshot. Memoize
+  // to avoid recomputing on unrelated re-renders.
+  const dirtyTagIds = useMemo(() => {
+    if (!readSnapshot) return new Set<number>();
+    const snap = new Map(readSnapshot.map((u) => [u.tagId, u]));
+    const out = new Set<number>();
+    for (const u of users) {
+      const prev = snap.get(u.tagId);
+      if (!prev) continue;
+      if (
+        prev.name !== u.name ||
+        prev.group !== u.group ||
+        prev.enabled !== u.enabled
+      ) {
+        out.add(u.tagId);
+      }
+    }
+    return out;
+  }, [users, readSnapshot]);
 
   // Role gate: CLIENT cannot access this page
   if (user?.role === 'CLIENT') {
@@ -378,6 +409,7 @@ export default function RfidPage() {
                 onUpdate={updateUser}
                 t={t}
                 disabled={fieldsLocked}
+                isDirty={dirtyTagIds.has(u.tagId)}
               />
             ))}
           </div>
@@ -400,6 +432,7 @@ export default function RfidPage() {
                     onUpdate={updateUser}
                     t={t}
                     disabled={fieldsLocked}
+                    isDirty={dirtyTagIds.has(u.tagId)}
                   />
                 ))}
               </TableBody>

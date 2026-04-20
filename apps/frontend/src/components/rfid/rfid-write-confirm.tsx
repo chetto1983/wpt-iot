@@ -115,9 +115,7 @@ export function RfidWriteConfirm({
               {/* Concurrent-operator warning — audit P0 #4 */}
               <p className="text-sm">{t('confirm.concurrentWarning')}</p>
 
-              {!hasSnapshot ? (
-                <p className="text-sm">{t('confirm.body')}</p>
-              ) : noChanges ? (
+              {noChanges ? (
                 <p className="text-sm">{t('confirm.noChanges')}</p>
               ) : (
                 <>

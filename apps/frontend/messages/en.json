@@ -529,7 +529,6 @@
     },
     "confirm": {
       "title": "Write to PLC?",
-      "body": "This will overwrite current RFID user data on the PLC.",
       "cancel": "Cancel",
       "confirm": "Write to PLC",
       "noChanges": "No changes since last read — close the dialog",

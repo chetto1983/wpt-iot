@@ -529,7 +529,6 @@
     },
     "confirm": {
       "title": "Scrivere su PLC?",
-      "body": "Questo sovrascriverà i dati utente RFID attualmente sul PLC.",
       "cancel": "Annulla",
       "confirm": "Scrivi su PLC",
       "noChanges": "Nessuna modifica rispetto all'ultima lettura — chiudi il dialogo",
