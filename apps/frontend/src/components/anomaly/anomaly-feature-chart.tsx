@@ -39,16 +39,46 @@ export const AnomalyFeatureChart = memo(function AnomalyFeatureChart({
     return lowColor;
   }
 
-  const data = useMemo(() => {
+  // Phase 40 D-13: route direction → warm/cool palette tokens. HIGH = warm (above EMA),
+  // LOW = cool (below EMA). Both tokens already exist in the severity palette — no new hex.
+  function contributionBarColor(direction: 'HIGH' | 'LOW' | null, value: number): string {
+    if (direction === 'HIGH') return mediumColor;
+    if (direction === 'LOW') return lowColor;
+    return barColor(value);
+  }
+
+  const { data, mode: chartMode } = useMemo(() => {
     const contributors = live?.latest?.topContributors ?? [];
-    return contributors
+    // Phase 40 D-13: prefer contribution% when the detector populated it;
+    // fall back to zScore for historical events (D-02, pre-Phase-40 rows).
+    const useContribution = contributors.some((c) => c.contribution !== undefined);
+
+    if (useContribution) {
+      const points = contributors
+        .filter((c) => c.contribution !== undefined && c.contribution > 0.001)
+        .map((c) => ({
+          name: t.has(`anomaly.featureChart.labels.${c.feature}`)
+            ? t(`anomaly.featureChart.labels.${c.feature}`)
+            : c.feature,
+          // 0..100 percent for Pareto display.
+          value: Number(((c.contribution ?? 0) * 100).toFixed(1)),
+          direction: c.direction ?? null,
+        }))
+        .sort((a, b) => b.value - a.value);
+      return { data: points, mode: 'contribution' as const };
+    }
+
+    // Fallback — historical row. Keep existing zScore behavior.
+    const points = contributors
       .filter((c) => c.zScore >= 0.05)
       .map((c) => ({
         name: t.has(`anomaly.featureChart.labels.${c.feature}`)
           ? t(`anomaly.featureChart.labels.${c.feature}`)
           : c.feature,
-        zScore: Number(c.zScore.toFixed(2)),
+        value: Number(c.zScore.toFixed(2)),
+        direction: null as 'HIGH' | 'LOW' | null,
       }));
+    return { data: points, mode: 'zscore' as const };
   }, [live, t]);
 
   if (data.length === 0) {
@@ -68,7 +98,7 @@ export const AnomalyFeatureChart = memo(function AnomalyFeatureChart({
         <BarChart data={data} layout="vertical" margin={{ left: 0, right: 8, top: 4, bottom: 4 }}>
           <XAxis
             type="number"
-            domain={[0, 'auto']}
+            domain={chartMode === 'contribution' ? [0, 100] : [0, 'auto']}
             tick={{ fontSize: 10, fill: '#888' }}
             tickLine={false}
             axisLine={false}
@@ -88,13 +118,32 @@ export const AnomalyFeatureChart = memo(function AnomalyFeatureChart({
               borderRadius: 8,
               fontSize: 12,
             }}
-            formatter={(value) => [`z = ${Number(value).toFixed(2)}`, 'Z-Score']}
+            formatter={(value, _name, entry) => {
+              if (chartMode === 'contribution') {
+                const d = (entry?.payload as { direction?: 'HIGH' | 'LOW' | null } | undefined)?.direction;
+                const label = d ? ` · ${d}` : '';
+                return [`${Number(value).toFixed(1)}%${label}`, 'Contribution'];
+              }
+              return [`z = ${Number(value).toFixed(2)}`, 'Z-Score'];
+            }}
           />
-          <ReferenceLine x={2.5} stroke={mediumColor} strokeDasharray="3 3" strokeOpacity={0.5} />
-          <ReferenceLine x={3.5} stroke={criticalColor} strokeDasharray="3 3" strokeOpacity={0.5} />
-          <Bar dataKey="zScore" radius={[0, 4, 4, 0]} maxBarSize={20}>
+          {/* Reference lines only meaningful in zScore fallback mode */}
+          {chartMode === 'zscore' && (
+            <>
+              <ReferenceLine x={2.5} stroke={mediumColor} strokeDasharray="3 3" strokeOpacity={0.5} />
+              <ReferenceLine x={3.5} stroke={criticalColor} strokeDasharray="3 3" strokeOpacity={0.5} />
+            </>
+          )}
+          <Bar dataKey="value" radius={[0, 4, 4, 0]} maxBarSize={20}>
             {data.map((entry, i) => (
-              <Cell key={i} fill={barColor(entry.zScore)} />
+              <Cell
+                key={i}
+                fill={
+                  chartMode === 'contribution'
+                    ? contributionBarColor(entry.direction, entry.value)
+                    : barColor(entry.value)
+                }
+              />
             ))}
           </Bar>
         </BarChart>
