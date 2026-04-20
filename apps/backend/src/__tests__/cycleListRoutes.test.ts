@@ -13,6 +13,8 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import Fastify from 'fastify';
+import type * as CycleExportServiceModule from '../services/cycleExportService.js';
+import type * as CycleServiceModule from '../services/cycleService.js';
 
 // ---------------------------------------------------------------------------
 // Mock auth hooks — requireAuth is a no-op by default; overridden per test
@@ -26,7 +28,7 @@ vi.mock('../auth/authHooks.js', () => ({
 // Mock CycleService — listCycleNumbers returns a stable DESC-ordered list
 // ---------------------------------------------------------------------------
 vi.mock('../services/cycleService.js', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../services/cycleService.js')>();
+  const actual = await importOriginal<typeof CycleServiceModule>();
   return {
     ...actual,
     CycleService: {
@@ -38,7 +40,7 @@ vi.mock('../services/cycleService.js', async (importOriginal) => {
 
 // Must also mock CycleExportService (route plugin imports it) to avoid DB wiring
 vi.mock('../services/cycleExportService.js', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../services/cycleExportService.js')>();
+  const actual = await importOriginal<typeof CycleExportServiceModule>();
   return {
     ...actual,
     CycleExportService: {
@@ -53,7 +55,7 @@ vi.mock('../services/cycleExportService.js', async (importOriginal) => {
 // Import after mocks
 // ---------------------------------------------------------------------------
 const { cycleRoutes } = await import('../routes/cycles.js');
-const { requireAuth, requireRole } = await import('../auth/authHooks.js');
+const { requireAuth } = await import('../auth/authHooks.js');
 const { CycleService } = await import('../services/cycleService.js');
 
 async function buildApp() {

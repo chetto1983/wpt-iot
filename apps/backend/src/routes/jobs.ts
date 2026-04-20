@@ -1,6 +1,13 @@
 import type { FastifyPluginAsync } from 'fastify';
-import { UserRole, JobDataSchema, RemoteJobEnable, MaintenanceRequest, RemoteCycleSelection, CycleType } from '@wpt/types';
-import type { IJobData, IMachineSnapshot } from '@wpt/types';
+import { UserRole, JobDataSchema } from '@wpt/types';
+import type {
+  CycleType,
+  IJobData,
+  IMachineSnapshot,
+  MaintenanceRequest,
+  RemoteCycleSelection,
+  RemoteJobEnable,
+} from '@wpt/types';
 import { requireRole } from '../auth/authHooks.js';
 import { writeJob } from '../udp/handshakeFsm.js';
 import { getSockets } from '../udp/sockets.js';

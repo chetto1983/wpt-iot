@@ -540,10 +540,10 @@ export function EnergySettingsForm({
           {draft.tariffMode === 'tou3' ? (
             <div className="grid gap-4 md:grid-cols-3">
               {([
-                ['F1', 'tariffBandF1'],
-                ['F2', 'tariffBandF2'],
-                ['F3', 'tariffBandF3'],
-              ] as const).map(([label, field]) => (
+                'tariffBandF1',
+                'tariffBandF2',
+                'tariffBandF3',
+              ] as const).map((field) => (
                 <div key={field} className="grid gap-2">
                   <Label htmlFor={`energy-settings-${field}`}>{t(`fields.${field}`)}</Label>
                   <Input

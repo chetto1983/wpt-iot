@@ -52,7 +52,7 @@ interface ICycleExportRequest {
 /**
  * Fetch cycle records with pagination and filtering.
  */
-async function getCycles(params: ICyclesQueryParams): Promise<ICyclesResponse> {
+export async function getCycles(params: ICyclesQueryParams): Promise<ICyclesResponse> {
   const queryParams = new URLSearchParams({
     from: params.from.toISOString(),
     to: params.to.toISOString(),

@@ -16,6 +16,8 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import Fastify from 'fastify';
+import type * as HandshakeFsmModule from '../udp/handshakeFsm.js';
+import type * as PlcConfigServiceModule from '../udp/plcConfigService.js';
 
 // ---------------------------------------------------------------------------
 // Mock requireRole so auth is bypassed in all route tests
@@ -29,7 +31,7 @@ vi.mock('../auth/authHooks.js', () => ({
 // Mock PlcConfigService so GET/PUT routes don't attempt a DB connection
 // ---------------------------------------------------------------------------
 vi.mock('../udp/plcConfigService.js', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../udp/plcConfigService.js')>();
+  const actual = await importOriginal<typeof PlcConfigServiceModule>();
   return {
     ...actual,
     PlcConfigService: {
@@ -57,7 +59,7 @@ vi.mock('../udp/sockets.js', () => ({
 // ---------------------------------------------------------------------------
 const mockReadUsers = vi.fn();
 vi.mock('../udp/handshakeFsm.js', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../udp/handshakeFsm.js')>();
+  const actual = await importOriginal<typeof HandshakeFsmModule>();
   return { ...actual, readUsers: mockReadUsers };
 });
 

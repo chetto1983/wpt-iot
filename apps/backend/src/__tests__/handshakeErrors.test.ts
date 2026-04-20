@@ -14,6 +14,7 @@
  */
 import { describe, expect, it, vi } from 'vitest';
 import Fastify from 'fastify';
+import type * as PlcConfigServiceModule from '../udp/plcConfigService.js';
 import { mapHandshakeError } from '../routes/_util/handshake-errors.js';
 import { PlcConfigUnavailableError } from '../udp/plcConfigService.js';
 
@@ -30,7 +31,7 @@ vi.mock('../auth/authHooks.js', () => ({
 // Mock PlcConfigService so the route import does not try to connect to a DB.
 // ---------------------------------------------------------------------------
 vi.mock('../udp/plcConfigService.js', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../udp/plcConfigService.js')>();
+  const actual = await importOriginal<typeof PlcConfigServiceModule>();
   return {
     ...actual,
     PlcConfigService: {

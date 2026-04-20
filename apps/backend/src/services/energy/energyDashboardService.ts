@@ -109,7 +109,6 @@ function normalizeOffset(raw: string | undefined): string {
   // already has bounded quantifiers ({1,2}, {2}); the cap blocks pathological
   // inputs reaching the engine at all (security/detect-unsafe-regex).
   if (!raw || raw.length > 16) return '+00:00';
-  // eslint-disable-next-line security/detect-unsafe-regex -- bounded quantifiers, length-capped input, see 31-RESEARCH.md §Pitfall 4
   const match = raw.match(/^GMT([+-])(\d{1,2})(?::(\d{2}))?$/);
   if (!match) return '+00:00';
   const sign = match[1] ?? '+';
@@ -438,3 +437,4 @@ export class EnergyDashboardService {
     };
   }
 }
+
