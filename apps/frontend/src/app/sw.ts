@@ -63,9 +63,9 @@ const serwist = new Serwist({
     navigateFallbackDenylist: [/^\/api\//],
   },
 
-  // LOCKED: deferred user-prompted takeover only.
-  // PwaManager sends { type: 'SKIP_WAITING' } when user clicks the update toast.
-  skipWaiting: false,
+// Immediate takeover for production fix propagation.
+// This avoids clients staying pinned to stale UI bundles behind an old worker.
+  skipWaiting: true,
   clientsClaim: true,
   navigationPreload: true,
 
