@@ -501,6 +501,8 @@
   "rfid": {
     "title": "RFID Users",
     "subtitle": "PLC user tag management",
+    "unauthorizedSubtitle": "This page is restricted to WPT operators.",
+    "goToDashboard": "Go to dashboard",
     "readFirst": "Read data from the PLC before making changes",
     "restoredDraftBanner": "Draft restored — data may be stale. Read from the PLC to confirm before editing.",
     "columns": {

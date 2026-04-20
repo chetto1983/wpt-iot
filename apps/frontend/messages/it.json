@@ -501,6 +501,8 @@
   "rfid": {
     "title": "Utenti RFID",
     "subtitle": "Gestione tag utenti PLC",
+    "unauthorizedSubtitle": "Questa pagina è riservata agli operatori WPT.",
+    "goToDashboard": "Vai alla dashboard",
     "readFirst": "Leggi i dati dal PLC prima di apportare modifiche",
     "restoredDraftBanner": "Bozza ripristinata — i dati potrebbero essere obsoleti. Leggi dal PLC per confermare prima di modificare.",
     "columns": {

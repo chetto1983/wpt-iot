@@ -1,9 +1,10 @@
 'use client';
 
 import { useEffect, useRef, useState, memo } from 'react';
+import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Lock } from 'lucide-react';
 import type { IRfidUser } from '@wpt/types';
 import { RfidUserGroup } from '@wpt/types';
 import { apiFetch } from '@/lib/api';
@@ -13,7 +14,7 @@ import { usePlcWriteLock } from '@/hooks/use-plc-write-lock';
 import { clearSessionDraft, readSessionDraft, writeSessionDraft } from '@/lib/session-draft';
 import { PlcStatusBar } from '@/components/plc/plc-status-bar';
 import { RfidWriteConfirm } from '@/components/rfid/rfid-write-confirm';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -70,7 +71,12 @@ const GROUP_KEYS: Record<number, string> = {
 const RfidUserRow = memo(function RfidUserRow({ user, onUpdate, t, disabled }: RfidUserRowProps) {
   const rowErr = user.enabled && user.name.trim().length === 0;
   return (
-    <TableRow className={rowErr ? 'bg-destructive/10' : undefined}>
+    <TableRow
+      className={cn(
+        'even:bg-muted/20',
+        rowErr && 'bg-destructive/10',
+      )}
+    >
       <TableCell className="py-2 px-4 text-xs text-muted-foreground font-mono">
         {user.tagId}
       </TableCell>
@@ -81,9 +87,8 @@ const RfidUserRow = memo(function RfidUserRow({ user, onUpdate, t, disabled }: R
             const sanitized = e.target.value.replace(/[^\x20-\x7E]/g, '').slice(0, 20);
             onUpdate(user.tagId, 'name', sanitized);
           }}
-          placeholder="---"
           aria-label={`${t('columns.name')} ${user.tagId}`}
-          className="h-8 text-sm placeholder:italic placeholder:text-muted-foreground placeholder:text-xs"
+          className="h-8 text-sm"
           maxLength={20}
           disabled={disabled}
         />
@@ -155,7 +160,6 @@ const RfidUserCard = memo(function RfidUserCard({ user, onUpdate, t, disabled }:
               const sanitized = e.target.value.replace(/[^\x20-\x7E]/g, '').slice(0, 20);
               onUpdate(user.tagId, 'name', sanitized);
             }}
-            placeholder="---"
             maxLength={20}
             disabled={disabled}
           />
@@ -207,8 +211,15 @@ export default function RfidPage() {
   // Role gate: CLIENT cannot access this page
   if (user?.role === 'CLIENT') {
     return (
-      <div className="flex h-full items-center justify-center">
-        <p className="text-muted-foreground">{tAuth('unauthorized')}</p>
+      <div className="flex h-full flex-col items-center justify-center gap-4 p-6 text-center">
+        <Lock className="size-12 text-muted-foreground" aria-hidden="true" />
+        <div className="space-y-1">
+          <h2 className="text-xl font-semibold">{tAuth('unauthorized')}</h2>
+          <p className="text-sm text-muted-foreground">{t('unauthorizedSubtitle')}</p>
+        </div>
+        <Link href="/dashboard" className={buttonVariants({ variant: 'default' })}>
+          {t('goToDashboard')}
+        </Link>
       </div>
     );
   }
@@ -359,7 +370,7 @@ export default function RfidPage() {
 
       <Card>
         <CardContent className="p-0">
-          <div className="grid gap-3 p-4 md:hidden">
+          <div className="grid gap-3 p-4 lg:hidden">
             {users.map(u => (
               <RfidUserCard
                 key={u.tagId}
@@ -370,7 +381,7 @@ export default function RfidPage() {
               />
             ))}
           </div>
-          <div className="hidden md:block overflow-auto md:max-h-[calc(100dvh-280px)]">
+          <div className="hidden lg:block overflow-auto lg:max-h-[calc(100dvh-280px)]">
             <Table className="min-w-[640px]">
               <TableHeader className="sticky top-0 z-10 bg-card">
                 <TableRow>
