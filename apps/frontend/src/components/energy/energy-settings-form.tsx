@@ -14,13 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 
 type TariffMode = IEnergyConfigUpdateRequest['tariffMode'];
 type TariffBandFieldName = 'tariffBandF1' | 'tariffBandF2' | 'tariffBandF3';
@@ -604,8 +598,10 @@ export function EnergySettingsForm({
 
           <div className="grid gap-4 md:grid-cols-2">
             <div className="grid gap-2">
-              <Label htmlFor="energy-settings-tariff-mode">{t('fields.tariffMode')}</Label>
-              <Select
+              <Label>{t('fields.tariffMode')}</Label>
+              <ToggleGroup
+                aria-label={t('fields.tariffMode')}
+                className="grid w-full grid-cols-2 rounded-xl border border-input bg-background p-1"
                 value={draft.tariffMode}
                 onValueChange={(value) => {
                   if (value === 'single' || value === 'tou3') {
@@ -613,28 +609,23 @@ export function EnergySettingsForm({
                   }
                 }}
               >
-                <SelectTrigger id="energy-settings-tariff-mode" className="w-full">
-                  <SelectValue>
-                    {draft.tariffMode === 'tou3'
-                      ? t('tariffModes.tou3')
-                      : t('tariffModes.single')}
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent className="rounded-xl border border-border/80 bg-popover p-1 shadow-lg">
-                  <SelectItem
-                    value="single"
-                    className="focus:bg-muted focus:text-foreground data-highlighted:bg-muted data-highlighted:text-foreground"
-                  >
-                    {t('tariffModes.single')}
-                  </SelectItem>
-                  <SelectItem
-                    value="tou3"
-                    className="focus:bg-muted focus:text-foreground data-highlighted:bg-muted data-highlighted:text-foreground"
-                  >
-                    {t('tariffModes.tou3')}
-                  </SelectItem>
-                </SelectContent>
-              </Select>
+                <ToggleGroupItem
+                  size="default"
+                  value="single"
+                  aria-label={t('tariffModes.single')}
+                  className="w-full rounded-lg data-[pressed]:shadow-sm"
+                >
+                  {t('tariffModes.single')}
+                </ToggleGroupItem>
+                <ToggleGroupItem
+                  size="default"
+                  value="tou3"
+                  aria-label={t('tariffModes.tou3')}
+                  className="w-full rounded-lg data-[pressed]:shadow-sm"
+                >
+                  {t('tariffModes.tou3')}
+                </ToggleGroupItem>
+              </ToggleGroup>
               <p className="min-h-4 text-xs text-transparent" aria-hidden="true">.</p>
             </div>
 
