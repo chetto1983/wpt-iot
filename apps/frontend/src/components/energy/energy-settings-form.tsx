@@ -614,7 +614,11 @@ export function EnergySettingsForm({
                 }}
               >
                 <SelectTrigger id="energy-settings-tariff-mode" className="w-full">
-                  <SelectValue />
+                  <SelectValue>
+                    {draft.tariffMode === 'tou3'
+                      ? t('tariffModes.tou3')
+                      : t('tariffModes.single')}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent className="rounded-xl border border-border/80 bg-popover p-1 shadow-lg">
                   <SelectItem
