@@ -550,7 +550,9 @@
       "writeDisabled": {
         "readFirst": "Leggi da PLC prima",
         "enabledBlankName": "{count, plural, one {# riga abilitata senza nome} other {# righe abilitate senza nome}}",
-        "lockExpired": "Permesso scaduto — leggi di nuovo"
+        "lockExpired": "Permesso scaduto — leggi di nuovo",
+        "readInProgress": "Lettura in corso — attendi",
+        "writeInProgress": "Scrittura in corso — attendi"
       }
     },
     "rowError": {

@@ -550,7 +550,9 @@
       "writeDisabled": {
         "readFirst": "Read from PLC first",
         "enabledBlankName": "{count, plural, one {# enabled row without a name} other {# enabled rows without a name}}",
-        "lockExpired": "Write lock expired — read again"
+        "lockExpired": "Write lock expired — read again",
+        "readInProgress": "Read in progress — wait",
+        "writeInProgress": "Write in progress — wait"
       }
     },
     "rowError": {

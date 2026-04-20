@@ -25,6 +25,7 @@ import {
 } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Card, CardContent } from '@/components/ui/card';
+import { DisabledTooltip } from '@/components/ui/disabled-tooltip';
 import {
   Table,
   TableBody,
@@ -297,13 +298,20 @@ export default function RfidPage() {
   const fieldsLocked = !hasRead || lock.state === 'expired';
   const enabledBlankCount = users.filter((u) => u.enabled && u.name.trim().length === 0).length;
   const hasEnabledBlank = enabledBlankCount > 0;
-  const writeDisabledTitle = !hasRead
-    ? t('tooltip.writeDisabled.readFirst')
-    : hasEnabledBlank
-      ? t('tooltip.writeDisabled.enabledBlankName', { count: enabledBlankCount })
-      : !lock.canWrite
-        ? t('tooltip.writeDisabled.lockExpired')
-        : '';
+  const writeDisabled = !lock.canWrite || !hasRead || hasEnabledBlank || isReading || isWriting;
+  // Precedence: in-flight states (writing > reading) shadow configuration states
+  // (readFirst > enabledBlankName > lockExpired). Matches /jobs tooltip precedence intent.
+  const writeDisabledTooltip = isWriting
+    ? t('tooltip.writeDisabled.writeInProgress')
+    : isReading
+      ? t('tooltip.writeDisabled.readInProgress')
+      : !hasRead
+        ? t('tooltip.writeDisabled.readFirst')
+        : hasEnabledBlank
+          ? t('tooltip.writeDisabled.enabledBlankName', { count: enabledBlankCount })
+          : !lock.canWrite
+            ? t('tooltip.writeDisabled.lockExpired')
+            : '';
 
   return (
     <div className="space-y-4 p-6">
@@ -368,16 +376,17 @@ export default function RfidPage() {
           {isReading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
           {isReading ? t('actions.reading') : t('actions.readFromPlc')}
         </Button>
-        <Button
-          variant={lock.canWrite ? 'destructive' : 'outline'}
-          onClick={handleWriteClick}
-          disabled={!lock.canWrite || !hasRead || hasEnabledBlank || isReading || isWriting}
-          title={writeDisabledTitle || undefined}
-          className="w-full sm:w-auto"
-        >
-          {isWriting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          {isWriting ? t('actions.writing') : t('actions.writeToPlc')}
-        </Button>
+        <DisabledTooltip disabled={writeDisabled} tooltip={writeDisabledTooltip}>
+          <Button
+            variant={lock.canWrite ? 'destructive' : 'outline'}
+            onClick={handleWriteClick}
+            disabled={writeDisabled}
+            className="w-full sm:w-auto"
+          >
+            {isWriting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {isWriting ? t('actions.writing') : t('actions.writeToPlc')}
+          </Button>
+        </DisabledTooltip>
       </div>
 
       <RfidWriteConfirm
