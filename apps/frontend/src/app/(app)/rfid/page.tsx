@@ -98,6 +98,9 @@ const RfidUserRow = memo(function RfidUserRow({ user, onUpdate, t, disabled, isD
         {rowErr && (
           <p className="mt-1 text-xs text-destructive">{t('rowError.enabledBlankName')}</p>
         )}
+        <p className="mt-1 text-xs text-muted-foreground tabular-nums">
+          {user.name.length}/20
+        </p>
       </TableCell>
       <TableCell className="py-2 px-4">
         <ToggleGroup
@@ -134,7 +137,7 @@ const RfidUserCard = memo(function RfidUserCard({ user, onUpdate, t, disabled, i
   return (
     <div
       className={cn(
-        'rounded-lg border bg-card p-4',
+        'rounded-lg border bg-card p-3',
         rowErr && 'border-destructive bg-destructive/5',
         isDirty && 'border-l-2 border-l-primary',
       )}
@@ -176,16 +179,23 @@ const RfidUserCard = memo(function RfidUserCard({ user, onUpdate, t, disabled, i
           {rowErr && (
             <p className="text-xs text-destructive">{t('rowError.enabledBlankName')}</p>
           )}
+          <p className="text-xs text-muted-foreground tabular-nums">
+            {user.name.length}/20
+          </p>
         </div>
 
         <div className="grid gap-1.5">
-          <Label>{t('columns.group')}</Label>
+          <Label htmlFor={`rfid-group-${user.tagId}`}>{t('columns.group')}</Label>
           <Select
             value={String(user.group)}
             onValueChange={(v) => onUpdate(user.tagId, 'group', Number(v))}
             disabled={disabled}
           >
-            <SelectTrigger className="w-full" aria-label={`${t('columns.group')} ${user.tagId}`}>
+            <SelectTrigger
+              id={`rfid-group-${user.tagId}`}
+              className="w-full"
+              aria-label={`${t('columns.group')} ${user.tagId}`}
+            >
               <SelectValue placeholder={t(`groups.${GROUP_KEYS[user.group] ?? 'OPERATOR'}`)}>
                 {t(`groups.${GROUP_KEYS[user.group] ?? 'OPERATOR'}`)}
               </SelectValue>
@@ -443,6 +453,7 @@ export default function RfidPage() {
 
       <div className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:gap-6">
         <Button
+          variant="outline"
           onClick={handleRead}
           disabled={isReading || isWriting}
           className="w-full sm:w-auto"
