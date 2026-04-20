@@ -61,7 +61,7 @@
     },
     "sessionExpired": "Your session has expired. Please log in again.",
     "togglePassword": "Toggle password visibility",
-    "plcBusy": "PLC operation in progress -- try again in a few seconds",
+    "plcBusy": "PLC operation in progress — try again in a few seconds",
     "validation": {
       "asciiOnly": "Only standard characters allowed (A-Z, 0-9, spaces, punctuation)",
       "maxLength": "Maximum {max} characters"
@@ -515,8 +515,8 @@
     },
     "status": {
       "noData": "No data loaded",
-      "loaded": "Data loaded -- Write available ({remaining} remaining)",
-      "expired": "Write lock expired -- read again to re-enable"
+      "loaded": "Data loaded — Write available ({remaining} remaining)",
+      "expired": "Write lock expired — read again to re-enable"
     },
     "confirm": {
       "title": "Write to PLC?",
@@ -572,14 +572,20 @@
     },
     "status": {
       "noData": "No data loaded",
-      "loaded": "Data loaded -- Write available ({remaining} remaining)",
-      "expired": "Write lock expired -- read again to re-enable"
+      "loaded": "Data loaded — Write available ({remaining} remaining)",
+      "expired": "Write lock expired — read again to re-enable"
     },
     "confirm": {
       "title": "Write to PLC?",
       "body": "This will overwrite current job parameters on the PLC.",
       "cancel": "Cancel",
-      "confirm": "Write to PLC"
+      "confirm": "Write to PLC",
+      "diffHeader": {
+        "field": "Field",
+        "from": "Current value on PLC",
+        "to": "New value"
+      },
+      "noChanges": "No changes since last read — close the dialog"
     },
     "toast": {
       "readSuccess": "Data read from PLC successfully",
@@ -589,7 +595,12 @@
       "writeNotAllowed": "Read data from the PLC first before writing"
     },
     "tooltip": {
-      "readFirst": "Read from PLC first"
+      "readFirst": "Read from PLC first",
+      "writeDisabled": {
+        "readFirst": "Read from PLC first",
+        "identityIncomplete": "Fill in Supervisor, Order Number, and Serial Number",
+        "lockExpired": "Write lock expired — read again"
+      }
     }
   },
   "reports": {

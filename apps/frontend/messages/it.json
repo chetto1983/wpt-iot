@@ -6,7 +6,7 @@
     "edit": "Modifica",
     "create": "Crea",
     "loading": "Caricamento...",
-    "error": "Si e' verificato un errore",
+    "error": "Si è verificato un errore",
     "roles": {
       "SUPER_ADMIN": "SuperAdmin",
       "WPT": "WPT",
@@ -53,15 +53,15 @@
       "adjustTitle": "Regola inquadratura",
       "adjustHint": "Usa zoom e trascinamento per centrare il volto nel ritaglio circolare.",
       "preview": "Anteprima",
-      "previewHint": "L'avatar verra salvato in formato quadrato con ritaglio rotondo.",
+      "previewHint": "L'avatar verrà salvato in formato quadrato con ritaglio rotondo.",
       "emptyHint": "Carica un file JPG o PNG e prepara l'immagine nel ritaglio.",
       "changeAvatar": "Cambia avatar",
       "uploadSuccess": "Avatar aggiornato",
       "removeSuccess": "Avatar rimosso"
     },
-    "sessionExpired": "La sessione e' scaduta. Effettua nuovamente l'accesso.",
+    "sessionExpired": "La sessione è scaduta. Effettua nuovamente l'accesso.",
     "togglePassword": "Mostra/nascondi password",
-    "plcBusy": "Operazione PLC in corso -- riprovare tra qualche secondo",
+    "plcBusy": "Operazione PLC in corso — riprovare tra qualche secondo",
     "validation": {
       "asciiOnly": "Solo caratteri standard consentiti (A-Z, 0-9, spazi, punteggiatura)",
       "maxLength": "Massimo {max} caratteri"
@@ -82,13 +82,13 @@
       "steps": {
         "warning": "Se Chrome mostra un avviso certificato, apri la sezione avanzata e prosegui verso WPT IoT una volta per raggiungere il link di configurazione.",
         "download": "Scarica la CA Root WPT dal pulsante qui sotto.",
-        "trust": "Installa quel certificato nell'archivio delle autorita' radice attendibili del dispositivo.",
+        "trust": "Installa quel certificato nell'archivio delle autorità radice attendibili del dispositivo.",
         "install": "Ricarica la pagina e verifica che il lucchetto sia pulito prima di installare l'app."
       }
     },
     "errors": {
       "invalid": "Nome utente o password non validi. Controlla le credenziali e riprova.",
-      "expired": "La sessione e' scaduta. Accedi nuovamente.",
+      "expired": "La sessione è scaduta. Accedi nuovamente.",
       "server": "Impossibile connettersi al server. Contatta l'amministratore di sistema."
     }
   },
@@ -104,23 +104,23 @@
     }
   },
   "error": {
-    "title": "Qualcosa e' andato storto",
-    "description": "Si e' verificato un errore imprevisto. Riprova.",
+    "title": "Qualcosa è andato storto",
+    "description": "Si è verificato un errore imprevisto. Riprova.",
     "retry": "Riprova",
     "globalTitle": "Errore Applicazione",
-    "globalDescription": "Si e' verificato un errore critico. Ricaricare la pagina.",
+    "globalDescription": "Si è verificato un errore critico. Ricaricare la pagina.",
     "reload": "Ricarica Pagina"
   },
   "notFound": {
     "title": "Pagina non trovata",
-    "description": "La pagina che stai cercando non esiste o e' stata spostata.",
+    "description": "La pagina che stai cercando non esiste o è stata spostata.",
     "goToDashboard": "Vai alla Dashboard"
   },
   "pwa": {
     "installed": "App installata correttamente.",
     "install": {
       "title": "Installa WPT IoT",
-      "body": "Aggiungi WPT IoT alla schermata Home per aprirla piu' velocemente in modalita' app.",
+      "body": "Aggiungi WPT IoT alla schermata Home per aprirla più velocemente in modalità app.",
       "action": "Installa"
     },
     "ios": {
@@ -129,12 +129,12 @@
     },
     "update": {
       "title": "Aggiornamento disponibile",
-      "body": "E' pronta una versione piu' recente di WPT IoT. Ricarica per usarla.",
+      "body": "È pronta una versione più recente di WPT IoT. Ricarica per usarla.",
       "action": "Ricarica"
     },
     "offline": {
       "title": "Sei offline",
-      "body": "La shell dell'app e' disponibile, ma i dati live macchina e le operazioni di scrittura richiedono connessione.",
+      "body": "La shell dell'app è disponibile, ma i dati live macchina e le operazioni di scrittura richiedono connessione.",
       "hint": "Riconnettiti e riprova quando PLC e backend sono di nuovo raggiungibili.",
       "retry": "Riprova",
       "login": "Torna al login"
@@ -167,7 +167,7 @@
     },
     "delete": {
       "title": "Elimina Utente",
-      "body": "Sei sicuro di voler eliminare \"{username}\"? Questa azione non puo' essere annullata.",
+      "body": "Sei sicuro di voler eliminare \"{username}\"? Questa azione non può essere annullata.",
       "confirm": "Elimina Utente",
       "cancel": "Mantieni Utente"
     },
@@ -180,13 +180,13 @@
       "created": "Utente \"{username}\" creato con successo.",
       "updated": "Utente \"{username}\" aggiornato con successo.",
       "deleted": "Utente \"{username}\" eliminato.",
-      "errorUsernameTaken": "Un utente con questo nome utente esiste gia'.",
+      "errorUsernameTaken": "Un utente con questo nome utente esiste già.",
       "errorDeleteSelf": "Non puoi eliminare il tuo account.",
       "errorSave": "Impossibile salvare l'utente. Riprova o contatta l'amministratore."
     },
     "removeAvatar": {
       "title": "Rimuovi Foto",
-      "description": "La tua foto profilo verra' rimossa e al suo posto verra' usato il logo predefinito.",
+      "description": "La tua foto profilo verrà rimossa e al suo posto verrà usato il logo predefinito.",
       "cancel": "Mantieni Foto",
       "confirm": "Rimuovi Foto"
     }
@@ -216,7 +216,7 @@
     },
     "empty": {
       "liveWaitingTitle": "In attesa dei dati live",
-      "liveWaitingBody": "La macchina e connessa, ma il primo aggiornamento websocket non e ancora arrivato.",
+      "liveWaitingBody": "La macchina è connessa, ma il primo aggiornamento websocket non è ancora arrivato.",
       "alarmsTitle": "Nessun allarme attivo",
       "alarmsBody": "La macchina non ha allarmi attivi. Il monitoraggio live continua automaticamente."
     },
@@ -225,7 +225,7 @@
       "error": "Impossibile caricare i dati anomalia: {message}",
       "liveScore": "Score live",
       "observations": "Osservazioni",
-      "mode": "Modalita",
+      "mode": "Modalità",
       "learning": "Apprendimento",
       "continuous": "Continuo",
       "restartReset": "Si azzera al riavvio backend",
@@ -241,9 +241,9 @@
       "alarmContext": "Allarmi attivi nella finestra",
       "recentEvents": "Eventi anomalia recenti",
       "noEventsTitle": "Nessun evento anomalia persistito",
-      "noEventsBody": "Gli eventi anomalia segnalati appariranno qui dopo che il detector li avra trovati e salvati.",
+      "noEventsBody": "Gli eventi anomalia segnalati appariranno qui dopo che il detector li avrà trovati e salvati.",
       "scoreLabel": "Score {score}",
-      "modeLabel": "Modalita {mode}",
+      "modeLabel": "Modalità {mode}",
       "driverLabel": "Driver principale: {driver}",
       "state": {
         "flagged": "Segnalata",
@@ -280,7 +280,7 @@
       "healthGauge": "Stato di salute",
       "modelHealth": {
         "title": "Stato modello",
-        "modes": "Modalita calde / tracciate",
+        "modes": "Modalità calde / tracciate",
         "uptime": "Tempo attivo",
         "flagged": "Totale segnalati",
         "confidence": "Confidenza",
@@ -353,13 +353,13 @@
     "staleData": "Ultimo aggiornamento: {seconds}s fa",
     "noData": "---",
     "error": {
-      "liveData": "Dati live non disponibili. Il cruscotto tentera la riconnessione automatica; se il problema continua, accedi di nuovo."
+      "liveData": "Dati live non disponibili. Il cruscotto tenterà la riconnessione automatica; se il problema continua, accedi di nuovo."
     },
     "gauges": {
       "garbageTemp": "Temperatura rifiuti",
       "chamberPressure": "Pressione camera",
-      "mainMotorSpeed": "Velocita motore principale",
-      "vacuumPumpSpeed01": "Velocita pompa vuoto"
+      "mainMotorSpeed": "Velocità motore principale",
+      "vacuumPumpSpeed01": "Velocità pompa vuoto"
     },
     "fields": {
       "selectedCycle": "Ciclo selezionato",
@@ -404,7 +404,7 @@
         "thermoRightHighLower": "Termo destra alto basso",
         "holdingTempSetpoint": "Setpoint temperatura mantenimento",
         "mainMotorTorque": "Coppia motore principale",
-        "vacuumPumpSpeed02": "Velocita pompa vuoto 02",
+        "vacuumPumpSpeed02": "Velocità pompa vuoto 02",
         "rmsCurrL1": "Corrente RMS L1",
         "rmsCurrL2": "Corrente RMS L2",
         "rmsCurrL3": "Corrente RMS L3",
@@ -486,7 +486,7 @@
       "save": "Salva Pannello",
       "cancel": "Annulla",
       "noFieldsSelected": "Seleziona almeno un campo",
-      "pieMixedUnits": "I campi selezionati hanno unita' di misura diverse. Il grafico a torta ha senso solo con campi omogenei (es. tutte temperature, o tutte correnti)."
+      "pieMixedUnits": "I campi selezionati hanno unità di misura diverse. Il grafico a torta ha senso solo con campi omogenei (es. tutte temperature, o tutte correnti)."
     }
   },
   "anomalyPage": {
@@ -515,12 +515,12 @@
     },
     "status": {
       "noData": "Nessun dato caricato",
-      "loaded": "Dati caricati -- Scrittura disponibile ({remaining} rimanenti)",
-      "expired": "Permesso di scrittura scaduto -- leggere di nuovo per riabilitare"
+      "loaded": "Dati caricati — Scrittura disponibile ({remaining} rimanenti)",
+      "expired": "Permesso di scrittura scaduto — leggere di nuovo per riabilitare"
     },
     "confirm": {
       "title": "Scrivere su PLC?",
-      "body": "Questo sovrascrivera' i dati utente RFID attualmente sul PLC.",
+      "body": "Questo sovrascriverà i dati utente RFID attualmente sul PLC.",
       "cancel": "Annulla",
       "confirm": "Scrivi su PLC"
     },
@@ -535,7 +535,7 @@
   "jobs": {
     "title": "Gestione Commesse",
     "subtitle": "Parametri commessa",
-    "identity": "Identita' Commessa",
+    "identity": "Identità Commessa",
     "machineControl": "Controllo Macchina",
     "fields": {
       "supervisor": "Supervisore",
@@ -572,14 +572,20 @@
     },
     "status": {
       "noData": "Nessun dato caricato",
-      "loaded": "Dati caricati -- Scrittura disponibile ({remaining} rimanenti)",
-      "expired": "Permesso di scrittura scaduto -- leggere di nuovo per riabilitare"
+      "loaded": "Dati caricati — Scrittura disponibile ({remaining} rimanenti)",
+      "expired": "Permesso di scrittura scaduto — leggere di nuovo per riabilitare"
     },
     "confirm": {
       "title": "Scrivere su PLC?",
-      "body": "Questo sovrascrivera' i parametri commessa attualmente sul PLC.",
+      "body": "Questo sovrascriverà i parametri commessa attualmente sul PLC.",
       "cancel": "Annulla",
-      "confirm": "Scrivi su PLC"
+      "confirm": "Scrivi su PLC",
+      "diffHeader": {
+        "field": "Campo",
+        "from": "Valore attuale sul PLC",
+        "to": "Nuovo valore"
+      },
+      "noChanges": "Nessuna modifica rispetto all'ultima lettura — chiudi il dialogo"
     },
     "toast": {
       "readSuccess": "Dati letti dal PLC con successo",
@@ -589,7 +595,12 @@
       "writeNotAllowed": "Leggere prima i dati dal PLC prima di scrivere"
     },
     "tooltip": {
-      "readFirst": "Prima leggi dal PLC"
+      "readFirst": "Prima leggi dal PLC",
+      "writeDisabled": {
+        "readFirst": "Leggi da PLC prima",
+        "identityIncomplete": "Compila Supervisore, Numero Ordine e Numero Seriale",
+        "lockExpired": "Permesso scaduto — leggi di nuovo"
+      }
     }
   },
   "reports": {
@@ -713,7 +724,7 @@
     "noDashboardsHint": "Crea la tua prima dashboard per iniziare a monitorare",
     "open": "Apri",
     "delete": "Elimina",
-    "confirmDelete": "Eliminare questa dashboard? Non si puo annullare.",
+    "confirmDelete": "Eliminare questa dashboard? Non si può annullare.",
     "addPanel": "Aggiungi Pannello",
     "save": "Salva",
     "saving": "Salvataggio...",
@@ -735,11 +746,11 @@
     "notFound": "Dashboard non trovata",
     "panelError": "Impossibile caricare questo pannello",
     "retryPanel": "Riprova Pannello",
-    "pieMixedUnitsTitle": "Unita' incompatibili",
-    "pieMixedUnitsHint": "Il grafico a torta richiede campi con la stessa unita' di misura (es. tutti in degC, o tutti in A). Modifica la selezione dei campi.",
+    "pieMixedUnitsTitle": "Unità incompatibili",
+    "pieMixedUnitsHint": "Il grafico a torta richiede campi con la stessa unità di misura (es. tutti in degC, o tutti in A). Modifica la selezione dei campi.",
     "deletePanel": {
       "title": "Elimina Pannello",
-      "description": "Questo pannello verra' rimosso definitivamente dalla tua dashboard. Questa azione non puo' essere annullata.",
+      "description": "Questo pannello verrà rimosso definitivamente dalla tua dashboard. Questa azione non può essere annullata.",
       "cancel": "Mantieni Pannello",
       "confirm": "Elimina Pannello"
     },
@@ -787,14 +798,14 @@
     },
     "deleteDashboard": {
       "title": "Elimina Dashboard",
-      "description": "Questa dashboard e tutti i suoi pannelli verranno eliminati permanentemente. Questa azione non puo essere annullata.",
+      "description": "Questa dashboard e tutti i suoi pannelli verranno eliminati permanentemente. Questa azione non può essere annullata.",
       "cancel": "Annulla",
       "confirm": "Elimina"
     }
   },
   "mqtt": {
     "title": "Gateway MQTT",
-    "subtitle": "Controlla uplink cloud Sparkplug B, broker locale, utenti operativi e attivita' recenti da una console unica.",
+    "subtitle": "Controlla uplink cloud Sparkplug B, broker locale, utenti operativi e attività recenti da una console unica.",
     "hero": {
       "kicker": "Control Bus",
       "cards": {
@@ -803,12 +814,12 @@
         "users": "Utenti",
         "usersValue": "{count} account configurati",
         "endpoint": "Endpoint broker",
-        "identity": "Identita' client"
+        "identity": "Identità client"
       }
     },
     "status": {
       "title": "Stato Broker",
-      "subtitle": "Monitora in tempo reale connettivita', abilitazione del gateway e identita' MQTT attiva.",
+      "subtitle": "Monitora in tempo reale connettività, abilitazione del gateway e identità MQTT attiva.",
       "connected": "Connesso",
       "disconnected": "Disconnesso",
       "enabled": "Gateway Abilitato",
@@ -892,21 +903,21 @@
       "deleteUserLabel": "Elimina utente MQTT {username}",
       "deleted": "Utente eliminato",
       "deleteConfirm": "Eliminare l'utente MQTT \"{username}\"?",
-      "deleteDescription": "Questo rimuovera' l'accesso dell'utente al broker MQTT. Questa azione non puo' essere annullata.",
+      "deleteDescription": "Questo rimuoverà l'accesso dell'utente al broker MQTT. Questa azione non può essere annullata.",
       "noUsers": "Nessun utente MQTT configurato",
       "cancel": "Annulla",
       "systemAccount": "Sistema"
     },
     "activityLog": {
-      "title": "Log Attivita'",
+      "title": "Log Attività",
       "subtitle": "Eventi recenti del broker e del gateway aggiornati automaticamente.",
-      "empty": "Nessuna attivita' registrata",
+      "empty": "Nessuna attività registrata",
       "connect": "Connessione",
       "disconnect": "Disconnessione",
       "publish": "Pubblicazione",
       "subscribe": "Sottoscrizione",
       "error": "Errore",
-      "refresh": "Aggiorna log attivita'"
+      "refresh": "Aggiorna log attività"
     }
   },
   "plc": {
@@ -1044,7 +1055,7 @@
       "missingConfig": "Configurazione energia non impostata. Completa i dati cliente, tariffa ed emissioni prima di usare il flusso milestone.",
       "readyTitle": "Configurazione energia pronta.",
       "pending": "Completa tutti i campi obbligatori prima di salvare e usare baseline e report campione.",
-      "ready": "La configurazione e' completa e coerente con il contratto backend."
+      "ready": "La configurazione è completa e coerente con il contratto backend."
     },
     "sections": {
       "customer": "Intestazione cliente",
@@ -1056,7 +1067,7 @@
       "customer": "Identificativi visibili al cliente usati nell'intestazione PDF e nel flusso milestone.",
       "tariff": "Valori tariffari, cosphi, turno e fattore di emissione vengono validati lato client e salvati nel profilo energia attivo.",
       "baseline": "Apre il flusso esistente di blocco baseline sul backend per definire la finestra di riferimento.",
-      "sampleReport": "Genera un PDF di test sulle ultime 24 ore usando il route report energia gia' attivo."
+      "sampleReport": "Genera un PDF di test sulle ultime 24 ore usando il route report energia già attivo."
     },
     "fields": {
       "customerName": "Nome cliente",
@@ -1069,7 +1080,7 @@
       "emissionFactorKgPerKwh": "Fattore emissione (kg CO2 / kWh)",
       "emissionFactorYear": "Anno fattore emissione",
       "emissionFactorSource": "Fonte fattore emissione",
-      "tariffMode": "Modalita' tariffa",
+      "tariffMode": "Modalità tariffa",
       "tariffSingleEurPerKwh": "Tariffa singola (EUR / kWh)",
       "tariffBandF1": "Tariffa F1 (EUR / kWh)",
       "tariffBandF2": "Tariffa F2 (EUR / kWh)",
@@ -1094,8 +1105,8 @@
       "tariffRange": "Le tariffe devono restare tra 0.001 e 2.0.",
       "yearNumeric": "L'anno del fattore di emissione deve essere numerico.",
       "shiftStartHourRange": "L'ora di inizio turno deve essere un intero tra 0 e 23.",
-      "sourceRequired": "La fonte del fattore di emissione e' obbligatoria.",
-      "tariffBandsRequired": "F1, F2 e F3 sono obbligatori quando e' selezionata la tariffa a 3 fasce."
+      "sourceRequired": "La fonte del fattore di emissione è obbligatoria.",
+      "tariffBandsRequired": "F1, F2 e F3 sono obbligatori quando è selezionata la tariffa a 3 fasce."
     },
     "actions": {
       "saveDraft": "Valida bozza",
@@ -1118,7 +1129,7 @@
     },
     "states": {
       "loading": "Caricamento area impostazioni energia...",
-      "unauthorized": "Solo SuperAdmin puo gestire le impostazioni energia."
+      "unauthorized": "Solo SuperAdmin può gestire le impostazioni energia."
     }
   },
   "cycles": {
