@@ -1,6 +1,6 @@
 import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import type { IMachineSnapshot } from '@wpt/types';
+import type { DeepReadonly, IDetectorSnapshot, IMachineSnapshot } from '@wpt/types';
 import { dataHub } from '../../events/hub.js';
 import { DATA_EVENTS } from '../../events/types.js';
 import { MachineAnomalyEventService } from './machineAnomalyEventService.js';
@@ -178,6 +178,14 @@ class MachineAnomalyService {
   /** C7: Get current detector config (thresholds etc). */
   getDetectorConfig(): IDetectorConfig {
     return { ...this.detector.getConfig() };
+  }
+
+  /** Phase 42 D-13: SUPER_ADMIN-only read of the detector's inspect() snapshot.
+   *  Encapsulates the private `detector` field so debug callers don't cast to
+   *  `(svc as any).detector`. Mirrors shadow's `inspect()` pass-through at
+   *  machineShadowAnomalyService.ts:193-195. */
+  getDetectorSnapshot(): DeepReadonly<IDetectorSnapshot> {
+    return this.detector.inspect();
   }
 
   /** C7: Update detector config in-place (persisted on next shutdown via C6). */
