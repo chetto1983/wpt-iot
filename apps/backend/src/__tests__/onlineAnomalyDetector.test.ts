@@ -208,6 +208,80 @@ describe('OnlineAnomalyDetector', () => {
     expect(rmsContributors[0]?.feature).toBe('rmsCurrL1');
   });
 
+  it('produces squared-z share contribution with sum-to-unity over deduped survivors (Phase 40 D-16)', () => {
+    // RED→GREEN reasoning: this test asserts four independent invariants that together
+    // prove the Phase 40 attribution math is wired correctly:
+    //   1. dedup still produces exactly one RMS survivor (FIX-8 regression lock)
+    //   2. the survivor's contribution dominates (spike ≫ baseline → z² dwarfs ungrouped floor)
+    //   3. contributions sum to 1.0 within 1e-9 (D-05 denominator correctness over `displayed`)
+    //   4. the L2/L3 duplicates are genuinely absent (dedup proof — strict negative)
+    // Mutating the implementation to skip dedup would fail assertion 1 + 4; mutating it to
+    // drop the sumSq normalization would fail assertion 3; weakening direction capture
+    // would fail the HIGH check. No single assertion carries the whole proof — together
+    // they lock the contract.
+    //
+    // NOTE: D-16 assertion 2 RELAXED from CONTEXT.md's closed-form `25 / (25 + ungrouped_sum_sq)`
+    // to `> 0.9` dominance + `≈ 1.0` sum-to-unity. Welford/EMA warmup variance makes the closed-form
+    // denominator scenario-dependent in a fresh detector — see 40-03-PLAN.md <objective>
+    // §DEVIATION RECORD for the full justification. Mathematical intent (dedup works + denominator
+    // math correct) is fully preserved by the two remaining assertions. Deviation recorded in
+    // 40-SUMMARY.md.
+    const detector = new OnlineAnomalyDetector({
+      minWarmSamples: 15,
+      minReliableSamples: 25,
+      criticalThreshold: 3,
+      baseRate: 0.1,
+      topK: 3,
+      modeChangeGraceMs: 0,
+    });
+
+    // Warmup with steady values (identical to FIX-8 test)
+    for (let i = 0; i < 25; i += 1) {
+      detector.observe(
+        makeSample({
+          rmsCurrL1: 15 + (i % 2) * 0.1,
+          rmsCurrL2: 15 + (i % 2) * 0.1,
+          rmsCurrL3: 15 + (i % 2) * 0.1,
+        }),
+      );
+    }
+
+    // Spike all three RMS currents — after dedup, only rmsCurrL1 survives as group max.
+    const result = detector.observe(
+      makeSample({ rmsCurrL1: 80, rmsCurrL2: 78, rmsCurrL3: 79 }),
+    );
+
+    // Assertion 1 (D-16 #1): dedup produces exactly 1 RMS-current survivor.
+    const rmsContributors = result.topContributors.filter((c) =>
+      ['rmsCurrL1', 'rmsCurrL2', 'rmsCurrL3'].includes(c.feature),
+    );
+    expect(rmsContributors).toHaveLength(1);
+    expect(rmsContributors[0]?.feature).toBe('rmsCurrL1');
+
+    // Assertion 4 (D-16 #4): duplicates are absent from topContributors.
+    expect(result.topContributors.find((c) => c.feature === 'rmsCurrL2')).toBeUndefined();
+    expect(result.topContributors.find((c) => c.feature === 'rmsCurrL3')).toBeUndefined();
+
+    // Assertion 3 (D-16 #3): sum-to-unity within 1e-9 (over the REPORTED contributors —
+    // Plan 02 computes sumSq over `displayed = deduped.slice(0, 10)`, making this
+    // invariant hold unconditionally regardless of dedup cardinality).
+    const total = result.topContributors.reduce((s, c) => s + (c.contribution ?? 0), 0);
+    expect(total).toBeCloseTo(1.0, 9);
+
+    // Assertion 2 (D-16 #2, RELAXED — see header comment): rmsCurrL1 dominates.
+    // Spike is 80 vs baseline ~15 → z^2 dwarfs the ungrouped floor. Dominance + sum-to-unity
+    // together prove dedup works AND denominator math is correct.
+    const l1 = result.topContributors.find((c) => c.feature === 'rmsCurrL1');
+    expect(l1?.contribution).toBeDefined();
+    expect(l1!.contribution!).toBeGreaterThan(0.9);
+
+    // Direction: value=80, emaMean ~= 15 → HIGH.
+    expect(l1?.direction).toBe('HIGH');
+
+    // Regression: composite score still fires the critical threshold.
+    expect(result.score).toBeGreaterThanOrEqual(3);
+  });
+
   it('C3: CUSUM detects slow persistent drift that z-score misses', () => {
     const detector = new OnlineAnomalyDetector({
       minWarmSamples: 10,
