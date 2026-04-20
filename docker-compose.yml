@@ -9,7 +9,7 @@
 
 services:
   db:
-    image: timescale/timescaledb:2.25.2-pg17
+    image: timescale/timescaledb:2.26.3-pg17
     command:
       - "postgres"
       - "-c"
