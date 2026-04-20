@@ -502,6 +502,7 @@
     "title": "Utenti RFID",
     "subtitle": "Gestione tag utenti PLC",
     "readFirst": "Leggi i dati dal PLC prima di apportare modifiche",
+    "restoredDraftBanner": "Bozza ripristinata — i dati potrebbero essere obsoleti. Leggi dal PLC per confermare prima di modificare.",
     "columns": {
       "tagId": "Tag ID",
       "name": "Nome",

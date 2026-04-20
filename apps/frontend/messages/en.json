@@ -502,6 +502,7 @@
     "title": "RFID Users",
     "subtitle": "PLC user tag management",
     "readFirst": "Read data from the PLC before making changes",
+    "restoredDraftBanner": "Draft restored — data may be stale. Read from the PLC to confirm before editing.",
     "columns": {
       "tagId": "Tag ID",
       "name": "Name",

@@ -197,6 +197,7 @@ export default function RfidPage() {
   const [users, setUsers] = useState<IRfidUser[]>(createEmptyUsers);
   const [hasRead, setHasRead] = useState(false);
   const [readSnapshot, setReadSnapshot] = useState<IRfidUser[] | null>(null);
+  const [restoredExpiredDraft, setRestoredExpiredDraft] = useState(false);
   const [isReading, setIsReading] = useState(false);
   const [isWriting, setIsWriting] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -222,6 +223,21 @@ export default function RfidPage() {
 
     const draft = readSessionDraft<RfidDraft>(RFID_DRAFT_KEY);
     if (!draft) return;
+
+    const lockExpired = draft.hasRead && draft.lockRemainingSeconds <= 0;
+
+    if (lockExpired) {
+      // P1 #11 — stale draft from an expired session. Show the rows for
+      // reference but force a fresh Read before the operator can touch
+      // anything. Clear the persisted draft so a tab refresh doesn't keep
+      // re-triggering the banner forever.
+      setUsers(draft.users);
+      setHasRead(false);
+      setReadSnapshot(null);
+      setRestoredExpiredDraft(true);
+      clearSessionDraft(RFID_DRAFT_KEY);
+      return;
+    }
 
     setUsers(draft.users);
     setHasRead(draft.hasRead);
@@ -252,6 +268,7 @@ export default function RfidPage() {
       setUsers(data.users);
       setReadSnapshot(structuredClone(data.users));
       setHasRead(true);
+      setRestoredExpiredDraft(false);
       lock.markReadSuccess();
       toast.success(t('toast.readSuccess'));
     } catch (err) {
@@ -325,9 +342,19 @@ export default function RfidPage() {
       />
 
       {!hasRead && !isReading ? (
-        <p className="rounded-lg border border-dashed px-4 py-3 text-sm text-muted-foreground">
-          {t('readFirst')}
-        </p>
+        restoredExpiredDraft ? (
+          <div
+            role="status"
+            aria-live="polite"
+            className="rounded-lg border border-destructive/40 bg-destructive/5 px-4 py-3 text-sm text-destructive"
+          >
+            {t('restoredDraftBanner')}
+          </div>
+        ) : (
+          <p className="rounded-lg border border-dashed px-4 py-3 text-sm text-muted-foreground">
+            {t('readFirst')}
+          </p>
+        )
       ) : null}
 
       <Card>
