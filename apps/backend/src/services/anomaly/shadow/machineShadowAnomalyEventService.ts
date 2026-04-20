@@ -71,7 +71,9 @@ export class MachineShadowAnomalyEventService {
       ? sql`AND mode_key = ${modeKey}`
       : sql``;
 
-    const rows = (await db.execute(sql`
+    // pg driver: db.execute() returns QueryResult<{ rows, rowCount, ... }>.
+    // The array lives on .rows — destructure before the in-memory fold.
+    const result = await db.execute(sql`
       WITH unioned AS (
         SELECT 'primary'::text AS variant, mode_key, flagged
         FROM machine_anomaly_events
@@ -91,7 +93,8 @@ export class MachineShadowAnomalyEventService {
       FROM unioned
       GROUP BY variant, mode_key
       ORDER BY mode_key, variant
-    `)) as unknown as IDiffRow[];
+    `);
+    const rows = result.rows as unknown as IDiffRow[];
 
     // In-memory fold into IShadowDiffResponse
     type Counts = { flagged: number; total: number };

@@ -8,7 +8,10 @@ import { describe, expect, it, vi } from 'vitest';
 // seen from the source file being tested.
 vi.mock('../../db/index.js', () => ({
   db: {
-    execute: vi.fn().mockResolvedValue([]),
+    // pg driver shape: QueryResult with .rows array (not the array itself).
+    // The earlier `mockResolvedValue([])` was wrong shape — it hid a runtime
+    // bug (ISSUE surfaced by 41-07 sacchi human-verify: "rows is not iterable").
+    execute: vi.fn().mockResolvedValue({ rows: [] }),
   },
 }));
 
