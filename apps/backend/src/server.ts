@@ -23,6 +23,7 @@ import { mqttRoutes } from './routes/mqtt.js';
 import { plcConfigRoutes } from './routes/plcConfig.js';
 import { energyRoutes } from './routes/energy.js';
 import { anomalyRoutes } from './routes/anomaly.js';
+import { anomalyShadowRoutes } from './routes/anomalyShadow.js';
 import { cycleRoutes } from './routes/cycles.js';
 import { alarmCatalogRoutes } from './routes/alarmCatalog.js';
 import { wsRoute } from './ws/route.js';
@@ -187,14 +188,24 @@ export function buildServer(): FastifyInstance {
   // replaces the legacy SIM_HOST env var. Handshake FSM reads via cache.
   server.register(plcConfigRoutes, apiOpts);
 
-  // 20. Anomaly routes (Phase 39 CLEAN-01) — anomaly handlers split out
-  // of energyRoutes into their own plugin. Uses a SCOPED PREFIX (not the
-  // shared apiOpts) so the 12 handlers can be written with short paths
-  // like `/live`, `/events`, `/simulate` — Fastify encapsulates the
-  // `/api/energy/anomaly` stem at register time. Registered BEFORE
-  // energyRoutes so the detector lifecycle (machineAnomalyService.start)
-  // initializes before any energy/cycle consumer reads anomaly state.
-  server.register(anomalyRoutes, { prefix: '/api/energy/anomaly' });
+  // 20. Anomaly routes (Phase 39 CLEAN-01; Phase 41 Plan 41-05 consolidation).
+  // Anomaly handlers extracted from energyRoutes into their own plugin. Uses
+  // a SCOPED PREFIX (not the shared apiOpts) so the 12 handlers can be written
+  // with short paths like `/live`, `/events`, `/simulate` — Fastify encapsulates
+  // the `/api/anomaly` stem at register time. Registered BEFORE energyRoutes so
+  // the detector lifecycle (machineAnomalyService.start) initializes before any
+  // energy/cycle consumer reads anomaly state.
+  //
+  // BREAKING CHANGE (2026-04-20, Plan 41-05): prefix renamed from
+  // `/api/energy/anomaly` to `/api/anomaly`. Supersedes D-19 and the v1.4-start
+  // "no rename churn" decision — the detector ingests 33 features (thermal,
+  // electrical, vacuum, material) and is NOT energy-specific, so the legacy
+  // URL prefix was misleading. Legacy paths now return 404.
+  server.register(anomalyRoutes, { prefix: '/api/anomaly' });
+
+  // 20b. Phase 41 Plan 41-05 — Shadow anomaly routes. Plugin-level preHandler
+  // gates on WPT + SUPER_ADMIN per D-20. Full URL: GET /api/anomaly/shadow/diff
+  server.register(anomalyShadowRoutes, { prefix: '/api/anomaly' });
 
   // 21. Energy routes (Phase 19 Plan 19-10) — read-side aggregate API
   // over the energy_5min/1h/1d/1mo CAGG hierarchy.

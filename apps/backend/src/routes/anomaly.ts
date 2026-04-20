@@ -47,8 +47,10 @@ const anomalyResolveSchema = z.object({
 
 export const anomalyRoutes: FastifyPluginAsync = async (server) => {
   // Phase 39 CLEAN-01 — anomaly handlers extracted from energyRoutes.
-  // Registered with scoped prefix `/api/energy/anomaly` in server.ts so
-  // all inner routes use short paths (`/live`, `/events`, `/simulate`, ...).
+  // Phase 41 Plan 41-05 — consolidated prefix renamed from
+  // `/api/energy/anomaly` to `/api/anomaly` (breaking change, 2026-04-20).
+  // Registered with scoped prefix `/api/anomaly` in server.ts so all inner
+  // routes use short paths (`/live`, `/events`, `/simulate`, ...).
   //
   // Registered BEFORE energyRoutes so the anomaly detector lifecycle
   // (loadState + start) completes before any energy/cycle consumer reads
