@@ -282,6 +282,46 @@ describe('OnlineAnomalyDetector', () => {
     expect(result.score).toBeGreaterThanOrEqual(3);
   });
 
+  it('returns empty topContributors for idle machine — no NaN, no zero-filled placeholders (Phase 40 D-06)', () => {
+    // RED→GREEN reasoning: without the D-06 idle guard (sumSq < EPSILON → []), an idle
+    // machine (every feature at its EMA) would return either (a) NaN contributions from
+    // `0/0` if the guard is removed, or (b) zero-filled `contribution: 0` placeholders if
+    // an older pre-guard implementation returned the displayed contributors with 0 shares.
+    // Both failure modes are rejected: this test asserts the array is EXACTLY `[]`, that
+    // score is a hard 0 (not NaN), and that flagged is false. The D-08 tie-filter
+    // (`rawZScore <= EPSILON` → omit) is also load-bearing here — without it the test
+    // would see non-empty contributors before the idle guard even runs.
+    const detector = new OnlineAnomalyDetector({
+      minWarmSamples: 15,
+      minReliableSamples: 25,
+      baseRate: 0.1,
+      topK: 3,
+      modeChangeGraceMs: 0,
+    });
+
+    // Perfectly steady warmup — every feature at its canonical makeSample value, no noise.
+    // After N observations of identical input, emaMean === value for every feature
+    // and decayedVariance approaches 0 — but EPSILON floor prevents divide-by-zero.
+    // Raw zScore evaluates to ~ |value - emaMean| / sqrt(EPSILON) = 0 / small_number = 0.
+    for (let i = 0; i < 25; i += 1) {
+      detector.observe(makeSample());
+    }
+
+    // Observe one more identical sample.
+    const result = detector.observe(makeSample());
+
+    // D-06: sumSq < EPSILON → topContributors is empty (not NaN-filled, not zero-filled placeholder).
+    expect(result.topContributors).toEqual([]);
+    expect(result.topContributors).toHaveLength(0);
+
+    // Corollary: empty deduped → rawScore = 0 → score = 0 → not flagged.
+    expect(result.score).toBe(0);
+    expect(result.flagged).toBe(false);
+
+    // No NaN slipped through.
+    expect(Number.isNaN(result.score)).toBe(false);
+  });
+
   it('C3: CUSUM detects slow persistent drift that z-score misses', () => {
     const detector = new OnlineAnomalyDetector({
       minWarmSamples: 10,
