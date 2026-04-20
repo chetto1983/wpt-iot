@@ -13,6 +13,8 @@ import {
   type ISerializedDetector,
 } from './onlineAnomalyDetector.js';
 
+import { machineShadowAnomalyService } from './shadow/machineShadowAnomalyService.js';
+
 const STATE_FILE = path.resolve('uploads', 'anomaly-state.json');
 
 /**
@@ -111,12 +113,17 @@ class MachineAnomalyService {
       },
       'Machine anomaly tracker started',
     );
+
+    // Shadow lifecycle methods handle their own errors + SHADOW_ENABLED=false
+    // gracefully (per Plan 41-04). They will not throw, so no try/catch needed here.
+    machineShadowAnomalyService.start(log); // ← shadow cascade (D-16, ISSUE-06: LAST line after all primary setup)
   }
 
   stop(): void {
     if (!this.handler) return;
     dataHub.off(DATA_EVENTS.MACHINE_DATA, this.handler);
     this.handler = null;
+    machineShadowAnomalyService.stop(); // ← shadow cascade (LAST line; shadow stops cleanly last per ISSUE-06)
   }
 
   getLatest(): ILiveAnomalyState | null {
@@ -183,7 +190,25 @@ class MachineAnomalyService {
       this.startedAt = timestamp;
     }
 
-    const result = this.detector.observe(mapSnapshotToDetectorInput(snapshot));
+    // D-16: hoist the detector input so primary AND shadow see the identical
+    // IAnomalyInput object (same stream, same order — referential identity).
+    const input = mapSnapshotToDetectorInput(snapshot);
+    const result = this.detector.observe(input);
+
+    // D-16 + D-18: shadow observes the same input. Try/catch isolates shadow
+    // failures — shadow throws NEVER propagate to primary. The shadow service
+    // also wraps its own observe() internally, so this is defense-in-depth.
+    try {
+      machineShadowAnomalyService.observe(input, log);
+    } catch (err) {
+      if (log) {
+        log.error(
+          { name: 'MachineAnomalyShadow', err: (err as Error).message },
+          'Shadow observe failed at orchestration layer (primary path unaffected)',
+        );
+      }
+    }
+
     this.observationCount += 1;
     this.latest = {
       ...result,
@@ -231,6 +256,12 @@ class MachineAnomalyService {
           'Detector state saved to disk',
         );
       }
+      // ← shadow cascade (ISSUE-06: AFTER primary writeFile + success log;
+      //   shadow's own method handles its own errors + SHADOW_ENABLED=false per Plan 41-04).
+      //   Shadow saveState requires a non-optional logger — skip when primary has no logger.
+      if (log) {
+        await machineShadowAnomalyService.saveState(log);
+      }
     } catch (err) {
       if (log) {
         log.error(
@@ -251,6 +282,12 @@ class MachineAnomalyService {
           { name: 'MachineAnomaly', file: STATE_FILE, observations: data.totalObservations },
           'Detector state restored from disk',
         );
+      }
+      // ← shadow cascade (ISSUE-06: AFTER primary restoreDetector; shadow loads its OWN
+      //   state independently per D-13 — do NOT seed shadow from primary).
+      //   Shadow loadState requires a non-optional logger — skip when primary has no logger.
+      if (log) {
+        await machineShadowAnomalyService.loadState(log);
       }
       return true;
     } catch {
