@@ -47,12 +47,15 @@ const RFID_DRAFT_KEY = 'rfid-page';
 interface RfidDraft {
   users: IRfidUser[];
   lockRemainingSeconds: number;
+  hasRead: boolean;
+  readSnapshot: IRfidUser[] | null;
 }
 
 interface RfidUserRowProps {
   user: IRfidUser;
   onUpdate: (tagId: number, field: keyof IRfidUser, value: unknown) => void;
   t: ReturnType<typeof useTranslations>;
+  disabled: boolean;
 }
 
 const GROUP_KEYS: Record<number, string> = {
@@ -61,7 +64,7 @@ const GROUP_KEYS: Record<number, string> = {
   [RfidUserGroup.ADMIN]: 'ADMIN',
 };
 
-const RfidUserRow = memo(function RfidUserRow({ user, onUpdate, t }: RfidUserRowProps) {
+const RfidUserRow = memo(function RfidUserRow({ user, onUpdate, t, disabled }: RfidUserRowProps) {
   return (
     <TableRow>
       <TableCell className="py-2 px-4 text-xs text-muted-foreground font-mono">
@@ -77,12 +80,14 @@ const RfidUserRow = memo(function RfidUserRow({ user, onUpdate, t }: RfidUserRow
           placeholder="---"
           className="h-8 text-sm placeholder:italic placeholder:text-muted-foreground placeholder:text-xs"
           maxLength={20}
+          disabled={disabled}
         />
       </TableCell>
       <TableCell className="py-2 px-4">
         <Select
           value={String(user.group)}
           onValueChange={(v) => onUpdate(user.tagId, 'group', Number(v))}
+          disabled={disabled}
         >
           <SelectTrigger className="h-8" aria-label={`${t('columns.group')} ${user.tagId}`}>
             <SelectValue placeholder={t(`groups.${GROUP_KEYS[user.group] ?? 'OPERATOR'}`)}>
@@ -101,13 +106,14 @@ const RfidUserRow = memo(function RfidUserRow({ user, onUpdate, t }: RfidUserRow
           checked={user.enabled}
           onCheckedChange={(v) => onUpdate(user.tagId, 'enabled', v)}
           aria-label={`${t('columns.enabled')} ${user.tagId}`}
+          disabled={disabled}
         />
       </TableCell>
     </TableRow>
   );
 });
 
-const RfidUserCard = memo(function RfidUserCard({ user, onUpdate, t }: RfidUserRowProps) {
+const RfidUserCard = memo(function RfidUserCard({ user, onUpdate, t, disabled }: RfidUserRowProps) {
   return (
     <div className="rounded-lg border bg-card p-4">
       <div className="mb-3 flex items-center justify-between gap-3">
@@ -125,6 +131,7 @@ const RfidUserCard = memo(function RfidUserCard({ user, onUpdate, t }: RfidUserR
             checked={user.enabled}
             onCheckedChange={(v) => onUpdate(user.tagId, 'enabled', v)}
             aria-label={`${t('columns.enabled')} ${user.tagId}`}
+            disabled={disabled}
           />
         </div>
       </div>
@@ -141,6 +148,7 @@ const RfidUserCard = memo(function RfidUserCard({ user, onUpdate, t }: RfidUserR
             }}
             placeholder="---"
             maxLength={20}
+            disabled={disabled}
           />
         </div>
 
@@ -149,6 +157,7 @@ const RfidUserCard = memo(function RfidUserCard({ user, onUpdate, t }: RfidUserR
           <Select
             value={String(user.group)}
             onValueChange={(v) => onUpdate(user.tagId, 'group', Number(v))}
+            disabled={disabled}
           >
             <SelectTrigger className="w-full" aria-label={`${t('columns.group')} ${user.tagId}`}>
               <SelectValue placeholder={t(`groups.${GROUP_KEYS[user.group] ?? 'OPERATOR'}`)}>
@@ -174,6 +183,8 @@ export default function RfidPage() {
   const tCommon = useTranslations('common');
 
   const [users, setUsers] = useState<IRfidUser[]>(createEmptyUsers);
+  const [hasRead, setHasRead] = useState(false);
+  const [readSnapshot, setReadSnapshot] = useState<IRfidUser[] | null>(null);
   const [isReading, setIsReading] = useState(false);
   const [isWriting, setIsWriting] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -201,15 +212,15 @@ export default function RfidPage() {
     if (!draft) return;
 
     setUsers(draft.users);
+    setHasRead(draft.hasRead);
+    setReadSnapshot(draft.readSnapshot ?? null);
     if (draft.lockRemainingSeconds > 0) {
       lock.restoreLoadedState(draft.lockRemainingSeconds);
     }
   }, [lock]);
 
   useEffect(() => {
-    const hasNonEmptyDraft = users.some((u) => u.name || u.enabled || u.group !== RfidUserGroup.OPERATOR);
-
-    if (!hasNonEmptyDraft) {
+    if (!hasRead) {
       clearSessionDraft(RFID_DRAFT_KEY);
       return;
     }
@@ -217,14 +228,18 @@ export default function RfidPage() {
     writeSessionDraft(RFID_DRAFT_KEY, {
       users,
       lockRemainingSeconds: lock.canWrite ? lock.remainingSeconds : 0,
+      hasRead,
+      readSnapshot,
     });
-  }, [users, lock.canWrite, lock.remainingSeconds]);
+  }, [users, hasRead, readSnapshot, lock.canWrite, lock.remainingSeconds]);
 
   const handleRead = async () => {
     setIsReading(true);
     try {
       const data = await apiFetch<{ users: IRfidUser[] }>('/api/rfid/read', { method: 'POST' });
       setUsers(data.users);
+      setReadSnapshot(structuredClone(data.users));
+      setHasRead(true);
       lock.markReadSuccess();
       toast.success(t('toast.readSuccess'));
     } catch (err) {
@@ -247,6 +262,7 @@ export default function RfidPage() {
         body: JSON.stringify({ users }),
       });
       lock.markWriteSuccess();
+      setReadSnapshot(structuredClone(users));
       toast.success(t('toast.writeSuccess'));
       setConfirmOpen(false);
     } catch (err) {
@@ -269,6 +285,8 @@ export default function RfidPage() {
     setConfirmOpen(true);
   };
 
+  const fieldsLocked = !hasRead || lock.state === 'expired';
+
   return (
     <div className="space-y-4 p-6">
       <PlcStatusBar
@@ -277,6 +295,12 @@ export default function RfidPage() {
         namespace="rfid"
         loading={isReading}
       />
+
+      {!hasRead && !isReading ? (
+        <p className="rounded-lg border border-dashed px-4 py-3 text-sm text-muted-foreground">
+          {t('readFirst')}
+        </p>
+      ) : null}
 
       <Card>
         <CardContent className="p-0">
@@ -287,6 +311,7 @@ export default function RfidPage() {
                 user={u}
                 onUpdate={updateUser}
                 t={t}
+                disabled={fieldsLocked}
               />
             ))}
           </div>
@@ -307,6 +332,7 @@ export default function RfidPage() {
                     user={u}
                     onUpdate={updateUser}
                     t={t}
+                    disabled={fieldsLocked}
                   />
                 ))}
               </TableBody>

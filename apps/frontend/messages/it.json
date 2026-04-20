@@ -501,6 +501,7 @@
   "rfid": {
     "title": "Utenti RFID",
     "subtitle": "Gestione tag utenti PLC",
+    "readFirst": "Leggi i dati dal PLC prima di apportare modifiche",
     "columns": {
       "tagId": "Tag ID",
       "name": "Nome",
