@@ -15,6 +15,8 @@
  * and requires no external ML runtime.
  */
 
+import type { IAnomalyContributor } from '@wpt/types';
+
 // ---------------------------------------------------------------------------
 // Public types
 // ---------------------------------------------------------------------------
@@ -81,7 +83,8 @@ export interface IAnomalyResult {
   flagged: boolean;
   /** C3: CUSUM detected a slow persistent drift that Z-score missed. */
   driftDetected: boolean;
-  topContributors: Array<{ feature: string; zScore: number }>;
+  /** Phase 40: widened to IAnomalyContributor (adds optional contribution / direction). */
+  topContributors: IAnomalyContributor[];
 }
 
 export interface IDetectorMetrics {
@@ -375,7 +378,10 @@ export class OnlineAnomalyDetector {
     const inGracePeriod = this.isGracePeriod(mode);
     const confidence = this.sampleConfidence(mode.samplesSeen);
 
-    const contributors: Array<{ feature: string; zScore: number }> = [];
+    // Phase 40: capture direction at the z-score site (D-04 Option A) so we don't
+    // need a second pass over mode.features after dedup. `emaMean` is the reference
+    // the z-score is computed against — NOT Welford `mean` — per D-04.
+    const contributors: Array<{ feature: string; zScore: number; direction: 'HIGH' | 'LOW' }> = [];
 
     for (const feature of NUMERIC_FEATURES) {
       const value = input[feature];
@@ -386,16 +392,21 @@ export class OnlineAnomalyDetector {
 
       const sigma = Math.sqrt(Math.max(state.decayedVariance, EPSILON));
       const rawZScore = Math.abs((value - state.emaMean) / sigma);
-      const zScore = Number.isFinite(rawZScore)
-        ? Math.min(rawZScore, this.config.maxFeatureZScore)
-        : this.config.maxFeatureZScore;
-      contributors.push({ feature, zScore });
+
+      // Phase 40 D-08: filter features at the tie boundary — no 0% HIGH noise,
+      // and non-finite rawZScore is dropped rather than silently capped.
+      if (!Number.isFinite(rawZScore) || rawZScore <= EPSILON) continue;
+
+      const zScore = Math.min(rawZScore, this.config.maxFeatureZScore);
+      // Phase 40 D-04: sign at the deviation site — emaMean, not mean.
+      const direction: 'HIGH' | 'LOW' = value > state.emaMean ? 'HIGH' : 'LOW';
+      contributors.push({ feature, zScore, direction });
     }
 
     // FIX 8: Group correlated features — take max per group before top-K
     // to prevent one electrical anomaly from inflating the score by N×.
-    const groupMax = new Map<number, { feature: string; zScore: number }>();
-    const ungrouped: Array<{ feature: string; zScore: number }> = [];
+    const groupMax = new Map<number, { feature: string; zScore: number; direction: 'HIGH' | 'LOW' }>();
+    const ungrouped: Array<{ feature: string; zScore: number; direction: 'HIGH' | 'LOW' }> = [];
 
     for (const c of contributors) {
       const gi = FEATURE_TO_GROUP.get(c.feature);
@@ -417,9 +428,25 @@ export class OnlineAnomalyDetector {
         ? 0
         : scoringContributors.reduce((sum, item) => sum + item.zScore, 0) / scoringContributors.length;
 
-    // Return up to 10 contributors for display (more context in the chart),
-    // while scoring uses only topK (default 5) to avoid dilution.
-    const topContributors = deduped.slice(0, 10);
+    // Phase 40 D-05 + D-07: squared-z share over the DISPLAYED (reported)
+    // contributors — sum-to-unity is unconditional, regardless of |deduped|.
+    // displayed = deduped.slice(0, 10). Computing sumSq over `displayed` (not
+    // full `deduped`) closes the |deduped| > 10 corner case where reported
+    // shares would otherwise sum to < 1.0. See plan <objective> §D-05/D-07.
+    //
+    // D-06: idle-machine guard — return [] (not NaN, not zero-filled) when
+    // all features sit at the EMA (sumSq < EPSILON).
+    const displayed = deduped.slice(0, 10);
+    const sumSq = displayed.reduce((sum, item) => sum + item.zScore * item.zScore, 0);
+    const topContributors: IAnomalyContributor[] =
+      sumSq < EPSILON
+        ? []
+        : displayed.map((c) => ({
+            feature: c.feature,
+            zScore: c.zScore,
+            contribution: (c.zScore * c.zScore) / sumSq,
+            direction: c.direction,
+          }));
 
     const score = rawScore * confidence;
     const warm = mode.samplesSeen >= this.config.minWarmSamples;
