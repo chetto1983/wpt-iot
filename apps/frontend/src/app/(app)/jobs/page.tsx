@@ -58,6 +58,7 @@ interface JobsDraft {
   job: IJobData;
   hasRead: boolean;
   lockRemainingSeconds: number;
+  readSnapshot: IJobData | null;
 }
 
 /**
@@ -100,6 +101,7 @@ export default function JobsPage() {
   const tCommon = useTranslations('common');
 
   const [job, setJob] = useState<IJobData>(emptyJob);
+  const [readSnapshot, setReadSnapshot] = useState<IJobData | null>(null);
   const [hasRead, setHasRead] = useState(false);
   const [isReading, setIsReading] = useState(false);
   const [isWriting, setIsWriting] = useState(false);
@@ -126,6 +128,7 @@ export default function JobsPage() {
     if (!draft) return;
 
     setJob(draft.job);
+    setReadSnapshot(draft.readSnapshot ?? null);
     setHasRead(draft.hasRead);
     didAutoRead.current = true;
     if (draft.lockRemainingSeconds > 0) {
@@ -149,8 +152,9 @@ export default function JobsPage() {
       job,
       hasRead,
       lockRemainingSeconds: lock.canWrite ? lock.remainingSeconds : 0,
+      readSnapshot,
     });
-  }, [job, hasRead, lock.canWrite, lock.remainingSeconds]);
+  }, [job, hasRead, lock.canWrite, lock.remainingSeconds, readSnapshot]);
 
   const handleRead = async () => {
     setIsReading(true);
@@ -159,6 +163,7 @@ export default function JobsPage() {
         method: 'POST',
       });
       setJob(data.job);
+      setReadSnapshot(structuredClone(data.job));
       lock.markReadSuccess();
       setHasRead(true);
       toast.success(t('toast.readSuccess'));
@@ -182,6 +187,7 @@ export default function JobsPage() {
         body: JSON.stringify({ job }),
       });
       lock.markWriteSuccess();
+      setReadSnapshot(structuredClone(job));
       toast.success(t('toast.writeSuccess'));
       setConfirmOpen(false);
     } catch (err) {
@@ -410,7 +416,7 @@ export default function JobsPage() {
       </Card>
 
       {/* Button row */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
+      <div className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:gap-6">
         <Button
           onClick={handleRead}
           disabled={isReading || isWriting}
@@ -421,7 +427,7 @@ export default function JobsPage() {
         </Button>
         <DisabledTooltip disabled={!lock.canWrite && hasRead} tooltip={readFirstTooltip}>
           <Button
-            variant={lock.canWrite ? 'default' : 'outline'}
+            variant={lock.canWrite ? 'destructive' : 'outline'}
             onClick={handleWriteClick}
             disabled={!lock.canWrite || isReading || isWriting}
             className="w-full sm:w-auto"
@@ -438,6 +444,8 @@ export default function JobsPage() {
         onConfirm={handleWrite}
         loading={isWriting}
         namespace="jobs"
+        previousJob={readSnapshot}
+        currentJob={job}
       />
     </div>
   );
