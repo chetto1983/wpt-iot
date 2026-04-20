@@ -118,10 +118,11 @@ describe('D-12 SHADOW_ENABLED kill switch', () => {
     );
 
     for (let i = 0; i < 30; i += 1) {
-      machineShadowAnomalyService.observe(makeInput(), mockLog);
+      machineShadowAnomalyService.observe(makeInput(), new Date(), mockLog);
     }
     machineShadowAnomalyService.observe(
       makeInput({ garbageTemp: 800, chamberPressure: 50, mainMotorCurrent: 200 }),
+      new Date(),
       mockLog,
     );
 
@@ -234,7 +235,7 @@ describe('D-18 shadow observe() throws do NOT propagate', () => {
 
     try {
       expect(() =>
-        machineShadowAnomalyService.observe(makeInput(), mockLog),
+        machineShadowAnomalyService.observe(makeInput(), new Date(), mockLog),
       ).not.toThrow();
       expect(mockLog.error).toHaveBeenCalledWith(
         expect.objectContaining({ name: 'MachineAnomalyShadow' }),
@@ -259,7 +260,7 @@ describe('D-18 shadow observe() throws do NOT propagate', () => {
     });
 
     try {
-      expect(() => machineShadowAnomalyService.observe(makeInput())).not.toThrow();
+      expect(() => machineShadowAnomalyService.observe(makeInput(), new Date())).not.toThrow();
     } finally {
       OnlineAnomalyDetector.prototype.observe = original;
     }

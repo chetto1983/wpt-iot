@@ -198,8 +198,11 @@ class MachineAnomalyService {
     // D-16 + D-18: shadow observes the same input. Try/catch isolates shadow
     // failures — shadow throws NEVER propagate to primary. The shadow service
     // also wraps its own observe() internally, so this is defense-in-depth.
+    // WR-02 fix: pass primary's snapshot timestamp so shadow's observedAt
+    // matches primary's — otherwise the /shadow/diff window comparisons
+    // drift during any backfill/replay path.
     try {
-      machineShadowAnomalyService.observe(input, log);
+      machineShadowAnomalyService.observe(input, timestamp, log);
     } catch (err) {
       if (log) {
         log.error(

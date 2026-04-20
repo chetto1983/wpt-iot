@@ -47,15 +47,24 @@ export class MachineShadowAnomalyService {
    * D-16: primary invokes this after its own detector.observe().
    * D-18: try/catch — shadow throws never propagate; log at error, primary continues.
    * D-17: same 15-min per-mode cooldown as primary — symmetry keeps the diff honest.
+   *
+   * WR-02 fix (2026-04-20): `timestamp` is the snapshot's arrival time from
+   * dataHub.onMachineData((snapshot, timestamp) => …), NOT wall-clock. Using
+   * `new Date()` here broke D-16's same-stream invariant in the time
+   * dimension during any backfill/replay — primary bucketed events at
+   * snapshot time while shadow bucketed them at "now", pushing them into
+   * different windows in /api/anomaly/shadow/diff. The callers (primary
+   * machineAnomalyService.observeSnapshot()) already have this timestamp;
+   * plumbing it through is the minimal symmetry fix.
    */
-  observe(input: IAnomalyInput, log?: ILogger): void {
+  observe(input: IAnomalyInput, timestamp: Date, log?: ILogger): void {
     if (!SHADOW_ENABLED) return; // D-12 kill-switch: silent no-op
 
     try {
       const result = this.detector.observe(input);
       this.observationCount += 1;
 
-      const observedAtIso = new Date().toISOString();
+      const observedAtIso = timestamp.toISOString();
       const state: ILiveAnomalyState = {
         ...result,
         observedAt: observedAtIso,
