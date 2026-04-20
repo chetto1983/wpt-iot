@@ -119,7 +119,10 @@ export function EnergySettingsPage() {
     );
   }
 
-  const formValue = config ? buildFormValue(config) : undefined;
+  const formValue = useMemo(
+    () => (config ? buildFormValue(config) : undefined),
+    [config],
+  );
   const baselineWindow = useMemo(() => {
     const to = new Date();
     return {
