@@ -9,18 +9,32 @@
 // across primary + shadow tables. Bounded time window per D-23.
 
 import { sql } from 'drizzle-orm';
+import { z } from 'zod/v4';
 
 import type { IShadowDiffResponse } from '@wpt/types';
 
 import { db } from '../../../db/index.js';
 import type { ILiveAnomalyState } from '../types.js';
 
-interface IDiffRow {
-  variant: 'primary' | 'shadow';
-  mode_key: string;
-  flagged: string | number; // pg COUNT returns bigint → string; Number(x) normalizes
-  total: string | number;
-}
+// WR-03 + WR-04 fix (2026-04-20): runtime Zod validation replaces the
+// `as unknown as IDiffRow[]` double cast. The cast silently hid pg row-shape
+// drift — if the SQL column names changed (e.g. variant -> kind, flagged ->
+// is_flagged) the compiler would not catch it and the downstream fold would
+// silently produce NaN or throw TypeError at a distance. The enum pins
+// variant to 'primary' | 'shadow' at parse time, so any future 'shadow-v2'
+// landing without a schema update fails loud with a clear Zod message instead
+// of 'TypeError: Cannot read properties of undefined' at the index site.
+// Same fail-loud discipline already applied on the response side at
+// anomalyShadow.ts:73 — applied symmetrically here on the DB-row side.
+const diffRowSchema = z.object({
+  variant:  z.enum(['primary', 'shadow']),
+  mode_key: z.string(),
+  // pg COUNT returns bigint -> string; Number(x) normalizes at fold time.
+  flagged:  z.union([z.string(), z.number()]),
+  total:    z.union([z.string(), z.number()]),
+});
+const diffRowsSchema = z.array(diffRowSchema);
+type IDiffRow = z.infer<typeof diffRowSchema>;
 
 export class MachineShadowAnomalyEventService {
   /**
@@ -94,7 +108,10 @@ export class MachineShadowAnomalyEventService {
       GROUP BY variant, mode_key
       ORDER BY mode_key, variant
     `);
-    const rows = result.rows as unknown as IDiffRow[];
+    // WR-03: fail loud on pg row-shape drift. WR-04: z.enum pins variant so
+    // a future 'shadow-v2' landing without a schema bump fails here with a
+    // clear Zod message, not with a TypeError at the downstream index site.
+    const rows: IDiffRow[] = diffRowsSchema.parse(result.rows);
 
     // In-memory fold into IShadowDiffResponse
     type Counts = { flagged: number; total: number };
