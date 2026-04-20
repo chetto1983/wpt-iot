@@ -246,6 +246,10 @@
       "scoreLabel": "Score {score}",
       "modeLabel": "Modalità {mode}",
       "driverLabel": "Driver principale: {driver}",
+      "direction": {
+        "high": "ALTO",
+        "low": "BASSO"
+      },
       "state": {
         "flagged": "Segnalata",
         "normal": "Normale",
