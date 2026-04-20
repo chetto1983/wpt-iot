@@ -300,6 +300,67 @@ BEGIN
   RAISE NOTICE 'Compression policy (2 days) configured.';
 
   -- =========================================================================
+  -- 7. Phase 41 — machine_anomaly_events_shadow hypertable (D-01, D-04, SHADOW-02, SHADOW-05)
+  -- =========================================================================
+  -- Shadow events are Timescale-instrumented (retention 30d, compression 2d,
+  -- chunk_time_interval 7d per Tiger Data low-volume guidance). Primary
+  -- machine_anomaly_events stays a plain pgTable (asymmetry is intentional:
+  -- primary = live-alert-bound lean, shadow = eval-only instrumented, per
+  -- Uber Michelangelo champion-lean / challenger-instrumented pattern).
+  --
+  -- Idempotent guards: IF NOT EXISTS on the hypertable check,
+  -- if_not_exists => true on retention/compression policies, and an
+  -- EXCEPTION-wrapped ALTER TABLE for the compression settings (re-running
+  -- when compression is already enabled is a no-op). Mirrors §1 + §5 + §6.
+  IF NOT EXISTS (
+    SELECT 1 FROM timescaledb_information.hypertables
+    WHERE hypertable_name = 'machine_anomaly_events_shadow'
+  ) THEN
+    -- TimescaleDB requires the partitioning column to be part of any
+    -- unique/primary key. Drizzle creates "id bigserial PRIMARY KEY" which
+    -- conflicts with observed_at partitioning — drop the PK before conversion.
+    BEGIN
+      ALTER TABLE machine_anomaly_events_shadow DROP CONSTRAINT IF EXISTS machine_anomaly_events_shadow_pkey;
+      RAISE NOTICE 'Dropped PK on machine_anomaly_events_shadow for hypertable conversion.';
+    EXCEPTION
+      WHEN OTHERS THEN
+        RAISE NOTICE 'PK already removed or not found on shadow table: %', SQLERRM;
+    END;
+
+    PERFORM create_hypertable(
+      'machine_anomaly_events_shadow',
+      by_range('observed_at', INTERVAL '7 days'),   -- D-01 chunk_time_interval
+      migrate_data => true,
+      if_not_exists => true
+    );
+    RAISE NOTICE 'Converted machine_anomaly_events_shadow to hypertable (chunk 7d).';
+  END IF;
+
+  PERFORM add_retention_policy('machine_anomaly_events_shadow',
+    INTERVAL '30 days',                              -- D-01 retention
+    if_not_exists => true
+  );
+
+  BEGIN
+    ALTER TABLE machine_anomaly_events_shadow SET (
+      timescaledb.compress,
+      timescaledb.compress_segmentby = '',
+      timescaledb.compress_orderby = 'observed_at DESC'
+    );
+    RAISE NOTICE 'Compression settings applied to machine_anomaly_events_shadow.';
+  EXCEPTION
+    WHEN OTHERS THEN
+      RAISE NOTICE 'Compression already enabled on shadow table: %', SQLERRM;
+  END;
+
+  PERFORM add_compression_policy('machine_anomaly_events_shadow',
+    INTERVAL '2 days',
+    if_not_exists => true
+  );
+
+  RAISE NOTICE 'Phase 41 shadow hypertable configured (retention 30d, compression 2d, chunk 7d).';
+
+  -- =========================================================================
   -- Done
   -- =========================================================================
   RAISE NOTICE '=== TimescaleDB retention setup complete ===';
