@@ -21,6 +21,19 @@ const activeAlarms = new Map<number, IActiveAlarm>();
 let sessionCheckInterval: NodeJS.Timeout | null = null;
 let log: ILogger;
 
+// ----------------------------------------------------------------------
+// Phase 42 D-22: per-session send + onSessionClose hook registry.
+// ----------------------------------------------------------------------
+// `sendToSession(sessionId, payload)` is consumed by services/anomaly/debug/
+// replay service inside the cursor loop. `registerOnSessionClose(handler)`
+// lets external services subscribe to session termination events — keeping
+// the broadcaster import-one-way (broadcaster does NOT import from
+// services/anomaly/debug/**, preserving boundaries/element-types default
+// and avoiding circular-import risk).
+
+type OnSessionCloseHandler = (sessionId: string) => void;
+const onSessionCloseHandlers = new Set<OnSessionCloseHandler>();
+
 // PLC liveness: fresh-data threshold must exceed the 5-15s machine packet cadence
 const STALE_MS = 20_000;
 let plcConnected: boolean = false;
@@ -281,6 +294,21 @@ export function removeClient(socket: WebSocket): void {
         clearTimeout(client.pongTimeout);
       }
       clients.delete(client);
+
+      // Phase 42 D-04/D-10: fan out session-close notification. Handlers
+      // are synchronous; any service that needs async cleanup should do it
+      // inside the handler via queueMicrotask / void (...).catch(...).
+      for (const handler of onSessionCloseHandlers) {
+        try {
+          handler(client.sessionId);
+        } catch (err) {
+          log.error(
+            { name: 'WsBroadcaster', sessionId: client.sessionId, err: (err as Error).message },
+            'onSessionClose handler failed',
+          );
+        }
+      }
+
       log.info(
         { name: 'WsBroadcaster', sessionId: client.sessionId, clients: clients.size },
         'Client disconnected',
@@ -312,4 +340,57 @@ export function shutdownBroadcaster(): void {
   // Remove dataHub subscriptions so initBroadcaster() can re-register cleanly
   dataHub.off(DATA_EVENTS.MACHINE_DATA, onMachineData);
   dataHub.off(DATA_EVENTS.ALARM_CHANGE, onAlarmChange);
+}
+
+// ----------------------------------------------------------------------
+// Phase 42 D-22: per-session send + socket accessor + onSessionClose hook
+// ----------------------------------------------------------------------
+
+/**
+ * Phase 42 D-22: send a single payload to the client whose session matches.
+ * Returns true if the session was connected and the socket was open at the
+ * time of the call; false otherwise. Linear scan over `clients` — fine at
+ * the expected O(10) concurrent admin sessions per wpt.local deployment.
+ * Per D-05 back-pressure: CALLERS are responsible for polling
+ * socket.bufferedAmount on their stream — this helper is a single-shot send.
+ */
+export function sendToSession(sessionId: string, payload: unknown): boolean {
+  for (const client of clients) {
+    if (client.sessionId === sessionId) {
+      // safeSend already guards readyState + removes on failure.
+      safeSend(client.socket, payload);
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Phase 42 D-22 (boundary direction): expose the raw WebSocket for a session
+ * so callers (replay service) can poll `socket.bufferedAmount` for
+ * back-pressure (D-05). Returns null when the session is not connected.
+ * Narrow surface: this is the ONLY way the replay service touches a
+ * WebSocket directly; all other emissions go through sendToSession.
+ */
+export function getSessionSocket(sessionId: string): WebSocket | null {
+  for (const client of clients) {
+    if (client.sessionId === sessionId) return client.socket;
+  }
+  return null;
+}
+
+/**
+ * Phase 42 D-04/D-10: register a handler invoked whenever a client session
+ * is torn down (via removeClient). Returns an unregister function.
+ *
+ * Services that own long-running jobs tied to a sessionId (replay) call
+ * this on module init; the broadcaster fans out the close notification
+ * without importing from those services — keeps the dependency direction
+ * one-way (debug/ → ws/).
+ */
+export function registerOnSessionClose(handler: OnSessionCloseHandler): () => void {
+  onSessionCloseHandlers.add(handler);
+  return () => {
+    onSessionCloseHandlers.delete(handler);
+  };
 }
