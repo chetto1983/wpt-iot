@@ -15,7 +15,13 @@
  * and requires no external ML runtime.
  */
 
-import type { IAnomalyContributor } from '@wpt/types';
+import type {
+  DeepReadonly,
+  IAnomalyContributor,
+  IDetectorFeatureSnapshot,
+  IDetectorModeSnapshot,
+  IDetectorSnapshot,
+} from '@wpt/types';
 
 // ---------------------------------------------------------------------------
 // Public types
@@ -609,6 +615,67 @@ export class OnlineAnomalyDetector {
     if (patch.cusumH !== undefined) this.config.cusumH = patch.cusumH;
     if (patch.persistenceN !== undefined) this.config.persistenceN = patch.persistenceN;
     if (patch.persistenceM !== undefined) this.config.persistenceM = patch.persistenceM;
+  }
+
+  // -----------------------------------------------------------------------
+  // Introspection (Phase 40, D-09..D-12)
+  //
+  // Read-only projection for debug/shadow-diff consumers. Fresh-object
+  // construction each call — zero shared references with this.modes.
+  // Deliberately avoids freeze-based and clone-based immutability
+  // primitives (D-10 explicit: shallow freeze is theater, deep freeze
+  // and structured cloning are hot-path perf pitfalls). DeepReadonly<T>
+  // enforces compile-time immutability; runtime immutability comes from
+  // no-aliasing.
+  //
+  // Shape is tuned for introspection (derived sigma, warm/inGracePeriod
+  // flags) — distinct from toJSON() (tuned for round-trip persistence)
+  // and getMetrics() (tuned for live-endpoint summary).
+  // -----------------------------------------------------------------------
+
+  public inspect(): DeepReadonly<IDetectorSnapshot> {
+    const modes: Record<string, IDetectorModeSnapshot> = {};
+
+    for (const [key, mode] of this.modes) {
+      const features: Record<string, IDetectorFeatureSnapshot> = {};
+      for (const [fname, fstate] of mode.features) {
+        features[fname] = {
+          count: fstate.count,
+          mean: fstate.mean,
+          emaMean: fstate.emaMean,
+          m2: fstate.m2,
+          decayedVariance: fstate.decayedVariance,
+          // D-11 derived: sigma = sqrt(max(decayedVariance, EPSILON)).
+          sigma: Math.sqrt(Math.max(fstate.decayedVariance, EPSILON)),
+        };
+      }
+
+      modes[key] = {
+        samplesSeen: mode.samplesSeen,
+        enteredAt: mode.enteredAt,
+        warm: mode.samplesSeen >= this.config.minWarmSamples,
+        inGracePeriod: this.isGracePeriod(mode),
+        // Fresh copies — no aliasing of mode.cusum or mode.recentFlags.
+        cusum: { posCumSum: mode.cusum.posCumSum, negCumSum: mode.cusum.negCumSum },
+        recentFlags: [...mode.recentFlags],
+        features,
+      };
+    }
+
+    // Config projection as Record<string, number | boolean> per
+    // IDetectorSnapshot (deliberately narrower than Required<IDetectorConfig>
+    // to avoid cross-package type leak of detector-internal config shape).
+    const config: Record<string, number | boolean> = { ...this.config };
+
+    return {
+      currentModeKey: this.currentModeKey,
+      startedAt: this.startedAt?.toISOString() ?? null,
+      totalObservations: this.totalObservations,
+      totalFlagged: this.totalFlagged,
+      config,
+      metrics: this.getMetrics(),
+      modes,
+    };
   }
 
   getMetrics(): IDetectorMetrics {
