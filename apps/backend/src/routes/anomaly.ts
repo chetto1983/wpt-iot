@@ -52,7 +52,7 @@ export const anomalyRoutes: FastifyPluginAsync = async (server) => {
   //
   // Registered BEFORE energyRoutes so the anomaly detector lifecycle
   // (loadState + start) completes before any energy/cycle consumer reads
-  // anomaly state. Shadow detector (Phase 41) inherits this precedent.
+  // anomaly state. Phase 41's dual-detector pair inherits this precedent.
 
   // C6: Restore detector state from disk before starting live tracking
   await machineAnomalyService.loadState(server.log);
