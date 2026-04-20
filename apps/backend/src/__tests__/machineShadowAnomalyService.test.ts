@@ -1,31 +1,14 @@
-// ----------------------------------------------------------------------
-// Phase 41 Plan 41-07 Task 1 — Vitest unit tests for MachineShadowAnomalyService
-// ----------------------------------------------------------------------
-// Covers the Phase 41 CONTEXT decisions that gate the shadow service:
-//   D-11: stricter shadow thresholds (2.0 warn / 3.0 crit vs primary 2.5 / 3.5)
-//   D-12: SHADOW_ENABLED kill-switch — observe() is a silent no-op when false
-//   D-13: cold-start — shadow has zero observations before any observe() call
-//   D-14: separate persistence file — EXACT-path assertion per checker ISSUE-08
-//         (substring match would false-positive on 'anomaly-shadow-state.json';
-//          we use path.resolve('uploads', ...) equality on BOTH the positive
-//          and the negative assertion so the two discriminate cleanly)
-//   D-17: shared PERSIST_COOLDOWN_MS constant — no duplicated 15-min literal
-//   D-18: try/catch isolation — shadow observe() throws do NOT propagate
-//
-// Additive only — does not touch existing tests per CLAUDE.md §Hard Stops.
-// NO real DB / NO real filesystem — both are mocked. Pure unit scope.
+// Phase 41 Plan 41-07 Task 1 — Vitest unit tests for MachineShadowAnomalyService.
+// Covers D-11 stricter thresholds, D-12 SHADOW_ENABLED kill-switch, D-13 cold-start,
+// D-14 separate state file (EXACT-path assertion per checker ISSUE-08), D-17 shared
+// cooldown constant, D-18 try/catch isolation. Additive only — no existing tests
+// modified. Pure unit scope — no real DB / no real filesystem.
 
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-// ------------------------------------------------------------------
-// Module-level mocks (hoisted by Vitest)
-// ------------------------------------------------------------------
-// The shadow service imports from events/hub indirectly through its sibling
-// machineAnomalyService via the module graph; we keep the same defensive
-// mock the primary test uses for import-time safety.
 vi.mock('../events/hub.js', () => ({
   dataHub: {
     onMachineData: vi.fn(),
@@ -33,9 +16,6 @@ vi.mock('../events/hub.js', () => ({
   },
 }));
 
-// Shadow event service is the persistence side-channel. Mock recordEvent
-// so the D-17 cooldown test (if added later) and D-18 isolation test
-// never touch the real db.
 const recordEventMock = vi.fn().mockResolvedValue(undefined);
 vi.mock('../services/anomaly/shadow/machineShadowAnomalyEventService.js', () => ({
   MachineShadowAnomalyEventService: {
@@ -44,7 +24,6 @@ vi.mock('../services/anomaly/shadow/machineShadowAnomalyEventService.js', () => 
   },
 }));
 
-// Mock node:fs/promises so D-14 saveState never writes to disk.
 const writeFileMock = vi.fn().mockResolvedValue(undefined);
 const readFileMock = vi.fn().mockRejectedValue(new Error('ENOENT (mocked)'));
 vi.mock('node:fs/promises', () => ({
@@ -52,13 +31,7 @@ vi.mock('node:fs/promises', () => ({
   readFile: readFileMock,
 }));
 
-// ------------------------------------------------------------------
-// Test fixtures — copied verbatim from machineAnomalyService.test.ts
-// ------------------------------------------------------------------
-// Per the plan, test files should be self-contained; do not import from the
-// sibling test file. The snapshot shape mirrors IMachineSnapshot but we only
-// need the keys mapSnapshotToDetectorInput touches — primary hoists the
-// mapped IAnomalyInput so shadow receives the already-mapped value.
+// Self-contained input fixture (no import from sibling test file).
 function makeInput(overrides: Record<string, unknown> = {}) {
   return {
     selectedCycle: 2,
@@ -85,9 +58,6 @@ const mockLog = {
   error: vi.fn(),
 };
 
-// ------------------------------------------------------------------
-// D-11 — Stricter thresholds (shadow config 2.0 / 3.0 vs primary 2.5 / 3.5)
-// ------------------------------------------------------------------
 describe('D-11 shadow uses stricter thresholds (2.0/3.0 vs primary 2.5/3.5)', () => {
   it('createShadowDetector() config has warningThreshold=2.0 and criticalThreshold=3.0', async () => {
     const { createShadowDetector } = await import(
@@ -123,11 +93,9 @@ describe('D-11 shadow uses stricter thresholds (2.0/3.0 vs primary 2.5/3.5)', ()
   });
 });
 
-// ------------------------------------------------------------------
-// D-12 — Kill switch. SHADOW_ENABLED is read ONCE at module load, so
-// testing the disabled path requires vi.resetModules() + dynamic import
-// after mutating process.env. Brittleness caveat documented inline.
-// ------------------------------------------------------------------
+// D-12 kill-switch is read ONCE at module load. Each test uses vi.resetModules()
+// + dynamic import after mutating process.env so the fresh module instance
+// reads the disabled flag.
 describe('D-12 SHADOW_ENABLED kill switch', () => {
   const ORIGINAL_SHADOW_ENABLED = process.env.SHADOW_ENABLED;
 
@@ -141,10 +109,6 @@ describe('D-12 SHADOW_ENABLED kill switch', () => {
   });
 
   it('observe() is a no-op when SHADOW_ENABLED=false at module load', async () => {
-    // Brittleness caveat: SHADOW_ENABLED is module-scope-frozen at the top of
-    // machineShadowAnomalyService.ts (`const SHADOW_ENABLED = process.env.SHADOW_ENABLED !== 'false'`).
-    // We must reset the Vitest module cache and dynamic-import AFTER mutating
-    // process.env so the new module instance reads the disabled flag.
     vi.resetModules();
     recordEventMock.mockClear();
     process.env.SHADOW_ENABLED = 'false';
@@ -153,8 +117,6 @@ describe('D-12 SHADOW_ENABLED kill switch', () => {
       '../services/anomaly/shadow/machineShadowAnomalyService.js'
     );
 
-    // Feed a clearly-anomalous input — with SHADOW_ENABLED=false, no persistence
-    // side-effect should fire regardless of the would-be score.
     for (let i = 0; i < 30; i += 1) {
       machineShadowAnomalyService.observe(makeInput(), mockLog);
     }
@@ -180,9 +142,6 @@ describe('D-12 SHADOW_ENABLED kill switch', () => {
   });
 });
 
-// ------------------------------------------------------------------
-// D-13 — Cold start. Shadow has zero observations before any observe().
-// ------------------------------------------------------------------
 describe('D-13 shadow cold-starts (no state cloning from primary)', () => {
   beforeEach(() => {
     vi.resetModules();
@@ -206,9 +165,8 @@ describe('D-13 shadow cold-starts (no state cloning from primary)', () => {
   });
 });
 
-// ------------------------------------------------------------------
-// D-14 — Separate state file (ISSUE-08 EXACT-path assertion)
-// ------------------------------------------------------------------
+// D-14 uses EXACT path.resolve() equality on both the positive and negative
+// assertion (ISSUE-08) — substring-match would false-positive on the shadow path.
 describe('D-14 shadow persists to uploads/anomaly-shadow-state.json', () => {
   beforeEach(() => {
     vi.resetModules();
@@ -219,13 +177,7 @@ describe('D-14 shadow persists to uploads/anomaly-shadow-state.json', () => {
     const { machineShadowAnomalyService } = await import(
       '../services/anomaly/shadow/machineShadowAnomalyService.js'
     );
-
     await machineShadowAnomalyService.saveState(mockLog);
-
-    // ISSUE-08: replace substring-match with exact-path equality.
-    // `anomaly-state.json` and `anomaly-shadow-state.json` resolve to
-    // DIFFERENT absolute paths (first segment after 'uploads' differs), so
-    // the two `toHaveBeenCalledWith` matchers discriminate cleanly.
     expect(writeFileMock).toHaveBeenCalledWith(
       path.resolve('uploads', 'anomaly-shadow-state.json'),
       expect.any(String),
@@ -239,26 +191,17 @@ describe('D-14 shadow persists to uploads/anomaly-shadow-state.json', () => {
   });
 });
 
-// ------------------------------------------------------------------
-// D-17 — Shared cooldown constant. Source-level grep test asserts the
-// shadow service imports PERSIST_COOLDOWN_MS and does NOT duplicate the
-// 15-min literal. Stronger than a runtime check because a grep-miss
-// forces the PR author to see the invariant explicitly.
-// ------------------------------------------------------------------
+// D-17 source-level assertion: shadow imports PERSIST_COOLDOWN_MS and does
+// not duplicate the 15-min literal.
 describe('D-17 shadow uses PERSIST_COOLDOWN_MS (no duplicate 15-min literal)', () => {
   it('shadow service source imports PERSIST_COOLDOWN_MS and contains no 15*60*1000 literal', () => {
     const thisFileDir = path.dirname(fileURLToPath(import.meta.url));
     const shadowSourcePath = path.resolve(
       thisFileDir,
-      '..',
-      'services',
-      'anomaly',
-      'shadow',
-      'machineShadowAnomalyService.ts',
+      '..', 'services', 'anomaly', 'shadow', 'machineShadowAnomalyService.ts',
     );
     const source = readFileSync(shadowSourcePath, 'utf-8');
     expect(source).toContain('PERSIST_COOLDOWN_MS');
-    // Tolerant of whitespace variations in the literal (e.g., `15*60*1000` vs `15 * 60 * 1000`).
     expect(source).not.toMatch(/15\s*\*\s*60\s*\*\s*1000/);
   });
 
@@ -270,10 +213,6 @@ describe('D-17 shadow uses PERSIST_COOLDOWN_MS (no duplicate 15-min literal)', (
   });
 });
 
-// ------------------------------------------------------------------
-// D-18 — Try/catch isolation. Shadow observe() internal throw is caught;
-// no error propagates to the caller (primary orchestration layer).
-// ------------------------------------------------------------------
 describe('D-18 shadow observe() throws do NOT propagate', () => {
   beforeEach(() => {
     vi.resetModules();
