@@ -101,7 +101,25 @@ export const AnomalyEventTable = memo(function AnomalyEventTable({
             </div>
             <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
               <span>{t('anomaly.modeLabel', { mode: ev.modeKey })}</span>
-              <span>{t('anomaly.driverLabel', { driver: ev.topContributors[0]?.feature ?? '—' })}</span>
+              <span className="inline-flex items-center gap-1.5">
+                {t('anomaly.driverLabel', { driver: ev.topContributors[0]?.feature ?? '—' })}
+                {/* Phase 40 D-14/D-15: inline attribution — present when detector populated contribution/direction. */}
+                {ev.topContributors[0]?.contribution !== undefined && (
+                  <span className="tabular-nums text-muted-foreground/80">
+                    · {Math.round((ev.topContributors[0].contribution ?? 0) * 100)}%
+                  </span>
+                )}
+                {ev.topContributors[0]?.direction === 'HIGH' && (
+                  <Badge severity="high" className="h-4 gap-0.5 px-1.5 text-[10px]">
+                    ↑ {t('anomaly.direction.high')}
+                  </Badge>
+                )}
+                {ev.topContributors[0]?.direction === 'LOW' && (
+                  <Badge severity="low" className="h-4 gap-0.5 px-1.5 text-[10px]">
+                    ↓ {t('anomaly.direction.low')}
+                  </Badge>
+                )}
+              </span>
               {ev.resolvedBy && <span>{t('anomaly.resolvedBy', { user: ev.resolvedBy })}</span>}
             </div>
             {(isOpen || isAcked) && (
