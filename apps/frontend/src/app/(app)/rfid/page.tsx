@@ -341,7 +341,7 @@ export default function RfidPage() {
         </CardContent>
       </Card>
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
+      <div className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:gap-6">
         <Button
           onClick={handleRead}
           disabled={isReading || isWriting}
@@ -351,7 +351,7 @@ export default function RfidPage() {
           {isReading ? t('actions.reading') : t('actions.readFromPlc')}
         </Button>
         <Button
-          variant={lock.canWrite ? 'default' : 'outline'}
+          variant={lock.canWrite ? 'destructive' : 'outline'}
           onClick={handleWriteClick}
           disabled={!lock.canWrite || isReading || isWriting}
           className="w-full sm:w-auto"
