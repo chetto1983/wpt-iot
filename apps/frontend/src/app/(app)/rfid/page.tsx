@@ -26,6 +26,7 @@ import {
 import { Switch } from '@/components/ui/switch';
 import { Card, CardContent } from '@/components/ui/card';
 import { DisabledTooltip } from '@/components/ui/disabled-tooltip';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import {
   Table,
   TableBody,
@@ -90,22 +91,22 @@ const RfidUserRow = memo(function RfidUserRow({ user, onUpdate, t, disabled }: R
         )}
       </TableCell>
       <TableCell className="py-2 px-4">
-        <Select
+        <ToggleGroup
           value={String(user.group)}
           onValueChange={(v) => onUpdate(user.tagId, 'group', Number(v))}
           disabled={disabled}
+          aria-label={`${t('columns.group')} ${user.tagId}`}
         >
-          <SelectTrigger className="h-8" aria-label={`${t('columns.group')} ${user.tagId}`}>
-            <SelectValue placeholder={t(`groups.${GROUP_KEYS[user.group] ?? 'OPERATOR'}`)}>
-              {t(`groups.${GROUP_KEYS[user.group] ?? 'OPERATOR'}`)}
-            </SelectValue>
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="0">{t('groups.OPERATOR')}</SelectItem>
-            <SelectItem value="1">{t('groups.MAINTENANCE')}</SelectItem>
-            <SelectItem value="2">{t('groups.ADMIN')}</SelectItem>
-          </SelectContent>
-        </Select>
+          <ToggleGroupItem size="sm" value="0" aria-label={t('groups.OPERATOR')}>
+            {t('groups.OPERATOR')}
+          </ToggleGroupItem>
+          <ToggleGroupItem size="sm" value="1" aria-label={t('groups.MAINTENANCE')}>
+            {t('groups.MAINTENANCE')}
+          </ToggleGroupItem>
+          <ToggleGroupItem size="sm" value="2" aria-label={t('groups.ADMIN')}>
+            {t('groups.ADMIN')}
+          </ToggleGroupItem>
+        </ToggleGroup>
       </TableCell>
       <TableCell className="py-2 px-4">
         <Switch
@@ -347,7 +348,8 @@ export default function RfidPage() {
                 <TableRow>
                   <TableHead className="w-16 px-4 py-2">{t('columns.tagId')}</TableHead>
                   <TableHead className="min-w-[200px] px-4 py-2">{t('columns.name')}</TableHead>
-                  <TableHead className="w-40 px-4 py-2">{t('columns.group')}</TableHead>
+                  {/* Widened from w-40 (160px) to min-w-[280px] — the 3-button ToggleGroup (sm size, "Manutentore" IT label) overflows w-40. */}
+                  <TableHead className="min-w-[280px] px-4 py-2">{t('columns.group')}</TableHead>
                   <TableHead className="w-24 px-4 py-2">{t('columns.enabled')}</TableHead>
                 </TableRow>
               </TableHeader>
