@@ -2,6 +2,8 @@
 // ML Anomaly Detection — shared types (C9)
 // ---------------------------------------------------------------------------
 
+import { z } from 'zod/v4';
+
 export type AnomalyLevel = 'normal' | 'warning' | 'critical';
 export type AnomalyEventStatus = 'OPEN' | 'ACKNOWLEDGED' | 'CONFIRMED' | 'DISMISSED' | 'CLOSED';
 export type ResolutionCategory = 'TRUE_POSITIVE' | 'FALSE_POSITIVE' | 'PLANNED_MAINTENANCE' | 'SENSOR_FAULT';
@@ -121,3 +123,59 @@ export interface IDetectorSnapshot {
   metrics: IDetectorMetrics;
   modes: Record<string, IDetectorModeSnapshot>;
 }
+
+// ---------------------------------------------------------------------------
+// Phase 41: Branded anomaly event types (D-06, SHADOW-03)
+// ---------------------------------------------------------------------------
+// Phantom symbol zones — erased at runtime, enforced at compile time.
+// Broadcaster signatures narrow their input to PrimaryAnomalyEvent only;
+// TS rejects passing a ShadowAnomalyEvent value at every call site.
+// Zero runtime cost.
+
+declare const PRIMARY_ZONE: unique symbol;
+declare const SHADOW_ZONE: unique symbol;
+
+export type PrimaryAnomalyEvent = IMachineAnomalyEvent & {
+  readonly __zone: typeof PRIMARY_ZONE;
+};
+
+export type ShadowAnomalyEvent = Omit<
+  IMachineAnomalyEvent,
+  'status' | 'resolvedBy' | 'resolvedAt' | 'resolutionNote' | 'resolutionCategory'
+> & {
+  readonly __zone: typeof SHADOW_ZONE;
+  readonly detectorVariant: string;
+  readonly tuningNotes: Record<string, unknown>;
+};
+
+// ---------------------------------------------------------------------------
+// Phase 41: Shadow-vs-primary diff response (D-21, D-23)
+// ---------------------------------------------------------------------------
+// Response shape for GET /api/anomaly/shadow/diff.
+// UNION ALL query + COUNT(*) FILTER (WHERE flagged) GROUP BY (variant, mode_key)
+// — see routes/anomalyShadow.ts handler.
+
+export const shadowDiffCountsSchema = z.object({
+  flagged: z.number().int().nonnegative(),
+  total: z.number().int().nonnegative(),
+});
+
+export const shadowDiffByModeSchema = z.object({
+  modeKey: z.string(),
+  primary: shadowDiffCountsSchema,
+  shadow: shadowDiffCountsSchema,
+});
+
+export const shadowDiffResponseSchema = z.object({
+  totals: z.object({
+    primary: shadowDiffCountsSchema,
+    shadow: shadowDiffCountsSchema,
+  }),
+  byModeKey: z.array(shadowDiffByModeSchema),
+  window: z.object({
+    from: z.string().datetime(),
+    to: z.string().datetime(),
+  }),
+});
+
+export type IShadowDiffResponse = z.infer<typeof shadowDiffResponseSchema>;
