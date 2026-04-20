@@ -24,6 +24,7 @@ import { plcConfigRoutes } from './routes/plcConfig.js';
 import { energyRoutes } from './routes/energy.js';
 import { anomalyRoutes } from './routes/anomaly.js';
 import { anomalyShadowRoutes } from './routes/anomalyShadow.js';
+import { anomalyDebugRoutes } from './routes/anomalyDebug.js';
 import { cycleRoutes } from './routes/cycles.js';
 import { alarmCatalogRoutes } from './routes/alarmCatalog.js';
 import { wsRoute } from './ws/route.js';
@@ -206,6 +207,15 @@ export function buildServer(): FastifyInstance {
   // 20b. Phase 41 Plan 41-05 — Shadow anomaly routes. Plugin-level preHandler
   // gates on WPT + SUPER_ADMIN per D-20. Full URL: GET /api/anomaly/shadow/diff
   server.register(anomalyShadowRoutes, { prefix: '/api/anomaly' });
+
+  // 20c. Phase 42 — Debug anomaly routes. Plugin-level preHandler gates on
+  // SUPER_ADMIN ONLY per D-20 (stricter than Phase 41 shadow routes which
+  // allow WPT + SUPER_ADMIN). Full URLs:
+  //   GET    /api/anomaly/debug/state
+  //   POST   /api/anomaly/debug/replay
+  //   DELETE /api/anomaly/debug/replay/:streamId
+  // Replay results stream over /api/ws as WsMessageType.REPLAY_FRAME.
+  server.register(anomalyDebugRoutes, { prefix: '/api/anomaly' });
 
   // 21. Energy routes (Phase 19 Plan 19-10) — read-side aggregate API
   // over the energy_5min/1h/1d/1mo CAGG hierarchy.
