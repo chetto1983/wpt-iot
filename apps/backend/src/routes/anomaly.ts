@@ -330,7 +330,19 @@ export const anomalyRoutes: FastifyPluginAsync = async (server) => {
             { text: e.score.toFixed(2), fontSize: 8 },
             { text: e.status, fontSize: 8 },
             { text: e.modeKey, fontSize: 8 },
-            { text: e.topContributors[0]?.feature ?? '—', fontSize: 8 },
+            {
+              text: (() => {
+                const top = e.topContributors[0];
+                if (!top) return '—';
+                // Phase 40 D-15: show contribution% + direction when populated by the detector.
+                // D-02 historical rows (pre-Phase-40) lack these fields — fall back to plain feature name.
+                if (top.contribution === undefined || top.direction === undefined) {
+                  return top.feature;
+                }
+                return `${top.feature} · ${Math.round(top.contribution * 100)}% · ${top.direction}`;
+              })(),
+              fontSize: 8,
+            },
             { text: alarmCount > 0 ? `${alarmCount} alarm(s)` : '—', fontSize: 8 },
           ];
         }),
