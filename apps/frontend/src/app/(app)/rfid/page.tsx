@@ -11,7 +11,7 @@ import { useAuth } from '@/lib/auth-context';
 import { usePlcWriteLock } from '@/hooks/use-plc-write-lock';
 import { clearSessionDraft, readSessionDraft, writeSessionDraft } from '@/lib/session-draft';
 import { PlcStatusBar } from '@/components/plc/plc-status-bar';
-import { PlcWriteConfirm } from '@/components/plc/plc-write-confirm';
+import { RfidWriteConfirm } from '@/components/rfid/rfid-write-confirm';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -361,12 +361,13 @@ export default function RfidPage() {
         </Button>
       </div>
 
-      <PlcWriteConfirm
+      <RfidWriteConfirm
         open={confirmOpen}
         onOpenChange={setConfirmOpen}
         onConfirm={handleWrite}
         loading={isWriting}
-        namespace="rfid"
+        previousUsers={readSnapshot}
+        currentUsers={users}
       />
     </div>
   );

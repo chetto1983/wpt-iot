@@ -528,7 +528,16 @@
       "title": "Write to PLC?",
       "body": "This will overwrite current RFID user data on the PLC.",
       "cancel": "Cancel",
-      "confirm": "Write to PLC"
+      "confirm": "Write to PLC",
+      "noChanges": "No changes since last read — close the dialog",
+      "concurrentWarning": "Writing will overwrite all 48 users. Any changes made by another operator after your read will be lost.",
+      "summary": "{count} users modified",
+      "diffHeader": {
+        "tagId": "Tag",
+        "name": "Name",
+        "group": "Group",
+        "enabled": "Enabled"
+      }
     },
     "toast": {
       "readSuccess": "Data read from PLC successfully",

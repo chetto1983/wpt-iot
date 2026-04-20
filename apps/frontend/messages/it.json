@@ -528,7 +528,16 @@
       "title": "Scrivere su PLC?",
       "body": "Questo sovrascriverà i dati utente RFID attualmente sul PLC.",
       "cancel": "Annulla",
-      "confirm": "Scrivi su PLC"
+      "confirm": "Scrivi su PLC",
+      "noChanges": "Nessuna modifica rispetto all'ultima lettura — chiudi il dialogo",
+      "concurrentWarning": "Scrivendo sostituisci tutti i 48 utenti. Eventuali modifiche fatte da un altro operatore dopo la tua lettura verranno perse.",
+      "summary": "{count} utenti modificati",
+      "diffHeader": {
+        "tagId": "Tag",
+        "name": "Nome",
+        "group": "Gruppo",
+        "enabled": "Abilitato"
+      }
     },
     "toast": {
       "readSuccess": "Dati letti dal PLC con successo",
