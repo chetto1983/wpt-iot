@@ -82,6 +82,7 @@ const RfidUserRow = memo(function RfidUserRow({ user, onUpdate, t, disabled }: R
             onUpdate(user.tagId, 'name', sanitized);
           }}
           placeholder="---"
+          aria-label={`${t('columns.name')} ${user.tagId}`}
           className="h-8 text-sm placeholder:italic placeholder:text-muted-foreground placeholder:text-xs"
           maxLength={20}
           disabled={disabled}
