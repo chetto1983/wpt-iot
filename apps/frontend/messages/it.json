@@ -601,8 +601,14 @@
         "readFirst": "Leggi da PLC prima",
         "identityIncomplete": "Compila Supervisore, Numero Ordine e Numero Seriale",
         "lockExpired": "Permesso scaduto — leggi di nuovo"
+      },
+      "fieldDisabled": {
+        "readFirst": "Leggi da PLC prima",
+        "rereadRequired": "Permesso scaduto — leggi di nuovo"
       }
-    }
+    },
+    "unauthorizedSubtitle": "Questa pagina è riservata agli operatori WPT.",
+    "goToDashboard": "Vai alla dashboard"
   },
   "reports": {
     "title": "Report Dati Macchina",

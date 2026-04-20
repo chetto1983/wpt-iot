@@ -601,8 +601,14 @@
         "readFirst": "Read from PLC first",
         "identityIncomplete": "Fill in Supervisor, Order Number, and Serial Number",
         "lockExpired": "Write lock expired — read again"
+      },
+      "fieldDisabled": {
+        "readFirst": "Read from PLC first",
+        "rereadRequired": "Read lock expired — read again"
       }
-    }
+    },
+    "unauthorizedSubtitle": "This page is reserved for WPT operators.",
+    "goToDashboard": "Go to dashboard"
   },
   "reports": {
     "title": "Machine Data Reports",

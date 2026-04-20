@@ -1,9 +1,10 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Lock } from 'lucide-react';
 import type { IJobData } from '@wpt/types';
 import {
   CycleType,
@@ -17,7 +18,7 @@ import { usePlcWriteLock } from '@/hooks/use-plc-write-lock';
 import { clearSessionDraft, readSessionDraft, writeSessionDraft } from '@/lib/session-draft';
 import { PlcStatusBar } from '@/components/plc/plc-status-bar';
 import { PlcWriteConfirm } from '@/components/plc/plc-write-confirm';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -113,8 +114,15 @@ export default function JobsPage() {
   // Role gate: CLIENT cannot access this page
   if (user?.role === 'CLIENT') {
     return (
-      <div className="flex h-full items-center justify-center text-muted-foreground">
-        <p>{tAuth('unauthorized')}</p>
+      <div className="flex h-full flex-col items-center justify-center gap-4 p-6 text-center">
+        <Lock className="size-12 text-muted-foreground" aria-hidden="true" />
+        <div className="space-y-1">
+          <h2 className="text-xl font-semibold">{tAuth('unauthorized')}</h2>
+          <p className="text-sm text-muted-foreground">{t('unauthorizedSubtitle')}</p>
+        </div>
+        <Link href="/dashboard" className={buttonVariants({ variant: 'default' })}>
+          {t('goToDashboard')}
+        </Link>
       </div>
     );
   }
@@ -140,7 +148,7 @@ export default function JobsPage() {
   useEffect(() => {
     if (user?.role === 'CLIENT' || didAutoRead.current) return;
     didAutoRead.current = true;
-    void handleRead();
+    void handleRead(true);
   }, []);
 
   useEffect(() => {
@@ -157,7 +165,7 @@ export default function JobsPage() {
     });
   }, [job, hasRead, lock.canWrite, lock.remainingSeconds, readSnapshot]);
 
-  const handleRead = async () => {
+  const handleRead = async (silent: boolean = false) => {
     setIsReading(true);
     try {
       const data = await apiFetch<{ job: IJobData }>('/api/jobs/read', {
@@ -167,11 +175,13 @@ export default function JobsPage() {
       setReadSnapshot(structuredClone(data.job));
       lock.markReadSuccess();
       setHasRead(true);
-      toast.success(t('toast.readSuccess'));
+      if (!silent) toast.success(t('toast.readSuccess'));
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       if (msg.includes('Handshake in progress')) {
-        toast.error(tCommon('plcBusy'));
+        if (!silent) toast.error(tCommon('plcBusy'));
+      } else if (msg.includes('Handshake timeout')) {
+        toast.error(tCommon('plcTimeout'));
       } else {
         toast.error(t('toast.readError', { error: msg }));
       }
@@ -195,6 +205,8 @@ export default function JobsPage() {
       const msg = err instanceof Error ? err.message : String(err);
       if (msg.includes('Handshake in progress')) {
         toast.error(tCommon('plcBusy'));
+      } else if (msg.includes('Handshake timeout')) {
+        toast.error(tCommon('plcTimeout'));
       } else {
         toast.error(t('toast.writeError', { error: msg }));
       }
@@ -219,8 +231,12 @@ export default function JobsPage() {
     setJob(prev => ({ ...prev, [field]: sanitized }));
   };
 
-  const disabled = !hasRead;
+  const fieldsLocked = !hasRead || lock.state === 'expired';
   const readFirstTooltip = t('tooltip.readFirst');
+  const fieldDisabledTooltip =
+    lock.state === 'expired'
+      ? t('tooltip.fieldDisabled.rereadRequired')
+      : t('tooltip.fieldDisabled.readFirst');
   const identityComplete =
     job.supervisor.trim().length > 0 &&
     job.orderNumber.trim().length > 0 &&
@@ -239,16 +255,8 @@ export default function JobsPage() {
         state={lock.state}
         remainingSeconds={lock.remainingSeconds}
         namespace="jobs"
+        loading={isReading}
       />
-
-      {!hasRead && isReading && (
-        <div className="rounded-lg border border-blue-500/30 bg-blue-500/10 p-6 text-center">
-          <Loader2 className="mx-auto mb-3 h-10 w-10 animate-spin text-blue-500" />
-          <p className="text-sm text-muted-foreground">
-            {t('actions.reading')}
-          </p>
-        </div>
-      )}
 
       {!hasRead && !isReading ? (
         <p className="rounded-lg border border-dashed px-4 py-3 text-sm text-muted-foreground">
@@ -261,45 +269,51 @@ export default function JobsPage() {
         <CardHeader>
           <CardTitle>{t('identity')}</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="grid gap-4 md:grid-cols-3">
           <div className="space-y-2">
             <Label htmlFor="supervisor">{t('fields.supervisor')}</Label>
-            <DisabledTooltip disabled={disabled} tooltip={readFirstTooltip}>
+            <DisabledTooltip disabled={fieldsLocked} tooltip={fieldDisabledTooltip}>
               <Input
                 id="supervisor"
                 value={job.supervisor}
                 onChange={e => updateTextField('supervisor', e.target.value)}
                 maxLength={20}
-                placeholder="---"
-                disabled={disabled}
+                disabled={fieldsLocked}
               />
             </DisabledTooltip>
+            <p className="text-xs text-muted-foreground tabular-nums">
+              {job.supervisor.length}/20
+            </p>
           </div>
           <div className="space-y-2">
             <Label htmlFor="orderNumber">{t('fields.orderNumber')}</Label>
-            <DisabledTooltip disabled={disabled} tooltip={readFirstTooltip}>
+            <DisabledTooltip disabled={fieldsLocked} tooltip={fieldDisabledTooltip}>
               <Input
                 id="orderNumber"
                 value={job.orderNumber}
                 onChange={e => updateTextField('orderNumber', e.target.value)}
                 maxLength={20}
-                placeholder="---"
-                disabled={disabled}
+                disabled={fieldsLocked}
               />
             </DisabledTooltip>
+            <p className="text-xs text-muted-foreground tabular-nums">
+              {job.orderNumber.length}/20
+            </p>
           </div>
           <div className="space-y-2">
             <Label htmlFor="serialNumber">{t('fields.serialNumber')}</Label>
-            <DisabledTooltip disabled={disabled} tooltip={readFirstTooltip}>
+            <DisabledTooltip disabled={fieldsLocked} tooltip={fieldDisabledTooltip}>
               <Input
                 id="serialNumber"
                 value={job.serialNumber}
                 onChange={e => updateTextField('serialNumber', e.target.value)}
                 maxLength={20}
-                placeholder="---"
-                disabled={disabled}
+                disabled={fieldsLocked}
               />
             </DisabledTooltip>
+            <p className="text-xs text-muted-foreground tabular-nums">
+              {job.serialNumber.length}/20
+            </p>
           </div>
         </CardContent>
       </Card>
@@ -319,7 +333,7 @@ export default function JobsPage() {
                 {t(`enums.remoteJobEnable.${job.remoteJobEnable}`)}
               </p>
             </div>
-            <DisabledTooltip disabled={disabled} tooltip={readFirstTooltip}>
+            <DisabledTooltip disabled={fieldsLocked} tooltip={fieldDisabledTooltip}>
               <Switch
                 id="remoteJobEnable-switch"
                 checked={job.remoteJobEnable === RemoteJobEnable.NEW_CYCLE_JOB_ENTRY}
@@ -331,7 +345,7 @@ export default function JobsPage() {
                       : RemoteJobEnable.NO_REQUEST,
                   }))
                 }
-                disabled={disabled}
+                disabled={fieldsLocked}
                 aria-label={t('fields.remoteJobEnable')}
               />
             </DisabledTooltip>
@@ -346,7 +360,7 @@ export default function JobsPage() {
                 {t(`enums.maintenanceRequest.${job.maintenanceRequest}`)}
               </p>
             </div>
-            <DisabledTooltip disabled={disabled} tooltip={readFirstTooltip}>
+            <DisabledTooltip disabled={fieldsLocked} tooltip={fieldDisabledTooltip}>
               <Switch
                 id="maintenanceRequest-switch"
                 checked={job.maintenanceRequest === MaintenanceRequest.MAINTENANCE_REQUEST}
@@ -358,7 +372,7 @@ export default function JobsPage() {
                       : MaintenanceRequest.NO_REQUEST,
                   }))
                 }
-                disabled={disabled}
+                disabled={fieldsLocked}
                 aria-label={t('fields.maintenanceRequest')}
               />
             </DisabledTooltip>
@@ -373,7 +387,7 @@ export default function JobsPage() {
                 {t(`enums.remoteCycleSelection.${job.remoteCycleSelection}`)}
               </p>
             </div>
-            <DisabledTooltip disabled={disabled} tooltip={readFirstTooltip}>
+            <DisabledTooltip disabled={fieldsLocked} tooltip={fieldDisabledTooltip}>
               <Switch
                 id="remoteCycleSelection-switch"
                 checked={job.remoteCycleSelection === RemoteCycleSelection.WAITING_FOR_REMOTE_CYCLE}
@@ -385,15 +399,15 @@ export default function JobsPage() {
                       : RemoteCycleSelection.NO_REQUEST,
                   }))
                 }
-                disabled={disabled}
+                disabled={fieldsLocked}
                 aria-label={t('fields.remoteCycleSelection')}
               />
             </DisabledTooltip>
           </div>
 
           <div className="space-y-2">
-            <Label>{t('fields.cycleType')}</Label>
-            <DisabledTooltip disabled={disabled} tooltip={readFirstTooltip}>
+            <Label htmlFor="cycleType-trigger">{t('fields.cycleType')}</Label>
+            <DisabledTooltip disabled={fieldsLocked} tooltip={fieldDisabledTooltip}>
               <Select
                 value={String(job.cycleType)}
                 onValueChange={v =>
@@ -402,9 +416,9 @@ export default function JobsPage() {
                     cycleType: Number(v) as CycleType,
                   }))
                 }
-                disabled={disabled}
+                disabled={fieldsLocked}
               >
-                <SelectTrigger aria-label={t('fields.cycleType')}>
+                <SelectTrigger id="cycleType-trigger" aria-label={t('fields.cycleType')}>
                   <SelectValue>
                     {tDashboard(`cycleTypes.${CycleType[job.cycleType] ?? 'NO_CYCLE'}`)}
                   </SelectValue>
@@ -427,7 +441,7 @@ export default function JobsPage() {
       {/* Button row */}
       <div className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:gap-6">
         <Button
-          onClick={handleRead}
+          onClick={() => void handleRead()}
           disabled={isReading || isWriting}
           className="w-full sm:w-auto"
         >
