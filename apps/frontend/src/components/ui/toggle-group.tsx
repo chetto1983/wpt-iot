@@ -75,6 +75,7 @@ function ToggleGroupItem({
 }: ToggleGroupItemProps) {
   return (
     <TogglePrimitive
+      type="button"
       value={value}
       className={cn(toggleGroupItemVariants({ size }), className)}
       {...props}
