@@ -33,11 +33,31 @@ export default tseslint.config(
     // (layer 2), this closes the lint-time regression window.
     plugins: { boundaries },
     settings: {
+      // WR-01 fix (2026-04-20): patterns are resolved relative to eslint's
+      // cwd. The backend lint script is `eslint src/` executed from
+      // apps/backend/, so eslint sees file paths like
+      // `src/services/anomaly/shadow/foo.ts`. Patterns must be rooted at
+      // `src/...` (NOT `apps/backend/src/...`) to match. Verified via
+      // `boundaries/debug` that the element-tagging side now matches:
+      // `src/ws/broadcaster.ts` is correctly tagged `user-broadcast`.
+      //
+      // KNOWN LIMITATION (not addressed in this fix): the plugin relies on
+      // the node import resolver to classify the *target* of each import.
+      // Our backend uses the TypeScript ESM convention `import … from
+      // '…/foo.js'` even though source files end in `.ts` — the node
+      // resolver returns `null` for those targets, so the `boundaries/
+      // element-types` rule cannot classify them as `shadow` and the
+      // forbidden-import check silently passes. Making the rule actually
+      // fire requires installing `eslint-import-resolver-typescript` and
+      // wiring it via `settings['import/resolver']`. That is a new
+      // dependency — out of scope for this REVIEW-FIX pass. Layers 1
+      // (branded types, D-06) and 2 (narrowed interface, D-07) still hold
+      // regardless. Tracked separately; patterns are now at least correct.
       'boundaries/elements': [
-        { type: 'shadow',         pattern: 'apps/backend/src/services/anomaly/shadow/**', mode: 'full' },
-        { type: 'user-broadcast', pattern: 'apps/backend/src/ws/**',                     mode: 'full' },
-        { type: 'user-broadcast', pattern: 'apps/backend/src/mqtt/sparkplug*.ts',        mode: 'full' },
-        { type: 'user-broadcast', pattern: 'apps/backend/src/routes/alarm*.ts',          mode: 'full' },
+        { type: 'shadow',         pattern: 'src/services/anomaly/shadow/**', mode: 'full' },
+        { type: 'user-broadcast', pattern: 'src/ws/**',                     mode: 'full' },
+        { type: 'user-broadcast', pattern: 'src/mqtt/sparkplug*.ts',        mode: 'full' },
+        { type: 'user-broadcast', pattern: 'src/routes/alarm*.ts',          mode: 'full' },
       ],
     },
     rules: {
