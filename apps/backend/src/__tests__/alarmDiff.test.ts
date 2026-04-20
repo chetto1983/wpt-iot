@@ -145,18 +145,64 @@ describe('latestState.seedAlarmState', () => {
     expect(transitions).toEqual([]);
   });
 
-  it('seeded state detects new activation in subsequent packet', () => {
+  it('suppresses spurious ACTIVE transitions on first packet after seed', () => {
     // Seed with alarms 0 and 2 active -> word[0] = 0x0005
     latestState.seedAlarmState([0, 2]);
 
     const words = new Array<number>(40).fill(0);
-    words[0] = 0x0007; // bits 0, 1, 2 -- bit 1 is new
+    words[0] = 0x0007; // bits 0, 1, 2 -- bit 1 looks like a new activation
     const transitions = latestState.detectAlarmTransitions(words);
+
+    // Post-seed first packet: ACTIVE suppressed (we can't know when it
+    // truly activated, so stamping it at first-packet-time would lie).
+    expect(transitions).toEqual([]);
+  });
+
+  it('emits ACTIVE transition on subsequent packets after the first post-seed packet', () => {
+    latestState.seedAlarmState([0, 2]);
+
+    const first = new Array<number>(40).fill(0);
+    first[0] = 0x0005; // matches seed — no transitions, consumes the suppression window
+    expect(latestState.detectAlarmTransitions(first)).toEqual([]);
+
+    const second = new Array<number>(40).fill(0);
+    second[0] = 0x0007; // bit 1 newly activates AFTER the first post-seed packet
+    const transitions = latestState.detectAlarmTransitions(second);
 
     expect(transitions).toHaveLength(1);
     expect(transitions[0]!.alarmIndex).toBe(1);
-    expect(transitions[0]!.bitIndex).toBe(1);
     expect(transitions[0]!.active).toBe(true);
+  });
+
+  it('emits CLEAR transitions on first packet after seed (closes zombie DB rows)', () => {
+    // DB thought alarms 0 and 2 were active (seeded), but PLC says neither is set.
+    // This happens when alarms cleared during backend downtime — we must mark
+    // the open DB rows as resolved.
+    latestState.seedAlarmState([0, 2]);
+
+    const words = new Array<number>(40).fill(0); // all cleared
+    const transitions = latestState.detectAlarmTransitions(words);
+
+    expect(transitions).toHaveLength(2);
+    expect(transitions.every(t => !t.active)).toBe(true);
+    expect(transitions.map(t => t.alarmIndex).sort()).toEqual([0, 2]);
+  });
+
+  it('prevents boot-flood when DB is empty but PLC has alarms asserted', () => {
+    // Fresh install / truncated DB: seed with [] -> alarm words all zero.
+    // PLC has real alarms asserted. Without the suppression, every bit in
+    // the first packet would be recorded as a fresh activation timestamped
+    // at boot time. With the fix, none are recorded.
+    latestState.seedAlarmState([]);
+
+    const words = new Array<number>(40).fill(0);
+    words[0] = 0x0001;  // alarm 0 active
+    words[1] = 0x0001;  // alarm 16 active
+    words[2] = 0x0001;  // alarm 32 active
+    words[3] = 0x0001;  // alarm 48 active
+    const transitions = latestState.detectAlarmTransitions(words);
+
+    expect(transitions).toEqual([]);
   });
 
   it('seeds across multiple words correctly', () => {

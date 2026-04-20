@@ -14,6 +14,15 @@ class LatestState {
   private machineTimestamp: Date | null = null;
   private alarmWords: number[] | null = null;
   private alarmTimestamp: Date | null = null;
+  /**
+   * True only between seedAlarmState() and the first subsequent packet.
+   * Tells detectAlarmTransitions to suppress spurious ACTIVE transitions
+   * on the first post-seed packet — we have no truthful timestamp for
+   * alarms that were already asserted in the PLC when the backend booted,
+   * so stamping them at first-packet-time is a lie. CLEAR transitions are
+   * still emitted (they close alarms that resolved during downtime).
+   */
+  private alarmBaselineFromSeed = false;
 
   setMachineSnapshot(snapshot: IMachineSnapshot, timestamp: Date): void {
     this.machineSnapshot = snapshot;
@@ -61,6 +70,7 @@ class LatestState {
       return [];
     }
 
+    const suppressSpuriousActivations = this.alarmBaselineFromSeed;
     const transitions: IAlarmTransition[] = [];
 
     for (let wordIdx = 0; wordIdx < 40; wordIdx++) {
@@ -73,6 +83,11 @@ class LatestState {
       for (let bitIdx = 0; bitIdx < 16; bitIdx++) {
         if (diff & (1 << bitIdx)) {
           const active = Boolean(curr & (1 << bitIdx));
+          // On first packet after seed, pre-existing PLC alarms (bits we
+          // didn't know about from DB) would otherwise be stamped at
+          // first-packet-time as if they just activated. Drop those.
+          // CLEAR transitions still flow so zombie DB rows get resolved.
+          if (suppressSpuriousActivations && active) continue;
           transitions.push({
             alarmIndex: wordIdx * 16 + bitIdx,
             wordIndex: wordIdx,
@@ -86,6 +101,7 @@ class LatestState {
 
     this.alarmWords = [...currentWords];
     this.alarmTimestamp = now;
+    this.alarmBaselineFromSeed = false;
     return transitions;
   }
 
@@ -105,6 +121,7 @@ class LatestState {
     }
     this.alarmWords = words;
     this.alarmTimestamp = new Date();
+    this.alarmBaselineFromSeed = true;
   }
 
   /** Reset all state (for testing) */
@@ -113,6 +130,7 @@ class LatestState {
     this.machineTimestamp = null;
     this.alarmWords = null;
     this.alarmTimestamp = null;
+    this.alarmBaselineFromSeed = false;
   }
 }
 
