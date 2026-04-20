@@ -1,4 +1,5 @@
 import { sql } from 'drizzle-orm';
+import type { IAnomalyContributor } from '@wpt/types';
 import { db } from '../../db/index.js';
 import { OnlineAnomalyDetector } from './onlineAnomalyDetector.js';
 import {
@@ -23,7 +24,7 @@ export interface IAnomalyReplayPoint {
   modeKey: string;
   score: number;
   flagged: boolean;
-  topContributors: Array<{ feature: string; zScore: number }>;
+  topContributors: IAnomalyContributor[];
 }
 
 interface IAnomalyReplayResponse {
