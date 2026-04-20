@@ -4,6 +4,8 @@
 
 import { z } from 'zod/v4';
 
+import { WsMessageType } from './enums.js';
+
 export type AnomalyLevel = 'normal' | 'warning' | 'critical';
 export type AnomalyEventStatus = 'OPEN' | 'ACKNOWLEDGED' | 'CONFIRMED' | 'DISMISSED' | 'CLOSED';
 export type ResolutionCategory = 'TRUE_POSITIVE' | 'FALSE_POSITIVE' | 'PLANNED_MAINTENANCE' | 'SENSOR_FAULT';
@@ -179,3 +181,166 @@ export const shadowDiffResponseSchema = z.object({
 });
 
 export type IShadowDiffResponse = z.infer<typeof shadowDiffResponseSchema>;
+
+// ---------------------------------------------------------------------------
+// Phase 42: Detector introspection Zod mirrors (for debug state endpoint)
+// ---------------------------------------------------------------------------
+// Runtime-validatable mirrors of IDetectorFeatureSnapshot / IDetectorModeSnapshot /
+// IDetectorSnapshot / IAnomalyContributor / IDetectorMetrics. The TS interfaces
+// above stay as the primary type authority; these schemas are for
+// fastify-type-provider-zod serialization + dev-only safeParse (D-15).
+
+export const anomalyContributorSchema = z.object({
+  feature: z.string(),
+  zScore: z.number(),
+  contribution: z.number().optional(),
+  direction: z.enum(['HIGH', 'LOW']).optional(),
+});
+
+export const detectorMetricsSchema = z.object({
+  totalObservations: z.number().int().nonnegative(),
+  totalFlagged: z.number().int().nonnegative(),
+  totalWarnings: z.number().int().nonnegative(),
+  modesTracked: z.number().int().nonnegative(),
+  warmModes: z.number().int().nonnegative(),
+  uptimeMs: z.number().nonnegative(),
+  gracePeriodsEntered: z.number().int().nonnegative(),
+});
+
+export const detectorFeatureSnapshotSchema = z.object({
+  count: z.number().int().nonnegative(),
+  mean: z.number(),
+  emaMean: z.number(),
+  m2: z.number(),
+  decayedVariance: z.number(),
+  sigma: z.number(),
+});
+
+export const detectorModeSnapshotSchema = z.object({
+  samplesSeen: z.number().int().nonnegative(),
+  enteredAt: z.number(),
+  warm: z.boolean(),
+  inGracePeriod: z.boolean(),
+  cusum: z.object({
+    posCumSum: z.number(),
+    negCumSum: z.number(),
+  }),
+  recentFlags: z.array(z.boolean()),
+  // D-14: features keyed alphabetically by caller; Zod does not enforce key
+  // ordering, only presence + shape.
+  features: z.record(z.string(), detectorFeatureSnapshotSchema),
+});
+
+export const detectorSnapshotSchema = z.object({
+  currentModeKey: z.string().nullable(),
+  startedAt: z.string().datetime().nullable(),
+  totalObservations: z.number().int().nonnegative(),
+  totalFlagged: z.number().int().nonnegative(),
+  config: z.record(z.string(), z.union([z.number(), z.boolean()])),
+  metrics: detectorMetricsSchema,
+  modes: z.record(z.string(), detectorModeSnapshotSchema),
+});
+
+// ---------------------------------------------------------------------------
+// Phase 42 D-13: GET /api/anomaly/debug/state response envelope
+// ---------------------------------------------------------------------------
+// Envelope: { data: { primary, shadow }, meta: { generatedAt, isStale, lastObservationAt, detectorVersion } }.
+// D-12: the non-primary section INTENTIONALLY OMITS a `contributors` key —
+// Phase 41 D-07 narrowed the shadow service interface to forbid that field
+// at the API boundary (see the structural omission inside the schema below).
+
+export const debugStateResponseSchema = z.object({
+  data: z.object({
+    primary: z.object({
+      snapshot: detectorSnapshotSchema,
+      contributors: z.array(anomalyContributorSchema),
+      metrics: detectorMetricsSchema,
+    }),
+    shadow: z.object({
+      snapshot: detectorSnapshotSchema,
+      metrics: detectorMetricsSchema,
+      // contributors INTENTIONALLY OMITTED (D-12, Phase 41 D-07)
+    }),
+  }),
+  meta: z.object({
+    generatedAt: z.string().datetime(),
+    isStale: z.boolean(),
+    lastObservationAt: z.string().datetime().nullable(),
+    detectorVersion: z.string(),
+  }),
+});
+
+export type IDebugStateResponse = z.infer<typeof debugStateResponseSchema>;
+
+// ---------------------------------------------------------------------------
+// Phase 42 D-02: POST /api/anomaly/debug/replay request + response
+// ---------------------------------------------------------------------------
+// maxRows ceiling of 200_000 is a defensive upper bound; cursor pagination
+// makes large windows tractable but not free.
+
+export const replayStartRequestSchema = z.object({
+  from: z.string().datetime(),
+  to: z.string().datetime(),
+  maxRows: z.number().int().positive().max(200_000).optional(),
+  topN: z.number().int().positive().max(100).optional(),
+});
+
+export type IReplayStartRequest = z.infer<typeof replayStartRequestSchema>;
+
+export const replayStartResponseSchema = z.object({
+  streamId: z.string().min(1),
+});
+
+export type IReplayStartResponse = z.infer<typeof replayStartResponseSchema>;
+
+// ---------------------------------------------------------------------------
+// Phase 42 D-03: WsMessageType.REPLAY_FRAME envelope
+// ---------------------------------------------------------------------------
+// Discriminated union on `phase`: 'progress' | 'chunk' | 'error' | 'end'.
+// seq is monotonic per streamId (starts at 0, increments on each emit) so
+// clients can detect drops. 'error' and 'end' are terminal — no more frames
+// with the same streamId follow.
+
+const replayFrameBaseShape = {
+  type: z.literal(WsMessageType.REPLAY_FRAME),
+  streamId: z.string().min(1),
+  seq: z.number().int().nonnegative(),
+} as const;
+
+const replayChunkRowSchema = z.object({
+  observedAt: z.string().datetime(),
+  modeKey: z.string(),
+  score: z.number(),
+  flagged: z.boolean(),
+  topContributors: z.array(anomalyContributorSchema),
+});
+
+export const replayFrameSchema = z.discriminatedUnion('phase', [
+  z.object({
+    ...replayFrameBaseShape,
+    phase: z.literal('progress'),
+    processed: z.number().int().nonnegative(),
+    total: z.number().int().nonnegative(),
+    etaMs: z.number().nonnegative(),
+  }),
+  z.object({
+    ...replayFrameBaseShape,
+    phase: z.literal('chunk'),
+    rows: z.array(replayChunkRowSchema),
+  }),
+  z.object({
+    ...replayFrameBaseShape,
+    phase: z.literal('error'),
+    code: z.string(),
+    message: z.string(),
+  }),
+  z.object({
+    ...replayFrameBaseShape,
+    phase: z.literal('end'),
+    processed: z.number().int().nonnegative(),
+    durationMs: z.number().nonnegative(),
+    ok: z.literal(true),
+  }),
+]);
+
+export type IReplayFrame = z.infer<typeof replayFrameSchema>;
