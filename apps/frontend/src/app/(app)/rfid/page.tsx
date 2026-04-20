@@ -37,6 +37,17 @@ import {
   TableRow,
 } from '@/components/ui/table';
 
+/**
+ * Seeds 48 empty user slots matching the PLC's fixed-size RFID array.
+ *
+ * Group default = OPERATOR (intentional, audit nitpick closeout 260420-afi):
+ * If the operator writes a half-filled table with one row accidentally
+ * enabled and the Group default were ADMIN or MAINTENANCE, a newly-created
+ * tag would silently grant elevated access. OPERATOR is the safest
+ * least-privilege default. The enabled-blank-name guard (P0 #5) catches
+ * accidentally-enabled blanks; this default catches accidentally-enabled
+ * blanks that got a name.
+ */
 function createEmptyUsers(): IRfidUser[] {
   return Array.from({ length: 48 }, (_, i) => ({
     tagId: i + 1,
