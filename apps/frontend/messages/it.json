@@ -62,6 +62,7 @@
     "sessionExpired": "La sessione è scaduta. Effettua nuovamente l'accesso.",
     "togglePassword": "Mostra/nascondi password",
     "plcBusy": "Operazione PLC in corso — riprovare tra qualche secondo",
+    "plcTimeout": "Timeout PLC — il PLC non ha risposto, riprovare",
     "validation": {
       "asciiOnly": "Solo caratteri standard consentiti (A-Z, 0-9, spazi, punteggiatura)",
       "maxLength": "Massimo {max} caratteri"
@@ -515,7 +516,7 @@
     },
     "status": {
       "noData": "Nessun dato caricato",
-      "loaded": "Dati caricati — Scrittura disponibile ({remaining} rimanenti)",
+      "loaded": "Dati caricati — Scrittura disponibile",
       "expired": "Permesso di scrittura scaduto — leggere di nuovo per riabilitare"
     },
     "confirm": {
@@ -572,7 +573,7 @@
     },
     "status": {
       "noData": "Nessun dato caricato",
-      "loaded": "Dati caricati — Scrittura disponibile ({remaining} rimanenti)",
+      "loaded": "Dati caricati — Scrittura disponibile",
       "expired": "Permesso di scrittura scaduto — leggere di nuovo per riabilitare"
     },
     "confirm": {
