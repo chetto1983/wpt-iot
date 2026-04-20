@@ -275,6 +275,7 @@ export default function RfidPage() {
         state={lock.state}
         remainingSeconds={lock.remainingSeconds}
         namespace="rfid"
+        loading={isReading}
       />
 
       <Card>
