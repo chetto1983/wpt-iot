@@ -616,9 +616,19 @@ export function EnergySettingsForm({
                 <SelectTrigger id="energy-settings-tariff-mode" className="w-full">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="single">{t('tariffModes.single')}</SelectItem>
-                  <SelectItem value="tou3">{t('tariffModes.tou3')}</SelectItem>
+                <SelectContent className="rounded-xl border border-border/80 bg-popover p-1 shadow-lg">
+                  <SelectItem
+                    value="single"
+                    className="focus:bg-muted focus:text-foreground data-highlighted:bg-muted data-highlighted:text-foreground"
+                  >
+                    {t('tariffModes.single')}
+                  </SelectItem>
+                  <SelectItem
+                    value="tou3"
+                    className="focus:bg-muted focus:text-foreground data-highlighted:bg-muted data-highlighted:text-foreground"
+                  >
+                    {t('tariffModes.tou3')}
+                  </SelectItem>
                 </SelectContent>
               </Select>
               <p className="min-h-4 text-xs text-transparent" aria-hidden="true">.</p>

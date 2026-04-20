@@ -74,7 +74,7 @@
     --muted: oklch(0.922 0 0);               /* #E5E5E5 - Muted backgrounds */
     --muted-foreground: oklch(0.356 0 0);    /* #444444 - Placeholder text */
     --accent: oklch(0.756 0.068 88.5);       /* #bfae82 - Gold accent */
-    --accent-foreground: oklch(1 0 0);       /* #FFFFFF - Text on gold */
+    --accent-foreground: var(--wpt-gold-accessible); /* Accessible text on gold accent */
     --destructive: oklch(0.547 0.192 22.5);  /* #dc3545 - Delete/error */
     --destructive-foreground: oklch(1 0 0);  /* #FFFFFF - Text on destructive */
     --border: oklch(0.922 0 0);              /* #E5E5E5 - Borders */
@@ -120,7 +120,7 @@
     --muted: oklch(0.269 0 0);
     --muted-foreground: oklch(0.708 0 0);
     --accent: oklch(0.756 0.068 88.5);
-    --accent-foreground: oklch(1 0 0);
+    --accent-foreground: oklch(0.10 0 0);    /* dark text on gold accent for readable highlighted states */
     --destructive: oklch(0.637 0.237 25.3);   /* brightened for dark bg — fixes badge contrast */
     --destructive-foreground: oklch(1 0 0);
     --border: oklch(1 0 0 / 10%);

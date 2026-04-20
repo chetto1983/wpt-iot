@@ -206,12 +206,12 @@ export function EnergySettingsPage() {
         </div>
       </header>
 
-      <Alert className="rounded-2xl border-amber-400/40 bg-amber-500/10 px-4 py-4 text-amber-50">
-        <TriangleAlert className="size-5 text-amber-300" />
-        <AlertTitle className="text-amber-50">
+      <Alert className="rounded-2xl border-wpt-gold/35 bg-wpt-gold/10 px-4 py-4 text-wpt-gold-accessible shadow-sm">
+        <TriangleAlert className="size-5 text-wpt-gold-accessible" />
+        <AlertTitle className="text-wpt-gold-accessible">
           {missingConfig ? t('banner.missingConfig') : t('banner.readyTitle')}
         </AlertTitle>
-        <AlertDescription className="text-amber-100/85">
+        <AlertDescription className="text-wpt-gold-accessible/90">
           {missingConfig ? t('banner.pending') : t('banner.ready')}
         </AlertDescription>
       </Alert>
