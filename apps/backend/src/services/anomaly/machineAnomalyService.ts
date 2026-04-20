@@ -4,7 +4,7 @@ import type { IMachineSnapshot } from '@wpt/types';
 import { dataHub } from '../../events/hub.js';
 import { DATA_EVENTS } from '../../events/types.js';
 import { MachineAnomalyEventService } from './machineAnomalyEventService.js';
-import type { ILiveAnomalyState } from './types.js';
+import type { ILiveAnomalyState, ILogger } from './types.js';
 export type { ILiveAnomalyState } from './types.js';
 import {
   OnlineAnomalyDetector,
@@ -15,10 +15,15 @@ import {
 
 const STATE_FILE = path.resolve('uploads', 'anomaly-state.json');
 
-interface ILogger {
-  info(obj: Record<string, unknown>, msg: string): void;
-  error(obj: Record<string, unknown>, msg: string): void;
-}
+/**
+ * Phase 41 Task 0 (D-17): single source of truth for the 15-min per-mode
+ * persist cooldown. Imported by the shadow service at
+ * services/anomaly/shadow/machineShadowAnomalyService.ts so both detector
+ * paths share the exact same literal. Changing here changes both, keeping
+ * the SHADOW-04 diff endpoint honest (asymmetric cooldowns would make
+ * shadow's count trivially exceed primary's, turning the diff into noise).
+ */
+export const PERSIST_COOLDOWN_MS = 15 * 60 * 1000;
 
 interface IAnomalyTrackingStatus {
   active: boolean;
@@ -156,7 +161,7 @@ class MachineAnomalyService {
   }
 
   private get persistCooldownMs(): number {
-    return 15 * 60 * 1000;
+    return PERSIST_COOLDOWN_MS;
   }
 
   private shouldPersistFlaggedEvent(state: ILiveAnomalyState): boolean {
