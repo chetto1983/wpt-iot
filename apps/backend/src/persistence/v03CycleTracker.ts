@@ -44,8 +44,16 @@ export function startV03CycleTracker(log: IStoreLogger): void {
   let resetEpoch = 0;
   let inFlightCycle: IInFlightCycle | null = null;
   let warnedZeroStatus = false;
+  // Max cycle_number persisted at current resetEpoch, loaded from DB on startup.
+  // Used once on the first incoming snapshot to detect a PLC counter reset
+  // that happened while the backend was DOWN (the live-reset branch at line ~209
+  // only catches in-session resets). Cleared after the first check to avoid
+  // double-detection on normal operation.
+  let lastKnownMaxCycleNumber: number | null = null;
 
-  // Seed the resetEpoch from the latest cycle_resets row on startup
+  // Seed the resetEpoch from the latest cycle_resets row on startup, and load
+  // the max cycle_number persisted at that epoch so we can detect a cross-restart
+  // counter reset on the first incoming snapshot.
   void (async () => {
     try {
       const rows = await db.execute(sql`
@@ -61,10 +69,27 @@ export function startV03CycleTracker(log: IStoreLogger): void {
           'V03CycleTracker resumed resetEpoch from DB',
         );
       }
+
+      const maxRows = await db.execute(sql`
+        SELECT MAX(cycle_number) AS "maxCycleNumber"
+        FROM cycle_records
+        WHERE reset_epoch = ${resetEpoch}
+      `);
+      if (maxRows.rows.length > 0) {
+        const raw = (maxRows.rows[0] as { maxCycleNumber: number | string | null })
+          .maxCycleNumber;
+        if (raw !== null) {
+          lastKnownMaxCycleNumber = Number(raw);
+          log.info(
+            { name: 'V03CycleTracker', resetEpoch, lastKnownMaxCycleNumber },
+            'Loaded persisted max cycle_number for current epoch',
+          );
+        }
+      }
     } catch (err) {
       log.error(
         { name: 'V03CycleTracker', err: (err as Error).message },
-        'Failed to load resetEpoch from cycle_resets',
+        'Failed to load resetEpoch/maxCycleNumber from DB',
       );
     }
   })();
@@ -204,6 +229,48 @@ export function startV03CycleTracker(log: IStoreLogger): void {
           'V03 Cycle_Status is 0 — cycle tracking disabled until PLC sends lifecycle signals',
         );
       }
+
+      // --- 0b. Cross-restart counter-reset detection ---
+      // On the first snapshot after backend restart, compare incoming
+      // completedCycles against the max cycle_number we persisted at the
+      // current resetEpoch. If the PLC counter went backward while the
+      // backend was down (power cycle, firmware reset), bump resetEpoch
+      // so downstream idempotency checks in insertCycleFromEvent won't
+      // collide with existing rows.
+      if (
+        lastCompletedCycles === null &&
+        lastKnownMaxCycleNumber !== null &&
+        snapshot.completedCycles < lastKnownMaxCycleNumber
+      ) {
+        const before = lastKnownMaxCycleNumber;
+        const after = snapshot.completedCycles;
+        resetEpoch += 1;
+        log.info(
+          {
+            name: 'V03CycleTracker',
+            resetEpoch,
+            before,
+            after,
+            observedAt: timestamp.toISOString(),
+          },
+          'Counter reset detected across backend restart -- incrementing resetEpoch',
+        );
+        void db
+          .execute(
+            sql`
+              INSERT INTO cycle_resets (reset_epoch, observed_at, last_completed_cycles_before, new_completed_cycles_after)
+              VALUES (${resetEpoch}, ${timestamp.toISOString()}::timestamptz, ${before}, ${after})
+            `,
+          )
+          .catch((err: unknown) => {
+            log.error(
+              { name: 'V03CycleTracker', err: (err as Error).message },
+              'Failed to INSERT cycle_resets (cross-restart path)',
+            );
+          });
+      }
+      // Clear after first snapshot regardless, so this check runs only once.
+      lastKnownMaxCycleNumber = null;
 
       // --- 1. Counter-reset detection (same as original cycleTracker) ---
       if (
