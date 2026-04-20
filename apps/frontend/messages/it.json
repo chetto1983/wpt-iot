@@ -1092,18 +1092,20 @@
       "pending": "Completa tutti i campi obbligatori prima di salvare e usare baseline e report campione.",
       "ready": "La configurazione è completa e coerente con il contratto backend."
     },
-    "sections": {
-      "customer": "Intestazione cliente",
-      "tariff": "Tariffe e fattore di emissione",
-      "baseline": "Dichiarazione baseline",
-      "sampleReport": "Report campione"
-    },
-    "descriptions": {
-      "customer": "Identificativi visibili al cliente usati nell'intestazione PDF e nel flusso milestone.",
-      "tariff": "Valori tariffari, cosphi, turno e fattore di emissione vengono validati lato client e salvati nel profilo energia attivo.",
-      "baseline": "Apre il flusso esistente di blocco baseline sul backend per definire la finestra di riferimento.",
-      "sampleReport": "Genera un PDF di test sulle ultime 24 ore usando il route report energia già attivo."
-    },
+      "sections": {
+        "customer": "Intestazione cliente",
+        "tariff": "Tariffe e fattore di emissione",
+        "workspace": "Stato workflow",
+        "baseline": "Dichiarazione baseline",
+        "sampleReport": "Report campione"
+      },
+      "descriptions": {
+        "customer": "Identificativi visibili al cliente usati nell'intestazione PDF e nel flusso milestone.",
+        "tariff": "Valori tariffari, cosphi, turno e fattore di emissione vengono validati lato client e salvati nel profilo energia attivo.",
+        "workspace": "Controlla lo stato prima di bloccare una baseline o generare un PDF campione.",
+        "baseline": "Apre il flusso esistente di blocco baseline sul backend per definire la finestra di riferimento.",
+        "sampleReport": "Genera un PDF di test sulle ultime 24 ore usando il route report energia già attivo."
+      },
     "fields": {
       "customerName": "Nome cliente",
       "machineSerial": "Seriale macchina",
@@ -1125,15 +1127,9 @@
       "single": "Monoraria",
       "tou3": "F1/F2/F3"
     },
-    "helpers": {
-      "decimalPreview": "Valore canonico: {value}",
-      "invalidPreview": "Inserisci un numero valido",
-      "shiftStartHour": "Valore intero da 0 a 23, usato come inizio del giorno operativo energia.",
-      "submitHint": "L'invio mantiene numerico il payload anche quando l'input visibile usa la virgola decimale."
-    },
-    "validation": {
-      "required": "Campo obbligatorio.",
-      "invalidNumber": "Inserisci un numero valido.",
+      "validation": {
+        "required": "Campo obbligatorio.",
+        "invalidNumber": "Inserisci un numero valido.",
       "invalidDate": "Inserisci una data e ora valide.",
       "cosphiRange": "Il cosphi deve restare tra 0 e 1.",
       "emissionFactorRange": "Il fattore di emissione deve restare tra 0.05 e 2.0.",
@@ -1143,30 +1139,64 @@
       "sourceRequired": "La fonte del fattore di emissione è obbligatoria.",
       "tariffBandsRequired": "F1, F2 e F3 sono obbligatori quando è selezionata la tariffa a 3 fasce."
     },
-    "actions": {
-      "saveDraft": "Valida bozza",
-      "saveSettings": "Salva impostazioni",
-      "openBaseline": "Apri dialog baseline",
-      "generateSampleReport": "Genera report campione"
+        "placeholders": {
+        "customerName": "Acme Recycling…",
+        "machineSerial": "WPT-DRY-042…",
+        "machineModel": "Dryer XL…",
+        "installSite": "Linea 2 - Bergamo…",
+        "cosphi": "0,85…",
+        "shiftStartHour": "6…",
+        "emissionFactorKgPerKwh": "0,279…",
+        "emissionFactorYear": "2024…",
+        "emissionFactorSource": "ISPRA 2024…",
+        "tariffSingleEurPerKwh": "0,250…",
+        "tariffBandF1": "0,300…",
+        "tariffBandF2": "0,240…",
+        "tariffBandF3": "0,180…",
+        "baseline": "Questa azione riusa il dialog baseline esistente invece di creare un secondo flusso baseline.",
+        "sampleReport": "Questa azione riusa il route PDF esistente con una finestra deterministica sulle ultime 24 ore."
+      },
+      "status": {
+        "ready": "Configurazione pronta",
+        "incomplete": "Configurazione incompleta",
+        "configuration": "Completezza profilo",
+        "configurationReady": "I campi obbligatori sono coerenti con il profilo backend attivo.",
+        "configurationMissing": "Dati cliente, tariffa o fattore di emissione richiedono ancora attenzione prima di usare il workflow.",
+        "saveState": "Stato salvataggio",
+        "unsavedHint": "Sono presenti modifiche locali. Salvale o annullale prima di lasciare la pagina.",
+        "savedHint": "I valori visibili corrispondono già al profilo energia salvato."
+      },
+      "toast": {
+        "draftValidated": "Bozza impostazioni energia validata.",
+        "saved": "Impostazioni energia salvate.",
+        "sampleReportReady": "Report campione scaricato."
+      },
+      "errors": {
+        "loadConfig": "Impossibile caricare la configurazione energia.",
+        "sampleReport": "Impossibile generare il report campione."
+      },
+      "states": {
+        "loading": "Caricamento area impostazioni energia…",
+        "saving": "Salvataggio…",
+        "saved": "Tutte le modifiche sono salvate",
+        "unsaved": "Modifiche non salvate",
+        "unauthorized": "Solo SuperAdmin può gestire le impostazioni energia."
+      },
+      "actions": {
+        "saveDraft": "Valida bozza",
+        "saveSettings": "Salva impostazioni",
+        "resetChanges": "Annulla modifiche",
+        "openBaseline": "Apri dialog baseline",
+        "generateSampleReport": "Genera report campione"
+      },
+      "helpers": {
+        "decimalPreview": "Valore canonico: {value}",
+        "invalidPreview": "Inserisci un numero valido",
+        "shiftStartHour": "Valore intero da 0 a 23, usato come inizio del giorno operativo energia.",
+        "submitHint": "L'invio mantiene numerico il payload anche quando l'input visibile usa la virgola decimale.",
+        "unsavedChanges": "Il form avvisa prima di ricaricare o chiudere il browser mentre sono presenti modifiche locali."
+      }
     },
-    "placeholders": {
-      "baseline": "Questa azione riusa il dialog baseline esistente invece di creare un secondo flusso baseline.",
-      "sampleReport": "Questa azione riusa il route PDF esistente con una finestra deterministica sulle ultime 24 ore."
-    },
-    "toast": {
-      "draftValidated": "Bozza impostazioni energia validata.",
-      "saved": "Impostazioni energia salvate.",
-      "sampleReportReady": "Report campione scaricato."
-    },
-    "errors": {
-      "loadConfig": "Impossibile caricare la configurazione energia.",
-      "sampleReport": "Impossibile generare il report campione."
-    },
-    "states": {
-      "loading": "Caricamento area impostazioni energia...",
-      "unauthorized": "Solo SuperAdmin può gestire le impostazioni energia."
-    }
-  },
   "cycles": {
     "title": "Registro Mensile Cicli",
     "subtitle": "Visualizzazione e esportazione del registro cicli mensile",

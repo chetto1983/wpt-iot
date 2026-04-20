@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import {
   ENERGY_TARIFF_BAND_KEYS,
@@ -31,6 +31,7 @@ interface EnergySettingsFormProps {
   initialValue?: Partial<IEnergyConfigUpdateRequest>;
   pending?: boolean;
   onSubmit?: (value: IEnergyConfigUpdateRequest) => Promise<void> | void;
+  onDirtyChange?: (dirty: boolean) => void;
   submitLabel?: string;
   successMessage?: string;
 }
@@ -60,6 +61,8 @@ type NumericFieldName =
   | 'tariffBandF1'
   | 'tariffBandF2'
   | 'tariffBandF3';
+
+type FocusableFieldName = keyof EnergySettingsDraft;
 
 const TARIFF_BAND_FIELD_MAP: Record<EnergyTariffBandKey, TariffBandFieldName> = {
   f1: 'tariffBandF1',
@@ -150,20 +153,45 @@ export function EnergySettingsForm({
   initialValue,
   pending = false,
   onSubmit,
+  onDirtyChange,
   submitLabel,
   successMessage,
 }: EnergySettingsFormProps) {
   const locale = useLocale();
   const t = useTranslations('energySettings');
   const tCommon = useTranslations('common');
-  const [draft, setDraft] = useState<EnergySettingsDraft>(() => buildInitialDraft(initialValue, locale));
+  const pristineDraft = useMemo(
+    () => buildInitialDraft(initialValue, locale),
+    [initialValue, locale],
+  );
+  const [draft, setDraft] = useState<EnergySettingsDraft>(pristineDraft);
   const [errors, setErrors] = useState<FieldErrors>({});
   const [submitting, setSubmitting] = useState(false);
+  const fieldRefs = useRef<Partial<Record<FocusableFieldName, HTMLInputElement | null>>>({});
 
   useEffect(() => {
-    setDraft(buildInitialDraft(initialValue, locale));
+    setDraft(pristineDraft);
     setErrors({});
-  }, [initialValue, locale]);
+  }, [pristineDraft]);
+
+  const isDirty = useMemo(
+    () => JSON.stringify(draft) !== JSON.stringify(pristineDraft),
+    [draft, pristineDraft],
+  );
+
+  useEffect(() => {
+    onDirtyChange?.(isDirty);
+  }, [isDirty, onDirtyChange]);
+
+  useEffect(() => {
+    if (!isDirty) return undefined;
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = '';
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [isDirty]);
 
   const decimalPreview = useMemo(
     () => ({
@@ -194,6 +222,48 @@ export function EnergySettingsForm({
   function describedBy(...ids: Array<string | null | undefined>) {
     const value = ids.filter(Boolean).join(' ');
     return value || undefined;
+  }
+
+  function registerFieldRef(field: FocusableFieldName) {
+    return (node: HTMLInputElement | null) => {
+      fieldRefs.current[field] = node;
+    };
+  }
+
+  function focusFirstError(nextErrors: FieldErrors) {
+    const priority: Array<FocusableFieldName | 'tariffBandsJson'> = [
+      'customerName',
+      'machineSerial',
+      'machineModel',
+      'installSite',
+      'cosphi',
+      'shiftStartHour',
+      'effectiveFrom',
+      'emissionFactorKgPerKwh',
+      'emissionFactorYear',
+      'emissionFactorSource',
+      'tariffSingleEurPerKwh',
+      'tariffBandF1',
+      'tariffBandF2',
+      'tariffBandF3',
+      'tariffBandsJson',
+    ];
+    const firstKey = priority.find((key) => nextErrors[key]);
+    if (!firstKey) return;
+    const focusTarget =
+      firstKey === 'tariffBandsJson'
+        ? fieldRefs.current.tariffBandF1
+        : fieldRefs.current[firstKey];
+    if (!focusTarget) return;
+    requestAnimationFrame(() => {
+      focusTarget.focus();
+      focusTarget.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+  }
+
+  function resetDraft() {
+    setDraft(pristineDraft);
+    setErrors({});
   }
 
   async function handleSubmit(event: React.FormEvent) {
@@ -291,6 +361,7 @@ export function EnergySettingsForm({
 
     if (Object.keys(nextErrors).length > 0) {
       setErrors(nextErrors);
+      focusFirstError(nextErrors);
       toast.error(tCommon('error'));
       return;
     }
@@ -320,6 +391,10 @@ export function EnergySettingsForm({
             <Label htmlFor="energy-settings-customer-name">{t('fields.customerName')}</Label>
             <Input
               id="energy-settings-customer-name"
+              ref={registerFieldRef('customerName')}
+              name="customerName"
+              autoComplete="off"
+              placeholder={t('placeholders.customerName')}
               value={draft.customerName}
               onChange={(event) => setField('customerName', event.target.value)}
             />
@@ -329,6 +404,11 @@ export function EnergySettingsForm({
             <Label htmlFor="energy-settings-machine-serial">{t('fields.machineSerial')}</Label>
             <Input
               id="energy-settings-machine-serial"
+              ref={registerFieldRef('machineSerial')}
+              name="machineSerial"
+              autoComplete="off"
+              placeholder={t('placeholders.machineSerial')}
+              spellCheck={false}
               value={draft.machineSerial}
               onChange={(event) => setField('machineSerial', event.target.value)}
             />
@@ -338,6 +418,11 @@ export function EnergySettingsForm({
             <Label htmlFor="energy-settings-machine-model">{t('fields.machineModel')}</Label>
             <Input
               id="energy-settings-machine-model"
+              ref={registerFieldRef('machineModel')}
+              name="machineModel"
+              autoComplete="off"
+              placeholder={t('placeholders.machineModel')}
+              spellCheck={false}
               value={draft.machineModel}
               onChange={(event) => setField('machineModel', event.target.value)}
             />
@@ -347,6 +432,10 @@ export function EnergySettingsForm({
             <Label htmlFor="energy-settings-install-site">{t('fields.installSite')}</Label>
             <Input
               id="energy-settings-install-site"
+              ref={registerFieldRef('installSite')}
+              name="installSite"
+              autoComplete="off"
+              placeholder={t('placeholders.installSite')}
               value={draft.installSite}
               onChange={(event) => setField('installSite', event.target.value)}
             />
@@ -366,7 +455,11 @@ export function EnergySettingsForm({
               <Label htmlFor="energy-settings-cosphi">{t('fields.cosphi')}</Label>
               <Input
                 id="energy-settings-cosphi"
+                ref={registerFieldRef('cosphi')}
+                name="cosphi"
+                autoComplete="off"
                 inputMode="decimal"
+                placeholder={t('placeholders.cosphi')}
                 value={draft.cosphi}
                 onChange={(event) => setField('cosphi', event.target.value)}
                 aria-invalid={Boolean(getNumericError('cosphi'))}
@@ -390,7 +483,11 @@ export function EnergySettingsForm({
               <Label htmlFor="energy-settings-shift-start-hour">{t('fields.shiftStartHour')}</Label>
               <Input
                 id="energy-settings-shift-start-hour"
+                ref={registerFieldRef('shiftStartHour')}
+                name="shiftStartHour"
+                autoComplete="off"
                 inputMode="numeric"
+                placeholder={t('placeholders.shiftStartHour')}
                 value={draft.shiftStartHour}
                 onChange={(event) => setField('shiftStartHour', event.target.value)}
                 aria-invalid={Boolean(errors.shiftStartHour)}
@@ -415,6 +512,9 @@ export function EnergySettingsForm({
               <Label htmlFor="energy-settings-effective-from">{t('fields.effectiveFrom')}</Label>
               <Input
                 id="energy-settings-effective-from"
+                ref={registerFieldRef('effectiveFrom')}
+                name="effectiveFrom"
+                autoComplete="off"
                 type="datetime-local"
                 value={draft.effectiveFrom}
                 onChange={(event) => setField('effectiveFrom', event.target.value)}
@@ -433,7 +533,11 @@ export function EnergySettingsForm({
               <Label htmlFor="energy-settings-emission-factor">{t('fields.emissionFactorKgPerKwh')}</Label>
               <Input
                 id="energy-settings-emission-factor"
+                ref={registerFieldRef('emissionFactorKgPerKwh')}
+                name="emissionFactorKgPerKwh"
+                autoComplete="off"
                 inputMode="decimal"
+                placeholder={t('placeholders.emissionFactorKgPerKwh')}
                 value={draft.emissionFactorKgPerKwh}
                 onChange={(event) => setField('emissionFactorKgPerKwh', event.target.value)}
                 aria-invalid={Boolean(getNumericError('emissionFactorKgPerKwh'))}
@@ -457,7 +561,11 @@ export function EnergySettingsForm({
               <Label htmlFor="energy-settings-emission-year">{t('fields.emissionFactorYear')}</Label>
               <Input
                 id="energy-settings-emission-year"
+                ref={registerFieldRef('emissionFactorYear')}
+                name="emissionFactorYear"
+                autoComplete="off"
                 inputMode="numeric"
+                placeholder={t('placeholders.emissionFactorYear')}
                 value={draft.emissionFactorYear}
                 onChange={(event) => setField('emissionFactorYear', event.target.value)}
                 aria-invalid={Boolean(errors.emissionFactorYear)}
@@ -477,6 +585,11 @@ export function EnergySettingsForm({
             <Label htmlFor="energy-settings-emission-source">{t('fields.emissionFactorSource')}</Label>
             <Input
               id="energy-settings-emission-source"
+              ref={registerFieldRef('emissionFactorSource')}
+              name="emissionFactorSource"
+              autoComplete="off"
+              placeholder={t('placeholders.emissionFactorSource')}
+              spellCheck={false}
               value={draft.emissionFactorSource}
               onChange={(event) => setField('emissionFactorSource', event.target.value)}
               aria-invalid={Boolean(errors.emissionFactorSource)}
@@ -515,7 +628,11 @@ export function EnergySettingsForm({
               <Label htmlFor="energy-settings-single-rate">{t('fields.tariffSingleEurPerKwh')}</Label>
               <Input
                 id="energy-settings-single-rate"
+                ref={registerFieldRef('tariffSingleEurPerKwh')}
+                name="tariffSingleEurPerKwh"
+                autoComplete="off"
                 inputMode="decimal"
+                placeholder={t('placeholders.tariffSingleEurPerKwh')}
                 value={draft.tariffSingleEurPerKwh}
                 onChange={(event) => setField('tariffSingleEurPerKwh', event.target.value)}
                 aria-invalid={Boolean(getNumericError('tariffSingleEurPerKwh'))}
@@ -548,7 +665,11 @@ export function EnergySettingsForm({
                   <Label htmlFor={`energy-settings-${field}`}>{t(`fields.${field}`)}</Label>
                   <Input
                     id={`energy-settings-${field}`}
+                    ref={registerFieldRef(field)}
+                    name={field}
+                    autoComplete="off"
                     inputMode="decimal"
+                    placeholder={t(`placeholders.${field}`)}
                     value={draft[field]}
                     onChange={(event) => setField(field, event.target.value)}
                     aria-invalid={Boolean(getNumericError(field))}
@@ -577,11 +698,27 @@ export function EnergySettingsForm({
         </CardContent>
       </Card>
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm text-muted-foreground">{t('helpers.submitHint')}</p>
-        <Button type="submit" disabled={busy}>
-          {busy ? t('states.loading') : (submitLabel ?? t('actions.saveDraft'))}
-        </Button>
+      <div className="sticky bottom-3 z-10">
+        <div className="flex flex-col gap-3 rounded-2xl border border-border/70 bg-background/95 p-3 shadow-lg backdrop-blur supports-[backdrop-filter]:bg-background/80 sm:flex-row sm:items-center sm:justify-between">
+          <div className="space-y-1">
+            <p className="text-sm font-medium">
+              {isDirty ? t('states.unsaved') : t('states.saved')}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {isDirty ? t('helpers.unsavedChanges') : t('helpers.submitHint')}
+            </p>
+          </div>
+          <div className="flex flex-col-reverse gap-2 sm:flex-row">
+            {isDirty ? (
+              <Button type="button" variant="outline" onClick={resetDraft} disabled={busy}>
+                {t('actions.resetChanges')}
+              </Button>
+            ) : null}
+            <Button type="submit" disabled={busy}>
+              {busy ? t('states.saving') : (submitLabel ?? t('actions.saveDraft'))}
+            </Button>
+          </div>
+        </div>
       </div>
     </form>
   );

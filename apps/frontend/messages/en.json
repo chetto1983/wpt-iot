@@ -1092,18 +1092,20 @@
       "pending": "Complete all required fields before saving and using baseline and sample report actions.",
       "ready": "The configuration is complete and consistent with the backend contract."
     },
-    "sections": {
-      "customer": "Customer header",
-      "tariff": "Tariffs and emission factor",
-      "baseline": "Baseline declaration",
-      "sampleReport": "Sample report"
-    },
-    "descriptions": {
-      "customer": "Customer-facing identifiers used in the PDF header and milestone flow.",
-      "tariff": "Tariffs, cosphi, shift start, and emission values are validated on the client and saved into the active energy profile.",
-      "baseline": "Opens the existing backend baseline lock flow to define the reference window.",
-      "sampleReport": "Generates a test PDF for the last 24 hours using the already active energy report route."
-    },
+      "sections": {
+        "customer": "Customer header",
+        "tariff": "Tariffs and emission factor",
+        "workspace": "Workflow status",
+        "baseline": "Baseline declaration",
+        "sampleReport": "Sample report"
+      },
+      "descriptions": {
+        "customer": "Customer-facing identifiers used in the PDF header and milestone flow.",
+        "tariff": "Tariffs, cosphi, shift start, and emission values are validated on the client and saved into the active energy profile.",
+        "workspace": "Review readiness before locking a baseline or generating a sample PDF.",
+        "baseline": "Opens the existing backend baseline lock flow to define the reference window.",
+        "sampleReport": "Generates a test PDF for the last 24 hours using the already active energy report route."
+      },
     "fields": {
       "customerName": "Customer name",
       "machineSerial": "Machine serial",
@@ -1125,15 +1127,9 @@
       "single": "Single rate",
       "tou3": "F1/F2/F3 time-of-use"
     },
-    "helpers": {
-      "decimalPreview": "Canonical value: {value}",
-      "invalidPreview": "Enter a valid number",
-      "shiftStartHour": "Integer from 0 to 23, used as the start of the operational energy day.",
-      "submitHint": "Submitting keeps numeric payloads canonical even when the visible input uses a comma decimal."
-    },
-    "validation": {
-      "required": "This field is required.",
-      "invalidNumber": "Enter a valid number.",
+      "validation": {
+        "required": "This field is required.",
+        "invalidNumber": "Enter a valid number.",
       "invalidDate": "Enter a valid date and time.",
       "cosphiRange": "Cosphi must stay between 0 and 1.",
       "emissionFactorRange": "Emission factor must stay between 0.05 and 2.0.",
@@ -1143,30 +1139,64 @@
       "sourceRequired": "Emission factor source is required.",
       "tariffBandsRequired": "F1, F2, and F3 values are required when the 3-band tariff is selected."
     },
-    "actions": {
-      "saveDraft": "Validate draft",
-      "saveSettings": "Save settings",
-      "openBaseline": "Open baseline dialog",
-      "generateSampleReport": "Generate sample report"
+        "placeholders": {
+        "customerName": "Acme Recycling…",
+        "machineSerial": "WPT-DRY-042…",
+        "machineModel": "Dryer XL…",
+        "installSite": "Line 2 - Bergamo…",
+        "cosphi": "0,85…",
+        "shiftStartHour": "6…",
+        "emissionFactorKgPerKwh": "0,279…",
+        "emissionFactorYear": "2024…",
+        "emissionFactorSource": "ISPRA 2024…",
+        "tariffSingleEurPerKwh": "0,250…",
+        "tariffBandF1": "0,300…",
+        "tariffBandF2": "0,240…",
+        "tariffBandF3": "0,180…",
+        "baseline": "This action reuses the existing baseline lock dialog instead of creating a second baseline workflow.",
+        "sampleReport": "This action reuses the existing PDF endpoint with a deterministic last-24-hours window."
+      },
+      "status": {
+        "ready": "Configuration Ready",
+        "incomplete": "Configuration Incomplete",
+        "configuration": "Profile completeness",
+        "configurationReady": "Required fields are coherent with the active backend profile.",
+        "configurationMissing": "Customer, tariff, or emission data still need attention before the workflow is safe to use.",
+        "saveState": "Save state",
+        "unsavedHint": "There are local edits. Save or reset them before leaving this page.",
+        "savedHint": "The visible values already match the saved energy profile."
+      },
+      "toast": {
+        "draftValidated": "Energy settings draft validated.",
+        "saved": "Energy settings saved.",
+        "sampleReportReady": "Sample report downloaded."
+      },
+      "errors": {
+        "loadConfig": "Unable to load the energy settings configuration.",
+        "sampleReport": "Unable to generate the sample report."
+      },
+      "states": {
+        "loading": "Loading the energy settings workspace…",
+        "saving": "Saving…",
+        "saved": "All changes saved",
+        "unsaved": "Unsaved changes",
+        "unauthorized": "Only SuperAdmin can manage energy settings."
+      },
+      "actions": {
+        "saveDraft": "Validate draft",
+        "saveSettings": "Save settings",
+        "resetChanges": "Reset changes",
+        "openBaseline": "Open baseline dialog",
+        "generateSampleReport": "Generate sample report"
+      },
+      "helpers": {
+        "decimalPreview": "Canonical value: {value}",
+        "invalidPreview": "Enter a valid number",
+        "shiftStartHour": "Integer from 0 to 23, used as the start of the operational energy day.",
+        "submitHint": "Submitting keeps numeric payloads canonical even when the visible input uses a comma decimal.",
+        "unsavedChanges": "The form will warn before browser refresh or close while local edits are pending."
+      }
     },
-    "placeholders": {
-      "baseline": "This action reuses the existing baseline lock dialog instead of creating a second baseline workflow.",
-      "sampleReport": "This action reuses the existing PDF endpoint with a deterministic last-24-hours window."
-    },
-    "toast": {
-      "draftValidated": "Energy settings draft validated.",
-      "saved": "Energy settings saved.",
-      "sampleReportReady": "Sample report downloaded."
-    },
-    "errors": {
-      "loadConfig": "Unable to load the energy settings configuration.",
-      "sampleReport": "Unable to generate the sample report."
-    },
-    "states": {
-      "loading": "Loading the energy settings workspace...",
-      "unauthorized": "Only SuperAdmin can manage energy settings."
-    }
-  },
   "cycles": {
     "title": "Monthly Cycle Register",
     "subtitle": "View and export monthly cycle register",

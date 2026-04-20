@@ -78,7 +78,7 @@ export function AppHeader() {
       {/* Left: sidebar trigger + page title */}
       <div className="flex min-w-0 items-center gap-2 sm:gap-3">
         <SidebarTrigger className="size-11 sm:size-7" />
-        <h1 className="text-sm font-semibold">{pageTitle}</h1>
+        <p className="text-sm font-semibold">{pageTitle}</p>
       </div>
 
       {/* Spacer */}
