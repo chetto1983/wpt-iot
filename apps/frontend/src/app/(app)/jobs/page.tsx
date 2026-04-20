@@ -27,6 +27,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
 import {
   Card,
   CardContent,
@@ -309,87 +310,84 @@ export default function JobsPage() {
           <CardTitle>{t('machineControl')}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label>{t('fields.remoteJobEnable')}</Label>
+          <div className="flex items-start justify-between gap-4 rounded-lg border p-3">
+            <div className="space-y-1">
+              <Label htmlFor="remoteJobEnable-switch" className="text-sm font-medium">
+                {t('fields.remoteJobEnable')}
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                {t(`enums.remoteJobEnable.${job.remoteJobEnable}`)}
+              </p>
+            </div>
             <DisabledTooltip disabled={disabled} tooltip={readFirstTooltip}>
-              <Select
-                value={String(job.remoteJobEnable)}
-                onValueChange={v =>
+              <Switch
+                id="remoteJobEnable-switch"
+                checked={job.remoteJobEnable === RemoteJobEnable.NEW_CYCLE_JOB_ENTRY}
+                onCheckedChange={checked =>
                   setJob(prev => ({
                     ...prev,
-                    remoteJobEnable: Number(v) as RemoteJobEnable,
+                    remoteJobEnable: checked
+                      ? RemoteJobEnable.NEW_CYCLE_JOB_ENTRY
+                      : RemoteJobEnable.NO_REQUEST,
                   }))
                 }
                 disabled={disabled}
-              >
-                <SelectTrigger aria-label={t('fields.remoteJobEnable')}>
-                  <SelectValue>{t(`enums.remoteJobEnable.${job.remoteJobEnable}`)}</SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="0">
-                    {t('enums.remoteJobEnable.0')}
-                  </SelectItem>
-                  <SelectItem value="1">
-                    {t('enums.remoteJobEnable.1')}
-                  </SelectItem>
-                </SelectContent>
-              </Select>
+                aria-label={t('fields.remoteJobEnable')}
+              />
             </DisabledTooltip>
           </div>
 
-          <div className="space-y-2">
-            <Label>{t('fields.maintenanceRequest')}</Label>
+          <div className="flex items-start justify-between gap-4 rounded-lg border p-3">
+            <div className="space-y-1">
+              <Label htmlFor="maintenanceRequest-switch" className="text-sm font-medium">
+                {t('fields.maintenanceRequest')}
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                {t(`enums.maintenanceRequest.${job.maintenanceRequest}`)}
+              </p>
+            </div>
             <DisabledTooltip disabled={disabled} tooltip={readFirstTooltip}>
-              <Select
-                value={String(job.maintenanceRequest)}
-                onValueChange={v =>
+              <Switch
+                id="maintenanceRequest-switch"
+                checked={job.maintenanceRequest === MaintenanceRequest.MAINTENANCE_REQUEST}
+                onCheckedChange={checked =>
                   setJob(prev => ({
                     ...prev,
-                    maintenanceRequest: Number(v) as MaintenanceRequest,
+                    maintenanceRequest: checked
+                      ? MaintenanceRequest.MAINTENANCE_REQUEST
+                      : MaintenanceRequest.NO_REQUEST,
                   }))
                 }
                 disabled={disabled}
-              >
-                <SelectTrigger aria-label={t('fields.maintenanceRequest')}>
-                  <SelectValue>{t(`enums.maintenanceRequest.${job.maintenanceRequest}`)}</SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="0">
-                    {t('enums.maintenanceRequest.0')}
-                  </SelectItem>
-                  <SelectItem value="1">
-                    {t('enums.maintenanceRequest.1')}
-                  </SelectItem>
-                </SelectContent>
-              </Select>
+                aria-label={t('fields.maintenanceRequest')}
+              />
             </DisabledTooltip>
           </div>
 
-          <div className="space-y-2">
-            <Label>{t('fields.remoteCycleSelection')}</Label>
+          <div className="flex items-start justify-between gap-4 rounded-lg border p-3">
+            <div className="space-y-1">
+              <Label htmlFor="remoteCycleSelection-switch" className="text-sm font-medium">
+                {t('fields.remoteCycleSelection')}
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                {t(`enums.remoteCycleSelection.${job.remoteCycleSelection}`)}
+              </p>
+            </div>
             <DisabledTooltip disabled={disabled} tooltip={readFirstTooltip}>
-              <Select
-                value={String(job.remoteCycleSelection)}
-                onValueChange={v =>
+              <Switch
+                id="remoteCycleSelection-switch"
+                checked={job.remoteCycleSelection === RemoteCycleSelection.WAITING_FOR_REMOTE_CYCLE}
+                onCheckedChange={checked =>
                   setJob(prev => ({
                     ...prev,
-                    remoteCycleSelection: Number(v) as RemoteCycleSelection,
+                    remoteCycleSelection: checked
+                      ? RemoteCycleSelection.WAITING_FOR_REMOTE_CYCLE
+                      : RemoteCycleSelection.NO_REQUEST,
                   }))
                 }
                 disabled={disabled}
-              >
-                <SelectTrigger aria-label={t('fields.remoteCycleSelection')}>
-                  <SelectValue>{t(`enums.remoteCycleSelection.${job.remoteCycleSelection}`)}</SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="0">
-                    {t('enums.remoteCycleSelection.0')}
-                  </SelectItem>
-                  <SelectItem value="1">
-                    {t('enums.remoteCycleSelection.1')}
-                  </SelectItem>
-                </SelectContent>
-              </Select>
+                aria-label={t('fields.remoteCycleSelection')}
+              />
             </DisabledTooltip>
           </div>
 
