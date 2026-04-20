@@ -24,11 +24,45 @@ export function usePlcWriteLock() {
 
   const deadlineRef = useRef(0);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const visibilityHandlerRef = useRef<(() => void) | null>(null);
 
   const clearTimer = useCallback(() => {
     if (intervalRef.current !== null) {
       clearInterval(intervalRef.current);
       intervalRef.current = null;
+    }
+  }, []);
+
+  // Single visibilitychange handler: when the tab returns to visible, recalc
+  // remainingSeconds from the wall-clock deadlineRef so the displayed value
+  // matches the source of truth within one frame (no 1Hz-throttled drift).
+  // Only attached while a loaded lock is armed; detached on write/reset/unmount.
+  const attachVisibilityListener = useCallback(() => {
+    if (visibilityHandlerRef.current !== null) return;
+    const handler = () => {
+      if (document.visibilityState !== 'visible') return;
+      if (deadlineRef.current <= 0) return;
+      const remaining = Math.max(
+        0,
+        Math.ceil((deadlineRef.current - Date.now()) / 1000),
+      );
+      setRemainingSeconds(remaining);
+      if (remaining <= 0) {
+        setState('expired');
+        if (intervalRef.current !== null) {
+          clearInterval(intervalRef.current);
+          intervalRef.current = null;
+        }
+      }
+    };
+    document.addEventListener('visibilitychange', handler);
+    visibilityHandlerRef.current = handler;
+  }, []);
+
+  const detachVisibilityListener = useCallback(() => {
+    if (visibilityHandlerRef.current !== null) {
+      document.removeEventListener('visibilitychange', visibilityHandlerRef.current);
+      visibilityHandlerRef.current = null;
     }
   }, []);
 
@@ -52,13 +86,16 @@ export function usePlcWriteLock() {
         }
       }
     }, 1000);
-  }, [clearTimer]);
+
+    attachVisibilityListener();
+  }, [clearTimer, attachVisibilityListener]);
 
   const markWriteSuccess = useCallback(() => {
+    detachVisibilityListener();
     clearTimer();
     setState('idle');
     setRemainingSeconds(0);
-  }, [clearTimer]);
+  }, [clearTimer, detachVisibilityListener]);
 
   const restoreLoadedState = useCallback((remaining: number) => {
     const normalized = Math.max(0, Math.ceil(remaining));
@@ -91,18 +128,24 @@ export function usePlcWriteLock() {
         }
       }
     }, 1000);
-  }, [clearTimer]);
+
+    attachVisibilityListener();
+  }, [clearTimer, attachVisibilityListener]);
 
   const reset = useCallback(() => {
+    detachVisibilityListener();
     clearTimer();
     setState('idle');
     setRemainingSeconds(0);
-  }, [clearTimer]);
+  }, [clearTimer, detachVisibilityListener]);
 
-  // D-05: cleanup on unmount (page navigation)
+  // D-05: cleanup on unmount (page navigation) — also detach visibility listener
   useEffect(() => {
-    return clearTimer;
-  }, [clearTimer]);
+    return () => {
+      clearTimer();
+      detachVisibilityListener();
+    };
+  }, [clearTimer, detachVisibilityListener]);
 
   return {
     state,
