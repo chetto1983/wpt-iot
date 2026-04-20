@@ -114,16 +114,34 @@ class MachineAnomalyService {
       'Machine anomaly tracker started',
     );
 
-    // Shadow lifecycle methods handle their own errors + SHADOW_ENABLED=false
-    // gracefully (per Plan 41-04). They will not throw, so no try/catch needed here.
-    machineShadowAnomalyService.start(log); // ← shadow cascade (D-16, ISSUE-06: LAST line after all primary setup)
+    // WR-05 fix (2026-04-20): wrap shadow lifecycle symmetrically with the
+    // observe() precedent. The prior "they will not throw" comment was a
+    // time bomb — the first maintainer to add I/O (health probe, warm-up
+    // read, TimescaleDB sanity check) to shadow start() would silently
+    // couple the two services' liveness. D-18 says shadow failures must
+    // never crash primary; apply that to lifecycle too.
+    try {
+      machineShadowAnomalyService.start(log); // ← shadow cascade (D-16, ISSUE-06: LAST line after all primary setup)
+    } catch (err) {
+      log.error(
+        { name: 'MachineAnomalyShadow', err: (err as Error).message },
+        'Shadow start failed (primary path unaffected)',
+      );
+    }
   }
 
   stop(): void {
     if (!this.handler) return;
     dataHub.off(DATA_EVENTS.MACHINE_DATA, this.handler);
     this.handler = null;
-    machineShadowAnomalyService.stop(); // ← shadow cascade (LAST line; shadow stops cleanly last per ISSUE-06)
+    // WR-05: symmetric try/catch on stop() too — stop() returns void today
+    // but a future edit that adds I/O (flush, close, drain) could throw.
+    try {
+      machineShadowAnomalyService.stop(); // ← shadow cascade (LAST line; shadow stops cleanly last per ISSUE-06)
+    } catch {
+      // No logger available in stop(); swallow defensively. Shadow's own
+      // internal failures already log at their source (observe/save/load).
+    }
   }
 
   getLatest(): ILiveAnomalyState | null {
@@ -262,8 +280,18 @@ class MachineAnomalyService {
       // ← shadow cascade (ISSUE-06: AFTER primary writeFile + success log;
       //   shadow's own method handles its own errors + SHADOW_ENABLED=false per Plan 41-04).
       //   Shadow saveState requires a non-optional logger — skip when primary has no logger.
+      //   WR-05 fix: distinct try/catch + shadow log name so an operator debugging a
+      //   shadow-disk-full error sees "Shadow saveState failed" instead of the
+      //   primary-tagged "Failed to save detector state" and chases the wrong file.
       if (log) {
-        await machineShadowAnomalyService.saveState(log);
+        try {
+          await machineShadowAnomalyService.saveState(log);
+        } catch (err) {
+          log.error(
+            { name: 'MachineAnomalyShadow', err: (err as Error).message },
+            'Shadow saveState failed (primary write succeeded)',
+          );
+        }
       }
     } catch (err) {
       if (log) {
@@ -289,8 +317,18 @@ class MachineAnomalyService {
       // ← shadow cascade (ISSUE-06: AFTER primary restoreDetector; shadow loads its OWN
       //   state independently per D-13 — do NOT seed shadow from primary).
       //   Shadow loadState requires a non-optional logger — skip when primary has no logger.
+      //   WR-05 fix: distinct try/catch + shadow log name so an operator debugging
+      //   a shadow-load failure (corrupted anomaly-shadow-state.json) sees
+      //   "Shadow loadState failed" instead of silent fall-through.
       if (log) {
-        await machineShadowAnomalyService.loadState(log);
+        try {
+          await machineShadowAnomalyService.loadState(log);
+        } catch (err) {
+          log.error(
+            { name: 'MachineAnomalyShadow', err: (err as Error).message },
+            'Shadow loadState failed (primary restore succeeded)',
+          );
+        }
       }
       return true;
     } catch {
