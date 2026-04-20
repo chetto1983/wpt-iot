@@ -545,6 +545,16 @@
       "readError": "Lettura PLC fallita: {error}",
       "writeError": "Scrittura PLC fallita: {error}",
       "writeNotAllowed": "Leggere prima i dati dal PLC prima di scrivere"
+    },
+    "tooltip": {
+      "writeDisabled": {
+        "readFirst": "Leggi da PLC prima",
+        "enabledBlankName": "{count, plural, one {# riga abilitata senza nome} other {# righe abilitate senza nome}}",
+        "lockExpired": "Permesso scaduto — leggi di nuovo"
+      }
+    },
+    "rowError": {
+      "enabledBlankName": "Utente abilitato senza nome"
     }
   },
   "jobs": {

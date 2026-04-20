@@ -7,6 +7,7 @@ import { Loader2 } from 'lucide-react';
 import type { IRfidUser } from '@wpt/types';
 import { RfidUserGroup } from '@wpt/types';
 import { apiFetch } from '@/lib/api';
+import { cn } from '@/lib/utils';
 import { useAuth } from '@/lib/auth-context';
 import { usePlcWriteLock } from '@/hooks/use-plc-write-lock';
 import { clearSessionDraft, readSessionDraft, writeSessionDraft } from '@/lib/session-draft';
@@ -65,8 +66,9 @@ const GROUP_KEYS: Record<number, string> = {
 };
 
 const RfidUserRow = memo(function RfidUserRow({ user, onUpdate, t, disabled }: RfidUserRowProps) {
+  const rowErr = user.enabled && user.name.trim().length === 0;
   return (
-    <TableRow>
+    <TableRow className={rowErr ? 'bg-destructive/10' : undefined}>
       <TableCell className="py-2 px-4 text-xs text-muted-foreground font-mono">
         {user.tagId}
       </TableCell>
@@ -82,6 +84,9 @@ const RfidUserRow = memo(function RfidUserRow({ user, onUpdate, t, disabled }: R
           maxLength={20}
           disabled={disabled}
         />
+        {rowErr && (
+          <p className="mt-1 text-xs text-destructive">{t('rowError.enabledBlankName')}</p>
+        )}
       </TableCell>
       <TableCell className="py-2 px-4">
         <Select
@@ -114,8 +119,9 @@ const RfidUserRow = memo(function RfidUserRow({ user, onUpdate, t, disabled }: R
 });
 
 const RfidUserCard = memo(function RfidUserCard({ user, onUpdate, t, disabled }: RfidUserRowProps) {
+  const rowErr = user.enabled && user.name.trim().length === 0;
   return (
-    <div className="rounded-lg border bg-card p-4">
+    <div className={cn('rounded-lg border bg-card p-4', rowErr && 'border-destructive bg-destructive/5')}>
       <div className="mb-3 flex items-center justify-between gap-3">
         <div>
           <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
@@ -150,6 +156,9 @@ const RfidUserCard = memo(function RfidUserCard({ user, onUpdate, t, disabled }:
             maxLength={20}
             disabled={disabled}
           />
+          {rowErr && (
+            <p className="text-xs text-destructive">{t('rowError.enabledBlankName')}</p>
+          )}
         </div>
 
         <div className="grid gap-1.5">
@@ -286,6 +295,15 @@ export default function RfidPage() {
   };
 
   const fieldsLocked = !hasRead || lock.state === 'expired';
+  const enabledBlankCount = users.filter((u) => u.enabled && u.name.trim().length === 0).length;
+  const hasEnabledBlank = enabledBlankCount > 0;
+  const writeDisabledTitle = !hasRead
+    ? t('tooltip.writeDisabled.readFirst')
+    : hasEnabledBlank
+      ? t('tooltip.writeDisabled.enabledBlankName', { count: enabledBlankCount })
+      : !lock.canWrite
+        ? t('tooltip.writeDisabled.lockExpired')
+        : '';
 
   return (
     <div className="space-y-4 p-6">
@@ -353,7 +371,8 @@ export default function RfidPage() {
         <Button
           variant={lock.canWrite ? 'destructive' : 'outline'}
           onClick={handleWriteClick}
-          disabled={!lock.canWrite || isReading || isWriting}
+          disabled={!lock.canWrite || !hasRead || hasEnabledBlank || isReading || isWriting}
+          title={writeDisabledTitle || undefined}
           className="w-full sm:w-auto"
         >
           {isWriting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

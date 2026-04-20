@@ -1,12 +1,10 @@
 import type { FastifyPluginAsync } from 'fastify';
-import { UserRole, RfidUserSchema } from '@wpt/types';
-import type { IRfidUser } from '@wpt/types';
+import { UserRole, RfidUsersPayloadSchema } from '@wpt/types';
 import { requireRole } from '../auth/authHooks.js';
 import { readUsers, writeUsers } from '../udp/handshakeFsm.js';
 import { getSockets } from '../udp/sockets.js';
 import { dataHub } from '../events/hub.js';
 import { mapHandshakeError } from './_util/handshake-errors.js';
-import { z } from 'zod/v4';
 
 /**
  * RFID user management routes (read/write PLC user tags).
@@ -39,7 +37,7 @@ export const rfidRoutes: FastifyPluginAsync = async (server) => {
    */
   server.post('/rfid/write', async (request, reply) => {
     const body = request.body as { users?: unknown };
-    const parsed = z.array(RfidUserSchema).length(48).safeParse(body?.users);
+    const parsed = RfidUsersPayloadSchema.safeParse({ users: body?.users });
 
     if (!parsed.success) {
       return reply.code(400).send({
@@ -50,8 +48,9 @@ export const rfidRoutes: FastifyPluginAsync = async (server) => {
 
     try {
       const { ackSocket, userSocket } = getSockets();
-      await writeUsers(ackSocket, userSocket, parsed.data as IRfidUser[], request.log);
-      dataHub.emitUserData(parsed.data as IRfidUser[]);
+      const users = parsed.data.users;
+      await writeUsers(ackSocket, userSocket, users, request.log);
+      dataHub.emitUserData(users);
       return { ok: true };
     } catch (err: unknown) {
       return mapHandshakeError(err, reply);

@@ -15,3 +15,23 @@ export const RfidUserSchema = z.object({
   group: z.nativeEnum(RfidUserGroup),
   enabled: z.boolean(),
 });
+
+/**
+ * Wire-layer payload for /api/rfid/write.
+ *
+ * Enforces exactly 48 users AND the invariant that every enabled user has a
+ * non-empty name. An enabled slot with a blank name would leave the PLC with
+ * an enabled access tag nobody can identify, so the empty-name case is only
+ * legitimate for DISABLED slots (i.e., unused tags on a fresh PLC).
+ */
+export const RfidUsersPayloadSchema = z.object({
+  users: z
+    .array(RfidUserSchema)
+    .length(48)
+    .refine(
+      (users) => users.every((u) => !u.enabled || u.name.trim().length > 0),
+      { message: 'Enabled users must have a non-empty name' },
+    ),
+});
+
+export type RfidUsersPayload = z.infer<typeof RfidUsersPayloadSchema>;

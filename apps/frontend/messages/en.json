@@ -545,6 +545,16 @@
       "readError": "PLC read failed: {error}",
       "writeError": "PLC write failed: {error}",
       "writeNotAllowed": "Read data from the PLC first before writing"
+    },
+    "tooltip": {
+      "writeDisabled": {
+        "readFirst": "Read from PLC first",
+        "enabledBlankName": "{count, plural, one {# enabled row without a name} other {# enabled rows without a name}}",
+        "lockExpired": "Write lock expired — read again"
+      }
+    },
+    "rowError": {
+      "enabledBlankName": "Enabled user without a name"
     }
   },
   "jobs": {
