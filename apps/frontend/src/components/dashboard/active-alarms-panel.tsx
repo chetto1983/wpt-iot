@@ -6,6 +6,7 @@ import type { IActiveAlarm } from '@wpt/types';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useDashboardFormatters } from '@/lib/dashboard/formatters';
+import { useAppLocale } from '@/lib/locale';
 
 interface ActiveAlarmsPanelProps {
   alarms: IActiveAlarm[];
@@ -14,6 +15,7 @@ interface ActiveAlarmsPanelProps {
 export const ActiveAlarmsPanel = memo(function ActiveAlarmsPanel({ alarms }: ActiveAlarmsPanelProps) {
   const t = useTranslations('dashboard');
   const formatters = useDashboardFormatters();
+  const { formatTimeFull } = useAppLocale();
 
   const sorted = [...alarms].sort(
     (a, b) => new Date(b.activatedAt).getTime() - new Date(a.activatedAt).getTime(),
@@ -50,7 +52,7 @@ export const ActiveAlarmsPanel = memo(function ActiveAlarmsPanel({ alarms }: Act
                     {formatters.alarmDescription(alarm)}
                   </span>
                   <span className="text-xs text-muted-foreground shrink-0">
-                    {new Date(alarm.activatedAt).toLocaleTimeString()}
+                    {formatTimeFull(new Date(alarm.activatedAt))}
                   </span>
                 </div>
               ))}

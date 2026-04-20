@@ -3,11 +3,11 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { format } from 'date-fns';
 import { LayoutGrid, Plus, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import type { IDashboard } from '@wpt/types';
 import { apiFetch } from '@/lib/api';
+import { useAppLocale } from '@/lib/locale';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -26,6 +26,7 @@ import {
 export default function DashboardsListPage() {
   const t = useTranslations('dashboards');
   const router = useRouter();
+  const { formatDateTime } = useAppLocale();
   const [dashboards, setDashboards] = useState<IDashboard[]>([]);
   const [loading, setLoading] = useState(true);
   const [createName, setCreateName] = useState('');
@@ -149,7 +150,7 @@ export default function DashboardsListPage() {
                   <div className="min-w-0">
                     <h3 className="truncate font-medium">{dashboard.name}</h3>
                     <p className="text-xs text-muted-foreground">
-                      {format(new Date(dashboard.createdAt), 'dd/MM/yyyy HH:mm')}
+                      {formatDateTime(new Date(dashboard.createdAt))}
                     </p>
                   </div>
                   {dashboard.isDefault && (

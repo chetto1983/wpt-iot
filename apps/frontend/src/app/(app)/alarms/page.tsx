@@ -9,6 +9,7 @@ import { AlertTriangle, CalendarDays } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { useAuth } from '@/lib/auth-context';
+import { useAppLocale } from '@/lib/locale';
 import { apiFetch } from '@/lib/api';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -68,6 +69,7 @@ export default function AlarmsPage() {
 
 function AlarmsContent({ locale }: { locale: string }) {
   const t = useTranslations('alarms');
+  const { formatDateTime } = useAppLocale();
 
   const [filters, setFilters] = useQueryStates({
     from: parseAsString,
@@ -312,14 +314,14 @@ function AlarmsContent({ locale }: { locale: string }) {
                       <dt className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
                         {t('columnActivated')}
                       </dt>
-                      <dd className="mt-1 font-mono text-xs">{event.activatedAt}</dd>
+                      <dd className="mt-1 font-mono text-xs">{formatDateTime(new Date(event.activatedAt))}</dd>
                     </div>
                     <div className="rounded-xl bg-muted/30 p-3">
                       <dt className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
                         {t('columnReset')}
                       </dt>
                       <dd className="mt-1 font-mono text-xs">
-                        {event.isActive ? t('activeBadge') : event.resetAt}
+                        {event.isActive ? t('activeBadge') : formatDateTime(new Date(event.resetAt))}
                       </dd>
                     </div>
                     <div className="rounded-xl bg-muted/30 p-3 sm:col-span-2">
@@ -353,7 +355,7 @@ function AlarmsContent({ locale }: { locale: string }) {
                       </TableCell>
                       <TableCell className="max-w-[28rem] text-sm">{event.description}</TableCell>
                       <TableCell className="font-mono text-xs whitespace-nowrap">
-                        {event.activatedAt}
+                        {formatDateTime(new Date(event.activatedAt))}
                       </TableCell>
                       <TableCell className="whitespace-nowrap">
                         {event.isActive ? (
@@ -361,7 +363,7 @@ function AlarmsContent({ locale }: { locale: string }) {
                             {t('activeBadge')}
                           </Badge>
                         ) : (
-                          <span className="font-mono text-xs">{event.resetAt}</span>
+                          <span className="font-mono text-xs">{formatDateTime(new Date(event.resetAt))}</span>
                         )}
                       </TableCell>
                       <TableCell className="text-sm whitespace-nowrap">{event.duration}</TableCell>

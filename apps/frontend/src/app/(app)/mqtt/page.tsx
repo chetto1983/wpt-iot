@@ -17,6 +17,7 @@ import {
 
 import { apiFetch } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
+import { useAppLocale } from '@/lib/locale';
 import { MqttConfigForm } from '@/components/mqtt/mqtt-config-form';
 import { MqttUserDialog } from '@/components/mqtt/mqtt-user-dialog';
 import { Button } from '@/components/ui/button';
@@ -120,6 +121,7 @@ export default function MqttPage() {
   const t = useTranslations('mqtt');
   const { user } = useAuth();
   const router = useRouter();
+  const { formatTimeFull } = useAppLocale();
 
   const [status, setStatus] = useState<MqttStatus | null>(null);
   const [config, setConfig] = useState<MqttConfig | null>(null);
@@ -586,7 +588,7 @@ export default function MqttPage() {
           ) : (
             <div className="max-h-96 space-y-2 overflow-y-auto" tabIndex={0}>
               {[...logEvents].reverse().map((event, i) => {
-                const time = new Date(event.timestamp).toLocaleTimeString();
+                const time = formatTimeFull(new Date(event.timestamp));
                 return (
                   <div
                     key={`${event.timestamp}-${event.type}-${i}`}

@@ -1,23 +1,17 @@
 'use client';
 
 import { memo, useCallback, useState } from 'react';
-import { useLocale, useTranslations } from 'next-intl';
+import { useTranslations } from 'next-intl';
 import { Check, Loader2, Trash2, X } from 'lucide-react';
 import type { IMachineAnomalyEvent } from '@wpt/types';
 import { apiFetch } from '@/lib/api';
+import { useAppLocale } from '@/lib/locale';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 
 interface AnomalyEventTableProps {
   events: IMachineAnomalyEvent[];
   onRefresh: () => void;
-}
-
-function formatDateTime(value: string, locale: string): string {
-  return new Intl.DateTimeFormat(locale, {
-    day: '2-digit', month: '2-digit', year: 'numeric',
-    hour: '2-digit', minute: '2-digit', second: '2-digit',
-  }).format(new Date(value));
 }
 
 function statusVariant(status: string): { variant?: 'outline' | 'default' | 'secondary'; severity?: 'high' } {
@@ -34,7 +28,7 @@ export const AnomalyEventTable = memo(function AnomalyEventTable({
   onRefresh,
 }: AnomalyEventTableProps) {
   const t = useTranslations('dashboard');
-  const locale = useLocale();
+  const { formatDateTime } = useAppLocale();
   const [busy, setBusy] = useState<number | null>(null);
 
   const handleAck = useCallback(async (id: number) => {
@@ -96,7 +90,7 @@ export const AnomalyEventTable = memo(function AnomalyEventTable({
                 </span>
               </div>
               <span className="text-xs text-muted-foreground">
-                {formatDateTime(ev.observedAt, locale)}
+                {formatDateTime(new Date(ev.observedAt))}
               </span>
             </div>
             <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">

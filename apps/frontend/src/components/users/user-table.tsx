@@ -6,6 +6,7 @@ import { Loader2, MoreHorizontal, Pencil, Trash2, KeyRound, UserPlus } from 'luc
 import { toast } from 'sonner';
 
 import { useAuth } from '@/lib/auth-context';
+import { useAppLocale } from '@/lib/locale';
 import { apiFetch } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
@@ -61,6 +62,7 @@ export function UserTable() {
   const t = useTranslations('users');
   const tCommon = useTranslations('common');
   const { user: currentUser } = useAuth();
+  const { formatDate } = useAppLocale();
 
   const [users, setUsers] = useState<UserRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -124,7 +126,7 @@ export function UserTable() {
                   <div className="min-w-0">
                     <p className="truncate font-medium">{row.username}</p>
                     <p className="mt-1 text-sm text-muted-foreground">
-                      {t('table.created')}: {new Date(row.createdAt).toLocaleDateString()}
+                      {t('table.created')}: {formatDate(new Date(row.createdAt))}
                     </p>
                   </div>
                   <Badge
@@ -192,7 +194,7 @@ export function UserTable() {
                       </Badge>
                     </TableCell>
                     <TableCell className="text-muted-foreground">
-                      {new Date(row.createdAt).toLocaleDateString()}
+                      {formatDate(new Date(row.createdAt))}
                     </TableCell>
                     <TableCell>
                       <DropdownMenu>
