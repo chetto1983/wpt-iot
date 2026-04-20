@@ -141,6 +141,15 @@ export const mqttRoutes: FastifyPluginAsync = async (server) => {
     // site/machine identity, LWT topic, and command-handler subscription all
     // take effect immediately. This is a full disconnect → reconnect cycle.
     await reloadMqttConnection(request.log);
+    // Sparkplug B uplink is a separate mqtt.js client instance and was NOT
+    // covered by reloadMqttConnection. Without this, saving a new broker
+    // config leaves the Sparkplug client pinned to its previous (possibly
+    // null) state until the next backend restart — and publishCycleRecord
+    // would silently drop every drained cycle in the meantime (verified
+    // 2026-04-20 against sacchi: cycles 1080-1091 marked published while
+    // the client was null). Tear down and re-init with the fresh DB config.
+    await SparkplugService.stop();
+    await SparkplugService.init(request.log);
     // Return the redacted public view (no password leak in the response).
     return MqttConfigService.getPublicConfig();
   });

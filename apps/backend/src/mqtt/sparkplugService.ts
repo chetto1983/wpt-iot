@@ -480,7 +480,18 @@ export class SparkplugService {
   // contract is enforced by `CycleRecordPayloadSchema.parse(record)` — `validated` is
   // fully typed `ICycleRecordPayload` after the parse.
   static async publishCycleRecord(record: unknown): Promise<void> {
-    if (!this.client || !spb) return;
+    // Throw (don't silent-return) when the client is null so the caller can
+    // leave published_at NULL and retry on the next drain. The previous
+    // early-return here caused CloudUplinkWorker.publishAndMark to flag
+    // cycle records as published even when the Sparkplug client was
+    // disconnected — silent outbox data loss (verified 2026-04-20 against
+    // sacchi: 12 cycles were marked published while nothing reached the
+    // broker). The drain loop's try/catch handles the throw correctly and
+    // stops the current drain so the records stay in the outbox.
+    if (!spb) throw new Error('Sparkplug B payload encoder unavailable');
+    if (!this.client) {
+      throw new Error('Sparkplug client not connected — cycle record will be retried on next drain');
+    }
     const cfg = await MqttConfigService.getConfig();
     if (!cfg.enabled || !cfg.publishCycleRecords) return;
 

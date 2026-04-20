@@ -61,6 +61,30 @@ vi.mock('../../mqtt/connectionManager.js', () => ({
   reloadMqttConnection: reloadMqttConnectionMock,
 }));
 
+// Sparkplug re-init on config save (fix for 2026-04-20 verification bug:
+// saving a new broker config must re-init the Sparkplug uplink, otherwise
+// it stays pinned to the pre-change state and publishCycleRecord silently
+// drops drained cycles).
+const sparkplugStopMock = vi.fn(async () => undefined);
+const sparkplugInitMock = vi.fn(async () => undefined);
+const sparkplugIsConnectedMock = vi.fn(() => false);
+const sparkplugRequestRebirthMock = vi.fn(async () => undefined);
+const sparkplugGetSessionStateMock = vi.fn(() => ({
+  bdSeq: 0,
+  seq: 0,
+  edgeNodeId: null,
+  clientId: null,
+}));
+vi.mock('../../mqtt/sparkplugService.js', () => ({
+  SparkplugService: {
+    stop: sparkplugStopMock,
+    init: sparkplugInitMock,
+    isConnected: sparkplugIsConnectedMock,
+    requestRebirth: sparkplugRequestRebirthMock,
+    getSessionState: sparkplugGetSessionStateMock,
+  },
+}));
+
 // DynSecClient + activityLog are touched by other mqttRoutes endpoints; stub
 // them out so the plugin body registers cleanly even though only /mqtt/config
 // is exercised in this file.
@@ -247,5 +271,32 @@ describe('Phase 37 D-10/D-12 — MQTT config API contract narrowing', () => {
     const body = response.json() as Record<string, unknown>;
     expect(body.siteId).toBe('site-01');
     expect(body.machineId).toBe('wpt40-001');
+  });
+
+  // ─── Regression guard for the 2026-04-20 sacchi verification bug ────────
+  // Before the fix, PUT /api/mqtt/config reloaded only the local MQTT client;
+  // SparkplugService stayed pinned to the pre-change (often null) state,
+  // and publishCycleRecord then silently no-op'd every drained cycle,
+  // marking them as published in the DB without sending anything.
+  it('PUT /api/mqtt/config re-initializes the Sparkplug uplink after reload', async () => {
+    const response = await app.inject({
+      method: 'PUT',
+      url: '/api/mqtt/config',
+      headers: { 'x-test-role': 'SUPER_ADMIN' },
+      payload: { brokerHost: 'sterilix.emilsoftware.it', brokerPort: 1883 },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(reloadMqttConnectionMock).toHaveBeenCalledTimes(1);
+    expect(sparkplugStopMock).toHaveBeenCalledTimes(1);
+    expect(sparkplugInitMock).toHaveBeenCalledTimes(1);
+
+    // Ordering matters: reload → stop → init. Stop before init prevents a
+    // rogue second mqtt.js client against the stale config from lingering.
+    const reloadOrder = reloadMqttConnectionMock.mock.invocationCallOrder[0] ?? 0;
+    const stopOrder = sparkplugStopMock.mock.invocationCallOrder[0] ?? 0;
+    const initOrder = sparkplugInitMock.mock.invocationCallOrder[0] ?? 0;
+    expect(reloadOrder).toBeLessThan(stopOrder);
+    expect(stopOrder).toBeLessThan(initOrder);
   });
 });
