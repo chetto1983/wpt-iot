@@ -322,6 +322,110 @@ describe('OnlineAnomalyDetector', () => {
     expect(Number.isNaN(result.score)).toBe(false);
   });
 
+  it('inspect() returns snapshot shape with derived sigma and mode flags (Phase 40 D-09/D-11)', () => {
+    // RED→GREEN reasoning: proves inspect() returns the full IDetectorSnapshot projection
+    // that Phase 42 DEBUG-01 and Phase 41 shadow-diff consumers depend on. Each assertion
+    // targets a specific D-09/D-11 contract clause:
+    //   - currentModeKey populated, startedAt formatted, counters non-zero (top-level)
+    //   - modes record populated, per-mode warm/inGracePeriod/cusum/recentFlags (per-mode)
+    //   - features record populated, per-feature Welford fields + derived sigma (per-feature)
+    //   - sigma === sqrt(max(decayedVariance, EPSILON)) to 9 decimals (D-11 explicit)
+    // Mutating the implementation to drop `sigma` from the projection would fail the last
+    // assertion; mutating it to skip the warm-flag boolean would fail the warm check.
+    const detector = new OnlineAnomalyDetector({
+      minWarmSamples: 15,
+      minReliableSamples: 25,
+      baseRate: 0.1,
+      topK: 3,
+      modeChangeGraceMs: 0,
+    });
+
+    // Observe enough samples to warm up a mode.
+    for (let i = 0; i < 20; i += 1) {
+      detector.observe(makeSample({ garbageTemp: 180 + Math.sin(i) }));
+    }
+
+    const snapshot = detector.inspect();
+
+    // Top-level shape.
+    expect(snapshot.currentModeKey).not.toBeNull();
+    expect(snapshot.startedAt).toBeTypeOf('string');
+    expect(snapshot.totalObservations).toBeGreaterThan(0);
+    expect(snapshot.modes).toBeTypeOf('object');
+    expect(snapshot.config).toBeTypeOf('object');
+    expect(snapshot.metrics).toBeTypeOf('object');
+
+    // The current mode exists in the modes record.
+    const modeKey = snapshot.currentModeKey as string;
+    const mode = snapshot.modes[modeKey];
+    expect(mode).toBeDefined();
+    expect(mode!.samplesSeen).toBeGreaterThan(0);
+    expect(mode!.warm).toBe(true); // samplesSeen >= minWarmSamples=15
+    expect(typeof mode!.inGracePeriod).toBe('boolean');
+    expect(mode!.cusum).toEqual({
+      posCumSum: expect.any(Number),
+      negCumSum: expect.any(Number),
+    });
+    expect(Array.isArray(mode!.recentFlags)).toBe(true);
+
+    // Per-feature shape + derived sigma math (D-11).
+    const garbage = mode!.features['garbageTemp'];
+    expect(garbage).toBeDefined();
+    expect(garbage!.count).toBeGreaterThan(0);
+    expect(typeof garbage!.mean).toBe('number');
+    expect(typeof garbage!.emaMean).toBe('number');
+    expect(typeof garbage!.decayedVariance).toBe('number');
+
+    // Sigma = sqrt(max(decayedVariance, EPSILON=1e-6)) — the derived field.
+    const expectedSigma = Math.sqrt(Math.max(garbage!.decayedVariance, 1e-6));
+    expect(garbage!.sigma).toBeCloseTo(expectedSigma, 9);
+  });
+
+  it('inspect() returns fresh objects — caller mutation does not affect internal state (Phase 40 D-10)', () => {
+    // RED→GREEN reasoning: this is the runtime proof that D-10 "fresh-object construction"
+    // is real — at runtime the returned object IS a plain mutable JS object (no Object.freeze
+    // per D-10's perf-pitfall ban), but fresh-object construction means the caller's mutation
+    // is isolated to their copy. If the implementation aliased `this.modes[key]` instead of
+    // constructing a new object, the mutation on snap1 would bleed into snap2. The
+    // `@ts-expect-error` directive is the compile-time complement: if DeepReadonly<T>'s
+    // mapped type breaks, TSC emits "Unused '@ts-expect-error'" and the build fails.
+    const detector = new OnlineAnomalyDetector({
+      minWarmSamples: 15,
+      minReliableSamples: 25,
+      baseRate: 0.1,
+      topK: 3,
+      modeChangeGraceMs: 0,
+    });
+
+    for (let i = 0; i < 20; i += 1) {
+      detector.observe(makeSample());
+    }
+
+    const snap1 = detector.inspect();
+    const modeKey = snap1.currentModeKey as string;
+    const countBefore = snap1.modes[modeKey]!.samplesSeen;
+
+    // Attempt to mutate the snapshot. DeepReadonly forbids this at COMPILE TIME —
+    // using @ts-expect-error proves the type guard is active; at runtime the object
+    // is a plain mutable JS object (no Object.freeze per D-10), but fresh-object
+    // construction means this mutation is isolated to the caller's copy.
+    // @ts-expect-error — DeepReadonly<T> forbids mutation by design
+    snap1.modes[modeKey]!.samplesSeen = 9999;
+
+    // Observe one more sample and take a fresh snapshot.
+    detector.observe(makeSample());
+    const snap2 = detector.inspect();
+
+    // The internal state was NOT corrupted by the mutation of snap1.
+    // snap2.samplesSeen should be countBefore + 1, NOT 9999 + 1.
+    expect(snap2.modes[modeKey]!.samplesSeen).toBe(countBefore + 1);
+    expect(snap2.modes[modeKey]!.samplesSeen).not.toBe(10000);
+
+    // snap1 and snap2 are different object identities.
+    expect(snap1.modes[modeKey]).not.toBe(snap2.modes[modeKey]);
+    expect(snap1.modes[modeKey]!.features).not.toBe(snap2.modes[modeKey]!.features);
+  });
+
   it('C3: CUSUM detects slow persistent drift that z-score misses', () => {
     const detector = new OnlineAnomalyDetector({
       minWarmSamples: 10,
