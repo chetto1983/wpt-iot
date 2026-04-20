@@ -5,10 +5,10 @@
  * wpt.local deployment (no local Docker). Emits a JSON report + screenshots
  * consumed by 40-06-SUMMARY.md.
  *
- *   Pass:  /api/energy/anomaly/events returns at least one topContributor with
+ *   Pass:  /api/anomaly/events returns at least one topContributor with
  *          numeric contribution AND direction in { HIGH, LOW }
  *          /anomaly page renders HIGH/LOW badge + NN% inline
- *          /api/energy/anomaly/report/pdf renders OK + magic bytes
+ *          /api/anomaly/report/pdf renders OK + magic bytes
  *          i18n keys anomaly.direction.high/low resolve in EN and IT
  *          No console errors on /anomaly
  *
@@ -103,8 +103,8 @@ async function main() {
       check('Login form absent (session active?)', true);
     }
 
-    section('2. /api/energy/anomaly/events — contribution + direction in JSONB payload');
-    const events = await apiGet(page, '/api/energy/anomaly/events?limit=20&flaggedOnly=0');
+    section('2. /api/anomaly/events — contribution + direction in JSONB payload');
+    const events = await apiGet(page, '/api/anomaly/events?limit=20&flaggedOnly=0');
     check('events endpoint 200', events._status === 200, `status=${events._status}`);
     const evRows = Array.isArray(events.events) ? events.events : [];
     check('events.events is array', Array.isArray(events.events), `count=${evRows.length}`);
@@ -135,8 +135,8 @@ async function main() {
       check('feature is a non-empty string', typeof c.feature === 'string' && c.feature.length > 0, `feature=${c.feature}`);
     }
 
-    section('3. /api/energy/anomaly/live — detector state shape');
-    const live = await apiGet(page, '/api/energy/anomaly/live');
+    section('3. /api/anomaly/live — detector state shape');
+    const live = await apiGet(page, '/api/anomaly/live');
     check('live endpoint 200', live._status === 200, `status=${live._status}`);
     if (live.latest) {
       const latestContribs = Array.isArray(live.latest.topContributors) ? live.latest.topContributors : [];
@@ -206,8 +206,8 @@ async function main() {
     check('EN i18n has anomaly.direction.high / low (best-effort)', hasDirectionKey(enRaw), `status=${enRaw._status}`);
     check('IT i18n has anomaly.direction.high / low (best-effort)', hasDirectionKey(itRaw), `status=${itRaw._status}`);
 
-    section('7. /api/energy/anomaly/report/pdf — PDF renders with magic bytes');
-    const pdf = await apiGetBinary(page, '/api/energy/anomaly/report/pdf?days=7');
+    section('7. /api/anomaly/report/pdf — PDF renders with magic bytes');
+    const pdf = await apiGetBinary(page, '/api/anomaly/report/pdf?days=7');
     check('PDF endpoint 200', pdf._status === 200, `status=${pdf._status}`);
     check('PDF magic bytes "%PDF"', pdf._magic === '%PDF', `got ${pdf._magic}`);
     check('PDF size > 1 KiB', (pdf._size ?? 0) > 1024, `size=${pdf._size} bytes`);

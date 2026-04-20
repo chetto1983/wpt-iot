@@ -13,7 +13,7 @@
 | `machineAnomalyScenarioService.ts` | Synthetic scenario runner (demo/dev) |
 | `machineAnomalyEvaluationService.ts` | Alarm-matching precision/recall evaluation |
 
-### API Endpoints (all under `/api/energy/anomaly/`)
+### API Endpoints (all under `/api/anomaly/`)
 
 | Endpoint | Method | Auth | Purpose |
 |---|---|---|---|
@@ -242,7 +242,7 @@ Wired `toJSON()`/`fromJSON()` to Fastify lifecycle hooks. On `onClose`, detector
 
 ### C7 — Feedback Loop (Threshold Recalibration) ✅ DONE
 
-Backend: `getFeedbackStats()` queries resolved events by `resolution_category`, computes FP/TP rates, auto-suggests threshold adjustments when FP>30% or TP<50% (min 5 resolved events). `GET /api/energy/anomaly/feedback` + `PATCH /api/energy/anomaly/thresholds` (SUPER_ADMIN, runtime recalibration persisted via C6). Frontend: feedback analysis panel with TP/FP counts, rates, and amber suggestion banner. i18n: en + it.
+Backend: `getFeedbackStats()` queries resolved events by `resolution_category`, computes FP/TP rates, auto-suggests threshold adjustments when FP>30% or TP<50% (min 5 resolved events). `GET /api/anomaly/feedback` + `PATCH /api/anomaly/thresholds` (SUPER_ADMIN, runtime recalibration persisted via C6). Frontend: feedback analysis panel with TP/FP counts, rates, and amber suggestion banner. i18n: en + it.
 
 ### C8 — Migrate `machine_anomaly_events` to Drizzle Schema ✅ DONE
 

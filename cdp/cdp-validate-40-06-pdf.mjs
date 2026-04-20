@@ -39,7 +39,7 @@ async function main() {
       let bin = '';
       for (let i = 0; i < u8.length; i++) bin += String.fromCharCode(u8[i]);
       return { _status: 200, b64: btoa(bin), size: buf.byteLength };
-    }, `${BASE}/api/energy/anomaly/report/pdf?days=7`);
+    }, `${BASE}/api/anomaly/report/pdf?days=7`);
 
     if (!pdfB64.b64) { console.log('PDF fetch failed', pdfB64); process.exit(1); }
     const pdf = Buffer.from(pdfB64.b64, 'base64');

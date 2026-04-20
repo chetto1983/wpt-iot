@@ -108,28 +108,28 @@ async function main() {
     // =====================================================================
 
     // Test unauthenticated access to all 5 endpoints
-    const liveNoAuth = await rawFetchStatus(`${API}/api/energy/anomaly/live`);
+    const liveNoAuth = await rawFetchStatus(`${API}/api/anomaly/live`);
     check('GET /anomaly/live returns 401 without auth', liveNoAuth === 401, `got ${liveNoAuth}`);
 
-    const eventsNoAuth = await rawFetchStatus(`${API}/api/energy/anomaly/events`);
+    const eventsNoAuth = await rawFetchStatus(`${API}/api/anomaly/events`);
     check('GET /anomaly/events returns 401 without auth', eventsNoAuth === 401, `got ${eventsNoAuth}`);
 
     const simNoAuth = await rawFetchStatus(
-      `${API}/api/energy/anomaly/simulate`,
+      `${API}/api/anomaly/simulate`,
       'POST',
       { scenario: 'temperature_spike' },
     );
     check('POST /anomaly/simulate returns 401 without auth', simNoAuth === 401, `got ${simNoAuth}`);
 
     const replayNoAuth = await rawFetchStatus(
-      `${API}/api/energy/anomaly/replay`,
+      `${API}/api/anomaly/replay`,
       'POST',
       { from: '2026-04-12T00:00:00Z', to: '2026-04-13T00:00:00Z' },
     );
     check('POST /anomaly/replay returns 401 without auth', replayNoAuth === 401, `got ${replayNoAuth}`);
 
     const evalNoAuth = await rawFetchStatus(
-      `${API}/api/energy/anomaly/evaluate`,
+      `${API}/api/anomaly/evaluate`,
       'POST',
       { from: '2026-04-12T00:00:00Z', to: '2026-04-13T00:00:00Z' },
     );
@@ -166,7 +166,7 @@ async function main() {
     section('3. LIVE ANOMALY API (BUG 1,4,5,7,10)');
     // =====================================================================
 
-    const live = await apiGet(page, '/api/energy/anomaly/live');
+    const live = await apiGet(page, '/api/anomaly/live');
     check('GET /anomaly/live returns 200 with auth', live._status === 200, `status=${live._status}`);
 
     const tracking = live.tracking;
@@ -208,7 +208,7 @@ async function main() {
     section('4. ANOMALY EVENTS');
     // =====================================================================
 
-    const events = await apiGet(page, '/api/energy/anomaly/events?limit=5&flaggedOnly=0');
+    const events = await apiGet(page, '/api/anomaly/events?limit=5&flaggedOnly=0');
     check('GET /anomaly/events returns 200', events._status === 200);
     check('events.events is array', Array.isArray(events.events), `count=${events.events?.length}`);
 
@@ -217,7 +217,7 @@ async function main() {
     // =====================================================================
 
     for (const scenario of ['temperature_spike', 'pressure_runaway', 'energy_drift']) {
-      const sim = await apiPost(page, '/api/energy/anomaly/simulate', {
+      const sim = await apiPost(page, '/api/anomaly/simulate', {
         scenario,
         warmupSamples: 50,
         scenarioSamples: 10,
@@ -235,7 +235,7 @@ async function main() {
 
     const now = new Date();
     const from24h = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-    const replay = await apiPost(page, '/api/energy/anomaly/replay', {
+    const replay = await apiPost(page, '/api/anomaly/replay', {
       from: from24h.toISOString(),
       to: now.toISOString(),
       topN: 5,
@@ -257,7 +257,7 @@ async function main() {
     // =====================================================================
 
     const from3d = new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000);
-    const evalResult = await apiPost(page, '/api/energy/anomaly/evaluate', {
+    const evalResult = await apiPost(page, '/api/anomaly/evaluate', {
       from: from3d.toISOString(),
       to: now.toISOString(),
       topN: 5,

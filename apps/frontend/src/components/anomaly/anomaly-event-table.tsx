@@ -40,7 +40,7 @@ export const AnomalyEventTable = memo(function AnomalyEventTable({
   const handleAck = useCallback(async (id: number) => {
     setBusy(id);
     try {
-      await apiFetch(`/api/energy/anomaly/events/${id}/acknowledge`, { method: 'PATCH' });
+      await apiFetch(`/api/anomaly/events/${id}/acknowledge`, { method: 'PATCH' });
       onRefresh();
     } finally { setBusy(null); }
   }, [onRefresh]);
@@ -48,7 +48,7 @@ export const AnomalyEventTable = memo(function AnomalyEventTable({
   const handleResolve = useCallback(async (id: number, status: 'CONFIRMED' | 'DISMISSED') => {
     setBusy(id);
     try {
-      await apiFetch(`/api/energy/anomaly/events/${id}/resolve`, {
+      await apiFetch(`/api/anomaly/events/${id}/resolve`, {
         method: 'PATCH',
         body: JSON.stringify({
           status,
@@ -63,7 +63,7 @@ export const AnomalyEventTable = memo(function AnomalyEventTable({
     if (!confirm(t('anomaly.actions.confirmDelete'))) return;
     setBusy(id);
     try {
-      await apiFetch(`/api/energy/anomaly/events/${id}`, { method: 'DELETE' });
+      await apiFetch(`/api/anomaly/events/${id}`, { method: 'DELETE' });
       onRefresh();
     } finally { setBusy(null); }
   }, [onRefresh, t]);
