@@ -1,6 +1,7 @@
 import { sql } from 'drizzle-orm';
 import type {
   AnomalyEventStatus,
+  IAnomalyContributor,
   IMachineAnomalyEvent,
   ResolutionCategory,
 } from '@wpt/types';
@@ -38,7 +39,7 @@ function mapRow(row: IEventRow): IMachineAnomalyEvent {
     warm: Boolean(row.warm),
     sampleCount: Number(row.sample_count),
     topContributors: Array.isArray(row.top_contributors)
-      ? (row.top_contributors as Array<{ feature: string; zScore: number }>)
+      ? (row.top_contributors as IAnomalyContributor[])
       : [],
     status: (row.status ?? 'OPEN') as AnomalyEventStatus,
     resolvedBy: row.resolved_by ?? null,
