@@ -28,9 +28,9 @@ export interface IJobData {
 }
 
 export const JobDataSchema = z.object({
-  supervisor: z.string().max(20),
-  orderNumber: z.string().max(20),
-  serialNumber: z.string().max(20),
+  supervisor: z.string().min(1).max(20),
+  orderNumber: z.string().min(1).max(20),
+  serialNumber: z.string().min(1).max(20),
   remoteJobEnable: z.enum(RemoteJobEnable),
   maintenanceRequest: z.enum(MaintenanceRequest),
   remoteCycleSelection: z.enum(RemoteCycleSelection),

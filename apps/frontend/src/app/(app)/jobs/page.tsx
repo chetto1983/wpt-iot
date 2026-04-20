@@ -220,6 +220,17 @@ export default function JobsPage() {
 
   const disabled = !hasRead;
   const readFirstTooltip = t('tooltip.readFirst');
+  const identityComplete =
+    job.supervisor.trim().length > 0 &&
+    job.orderNumber.trim().length > 0 &&
+    job.serialNumber.trim().length > 0;
+  const writeDisabledTooltip = !hasRead
+    ? t('tooltip.writeDisabled.readFirst')
+    : !identityComplete
+      ? t('tooltip.writeDisabled.identityIncomplete')
+      : !lock.canWrite
+        ? t('tooltip.writeDisabled.lockExpired')
+        : '';
 
   return (
     <div className="space-y-6 p-6">
@@ -425,11 +436,14 @@ export default function JobsPage() {
           {isReading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
           {isReading ? t('actions.reading') : t('actions.readFromPlc')}
         </Button>
-        <DisabledTooltip disabled={!lock.canWrite && hasRead} tooltip={readFirstTooltip}>
+        <DisabledTooltip
+          disabled={!lock.canWrite || !identityComplete || !hasRead}
+          tooltip={writeDisabledTooltip}
+        >
           <Button
             variant={lock.canWrite ? 'destructive' : 'outline'}
             onClick={handleWriteClick}
-            disabled={!lock.canWrite || isReading || isWriting}
+            disabled={!lock.canWrite || !identityComplete || isReading || isWriting}
             className="w-full sm:w-auto"
           >
             {isWriting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
