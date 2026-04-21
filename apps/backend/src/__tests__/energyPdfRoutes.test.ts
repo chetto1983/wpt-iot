@@ -106,7 +106,7 @@ vi.mock('../services/energyBaselineService.js', () => {
   };
 });
 
-vi.mock('../services/energyPdfService.js', () => ({
+vi.mock('../services/energy/energyPdfService.js', () => ({
   EnergyPdfService: {
     generateIso50001Pdf: generateIso50001PdfMock,
   },

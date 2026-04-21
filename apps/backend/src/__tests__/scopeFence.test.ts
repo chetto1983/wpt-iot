@@ -61,7 +61,9 @@ describe('scope wall — energyBaselineService', () => {
     const dashboardFile = resolve(servicesDir, 'energy', 'energyDashboardService.ts');
     // energy/index.ts barrel re-exports from energyBaselineService.ts.
     const barrelFile = resolve(servicesDir, 'energy', 'index.ts');
-    const ignoreFiles = new Set<string>([selfFile, mathFile, errorsFile, dashboardFile, barrelFile]);
+    // energyPdfService.ts lives in energy/ subdir and may import EnergyBaselineService.
+    const energyPdfFile = resolve(servicesDir, 'energy', 'energyPdfService.ts');
+    const ignoreFiles = new Set<string>([selfFile, mathFile, errorsFile, dashboardFile, barrelFile, energyPdfFile]);
 
     // Match ES-module relative imports: `from '...energyBaselineService'`
     // or `from '...energyBaselineService.js'`. Single or double quotes.

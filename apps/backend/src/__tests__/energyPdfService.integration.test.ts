@@ -152,7 +152,7 @@ describe('energy pdf integration rendering', () => {
   });
 
   it('renders italian text with all section headings, footer source labels, and no banned terms', async () => {
-    const { EnergyPdfService } = await import('../services/energyPdfService.js');
+    const { EnergyPdfService } = await import('../services/energy/energyPdfService.js');
 
     const pdf = await EnergyPdfService.generateIso50001Pdf({
       from: new Date('2026-04-01T00:00:00.000Z'),
@@ -177,10 +177,10 @@ describe('energy pdf integration rendering', () => {
 
   it('keeps the 1000-row render reproducible above the size gate and pins keepWithHeaderRows', async () => {
     const serviceSource = await readFile(
-      new URL('../services/energyPdfService.ts', import.meta.url),
+      new URL('../services/energy/energyPdfService.ts', import.meta.url),
       'utf8',
     );
-    const { EnergyPdfService } = await import('../services/energyPdfService.js');
+    const { EnergyPdfService } = await import('../services/energy/energyPdfService.js');
 
     const reportArgs = {
       from: new Date('2026-04-01T00:00:00.000Z'),

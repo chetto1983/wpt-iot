@@ -151,7 +151,7 @@ describe('energy pdf service task 02.1', () => {
 
   it('builds a report model from aggregate, baseline, savings, and cycles services', async () => {
     const { ENERGY_PDF_SECTION_ORDER, EnergyPdfService } = await import(
-      '../services/energyPdfService.js'
+      '../services/energy/energyPdfService.js'
     );
 
     const model = await EnergyPdfService.buildReportModel({
@@ -205,7 +205,7 @@ describe('energy pdf service task 02.1', () => {
 
   it('emits all 9 section headings in the document-definition path with a 10pt body font', async () => {
     const { ENERGY_PDF_COPY } = await import('../i18n/energyPdfCopy.js');
-    const { EnergyPdfService } = await import('../services/energyPdfService.js');
+    const { EnergyPdfService } = await import('../services/energy/energyPdfService.js');
 
     const model = await EnergyPdfService.buildReportModel({
       from: new Date('2026-04-01T00:00:00.000Z'),
@@ -251,7 +251,7 @@ describe('energy pdf service task 02.1', () => {
 
   it('builds the real per-cycle table node and footer source labels', async () => {
     const { ENERGY_PDF_COPY } = await import('../i18n/energyPdfCopy.js');
-    const { EnergyPdfService } = await import('../services/energyPdfService.js');
+    const { EnergyPdfService } = await import('../services/energy/energyPdfService.js');
 
     const model = await EnergyPdfService.buildReportModel({
       from: new Date('2026-04-01T00:00:00.000Z'),
@@ -320,10 +320,10 @@ describe('energy pdf service task 02.1', () => {
 
   it('uses formatItKwh, formatItEur, formatItKgCO2, and explicit above baseline / below baseline wording', async () => {
     const serviceSource = await readFile(
-      new URL('../services/energyPdfService.ts', import.meta.url),
+      new URL('../services/energy/energyPdfService.ts', import.meta.url),
       'utf8',
     );
-    const { EnergyPdfService } = await import('../services/energyPdfService.js');
+    const { EnergyPdfService } = await import('../services/energy/energyPdfService.js');
 
     expect(serviceSource).toContain('formatItKwh');
     expect(serviceSource).toContain('formatItEur');
