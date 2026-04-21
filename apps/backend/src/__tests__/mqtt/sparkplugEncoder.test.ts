@@ -82,6 +82,12 @@ describe('Sparkplug B cycle-record encoding (GREEN — Phase 24)', () => {
       publishAsync: mockPublishAsync,
       endAsync: vi.fn(),
     });
+    // Seed latestState so resolveEdgeNodeId() returns a serial even when
+    // NODE_ENV is not explicitly 'test' — otherwise init() defers and the
+    // assertions below run against an empty mockPublishAsync.
+    const { latestState } = await import('../../cache/latestState.js');
+    latestState.reset();
+    latestState.setMachineSnapshot(makeMinimalSnapshot({ serialNumber: 'NW30-020' }), new Date());
     // Re-import to get fresh module with cleared mocks
     const mod = await import('../../mqtt/sparkplugService.js');
     SparkplugService = mod.SparkplugService;
@@ -446,9 +452,9 @@ describe('Phase 37 alignment — D-01..D-05 (Sparkplug B 3.0 + SPEC §14)', () =
   });
 
   // --------------------------------------------------------------------------
-  // D-02: production fail-loud when no snapshot has been received
+  // D-02: production defers init when no snapshot yet (fail-safe, not fail-loud)
   // --------------------------------------------------------------------------
-  it('edge_node_id resolver throws in production when no snapshot is available', async () => {
+  it('edge_node_id resolver defers init in production when no snapshot is available', async () => {
     const { latestState } = await import('../../cache/latestState.js');
     latestState.reset();
 
@@ -456,9 +462,20 @@ describe('Phase 37 alignment — D-01..D-05 (Sparkplug B 3.0 + SPEC §14)', () =
     process.env.NODE_ENV = 'production';
     try {
       const log = { info: vi.fn(), warn: vi.fn(), error: vi.fn() };
-      await expect(SparkplugService.init(log)).rejects.toThrow(
-        /edge_node_id requires machine serial/,
+      await SparkplugService.init(log);
+
+      // Should NOT throw — init defers gracefully until first snapshot arrives.
+      expect(log.warn).toHaveBeenCalled();
+      const warnCall = vi.mocked(log.warn).mock.calls.find(
+        (c) => typeof c[1] === 'string' && (c[1] as string).includes('deferred'),
       );
+      expect(warnCall).toBeDefined();
+
+      // No NBIRTH should be published because init returned early.
+      const nbirthCall = mockPublishAsync.mock.calls.find(
+        (c) => typeof c[0] === 'string' && /\/NBIRTH\//.test(c[0] as string),
+      );
+      expect(nbirthCall).toBeUndefined();
     } finally {
       process.env.NODE_ENV = oldEnv;
     }
