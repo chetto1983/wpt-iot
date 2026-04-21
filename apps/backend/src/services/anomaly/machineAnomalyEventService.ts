@@ -113,6 +113,35 @@ export class MachineAnomalyEventService {
     `);
   }
 
+  /**
+   * Phase 43 D-28 — fetch a single event by id for /debug/detector drill-down.
+   * Returns null when the row does not exist (route handler maps to 404).
+   */
+  static async getById(id: number): Promise<IMachineAnomalyEvent | null> {
+    const result = await db.execute(sql`
+      SELECT
+        id,
+        observed_at,
+        mode_key,
+        score,
+        flagged,
+        warm,
+        sample_count,
+        top_contributors,
+        status,
+        resolved_by,
+        resolved_at,
+        resolution_note,
+        resolution_category,
+        created_at
+      FROM machine_anomaly_events
+      WHERE id = ${id}
+      LIMIT 1
+    `);
+    const row = (result.rows as unknown as IEventRow[])[0];
+    return row ? mapRow(row) : null;
+  }
+
   static async listRecent(args?: {
     limit?: number;
     flaggedOnly?: boolean;

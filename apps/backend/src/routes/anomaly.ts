@@ -96,6 +96,38 @@ export const anomalyRoutes: FastifyPluginAsync = async (server) => {
     }
   });
 
+  // Phase 43 D-28 — GET /api/anomaly/events/:id
+  // Single-event fetch for the /debug/detector drill-down Sheet (deep-link
+  // `?drillEventId=X`). Access: any authenticated role — matches the list
+  // endpoint's `requireAuth` gate above. The /debug/detector page itself is
+  // SUPER_ADMIN-gated client-side (D-02) and server-side (Phase 42 D-20),
+  // so drill-down callers are already privileged; per-event authorization
+  // beyond requireAuth is not required in this single-tenant app.
+  server.get('/events/:id', { preHandler: requireAuth }, async (request, reply) => {
+    const parsed = z
+      .object({ id: z.coerce.number().int().positive() })
+      .safeParse(request.params);
+    if (!parsed.success) {
+      return reply
+        .code(400)
+        .send({ error: 'Invalid event id', issues: parsed.error.issues });
+    }
+
+    try {
+      const event = await MachineAnomalyEventService.getById(parsed.data.id);
+      if (!event) {
+        return reply.code(404).send({ error: 'Event not found' });
+      }
+      return reply.send(event);
+    } catch (err) {
+      server.log.error(
+        { name: 'MachineAnomalyEvent', err: (err as Error).message },
+        'Failed to load anomaly event by id',
+      );
+      return reply.code(500).send({ error: 'Internal error' });
+    }
+  });
+
   server.post('/simulate', { preHandler: requireAuth }, async (request, reply) => {
     const parsed = anomalySimulationSchema.safeParse(request.body);
     if (!parsed.success) {
