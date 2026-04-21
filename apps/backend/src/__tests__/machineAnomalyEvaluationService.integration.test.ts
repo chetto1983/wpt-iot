@@ -169,6 +169,33 @@ describe('MachineAnomalyEvaluationService seeded DB evaluation', () => {
       rmsCurrL2: 159,
       rmsCurrL3: 161,
     });
+    // 2 more anomalous rows to satisfy C4 persistence (N=3 flags in M=5 window)
+    await insertSnapshotRow({
+      timestamp: minuteOffset(anomalyTs, 1),
+      garbageTemp: 186,
+      chamberPressure: 1251,
+      mainMotorSpeed: 2301,
+      mainMotorCurrent: 89,
+      mainMotorTorque: 32,
+      vacuumPumpSpeed01: 2751,
+      energyConsumption: 79,
+      rmsCurrL1: 161,
+      rmsCurrL2: 160,
+      rmsCurrL3: 162,
+    });
+    await insertSnapshotRow({
+      timestamp: minuteOffset(anomalyTs, 2),
+      garbageTemp: 187,
+      chamberPressure: 1252,
+      mainMotorSpeed: 2302,
+      mainMotorCurrent: 90,
+      mainMotorTorque: 33,
+      vacuumPumpSpeed01: 2752,
+      energyConsumption: 80,
+      rmsCurrL1: 162,
+      rmsCurrL2: 161,
+      rmsCurrL3: 163,
+    });
     await insertAlarmAt(anomalyTs, 'Seed anomaly alarm');
 
     const result = await MachineAnomalyEvaluationService.evaluate({
@@ -179,7 +206,7 @@ describe('MachineAnomalyEvaluationService seeded DB evaluation', () => {
       alarmLagMinutes: 2,
     });
 
-    expect(result.tracking.replayedRows).toBe(31);
+    expect(result.tracking.replayedRows).toBe(33);
     expect(result.tracking.flaggedRows).toBeGreaterThan(0);
     expect(result.tracking.activeAlarmCount).toBe(1);
     expect(result.metrics.matchedAlarmCount).toBe(1);
