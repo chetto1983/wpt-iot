@@ -3,6 +3,7 @@
 import { memo, useCallback, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Check, Loader2, Trash2, X } from 'lucide-react';
+import { toast } from 'sonner';
 import type { IMachineAnomalyEvent } from '@wpt/types';
 import { apiFetch } from '@/lib/api';
 import { useAppLocale } from '@/lib/locale';
@@ -36,6 +37,8 @@ export const AnomalyEventTable = memo(function AnomalyEventTable({
     try {
       await apiFetch(`/api/anomaly/events/${id}/acknowledge`, { method: 'PATCH' });
       onRefresh();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Request failed');
     } finally { setBusy(null); }
   }, [onRefresh]);
 
@@ -50,6 +53,8 @@ export const AnomalyEventTable = memo(function AnomalyEventTable({
         }),
       });
       onRefresh();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Request failed');
     } finally { setBusy(null); }
   }, [onRefresh]);
 
@@ -59,6 +64,8 @@ export const AnomalyEventTable = memo(function AnomalyEventTable({
     try {
       await apiFetch(`/api/anomaly/events/${id}`, { method: 'DELETE' });
       onRefresh();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Request failed');
     } finally { setBusy(null); }
   }, [onRefresh, t]);
 
@@ -119,7 +126,7 @@ export const AnomalyEventTable = memo(function AnomalyEventTable({
             {(isOpen || isAcked) && (
               <div className="mt-2 flex flex-wrap gap-1.5">
                 {isOpen && (
-                  <Button type="button" size="sm" variant="outline" className="h-7 text-xs" disabled={loading}
+                  <Button type="button" size="sm" variant="outline" className="h-9 text-xs" disabled={loading}
                     onClick={() => void handleAck(ev.id)}>
                     {loading ? <Loader2 className="mr-1 size-3 animate-spin" /> : <Check className="mr-1 size-3" />}
                     {t('anomaly.actions.acknowledge')}
