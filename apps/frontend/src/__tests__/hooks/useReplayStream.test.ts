@@ -24,13 +24,19 @@ import { renderHook, act, waitFor } from '@testing-library/react';
 // Capture the registered subscriber so tests can dispatch synthetic frames.
 let registeredHandler: ((msg: unknown) => void) | null = null;
 
+// Stable subscribe function — the real `useWsMessageSubscribe()` returns
+// a `useCallback`-stable function from context. If we created a new
+// arrow function on every call the hook's useEffect dep array would
+// churn and re-subscribe / reset state on every render, which is NOT
+// the real behaviour.
+const stableSubscribe = (handler: (msg: unknown) => void) => {
+  registeredHandler = handler;
+  return () => {
+    registeredHandler = null;
+  };
+};
 vi.mock('@/lib/ws-context', () => ({
-  useWsMessageSubscribe: () => (handler: (msg: unknown) => void) => {
-    registeredHandler = handler;
-    return () => {
-      registeredHandler = null;
-    };
-  },
+  useWsMessageSubscribe: () => stableSubscribe,
 }));
 
 // Sonner toast — capturable + no-op.
