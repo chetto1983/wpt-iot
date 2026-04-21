@@ -27,7 +27,8 @@
       "dashboards": "Dashboards",
       "mqtt": "MQTT Gateway",
       "plc": "PLC Settings",
-      "energySettings": "Energy Settings"
+      "energySettings": "Energy Settings",
+      "debugDetector": "Debug Detector"
     },
     "brandSubtitle": "IoT System",
     "signOut": "Sign Out",
@@ -1240,5 +1241,95 @@
       "showing": "Showing {from}-{to} of {total} cycles"
     },
     "selectPreset": "Select preset"
+  },
+  "debugDetector": {
+    "title": "Debug Detector",
+    "subtitle": "Live Welford+CUSUM inspection, replay, and drill-down (SUPER_ADMIN only)",
+    "actions": {
+      "refresh": "Refresh"
+    },
+    "toggle": {
+      "primary": "Primary",
+      "shadow": "Shadow",
+      "ariaLabel": "Detector view"
+    },
+    "panels": {
+      "live": {
+        "title": "Live detector state",
+        "shadowTitle": "Shadow detector state",
+        "stateTable": {
+          "ariaPrimary": "Primary detector state",
+          "ariaShadow": "Shadow detector state",
+          "modeSummary": "Mode",
+          "modeWarm": "Warm",
+          "modeCold": "Cold",
+          "gracePeriod": "Grace period",
+          "samplesSeen": "{count, plural, one {# sample} other {# samples}}",
+          "columns": {
+            "feature": "Feature",
+            "count": "Count",
+            "mean": "Mean",
+            "emaMean": "EMA Mean",
+            "sigma": "Sigma",
+            "variance": "Variance"
+          }
+        },
+        "contributorChart": {
+          "currentBadge": "Current",
+          "noEventForFeature": "No event found where '{feature}' is a top contributor"
+        }
+      },
+      "replay": {
+        "title": "Replay",
+        "actions": {
+          "run": "Run Replay",
+          "rerun": "Re-run with new window",
+          "retry": "Try again",
+          "cancel": "Cancel"
+        },
+        "progress": "{processed} / {total} rows — ~{etaMs}ms remaining"
+      },
+      "drill": {
+        "header": {
+          "title": "Event #{id}"
+        },
+        "loading": "Loading event…",
+        "sections": {
+          "event": "Event header",
+          "cycle": "Cycle",
+          "features": "Feature contributors",
+          "chart": "Time series"
+        },
+        "openInCharts": "Open in /charts",
+        "cycleNotFound": "No cycle captured for this timestamp",
+        "cycleActive": "Cycle in progress (no end timestamp yet)",
+        "cycleLoadFailed": "Failed to load cycle",
+        "noPrimaryFeature": "No primary contributor available",
+        "noContributors": "No contributors on this event",
+        "welfordLiveColumnLabel": "live state (not historical)",
+        "welfordTooltip": "Welford mean/variance at this exact observedAt is only reconstructable via replay. Click 'Open in /charts' below to inspect surrounding context, or run a replay ending at this observedAt to get the exact historical state.",
+        "snapshotNotFound": "No snapshot within ±30s of event observedAt",
+        "snapshotLoadFailed": "Failed to load snapshot: {message}",
+        "snapshotNotRawField": "(not a raw snapshot field)"
+      }
+    },
+    "banners": {
+      "stale": "Stale data",
+      "staleDescription": "Last observation: {lastObservationAt} — stale. PLC interval > 30s.",
+      "coldWaiting": "Waiting for first observation",
+      "coldPlcOffline": "Waiting for first observation — PLC offline",
+      "shadowDisabled": "Shadow detector disabled (SHADOW_ENABLED=false)",
+      "desktopOnlyTitle": "Desktop only",
+      "desktopOnly": "This tool requires a desktop viewport (≥1024px)"
+    },
+    "errors": {
+      "429": "Retry in {seconds}s — 2 replays already active",
+      "429countdown": "Retry in {seconds}s",
+      "replayTerminalTitle": "Replay failed",
+      "replayStartTitle": "Replay start failed"
+    },
+    "empty": {
+      "noContributors": "No contributors in the current window"
+    }
   }
 }

@@ -27,7 +27,8 @@
       "dashboards": "Dashboard",
       "mqtt": "Gateway MQTT",
       "plc": "Impostazioni PLC",
-      "energySettings": "Impostazioni energia"
+      "energySettings": "Impostazioni energia",
+      "debugDetector": "Debug Rilevatore"
     },
     "brandSubtitle": "Sistema IoT",
     "signOut": "Esci",
@@ -1240,5 +1241,95 @@
       "showing": "Mostrando {from}-{to} di {total} cicli"
     },
     "selectPreset": "Seleziona preset"
+  },
+  "debugDetector": {
+    "title": "Debug Rilevatore",
+    "subtitle": "Ispezione Welford+CUSUM, replay e drill-down (solo SUPER_ADMIN)",
+    "actions": {
+      "refresh": "Aggiorna"
+    },
+    "toggle": {
+      "primary": "Primario",
+      "shadow": "Shadow",
+      "ariaLabel": "Vista rilevatore"
+    },
+    "panels": {
+      "live": {
+        "title": "Stato rilevatore live",
+        "shadowTitle": "Stato rilevatore shadow",
+        "stateTable": {
+          "ariaPrimary": "Stato rilevatore primario",
+          "ariaShadow": "Stato rilevatore shadow",
+          "modeSummary": "Modalità",
+          "modeWarm": "Warm",
+          "modeCold": "Cold",
+          "gracePeriod": "Grace period",
+          "samplesSeen": "{count, plural, one {# campione} other {# campioni}}",
+          "columns": {
+            "feature": "Feature",
+            "count": "Conteggio",
+            "mean": "Media",
+            "emaMean": "Media EMA",
+            "sigma": "Sigma",
+            "variance": "Varianza"
+          }
+        },
+        "contributorChart": {
+          "currentBadge": "Attuale",
+          "noEventForFeature": "Nessun evento trovato in cui '{feature}' sia un contributore principale"
+        }
+      },
+      "replay": {
+        "title": "Replay",
+        "actions": {
+          "run": "Esegui replay",
+          "rerun": "Riesegui con nuova finestra",
+          "retry": "Riprova",
+          "cancel": "Annulla"
+        },
+        "progress": "{processed} / {total} righe — ~{etaMs}ms rimanenti"
+      },
+      "drill": {
+        "header": {
+          "title": "Evento #{id}"
+        },
+        "loading": "Caricamento evento…",
+        "sections": {
+          "event": "Intestazione evento",
+          "cycle": "Ciclo",
+          "features": "Contributori feature",
+          "chart": "Serie temporale"
+        },
+        "openInCharts": "Apri in /charts",
+        "cycleNotFound": "Nessun ciclo rilevato per questo istante",
+        "cycleActive": "Ciclo in corso (nessun istante di fine)",
+        "cycleLoadFailed": "Caricamento ciclo fallito",
+        "noPrimaryFeature": "Nessun contributore principale disponibile",
+        "noContributors": "Nessun contributore su questo evento",
+        "welfordLiveColumnLabel": "live state (not historical)",
+        "welfordTooltip": "La media/varianza di Welford all'istante observedAt esatto è ricostruibile solo tramite replay. Clicca su 'Apri in /charts' qui sotto per ispezionare il contesto circostante, oppure esegui un replay che termina a questo observedAt per ottenere lo stato storico esatto.",
+        "snapshotNotFound": "Nessuno snapshot entro ±30s dall'observedAt dell'evento",
+        "snapshotLoadFailed": "Caricamento snapshot fallito: {message}",
+        "snapshotNotRawField": "(non è un campo raw di snapshot)"
+      }
+    },
+    "banners": {
+      "stale": "Dati obsoleti",
+      "staleDescription": "Ultima osservazione: {lastObservationAt} — stallo. Intervallo PLC > 30s.",
+      "coldWaiting": "In attesa della prima osservazione",
+      "coldPlcOffline": "In attesa della prima osservazione — PLC offline",
+      "shadowDisabled": "Rilevatore shadow disattivato (SHADOW_ENABLED=false)",
+      "desktopOnlyTitle": "Solo desktop",
+      "desktopOnly": "Questo strumento richiede una visualizzazione desktop (≥1024px)"
+    },
+    "errors": {
+      "429": "Riprova tra {seconds}s — 2 replay già attivi",
+      "429countdown": "Riprova tra {seconds}s",
+      "replayTerminalTitle": "Replay fallito",
+      "replayStartTitle": "Avvio replay fallito"
+    },
+    "empty": {
+      "noContributors": "Nessun contributore nella finestra corrente"
+    }
   }
 }
