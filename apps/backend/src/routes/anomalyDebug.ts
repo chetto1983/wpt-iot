@@ -18,6 +18,7 @@ import { z } from 'zod/v4';
 import {
   debugStateResponseSchema,
   replayStartRequestSchema,
+  snapshotHistogramResponseSchema,
   UserRole,
 } from '@wpt/types';
 
@@ -27,6 +28,7 @@ import {
   AnomalyDebugReplayService,
   AnomalyReplayConcurrencyError,
 } from '../services/anomaly/debug/anomalyDebugReplayService.js';
+import { SnapshotHistogramService } from '../services/anomaly/debug/snapshotHistogramService.js';
 
 // D-08: concurrency overflow body. Literal values per CONTEXT.
 const CONCURRENCY_LIMIT_RETRY_AFTER_SECONDS = 30;
@@ -36,6 +38,13 @@ const CONCURRENCY_LIMIT_MAX_ACTIVE = 2;
 // the canonical case but accept any non-empty for forward-compat).
 const streamIdParamSchema = z.object({
   streamId: z.string().min(1).max(128),
+});
+
+// D-15 Phase 43: histogram query window. Frontend always supplies explicit
+// from/to — no server-side default (CONTEXT D-15 literal).
+const histogramQuerySchema = z.object({
+  from: z.string().datetime(),
+  to: z.string().datetime(),
 });
 
 const IS_DEV = process.env.NODE_ENV !== 'production';
@@ -171,5 +180,51 @@ export const anomalyDebugRoutes: FastifyPluginAsync = async (server) => {
     const cancelled = AnomalyDebugReplayService.cancel(parsed.data.streamId);
     // D-04: 204 on true, 404 on false (REST-correct per CONTEXT Discretion).
     return reply.code(cancelled ? 204 : 404).send();
+  });
+
+  /**
+   * DEBUG-03 — GET /api/anomaly/debug/snapshot-histogram (Phase 43 D-15)
+   * Query: { from: ISO, to: ISO }
+   * Response: ISnapshotHistogramResponse ({ buckets, totalCount })
+   * Cache-Control: no-store (mirrors D-13 — volatile admin introspection).
+   * Inherits plugin-level SUPER_ADMIN gate (D-20).
+   */
+  server.get('/debug/snapshot-histogram', async (request, reply) => {
+    const parsed = histogramQuerySchema.safeParse(request.query);
+    if (!parsed.success) {
+      return reply.code(400).send({
+        error: 'Invalid histogram range',
+        issues: parsed.error.issues,
+      });
+    }
+    const { from, to } = parsed.data;
+
+    try {
+      const response = await SnapshotHistogramService.fetch(from, to);
+
+      // D-15 + D-13 mirror: dev-only safeParse to catch drift early.
+      if (IS_DEV) {
+        const check = snapshotHistogramResponseSchema.safeParse(response);
+        if (!check.success) {
+          server.log.error(
+            {
+              name: 'MachineAnomalyDebugHistogram',
+              issues: check.error.issues.slice(0, 5),
+            },
+            'Histogram response failed defensive schema validation',
+          );
+          return reply.code(500).send({ error: 'Internal schema drift' });
+        }
+      }
+
+      reply.header('Cache-Control', 'no-store');
+      return reply.send(response);
+    } catch (err) {
+      server.log.error(
+        { name: 'MachineAnomalyDebugHistogram', err: (err as Error).message },
+        'Failed to query snapshot histogram',
+      );
+      return reply.code(500).send({ error: 'Internal error' });
+    }
   });
 };
