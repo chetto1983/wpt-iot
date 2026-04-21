@@ -72,6 +72,43 @@ describe('MachineAnomalyReplayService', () => {
             material_input_weight: 250,
             material_output_weight: 120,
           },
+          // 2 more anomalous rows to satisfy C4 persistence (N=3 flags in M=5 window)
+          {
+            timestamp: new Date('2026-01-01T01:01:00.000Z'),
+            selected_cycle: 2,
+            current_phase: 3,
+            machine_status: 1,
+            garbage_temp: 240,
+            chamber_pressure: 3,
+            main_motor_speed: 1200,
+            main_motor_current: 85,
+            main_motor_torque: 28,
+            vacuum_pump_speed_01: 980,
+            energy_consumption: 65,
+            rms_curr_l1: 20,
+            rms_curr_l2: 20,
+            rms_curr_l3: 20,
+            material_input_weight: 250,
+            material_output_weight: 120,
+          },
+          {
+            timestamp: new Date('2026-01-01T01:02:00.000Z'),
+            selected_cycle: 2,
+            current_phase: 3,
+            machine_status: 1,
+            garbage_temp: 241,
+            chamber_pressure: 3.1,
+            main_motor_speed: 1201,
+            main_motor_current: 86,
+            main_motor_torque: 29,
+            vacuum_pump_speed_01: 981,
+            energy_consumption: 66,
+            rms_curr_l1: 21,
+            rms_curr_l2: 21,
+            rms_curr_l3: 21,
+            material_input_weight: 250,
+            material_output_weight: 120,
+          },
         ],
       } as never)
       .mockResolvedValueOnce({
@@ -83,7 +120,7 @@ describe('MachineAnomalyReplayService', () => {
       to: new Date('2026-01-01T02:00:00.000Z'),
     });
 
-    expect(result.tracking.replayedRows).toBe(32);
+    expect(result.tracking.replayedRows).toBe(34);
     expect(result.tracking.activeAlarmCount).toBe(2);
     expect(result.summary.flaggedRows).toBeGreaterThan(0);
     expect(result.summary.firstFlaggedAt).toBe('2026-01-01T01:00:00.000Z');

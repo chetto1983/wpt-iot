@@ -96,18 +96,21 @@ describe('machineAnomalyService', () => {
     machineAnomalyService.start(mockLog);
     const handler = getMachineHandler();
 
-    for (let i = 0; i < 25; i += 1) {
+    for (let i = 0; i < 30; i += 1) {
       handler(makeSnapshot(), new Date(Date.UTC(2026, 0, 1, 0, i, 0)));
     }
 
-    handler(
-      makeSnapshot({
-        garbageTemp: 240,
-        chamberPressure: 3.2,
-        mainMotorCurrent: 85,
-      }),
-      new Date(Date.UTC(2026, 0, 1, 1, 0, 0)),
-    );
+    // Emit 3 consecutive anomalous samples to satisfy C4 persistence (N=3 in M=5)
+    for (let i = 0; i < 3; i += 1) {
+      handler(
+        makeSnapshot({
+          garbageTemp: 240,
+          chamberPressure: 3.2,
+          mainMotorCurrent: 85,
+        }),
+        new Date(Date.UTC(2026, 0, 1, 1, i, 0)),
+      );
+    }
 
     const latest = machineAnomalyService.getLatest();
     expect(latest?.flagged).toBe(true);
@@ -119,18 +122,22 @@ describe('machineAnomalyService', () => {
     machineAnomalyService.start(mockLog);
     const handler = getMachineHandler();
 
-    for (let i = 0; i < 25; i += 1) {
+    for (let i = 0; i < 30; i += 1) {
       handler(makeSnapshot(), new Date(Date.UTC(2026, 0, 1, 0, i, 0)));
     }
 
-    handler(
-      makeSnapshot({
-        garbageTemp: 240,
-        chamberPressure: 3.2,
-        mainMotorCurrent: 85,
-      }),
-      new Date(Date.UTC(2026, 0, 1, 1, 0, 0)),
-    );
+    // Emit 3 consecutive anomalous samples — satisfies C4 persistence and
+    // establishes the cooldown. Follow-ups within the cooldown window stay suppressed.
+    for (let i = 0; i < 3; i += 1) {
+      handler(
+        makeSnapshot({
+          garbageTemp: 240,
+          chamberPressure: 3.2,
+          mainMotorCurrent: 85,
+        }),
+        new Date(Date.UTC(2026, 0, 1, 1, i, 0)),
+      );
+    }
     handler(
       makeSnapshot({
         garbageTemp: 241,
