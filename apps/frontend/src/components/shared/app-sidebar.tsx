@@ -22,6 +22,7 @@ import {
   KeyRound,
   BrainCircuit,
   RotateCcw,
+  Stethoscope,
 } from 'lucide-react';
 
 import { useAuth } from '@/lib/auth-context';
@@ -92,6 +93,7 @@ export function AppSidebar() {
     { label: t('nav.mqtt'), href: '/mqtt', icon: Radio },
     { label: t('nav.plc'), href: '/plc', icon: Cpu },
     { label: t('nav.energySettings'), href: '/settings/energy', icon: Bolt },
+    { label: t('nav.debugDetector'), href: '/debug/detector', icon: Stethoscope },
   ];
 
   const isWptOrAdmin = user.role === 'SUPER_ADMIN' || user.role === 'WPT';
