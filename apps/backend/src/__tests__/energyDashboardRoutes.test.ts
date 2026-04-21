@@ -104,7 +104,7 @@ const { energyRoutes } = await import('../routes/energy.js');
 
 async function buildTestServer(): Promise<FastifyInstance> {
   const app = Fastify({ logger: false });
-  await app.register(energyRoutes);
+  await app.register(energyRoutes, { prefix: '/api' });
   await app.ready();
   return app;
 }

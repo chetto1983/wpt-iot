@@ -76,7 +76,7 @@ const DEFAULT_TARIFF_SINGLE = 0.25;
 
 async function buildTestServer(): Promise<FastifyInstance> {
   const app = Fastify({ logger: false });
-  await app.register(energyRoutes);
+  await app.register(energyRoutes, { prefix: '/api' });
   await app.ready();
   return app;
 }
@@ -334,7 +334,7 @@ describe('energy milestone e2e', () => {
     if (firstPdfResponse.statusCode !== 200 || secondPdfResponse.statusCode !== 200) {
       let pdfErrorMessage = 'unknown';
       try {
-        const { EnergyPdfService } = await import('../services/energyPdfService.js');
+        const { EnergyPdfService } = await import('../services/energy/energyPdfService.js');
         await EnergyPdfService.generateIso50001Pdf({
           from: MEASUREMENT_FROM,
           to: MEASUREMENT_TO,
