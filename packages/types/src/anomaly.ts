@@ -344,3 +344,45 @@ export const replayFrameSchema = z.discriminatedUnion('phase', [
 ]);
 
 export type IReplayFrame = z.infer<typeof replayFrameSchema>;
+
+// ---------------------------------------------------------------------------
+// Phase 43 D-15: GET /api/anomaly/debug/snapshot-histogram response envelope
+// ---------------------------------------------------------------------------
+// Powers the Brush context chart on /debug/detector. One bucket per hour;
+// frontend always supplies explicit from/to (no server-side default). The
+// plugin-level SUPER_ADMIN gate on routes/anomalyDebug.ts auto-protects
+// this endpoint (Phase 42 D-20).
+
+export const snapshotHistogramResponseSchema = z.object({
+  buckets: z.array(
+    z.object({
+      bucket: z.string().datetime(),
+      count: z.number().int().nonnegative(),
+    }),
+  ),
+  totalCount: z.number().int().nonnegative(),
+});
+
+export type ISnapshotHistogramResponse = z.infer<typeof snapshotHistogramResponseSchema>;
+
+// ---------------------------------------------------------------------------
+// Phase 43 D-26 hop 3: GET /api/anomaly/debug/snapshot?at=ISO response envelope
+// ---------------------------------------------------------------------------
+// Returns the nearest machine_snapshots row to `at` (within ±30s tolerance).
+// Powers the drill-down Sheet's feature accordion — admin sees the raw
+// snapshot value for each contributor at the event's observedAt timestamp.
+// 404 if no row within tolerance. Schema is permissive (z.record) because
+// the machine_snapshots shape is a wide V03 mirror (70+ columns) that we
+// intentionally do not enumerate here; downstream render code keys by
+// contributor.feature string.
+
+export const debugSnapshotAtResponseSchema = z.object({
+  timestamp: z.string().datetime(),
+  id: z.number().int().positive(),
+  // Raw field values — open record; keys = schema column names
+  // (e.g. `thermal_01`, `voltage_lln_v`, `cycle_status`). Values are the
+  // raw INT/DINT/REAL/BYTE/STRING decodes.
+  values: z.record(z.string(), z.union([z.number(), z.string(), z.null()])),
+});
+
+export type IDebugSnapshotAtResponse = z.infer<typeof debugSnapshotAtResponseSchema>;
