@@ -125,6 +125,38 @@ pnpm -r --filter @wpt/backend run dev               # Fastify on :3000
 pnpm -r --filter @wpt/frontend run dev              # Next.js on :3001
 ```
 
+## Hardware Sizing
+
+Target edge device: **Pilz IndustrialPI 4** — ARM64 quad Cortex-A72 @ 1.5 GHz, 8 GB RAM, 32 GB eMMC. The device runs wpt-iot as its sole workload (no Node-RED, no other services — clean appliance).
+
+Measured baseline on the sacchi dev VM (x86_64, real PLC at 192.168.0.10, nominal load — 10,508 `machine_snapshots`, 3,253 `cycle_records`):
+
+| Container | CPU idle -> peak | RAM          |
+|-----------|------------------|--------------|
+| backend   | 0.4% -> 4.4%     | 163 MiB      |
+| frontend  | 0.0% -> 0.0%     | 101 MiB      |
+| db        | 0.4% -> 6.0%     | 97 MiB       |
+| nginx     | 0.0% -> 3.6%     | 14 MiB       |
+| mosquitto | 0.4% -> 4.6%     | 8 MiB        |
+| **Total** | ~15% of 4 cores  | **~383 MiB** |
+
+Storage footprint: Docker images ~8.3 GB resident, `pgdata` volume 77 MB, other volumes <100 KB.
+
+### Pilz IndustrialPI 4 budget
+
+- **RAM** — stack ~400 MiB + PG `shared_buffers=2 GB` ~= 2.5 GB of 8 GB. Comfortable, ~5 GB free for kernel cache and bursts.
+- **Disk** — 32 GB - ~3 GB RPi OS Lite - 8 GB images - 1 GB pgdata headroom - 2 GB swap ~= 18 GB free. Tight but workable; builds must stay off-device.
+- **CPU** — sustained ~15% on i7-11850H scales to ~60-75% of 4 A72 cores at the same load. Likely fine at steady state; bench Next.js SSR under 2-3 real operator sessions.
+
+### Pre-ship checklist
+
+1. **Cross-build all images for `linux/arm64`** on a dev box — do not build on the eMMC. Ship via `docker save | load` or a private registry. Verify native deps (pg, bcrypt, pdfmake/canvas) compile for ARM64.
+2. **Clean appliance mode**: disable or uninstall Node-RED, OpenWebRX, and any pre-installed snaps on the Pilz image.
+3. **PG tuning for 8 GB RAM**: `shared_buffers=2GB`, `effective_cache_size=4GB`, `work_mem=16MB`, `maintenance_work_mem=256MB`.
+4. **Filesystem**: place `pgdata` and Docker root on the eMMC (not SD). Enable `fstrim.timer`.
+5. **Post-deploy**: `docker system prune -a` to drop dangling layers (~1.3 GB recoverable on a typical build host).
+6. **GSM uplink**: not built in — provision an external USB modem or PiBridge cellular module. Sparkplug B payload is Protobuf so the bandwidth envelope is small.
+
 ## Data Retention
 
 TimescaleDB manages time-series data with automatic downsampling:
