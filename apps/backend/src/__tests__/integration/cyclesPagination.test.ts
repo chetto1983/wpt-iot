@@ -20,7 +20,7 @@ import { CycleService } from '../../services/cycleService.js';
 
 // Test data constants
 const TEST_MONTH_START = '2026-03-01T00:00:00Z';
-const TEST_MONTH_END = '2026-04-01T00:00:00Z';
+const TEST_MONTH_END = '2026-05-01T00:00:00Z';
 const TEST_RECORD_COUNT = 1050;
 
 function isConnectionRefused(error: unknown): boolean {
