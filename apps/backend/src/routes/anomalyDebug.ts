@@ -16,6 +16,7 @@ import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod/v4';
 
 import {
+  debugSnapshotAtResponseSchema,
   debugStateResponseSchema,
   replayStartRequestSchema,
   snapshotHistogramResponseSchema,
@@ -29,6 +30,7 @@ import {
   AnomalyReplayConcurrencyError,
 } from '../services/anomaly/debug/anomalyDebugReplayService.js';
 import { SnapshotHistogramService } from '../services/anomaly/debug/snapshotHistogramService.js';
+import { SnapshotAtService } from '../services/anomaly/debug/snapshotAtService.js';
 
 // D-08: concurrency overflow body. Literal values per CONTEXT.
 const CONCURRENCY_LIMIT_RETRY_AFTER_SECONDS = 30;
@@ -45,6 +47,16 @@ const streamIdParamSchema = z.object({
 const histogramQuerySchema = z.object({
   from: z.string().datetime(),
   to: z.string().datetime(),
+});
+
+// D-26 hop 3 Phase 43: point-in-time snapshot lookup. ±30s tolerance — the
+// service actually enforces the bound (see snapshotAtService.ts); this
+// constant is the route-level documented contract surfaced in the 404
+// message and audit logs. Kept in sync manually — a single hardcoded ms
+// value on either side is cheap to verify during review.
+const SNAPSHOT_AT_TOLERANCE_MS = 30_000;
+const snapshotAtQuerySchema = z.object({
+  at: z.string().datetime(),
 });
 
 const IS_DEV = process.env.NODE_ENV !== 'production';
@@ -223,6 +235,64 @@ export const anomalyDebugRoutes: FastifyPluginAsync = async (server) => {
       server.log.error(
         { name: 'MachineAnomalyDebugHistogram', err: (err as Error).message },
         'Failed to query snapshot histogram',
+      );
+      return reply.code(500).send({ error: 'Internal error' });
+    }
+  });
+
+  /**
+   * DEBUG-04 — GET /api/anomaly/debug/snapshot (Phase 43 D-26 hop 3)
+   * Query: { at: ISO }
+   * Response: IDebugSnapshotAtResponse ({ timestamp, id, values })
+   * Cache-Control: no-store (mirrors D-13 — volatile admin introspection).
+   * Inherits plugin-level SUPER_ADMIN gate (D-20).
+   * 404 when no machine_snapshots row exists within ±30s of `at`.
+   */
+  server.get('/debug/snapshot', async (request, reply) => {
+    const parsed = snapshotAtQuerySchema.safeParse(request.query);
+    if (!parsed.success) {
+      return reply.code(400).send({
+        error: 'Invalid snapshot timestamp',
+        issues: parsed.error.issues,
+      });
+    }
+
+    try {
+      const response = await SnapshotAtService.fetch(parsed.data.at);
+
+      if (response === null) {
+        server.log.info(
+          {
+            name: 'MachineAnomalyDebugSnapshot',
+            at: parsed.data.at,
+            toleranceMs: SNAPSHOT_AT_TOLERANCE_MS,
+          },
+          'No snapshot within tolerance',
+        );
+        return reply.code(404).send({ error: 'No snapshot within tolerance' });
+      }
+
+      // D-26 hop 3 + D-13 mirror: dev-only safeParse to catch drift early.
+      if (IS_DEV) {
+        const check = debugSnapshotAtResponseSchema.safeParse(response);
+        if (!check.success) {
+          server.log.error(
+            {
+              name: 'MachineAnomalyDebugSnapshot',
+              issues: check.error.issues.slice(0, 5),
+            },
+            'Snapshot response failed defensive schema validation',
+          );
+          return reply.code(500).send({ error: 'Internal schema drift' });
+        }
+      }
+
+      reply.header('Cache-Control', 'no-store');
+      return reply.send(response);
+    } catch (err) {
+      server.log.error(
+        { name: 'MachineAnomalyDebugSnapshot', err: (err as Error).message },
+        'Failed to query nearest snapshot',
       );
       return reply.code(500).send({ error: 'Internal error' });
     }
