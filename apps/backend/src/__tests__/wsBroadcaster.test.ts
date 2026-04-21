@@ -249,6 +249,8 @@ describe('WsBroadcaster', () => {
 
       // Drain the initial ALARM_UPDATE sent by addClient on connect
       await next();
+      // Drain the initial PLC_STATUS
+      await next();
 
       dataHub.emitMachineData(makeSnapshotFixture(), new Date());
       const msg = await next();
@@ -263,6 +265,8 @@ describe('WsBroadcaster', () => {
       const { ws, next } = await openWsClient(makeSignedCookie(sessionId));
 
       // Drain the initial ALARM_UPDATE
+      await next();
+      // Drain the initial PLC_STATUS
       await next();
 
       const emittedAt = new Date();
@@ -288,6 +292,9 @@ describe('WsBroadcaster', () => {
       // Drain initial ALARM_UPDATE from both clients
       await c1.next();
       await c2.next();
+      // Drain initial PLC_STATUS from both clients
+      await c1.next();
+      await c2.next();
 
       dataHub.emitMachineData(makeSnapshotFixture(), new Date());
 
@@ -307,6 +314,7 @@ describe('WsBroadcaster', () => {
       const { ws, next } = await openWsClient(makeSignedCookie(sessionId));
 
       await next(); // drain initial ALARM_UPDATE
+      await next(); // drain initial PLC_STATUS
 
       dataHub.emitMachineData(makeSnapshotFixture(), new Date());
       const msg = await next();
@@ -327,6 +335,7 @@ describe('WsBroadcaster', () => {
       const { ws, next } = await openWsClient(makeSignedCookie(sessionId));
 
       await next(); // drain initial ALARM_UPDATE
+      await next(); // drain initial PLC_STATUS
 
       dataHub.emitMachineData(makeSnapshotFixture(), new Date());
       const msg = await next();
@@ -353,6 +362,9 @@ describe('WsBroadcaster', () => {
       // Drain initial ALARM_UPDATE from both
       await cClient.next();
       await cWpt.next();
+      // Drain initial PLC_STATUS from both
+      await cClient.next();
+      await cWpt.next();
 
       dataHub.emitMachineData(makeSnapshotFixture(), new Date());
       const [clientMsg, wptMsg] = await Promise.all([cClient.next(), cWpt.next()]);
@@ -376,6 +388,7 @@ describe('WsBroadcaster', () => {
       const { ws, next } = await openWsClient(makeSignedCookie(sessionId));
 
       await next(); // drain initial ALARM_UPDATE
+      await next(); // drain initial PLC_STATUS
 
       dataHub.emitAlarmChange([
         { alarmIndex: 0, wordIndex: 0, bitIndex: 0, active: true, timestamp: new Date() },
@@ -393,6 +406,7 @@ describe('WsBroadcaster', () => {
       const { ws, next } = await openWsClient(makeSignedCookie(sessionId));
 
       await next(); // drain initial ALARM_UPDATE
+      await next(); // drain initial PLC_STATUS
 
       dataHub.emitAlarmChange([
         { alarmIndex: 0, wordIndex: 0, bitIndex: 0, active: true, timestamp: new Date() },
@@ -413,6 +427,7 @@ describe('WsBroadcaster', () => {
       const { ws, next } = await openWsClient(makeSignedCookie(sessionId));
 
       await next(); // drain initial ALARM_UPDATE
+      await next(); // drain initial PLC_STATUS
 
       // Activate
       dataHub.emitAlarmChange([
@@ -437,6 +452,7 @@ describe('WsBroadcaster', () => {
       const { ws, next } = await openWsClient(makeSignedCookie(sessionId));
 
       await next(); // drain initial ALARM_UPDATE
+      await next(); // drain initial PLC_STATUS
 
       dataHub.emitAlarmChange([
         { alarmIndex: 0, wordIndex: 0, bitIndex: 0, active: true, timestamp: new Date() },
@@ -553,6 +569,7 @@ describe('WsBroadcaster', () => {
       const { ws, next } = await openWsClient(makeSignedCookie(sessionId));
 
       await next(); // drain initial ALARM_UPDATE
+      await next(); // drain initial PLC_STATUS
 
       // Wait a tick — connection must still be open (no expiry check fired)
       await new Promise<void>((resolve) => setTimeout(resolve, 50));
