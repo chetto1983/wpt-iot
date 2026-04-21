@@ -613,3 +613,146 @@ describe('GET /api/anomaly/debug/snapshot-histogram', () => {
     expect(body.error).not.toContain('database is down');
   });
 });
+
+// ===========================================================================
+// GET /api/anomaly/debug/snapshot (Phase 43 D-26 hop 3)
+// ===========================================================================
+
+describe('GET /debug/snapshot', () => {
+  let app: FastifyInstance;
+  // Fixture `at` sits comfortably between default ±30s tolerance.
+  const fixtureAt = '2026-04-20T10:30:00.000Z';
+  const fixtureNearestTimestamp = '2026-04-20T10:30:02.500Z'; // +2.5s from at
+  const fixtureSnapshot = {
+    timestamp: fixtureNearestTimestamp,
+    id: 42,
+    values: {
+      thermo_left_lower: 180,
+      rms_curr_l1: 12.345,
+      user: 'OPERATOR',
+      cycle_status: 2,
+      spare_int_50: null,
+    } as Record<string, number | string | null>,
+  };
+
+  beforeEach(async () => {
+    fetchSnapshotAtMock.mockReset();
+    fetchSnapshotAtMock.mockResolvedValue(fixtureSnapshot);
+    app = await buildApp();
+  });
+
+  afterEach(async () => {
+    await app.close();
+  });
+
+  it('returns 401 for unauthenticated', async () => {
+    const res = await app.inject({
+      method: 'GET',
+      url: `/api/anomaly/debug/snapshot?at=${encodeURIComponent(fixtureAt)}`,
+    });
+    expect(res.statusCode).toBe(401);
+    expect(fetchSnapshotAtMock).not.toHaveBeenCalled();
+  });
+
+  it('returns 403 for CLIENT (D-20 plugin-level gate inherits)', async () => {
+    const res = await app.inject({
+      method: 'GET',
+      url: `/api/anomaly/debug/snapshot?at=${encodeURIComponent(fixtureAt)}`,
+      headers: { 'x-test-role': 'CLIENT' },
+    });
+    expect(res.statusCode).toBe(403);
+    expect(fetchSnapshotAtMock).not.toHaveBeenCalled();
+  });
+
+  it('returns 403 for WPT (D-20 stricter than Phase 41)', async () => {
+    const res = await app.inject({
+      method: 'GET',
+      url: `/api/anomaly/debug/snapshot?at=${encodeURIComponent(fixtureAt)}`,
+      headers: { 'x-test-role': 'WPT' },
+    });
+    expect(res.statusCode).toBe(403);
+    expect(fetchSnapshotAtMock).not.toHaveBeenCalled();
+  });
+
+  it('returns 200 for SUPER_ADMIN with valid at + correct shape + Cache-Control: no-store + ±30s tolerance', async () => {
+    const res = await app.inject({
+      method: 'GET',
+      url: `/api/anomaly/debug/snapshot?at=${encodeURIComponent(fixtureAt)}`,
+      headers: { 'x-test-role': 'SUPER_ADMIN' },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.headers['cache-control']).toBe('no-store');
+    const body = res.json();
+    expect(typeof body.id).toBe('number');
+    expect(typeof body.timestamp).toBe('string');
+    expect(typeof body.values).toBe('object');
+    expect(body.values).not.toBeNull();
+    expect(body.values.thermo_left_lower).toBe(180);
+    // Timestamp within ±30s of the requested at.
+    expect(
+      Math.abs(new Date(body.timestamp).getTime() - new Date(fixtureAt).getTime()),
+    ).toBeLessThanOrEqual(30_000);
+    expect(fetchSnapshotAtMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('returns 400 when at is not an ISO datetime', async () => {
+    const res = await app.inject({
+      method: 'GET',
+      url: '/api/anomaly/debug/snapshot?at=not-a-date',
+      headers: { 'x-test-role': 'SUPER_ADMIN' },
+    });
+    expect(res.statusCode).toBe(400);
+    const body = res.json();
+    expect(body).toHaveProperty('issues');
+    expect(Array.isArray(body.issues)).toBe(true);
+    expect(fetchSnapshotAtMock).not.toHaveBeenCalled();
+  });
+
+  it('returns 400 when at is missing', async () => {
+    const res = await app.inject({
+      method: 'GET',
+      url: '/api/anomaly/debug/snapshot',
+      headers: { 'x-test-role': 'SUPER_ADMIN' },
+    });
+    expect(res.statusCode).toBe(400);
+    const body = res.json();
+    expect(body).toHaveProperty('issues');
+    expect(fetchSnapshotAtMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 404 { error: 'No snapshot within tolerance' } when service returns null", async () => {
+    fetchSnapshotAtMock.mockResolvedValue(null);
+    const res = await app.inject({
+      method: 'GET',
+      url: `/api/anomaly/debug/snapshot?at=${encodeURIComponent(fixtureAt)}`,
+      headers: { 'x-test-role': 'SUPER_ADMIN' },
+    });
+    expect(res.statusCode).toBe(404);
+    const body = res.json();
+    expect(body).toEqual({ error: 'No snapshot within tolerance' });
+  });
+
+  it('forwards the ISO at string to SnapshotAtService.fetch', async () => {
+    await app.inject({
+      method: 'GET',
+      url: `/api/anomaly/debug/snapshot?at=${encodeURIComponent(fixtureAt)}`,
+      headers: { 'x-test-role': 'SUPER_ADMIN' },
+    });
+    expect(fetchSnapshotAtMock).toHaveBeenCalledTimes(1);
+    const args = fetchSnapshotAtMock.mock.calls[0] as unknown[];
+    expect(args[0]).toBe(fixtureAt);
+  });
+
+  it('returns 500 when the snapshot service throws', async () => {
+    fetchSnapshotAtMock.mockRejectedValue(new Error('disk exploded'));
+    const res = await app.inject({
+      method: 'GET',
+      url: `/api/anomaly/debug/snapshot?at=${encodeURIComponent(fixtureAt)}`,
+      headers: { 'x-test-role': 'SUPER_ADMIN' },
+    });
+    expect(res.statusCode).toBe(500);
+    const body = res.json();
+    expect(body.error).toBe('Internal error');
+    expect(body.error).not.toContain('disk exploded');
+  });
+});
