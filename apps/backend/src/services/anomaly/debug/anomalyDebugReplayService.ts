@@ -228,7 +228,7 @@ class AnomalyDebugReplayServiceImpl {
             signal.throwIfAborted();
 
             const fetchResult = await tx.execute(
-              sql`FETCH FORWARD ${FETCH_ROWS_PER_STEP} FROM replay_cursor`,
+              sql.raw(`FETCH FORWARD ${FETCH_ROWS_PER_STEP} FROM replay_cursor`),
             );
             // Drizzle's tx.execute wraps pg's QueryResult; rows live on .rows.
             const rows = (fetchResult.rows ?? []) as unknown as IReplaySnapshotRow[];
