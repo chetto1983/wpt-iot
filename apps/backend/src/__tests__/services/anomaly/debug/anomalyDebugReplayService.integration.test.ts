@@ -55,7 +55,13 @@ function makeSignedCookie(rawSessionId: string): string {
 // to push raw SQL text into queryLog.
 const queryLog: string[] = [];
 
+// Idempotent wrap marker -- pg-pool reuses PoolClient objects across leases,
+// so without this marker each subsequent connect() would add another layer of
+// wrapping and duplicate every captured query proportional to the lease count.
+const WRAPPED_MARKER = Symbol.for('wpt.D-25.queryLog.wrapped');
+
 function wrapClient(client: PoolClient): PoolClient {
+  if ((client as unknown as Record<symbol, boolean>)[WRAPPED_MARKER]) return client;
   const origQuery = client.query.bind(client);
   const wrapped = ((text: string | QueryConfig, ...rest: unknown[]) => {
     const sqlText = typeof text === 'string' ? text : text.text;
@@ -66,6 +72,7 @@ function wrapClient(client: PoolClient): PoolClient {
     );
   }) as unknown as typeof client.query;
   client.query = wrapped;
+  (client as unknown as Record<symbol, boolean>)[WRAPPED_MARKER] = true;
   return client;
 }
 
@@ -177,36 +184,69 @@ async function buildWsApp(): Promise<FastifyInstance> {
   return app;
 }
 
-async function openWs(serverAddr: string, signedCookie: string): Promise<WebSocket> {
+/**
+ * Queue-backed WS test client. Mirrors `wsBroadcaster.test.ts` openWsClient:
+ * attaches a permanent 'message' listener BEFORE 'open' fires so no
+ * server-pushed frame (initial MACHINE_DATA / ALARM_UPDATE / PLC_STATUS or
+ * any in-flight REPLAY_FRAME) is ever lost to the listener-registration
+ * race that bites `ws.once('message', ...)` per call.
+ */
+interface IWsTestClient {
+  ws: WebSocket;
+  next(timeoutMs?: number): Promise<Record<string, unknown>>;
+  close(): void;
+}
+
+async function openWs(serverAddr: string, signedCookie: string): Promise<IWsTestClient> {
   const url = serverAddr.replace('http', 'ws') + '/api/ws';
   const ws = new WebSocket(url, { headers: { Cookie: signedCookie } });
+
+  const queue: Record<string, unknown>[] = [];
+  const waiting: Array<(msg: Record<string, unknown>) => void> = [];
+
+  // Attach listener BEFORE 'open' so messages queued during the upgrade are
+  // captured. addClient() pushes 3 envelopes on connect — without this
+  // ordering they get lost between 'open' and the first .next() call.
+  ws.on('message', (data) => {
+    const msg = JSON.parse(data.toString()) as Record<string, unknown>;
+    const resolver = waiting.shift();
+    if (resolver) {
+      resolver(msg);
+    } else {
+      queue.push(msg);
+    }
+  });
+
   await new Promise<void>((resolve, reject) => {
     ws.once('open', () => resolve());
     ws.once('error', reject);
   });
-  return ws;
-}
 
-async function receiveNext(ws: WebSocket, timeoutMs = 10_000): Promise<Record<string, unknown>> {
-  return new Promise<Record<string, unknown>>((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error('receiveNext timeout')), timeoutMs);
-    const onMsg = (data: WebSocket.RawData): void => {
-      clearTimeout(timer);
-      ws.off('error', onErr);
-      try {
-        resolve(JSON.parse(data.toString()) as Record<string, unknown>);
-      } catch (e) {
-        reject(e);
-      }
-    };
-    const onErr = (err: Error): void => {
-      clearTimeout(timer);
-      ws.off('message', onMsg);
-      reject(err);
-    };
-    ws.once('message', onMsg);
-    ws.once('error', onErr);
-  });
+  // Server-side addClient() runs in the @fastify/websocket connection
+  // callback AFTER the upgrade response is sent. Yield a macrotask so the
+  // server has registered the session in `clients` before the caller calls
+  // AnomalyDebugReplayService.start() (which immediately sendToSession()s).
+  await new Promise<void>((resolve) => setTimeout(resolve, 50));
+
+  return {
+    ws,
+    next: (timeoutMs = 30_000) => {
+      if (queue.length > 0) return Promise.resolve(queue.shift()!);
+      return new Promise<Record<string, unknown>>((resolve, reject) => {
+        const timer = setTimeout(() => {
+          const i = waiting.indexOf(resolver);
+          if (i >= 0) waiting.splice(i, 1);
+          reject(new Error('receiveNext timeout'));
+        }, timeoutMs);
+        const resolver = (msg: Record<string, unknown>): void => {
+          clearTimeout(timer);
+          resolve(msg);
+        };
+        waiting.push(resolver);
+      });
+    },
+    close: () => ws.close(),
+  };
 }
 
 // Minimal logger shim for initBroadcaster.
@@ -272,7 +312,7 @@ describe('AnomalyDebugReplayService -- integration (real Docker PG)', () => {
       await seedRows(rowCount);
       queryLog.length = 0; // isolate cursor statements from the seed INSERTs
 
-      const ws = await openWs(serverAddr, cookie);
+      const client = await openWs(serverAddr, cookie);
 
       // Drive the service directly -- the route layer is covered by Task 3.
       const { streamId } = AnomalyDebugReplayService.start(
@@ -283,14 +323,22 @@ describe('AnomalyDebugReplayService -- integration (real Docker PG)', () => {
 
       const frames: Array<Record<string, unknown>> = [];
       while (true) {
-        const msg = await receiveNext(ws, 30_000);
+        const msg = await client.next(30_000);
         if ((msg as { streamId?: string }).streamId !== streamId) continue; // ignore unrelated broadcasts
         frames.push(msg);
         const phase = (msg as { phase?: string }).phase;
         if (phase === 'end' || phase === 'error') break;
       }
 
-      ws.close();
+      // The terminal 'end' frame is emitted INSIDE db.transaction() before
+      // the wrapper issues its COMMIT. Wait for COMMIT (or ROLLBACK) to land
+      // in the spy's queryLog before asserting the SQL sequence.
+      for (let i = 0; i < 50; i++) {
+        if (queryLog.some((q) => /^\s*(COMMIT|ROLLBACK)\b/i.test(q))) break;
+        await new Promise<void>((resolve) => setTimeout(resolve, 20));
+      }
+
+      client.close();
 
       // --- Frame assertions ---
       const endFrame = frames.at(-1) as { phase: string; processed?: number; ok?: boolean };
@@ -315,9 +363,13 @@ describe('AnomalyDebugReplayService -- integration (real Docker PG)', () => {
       // --- D-25 literal SQL-sequence assertion ---
       // Expected ordered shape:
       //   BEGIN -> DECLARE replay_cursor NO SCROLL CURSOR
-      //         -> FETCH FORWARD 500 x ceil(rowCount/500)
+      //         -> FETCH FORWARD 500 x N
       //         -> CLOSE replay_cursor -> COMMIT.
-      const fetchCount = Math.ceil(rowCount / 500);
+      // Where N = ceil(rowCount / 500) when rowCount is NOT a multiple of 500,
+      // and ceil(rowCount / 500) + 1 when rowCount IS a multiple (the extra
+      // FETCH returns 0 rows and is what tells the cursor loop the window is
+      // exhausted -- a fundamental property of the SQL FETCH protocol).
+      const fetchCount = Math.ceil(rowCount / 500) + (rowCount % 500 === 0 ? 1 : 0);
       const expected: RegExp[] = [
         /^\s*BEGIN\b/i,
         /DECLARE\s+replay_cursor\s+NO\s+SCROLL\s+CURSOR/i,
@@ -341,7 +393,7 @@ describe('AnomalyDebugReplayService -- integration (real Docker PG)', () => {
     await seedRows(10_000);
     queryLog.length = 0; // isolate cursor statements from seed INSERTs
 
-    const ws = await openWs(serverAddr, cookie);
+    const client = await openWs(serverAddr, cookie);
 
     const { streamId } = AnomalyDebugReplayService.start(
       { from: WINDOW_FROM, to: WINDOW_TO },
@@ -353,7 +405,7 @@ describe('AnomalyDebugReplayService -- integration (real Docker PG)', () => {
     let chunkSeen = 0;
     let guard = 0;
     while (chunkSeen < 5 && guard < 200) {
-      const msg = await receiveNext(ws, 30_000);
+      const msg = await client.next(30_000);
       guard++;
       if ((msg as { streamId?: string }).streamId !== streamId) continue;
       if ((msg as { phase?: string }).phase === 'chunk') chunkSeen++;
@@ -367,7 +419,7 @@ describe('AnomalyDebugReplayService -- integration (real Docker PG)', () => {
     // Collect the terminal frame.
     let terminal: Record<string, unknown> | null = null;
     for (let i = 0; i < 300; i++) {
-      const msg = await receiveNext(ws, 30_000);
+      const msg = await client.next(30_000);
       if ((msg as { streamId?: string }).streamId !== streamId) continue;
       const phase = (msg as { phase?: string }).phase;
       if (phase === 'error' || phase === 'end') {
@@ -376,7 +428,15 @@ describe('AnomalyDebugReplayService -- integration (real Docker PG)', () => {
       }
     }
 
-    ws.close();
+    // Wait for ROLLBACK to land in the spy's queryLog (issued by the
+    // db.transaction wrapper after the cursor loop's `finally { CLOSE }`
+    // unwinds with a thrown AbortError).
+    for (let i = 0; i < 50; i++) {
+      if (queryLog.some((q) => /^\s*(COMMIT|ROLLBACK)\b/i.test(q))) break;
+      await new Promise<void>((resolve) => setTimeout(resolve, 20));
+    }
+
+    client.close();
 
     // --- Behavior-equivalent smokes (ADDITIONAL guards) ---
     expect(terminal).not.toBeNull();
