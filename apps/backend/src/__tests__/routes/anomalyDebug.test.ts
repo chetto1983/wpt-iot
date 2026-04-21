@@ -33,6 +33,9 @@ const startMock = vi.fn();
 const cancelMock = vi.fn();
 const onSessionCloseMock = vi.fn();
 const getActiveJobCountMock = vi.fn(() => 0);
+// Phase 43 D-15 + D-26 hop 3: snapshot query services (extracted per Approach A).
+const fetchHistogramMock = vi.fn();
+const fetchSnapshotAtMock = vi.fn();
 
 class MockConcurrencyError extends Error {
   readonly activeJobs: number;
@@ -55,6 +58,16 @@ vi.mock('../../services/anomaly/debug/anomalyDebugReplayService.js', () => ({
     getActiveJobCount: getActiveJobCountMock,
   },
   AnomalyReplayConcurrencyError: MockConcurrencyError,
+}));
+
+// Phase 43 D-15: histogram query service mock (Approach A — service extraction).
+vi.mock('../../services/anomaly/debug/snapshotHistogramService.js', () => ({
+  SnapshotHistogramService: { fetch: fetchHistogramMock },
+}));
+
+// Phase 43 D-26 hop 3: nearest-snapshot query service mock (Approach A).
+vi.mock('../../services/anomaly/debug/snapshotAtService.js', () => ({
+  SnapshotAtService: { fetch: fetchSnapshotAtMock },
 }));
 
 const { anomalyDebugRoutes } = await import('../../routes/anomalyDebug.js');
@@ -468,5 +481,135 @@ describe('DELETE /api/anomaly/debug/replay/:streamId', () => {
     });
     expect(res.statusCode).toBe(404);
     expect(cancelMock).toHaveBeenCalledWith('unknown-id');
+  });
+});
+
+// ===========================================================================
+// GET /api/anomaly/debug/snapshot-histogram (Phase 43 D-15)
+// ===========================================================================
+
+describe('GET /api/anomaly/debug/snapshot-histogram', () => {
+  let app: FastifyInstance;
+
+  beforeEach(async () => {
+    fetchHistogramMock.mockReset();
+    // Default fixture: 3 non-empty hourly buckets, totalCount = 15.
+    fetchHistogramMock.mockResolvedValue({
+      buckets: [
+        { bucket: '2026-04-20T08:00:00.000Z', count: 5 },
+        { bucket: '2026-04-20T09:00:00.000Z', count: 7 },
+        { bucket: '2026-04-20T10:00:00.000Z', count: 3 },
+      ],
+      totalCount: 15,
+    });
+    app = await buildApp();
+  });
+
+  afterEach(async () => {
+    await app.close();
+  });
+
+  it('returns 401 for unauthenticated', async () => {
+    const res = await app.inject({
+      method: 'GET',
+      url: '/api/anomaly/debug/snapshot-histogram?from=2026-04-20T00:00:00.000Z&to=2026-04-21T00:00:00.000Z',
+    });
+    expect(res.statusCode).toBe(401);
+    expect(fetchHistogramMock).not.toHaveBeenCalled();
+  });
+
+  it('returns 403 for CLIENT (D-20 plugin-level gate inherits)', async () => {
+    const res = await app.inject({
+      method: 'GET',
+      url: '/api/anomaly/debug/snapshot-histogram?from=2026-04-20T00:00:00.000Z&to=2026-04-21T00:00:00.000Z',
+      headers: { 'x-test-role': 'CLIENT' },
+    });
+    expect(res.statusCode).toBe(403);
+    expect(fetchHistogramMock).not.toHaveBeenCalled();
+  });
+
+  it('returns 403 for WPT (D-20 stricter than Phase 41)', async () => {
+    const res = await app.inject({
+      method: 'GET',
+      url: '/api/anomaly/debug/snapshot-histogram?from=2026-04-20T00:00:00.000Z&to=2026-04-21T00:00:00.000Z',
+      headers: { 'x-test-role': 'WPT' },
+    });
+    expect(res.statusCode).toBe(403);
+    expect(fetchHistogramMock).not.toHaveBeenCalled();
+  });
+
+  it('returns 200 for SUPER_ADMIN with valid from/to + correct shape + Cache-Control: no-store', async () => {
+    const res = await app.inject({
+      method: 'GET',
+      url: '/api/anomaly/debug/snapshot-histogram?from=2026-04-20T00:00:00.000Z&to=2026-04-21T00:00:00.000Z',
+      headers: { 'x-test-role': 'SUPER_ADMIN' },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.headers['cache-control']).toBe('no-store');
+    const body = res.json();
+    expect(Array.isArray(body.buckets)).toBe(true);
+    expect(body.buckets.length).toBe(3);
+    // Each bucket parses as a valid Date (ISO datetime string).
+    for (const b of body.buckets as Array<{ bucket: string; count: number }>) {
+      expect(Number.isNaN(new Date(b.bucket).getTime())).toBe(false);
+    }
+    // Monotonic ascending order.
+    const ts = (body.buckets as Array<{ bucket: string }>).map((b) => new Date(b.bucket).getTime());
+    expect(ts.every((t, i) => i === 0 || t >= ts[i - 1]!)).toBe(true);
+    // totalCount == sum(bucket.count).
+    const sum = (body.buckets as Array<{ count: number }>).reduce((s, b) => s + b.count, 0);
+    expect(body.totalCount).toBe(sum);
+    expect(fetchHistogramMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('returns 400 when from is missing', async () => {
+    const res = await app.inject({
+      method: 'GET',
+      url: '/api/anomaly/debug/snapshot-histogram?to=2026-04-21T00:00:00.000Z',
+      headers: { 'x-test-role': 'SUPER_ADMIN' },
+    });
+    expect(res.statusCode).toBe(400);
+    const body = res.json();
+    expect(body).toHaveProperty('issues');
+    expect(fetchHistogramMock).not.toHaveBeenCalled();
+  });
+
+  it('returns 400 when from is not an ISO datetime', async () => {
+    const res = await app.inject({
+      method: 'GET',
+      url: '/api/anomaly/debug/snapshot-histogram?from=not-a-date&to=2026-04-21T00:00:00.000Z',
+      headers: { 'x-test-role': 'SUPER_ADMIN' },
+    });
+    expect(res.statusCode).toBe(400);
+    const body = res.json();
+    expect(body).toHaveProperty('issues');
+    expect(Array.isArray(body.issues)).toBe(true);
+    expect(fetchHistogramMock).not.toHaveBeenCalled();
+  });
+
+  it('forwards ISO from/to strings to SnapshotHistogramService.fetch', async () => {
+    await app.inject({
+      method: 'GET',
+      url: '/api/anomaly/debug/snapshot-histogram?from=2026-04-20T00:00:00.000Z&to=2026-04-21T00:00:00.000Z',
+      headers: { 'x-test-role': 'SUPER_ADMIN' },
+    });
+    expect(fetchHistogramMock).toHaveBeenCalledTimes(1);
+    const args = fetchHistogramMock.mock.calls[0] as unknown[];
+    expect(args[0]).toBe('2026-04-20T00:00:00.000Z');
+    expect(args[1]).toBe('2026-04-21T00:00:00.000Z');
+  });
+
+  it('returns 500 when the histogram service throws', async () => {
+    fetchHistogramMock.mockRejectedValue(new Error('database is down'));
+    const res = await app.inject({
+      method: 'GET',
+      url: '/api/anomaly/debug/snapshot-histogram?from=2026-04-20T00:00:00.000Z&to=2026-04-21T00:00:00.000Z',
+      headers: { 'x-test-role': 'SUPER_ADMIN' },
+    });
+    expect(res.statusCode).toBe(500);
+    const body = res.json();
+    expect(body.error).toBe('Internal error');
+    // Never echo the raw exception message back to the client.
+    expect(body.error).not.toContain('database is down');
   });
 });
