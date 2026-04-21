@@ -31,7 +31,27 @@ export interface WsState {
   plcLastPacketAt: string | null;
 }
 
-export function useWebSocket(enabled: boolean): WsState {
+/**
+ * Phase 43 D-07 / D-12 — side-channel subscriber for page-scoped consumers
+ * (e.g. `useReplayStream` for REPLAY_FRAME messages). Returns an unsubscribe
+ * function that callers MUST invoke in their `useEffect` cleanup to avoid
+ * leaking handlers in the module-level set.
+ */
+export type WsMessageHandler = (msg: IWsMessage) => void;
+export type SubscribeWsMessage = (handler: WsMessageHandler) => () => void;
+
+/**
+ * Phase 43 — hook return type is `WsState & { subscribeWsMessage }`. The
+ * extra field is NOT added to `WsState` itself (byte-identical Phase 42
+ * contract for `useWsData()`); it rides on the hook return as a structural
+ * companion and is re-exposed by `WebSocketProvider` through a dedicated
+ * context accessor (`useWsMessageSubscribe`).
+ */
+export type UseWebSocketReturn = WsState & {
+  subscribeWsMessage: SubscribeWsMessage;
+};
+
+export function useWebSocket(enabled: boolean): UseWebSocketReturn {
   const [machineData, setMachineData] = useState<Partial<IMachineSnapshot> | null>(null);
   const [alarms, setAlarms] = useState<IActiveAlarm[]>([]);
   const [anomaly, setAnomaly] = useState<ILiveAnomalyState | null>(null);
@@ -46,6 +66,18 @@ export function useWebSocket(enabled: boolean): WsState {
   const prevConnectedRef = useRef(false);
   const enabledRef = useRef(enabled);
   enabledRef.current = enabled;
+
+  // Phase 43 D-07 / D-12 — side-channel handler registry for page-scoped
+  // consumers that need access to raw parsed IWsMessage values (e.g.
+  // REPLAY_FRAME for useReplayStream). Kept OUTSIDE the WsState contract
+  // so `useWsData()` stays byte-identical for existing callers.
+  const messageHandlersRef = useRef<Set<WsMessageHandler>>(new Set());
+  const subscribeWsMessage = useCallback<SubscribeWsMessage>((handler) => {
+    messageHandlersRef.current.add(handler);
+    return () => {
+      messageHandlersRef.current.delete(handler);
+    };
+  }, []);
 
   const connect = useCallback(() => {
     if (!enabledRef.current) {
@@ -161,8 +193,26 @@ export function useWebSocket(enabled: boolean): WsState {
             break;
           }
           default:
-            console.warn('[ws] unsupported message type', { type: message.type });
+            // Phase 43 D-12 — side-channel consumers (useReplayStream) may handle
+            // message types not in the primary switch (e.g. REPLAY_FRAME). Only
+            // emit the unsupported-type warn when NO handler is registered so the
+            // intentional REPLAY_FRAME fan-out below does not generate log noise.
+            if (messageHandlersRef.current.size === 0) {
+              console.warn('[ws] unsupported message type', { type: message.type });
+            }
             break;
+        }
+        // Phase 43 D-12 — fan out to side-channel subscribers AFTER primary
+        // state updates. Errors in one handler must not block the others
+        // or the main switch.
+        for (const handler of messageHandlersRef.current) {
+          try {
+            handler(message);
+          } catch (err) {
+            console.error('[ws] side-channel handler threw', {
+              err: err instanceof Error ? err.message : String(err),
+            });
+          }
         }
       } catch (error) {
         const raw = event.data.length > MAX_LOGGED_MESSAGE_CHARS
@@ -216,5 +266,14 @@ export function useWebSocket(enabled: boolean): WsState {
     };
   }, [enabled, connect]);
 
-  return { machineData, alarms, anomaly, connected, lastUpdate, plcConnected, plcLastPacketAt };
+  return {
+    machineData,
+    alarms,
+    anomaly,
+    connected,
+    lastUpdate,
+    plcConnected,
+    plcLastPacketAt,
+    subscribeWsMessage,
+  };
 }
