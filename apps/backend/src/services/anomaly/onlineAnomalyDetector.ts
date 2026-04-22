@@ -615,6 +615,9 @@ export class OnlineAnomalyDetector {
     if (patch.cusumH !== undefined) this.config.cusumH = patch.cusumH;
     if (patch.persistenceN !== undefined) this.config.persistenceN = patch.persistenceN;
     if (patch.persistenceM !== undefined) this.config.persistenceM = patch.persistenceM;
+    if (patch.minWarmSamples !== undefined) this.config.minWarmSamples = patch.minWarmSamples;
+    if (patch.minReliableSamples !== undefined) this.config.minReliableSamples = patch.minReliableSamples;
+    if (patch.modeChangeGraceMs !== undefined) this.config.modeChangeGraceMs = patch.modeChangeGraceMs;
   }
 
   // -----------------------------------------------------------------------

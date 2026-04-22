@@ -47,6 +47,27 @@ function makeSnapshot(overrides: Record<string, unknown> = {}) {
   };
 }
 
+/**
+ * Keep unit-test warmup short and remove the mode grace window so flagging
+ * assertions are deterministic without burning seconds of wall-clock time.
+ *
+ *  - minReliableSamples=30 — confidence reaches 1.0 at the same sample count
+ *    as warmup, so score is unscaled by confidence after warmup. Prod default
+ *    is 200, intentionally cautious; tests don't need that conservatism.
+ *  - modeChangeGraceMs=0 — mode entry grace normally suppresses WARNING-level
+ *    flags for the first 30s after a mode change. Tests emit samples in
+ *    microseconds, so grace would suppress every flag.
+ *
+ * criticalThreshold stays at production default (3.5) so the test still
+ * exercises the real CRITICAL path.
+ */
+function configureForTest(): void {
+  machineAnomalyService.updateDetectorConfig({
+    minReliableSamples: 30,
+    modeChangeGraceMs: 0,
+  });
+}
+
 describe('machineAnomalyService', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -82,18 +103,23 @@ describe('machineAnomalyService', () => {
     expect(machineAnomalyService.getTrackingStatus().observationCount).toBe(30);
   });
 
-  it('reports that learning is continuous but not restart-persistent', () => {
+  it('reports that learning is continuous and restart-persistent', () => {
     machineAnomalyService.start(mockLog);
 
+    // The service serialises detector state via serializeDetector()/
+    // restoreDetector() on boot (Phase 4.1), so learning DOES survive
+    // restarts when the persisted state is present. `continuousLearning`
+    // remains true because each observe updates Welford stats in place.
     expect(machineAnomalyService.getTrackingStatus()).toMatchObject({
       active: true,
       continuousLearning: true,
-      persistsAcrossRestart: false,
+      persistsAcrossRestart: true,
     });
   });
 
   it('flags a large anomaly once the live baseline is warm', () => {
     machineAnomalyService.start(mockLog);
+    configureForTest();
     const handler = getMachineHandler();
 
     for (let i = 0; i < 30; i += 1) {
@@ -120,6 +146,7 @@ describe('machineAnomalyService', () => {
 
   it('suppresses repeated persisted events during the cooldown window', () => {
     machineAnomalyService.start(mockLog);
+    configureForTest();
     const handler = getMachineHandler();
 
     for (let i = 0; i < 30; i += 1) {

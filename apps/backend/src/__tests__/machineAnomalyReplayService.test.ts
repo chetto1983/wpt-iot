@@ -118,12 +118,23 @@ describe('MachineAnomalyReplayService', () => {
     const result = await MachineAnomalyReplayService.replay({
       from: new Date('2026-01-01T00:00:00.000Z'),
       to: new Date('2026-01-01T02:00:00.000Z'),
+      // Shorter warmup + no grace period so the 31 pre-anomaly rows are
+      // enough to saturate the sampleConfidence multiplier and the final
+      // anomaly rows flag as CRITICAL. Production defaults (minReliable=200,
+      // grace=30s) are tuned for live streams with millions of samples.
+      detectorConfig: {
+        minReliableSamples: 30,
+        modeChangeGraceMs: 0,
+      },
     });
 
     expect(result.tracking.replayedRows).toBe(34);
     expect(result.tracking.activeAlarmCount).toBe(2);
     expect(result.summary.flaggedRows).toBeGreaterThan(0);
-    expect(result.summary.firstFlaggedAt).toBe('2026-01-01T01:00:00.000Z');
+    // C4 persistence filter (N=3 flags in M=5 window) needs 3 consecutive
+    // rawFlagged=true before finalFlagged flips — so the first reported flag
+    // is the 3rd anomalous row at 01:02:00, not the 1st at 01:00:00.
+    expect(result.summary.firstFlaggedAt).toBe('2026-01-01T01:02:00.000Z');
     expect(result.topAnomalies[0]?.score).toBeGreaterThanOrEqual(3);
   });
 });

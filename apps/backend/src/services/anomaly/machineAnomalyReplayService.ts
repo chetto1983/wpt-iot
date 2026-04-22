@@ -1,7 +1,10 @@
 import { sql } from 'drizzle-orm';
 import type { IAnomalyContributor } from '@wpt/types';
 import { db } from '../../db/index.js';
-import { OnlineAnomalyDetector } from './onlineAnomalyDetector.js';
+import {
+  OnlineAnomalyDetector,
+  type IDetectorConfig,
+} from './onlineAnomalyDetector.js';
 import {
   type IReplaySnapshotRow,
   asIsoString,
@@ -17,6 +20,13 @@ interface IAnomalyReplayRequest {
   to: Date;
   maxRows?: number;
   topN?: number;
+  /**
+   * Optional detector config overrides. Used by unit tests and the /debug
+   * replay endpoint to lower `minReliableSamples` / `modeChangeGraceMs` so
+   * small synthetic datasets can exercise the flagging path without 200+
+   * warmup rows.
+   */
+  detectorConfig?: Partial<IDetectorConfig>;
 }
 
 export interface IAnomalyReplayPoint {
@@ -110,7 +120,7 @@ export class MachineAnomalyReplayService {
         AND activated_at < ${request.to}::timestamptz
     `);
 
-    const detector = new OnlineAnomalyDetector();
+    const detector = new OnlineAnomalyDetector(request.detectorConfig ?? {});
     const topAnomalies: IAnomalyReplayPoint[] = [];
     const allScores: Array<{ time: string; score: number; flagged: boolean }> = [];
     let flaggedRows = 0;
