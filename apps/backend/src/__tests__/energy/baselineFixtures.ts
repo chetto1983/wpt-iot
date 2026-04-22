@@ -43,19 +43,27 @@ export async function buildTestServer(): Promise<FastifyInstance> {
  * tariff lookups in `freezeBaselineEvidence` would throw "no period covers
  * timestamp" — that error is the correct production behavior, not a bug.
  *
- * 2024-05-* is the sweet spot:
- *  - In the past (Date.now() = 2026-04), so the future-date guard passes
- *  - After 2024-01-01, so the open-ended seed period covers it
- *  - Far enough from the current dev-session window (2026-04) that
- *    accidental simulator collisions are extremely unlikely
- *  - Cleanup wall scoped to 2024-04-01..2024-07-01 plus a backwards-compat
- *    2099+ rule for the Plan 01 raw-SQL FK / schema tests that still use
- *    literal 2099 strings.
+ * Use a recent rolling window instead of hardcoded 2024 dates:
+ *  - always in the past, so the future-date guard passes
+ *  - still comfortably inside the 90-day raw/5min retention window
+ *  - after 2024-01-01, so the open-ended seed tariff period covers it
+ *  - cleanup/refresh can target one deterministic wall around the fixtures
  */
-export const BASELINE_FROM = new Date('2024-05-01T00:00:00Z');
-export const BASELINE_TO = new Date('2024-05-31T00:00:00Z');
-export const MEASUREMENT_FROM = new Date('2024-06-01T00:00:00Z');
-export const MEASUREMENT_TO = new Date('2024-06-30T00:00:00Z');
+const DAY_MS = 86_400_000;
+
+function startOfUtcDay(date: Date): Date {
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+}
+
+const TODAY_UTC = startOfUtcDay(new Date());
+
+export const BASELINE_FROM = new Date(TODAY_UTC.getTime() - 70 * DAY_MS);
+export const BASELINE_TO = new Date(TODAY_UTC.getTime() - 40 * DAY_MS);
+export const MEASUREMENT_FROM = new Date(TODAY_UTC.getTime() - 39 * DAY_MS);
+export const MEASUREMENT_TO = new Date(TODAY_UTC.getTime() - 10 * DAY_MS);
+
+const CLEANUP_FROM = new Date(BASELINE_FROM.getTime() - DAY_MS);
+const CLEANUP_TO = new Date(MEASUREMENT_TO.getTime() + DAY_MS);
 
 /**
  * Seeds N days of machine_snapshots + refreshes the CAGG chain so energy_1d
@@ -95,13 +103,13 @@ export async function seedEnergyDayBuckets(args: {
   const refreshFrom = new Date(args.from.getTime() - 4 * 3600_000);
   const refreshTo = new Date(args.to.getTime() + 4 * 3600_000);
   await db.execute(sql`
-    CALL refresh_continuous_aggregate('energy_5min', ${refreshFrom.toISOString()}::timestamptz, ${refreshTo.toISOString()}::timestamptz)
+    CALL refresh_continuous_aggregate('energy_5min', ${refreshFrom.toISOString()}::timestamptz, ${refreshTo.toISOString()}::timestamptz, force => TRUE)
   `);
   await db.execute(sql`
-    CALL refresh_continuous_aggregate('energy_1h', ${refreshFrom.toISOString()}::timestamptz, ${refreshTo.toISOString()}::timestamptz)
+    CALL refresh_continuous_aggregate('energy_1h', ${refreshFrom.toISOString()}::timestamptz, ${refreshTo.toISOString()}::timestamptz, force => TRUE)
   `);
   await db.execute(sql`
-    CALL refresh_continuous_aggregate('energy_1d', ${refreshFrom.toISOString()}::timestamptz, ${refreshTo.toISOString()}::timestamptz)
+    CALL refresh_continuous_aggregate('energy_1d', ${refreshFrom.toISOString()}::timestamptz, ${refreshTo.toISOString()}::timestamptz, force => TRUE)
   `);
 }
 
@@ -145,21 +153,78 @@ export async function seedCycleRecords(args: {
 
 /**
  * beforeEach cleanup for every baseline integration test. Scoped to the
- * 2024-04..2024-07 fixture wall + the legacy 2099+ raw-SQL schema tests.
+ * rolling fixture wall above + the legacy 2099+ raw-SQL schema tests.
  * Safe to call repeatedly; no cascading wipes outside those windows.
  */
 export async function cleanupBaselineArea(): Promise<void> {
   await db.execute(sql`DELETE FROM baseline_evidence WHERE baseline_id IN
     (SELECT baseline_id FROM energy_baselines
      WHERE period_from >= '2099-01-01'::timestamptz
-        OR (period_from >= '2024-04-01'::timestamptz AND period_from < '2024-07-01'::timestamptz))`);
+        OR (period_from >= ${CLEANUP_FROM.toISOString()}::timestamptz
+          AND period_from < ${CLEANUP_TO.toISOString()}::timestamptz))`);
   await db.execute(sql`DELETE FROM energy_baselines
     WHERE period_from >= '2099-01-01'::timestamptz
-       OR (period_from >= '2024-04-01'::timestamptz AND period_from < '2024-07-01'::timestamptz)`);
+       OR (period_from >= ${CLEANUP_FROM.toISOString()}::timestamptz
+         AND period_from < ${CLEANUP_TO.toISOString()}::timestamptz)`);
   await db.execute(sql`DELETE FROM machine_snapshots
     WHERE timestamp >= '2099-01-01'::timestamptz
-       OR (timestamp >= '2024-04-01'::timestamptz AND timestamp < '2024-07-01'::timestamptz)`);
+       OR (timestamp >= ${CLEANUP_FROM.toISOString()}::timestamptz
+         AND timestamp < ${CLEANUP_TO.toISOString()}::timestamptz)`);
   await db.execute(sql`DELETE FROM cycle_records
     WHERE started_at >= '2099-01-01'::timestamptz
-       OR (started_at >= '2024-04-01'::timestamptz AND started_at < '2024-07-01'::timestamptz)`);
+       OR (started_at >= ${CLEANUP_FROM.toISOString()}::timestamptz
+         AND started_at < ${CLEANUP_TO.toISOString()}::timestamptz)`);
+
+  // Keep the materialized energy chain consistent with the raw-table deletes.
+  // Without this, energy_1d can retain stale buckets from prior tests and
+  // baseline evidence locks against contaminated totals.
+  await db.execute(sql`
+    CALL refresh_continuous_aggregate(
+      'energy_5min',
+      ${CLEANUP_FROM.toISOString()}::timestamptz,
+      ${CLEANUP_TO.toISOString()}::timestamptz,
+      force => TRUE
+    )
+  `);
+  await db.execute(sql`
+    CALL refresh_continuous_aggregate(
+      'energy_1h',
+      ${CLEANUP_FROM.toISOString()}::timestamptz,
+      ${CLEANUP_TO.toISOString()}::timestamptz,
+      force => TRUE
+    )
+  `);
+  await db.execute(sql`
+    CALL refresh_continuous_aggregate(
+      'energy_1d',
+      ${CLEANUP_FROM.toISOString()}::timestamptz,
+      ${CLEANUP_TO.toISOString()}::timestamptz,
+      force => TRUE
+    )
+  `);
+
+  await db.execute(sql`
+    CALL refresh_continuous_aggregate(
+      'energy_5min',
+      '2098-12-31T00:00:00Z'::timestamptz,
+      '2100-01-02T00:00:00Z'::timestamptz,
+      force => TRUE
+    )
+  `);
+  await db.execute(sql`
+    CALL refresh_continuous_aggregate(
+      'energy_1h',
+      '2098-12-31T00:00:00Z'::timestamptz,
+      '2100-01-02T00:00:00Z'::timestamptz,
+      force => TRUE
+    )
+  `);
+  await db.execute(sql`
+    CALL refresh_continuous_aggregate(
+      'energy_1d',
+      '2098-12-31T00:00:00Z'::timestamptz,
+      '2100-01-02T00:00:00Z'::timestamptz,
+      force => TRUE
+    )
+  `);
 }

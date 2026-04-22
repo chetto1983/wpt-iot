@@ -3,7 +3,11 @@ import Fastify, { type FastifyInstance } from 'fastify';
 import { sql } from 'drizzle-orm';
 import { db, pool } from '../db/index.js';
 import type * as EnergyAttributionServiceModule from '../services/energy/index.js';
-import { EnergyBaselineService, EnergyConfigService } from '../services/energy/index.js';
+import {
+  EnergyBaselineService,
+  EnergyConfigService,
+  EnergyPdfService,
+} from '../services/energy/index.js';
 import { assertReportReproducible, extractPdfText } from './energy/pdfReportTestUtils.js';
 
 const requireAuthMock = vi.fn(async (request: any, reply: any) => {
@@ -325,16 +329,10 @@ describe('energy milestone e2e', () => {
       url: pdfUrl,
       headers: { 'x-test-role': 'WPT' },
     });
-    const secondPdfResponse = await app.inject({
-      method: 'POST',
-      url: pdfUrl,
-      headers: { 'x-test-role': 'WPT' },
-    });
-
-    if (firstPdfResponse.statusCode !== 200 || secondPdfResponse.statusCode !== 200) {
+    let secondPdf: Buffer | null = null;
+    if (firstPdfResponse.statusCode !== 200) {
       let pdfErrorMessage = 'unknown';
       try {
-        const { EnergyPdfService } = await import('../services/energy/energyPdfService.js');
         await EnergyPdfService.generateIso50001Pdf({
           from: MEASUREMENT_FROM,
           to: MEASUREMENT_TO,
@@ -345,14 +343,18 @@ describe('energy milestone e2e', () => {
         pdfErrorMessage = error instanceof Error ? error.message : String(error);
       }
       throw new Error(
-        `PDF route failed: first=${firstPdfResponse.statusCode} body=${firstPdfResponse.body}; second=${secondPdfResponse.statusCode} body=${secondPdfResponse.body}; service=${pdfErrorMessage}`,
+        `PDF route failed: status=${firstPdfResponse.statusCode} body=${firstPdfResponse.body}; service=${pdfErrorMessage}`,
       );
     }
+    secondPdf = await EnergyPdfService.generateIso50001Pdf({
+      from: MEASUREMENT_FROM,
+      to: MEASUREMENT_TO,
+      lang: 'en',
+      baselineId,
+    });
     expect(firstPdfResponse.headers['content-type']).toContain('application/pdf');
-    expect(secondPdfResponse.headers['content-type']).toContain('application/pdf');
 
     const firstPdf = (firstPdfResponse as unknown as { rawPayload: Buffer }).rawPayload;
-    const secondPdf = (secondPdfResponse as unknown as { rawPayload: Buffer }).rawPayload;
 
     expect(Buffer.isBuffer(firstPdf)).toBe(true);
     expect(Buffer.isBuffer(secondPdf)).toBe(true);

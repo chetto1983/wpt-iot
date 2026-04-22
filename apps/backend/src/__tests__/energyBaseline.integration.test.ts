@@ -55,19 +55,27 @@ async function buildTestServer(): Promise<FastifyInstance> {
  * tariff lookups in `freezeBaselineEvidence` would throw "no period covers
  * timestamp" — that error is the correct production behavior, not a bug.
  *
- * 2024-05-* is the sweet spot:
- *  - In the past (Date.now() = 2026-04), so the future-date guard passes
- *  - After 2024-01-01, so the open-ended seed period covers it
- *  - Far enough from the current dev-session window (2026-04) that
- *    accidental simulator collisions are extremely unlikely
- *  - Cleanup wall scoped to 2024-04-01..2024-07-01 plus a backwards-compat
- *    2099+ rule for the Plan 01 raw-SQL FK / schema tests that still use
- *    literal 2099 strings.
+ * Use a recent rolling window instead of hardcoded 2024 dates:
+ *  - always in the past, so the future-date guard passes
+ *  - still comfortably inside the 90-day raw/5min retention window
+ *  - after 2024-01-01, so the open-ended seed tariff period covers it
+ *  - cleanup/refresh can target one deterministic wall around the fixtures
  */
-const BASELINE_FROM = new Date('2024-05-01T00:00:00Z');
-const BASELINE_TO = new Date('2024-05-31T00:00:00Z');
-const MEASUREMENT_FROM = new Date('2024-06-01T00:00:00Z');
-const MEASUREMENT_TO = new Date('2024-06-30T00:00:00Z');
+const DAY_MS = 86_400_000;
+
+function startOfUtcDay(date: Date): Date {
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+}
+
+const TODAY_UTC = startOfUtcDay(new Date());
+
+const BASELINE_FROM = new Date(TODAY_UTC.getTime() - 70 * DAY_MS);
+const BASELINE_TO = new Date(TODAY_UTC.getTime() - 40 * DAY_MS);
+const MEASUREMENT_FROM = new Date(TODAY_UTC.getTime() - 39 * DAY_MS);
+const MEASUREMENT_TO = new Date(TODAY_UTC.getTime() - 10 * DAY_MS);
+
+const CLEANUP_FROM = new Date(BASELINE_FROM.getTime() - DAY_MS);
+const CLEANUP_TO = new Date(MEASUREMENT_TO.getTime() + DAY_MS);
 
 /**
  * Seeds N days of machine_snapshots + refreshes the CAGG chain so energy_1d
@@ -106,13 +114,13 @@ async function seedEnergyDayBuckets(args: {
   const refreshFrom = new Date(args.from.getTime() - 4 * 3600_000);
   const refreshTo = new Date(args.to.getTime() + 4 * 3600_000);
   await db.execute(sql`
-    CALL refresh_continuous_aggregate('energy_5min', ${refreshFrom.toISOString()}::timestamptz, ${refreshTo.toISOString()}::timestamptz)
+    CALL refresh_continuous_aggregate('energy_5min', ${refreshFrom.toISOString()}::timestamptz, ${refreshTo.toISOString()}::timestamptz, force => TRUE)
   `);
   await db.execute(sql`
-    CALL refresh_continuous_aggregate('energy_1h', ${refreshFrom.toISOString()}::timestamptz, ${refreshTo.toISOString()}::timestamptz)
+    CALL refresh_continuous_aggregate('energy_1h', ${refreshFrom.toISOString()}::timestamptz, ${refreshTo.toISOString()}::timestamptz, force => TRUE)
   `);
   await db.execute(sql`
-    CALL refresh_continuous_aggregate('energy_1d', ${refreshFrom.toISOString()}::timestamptz, ${refreshTo.toISOString()}::timestamptz)
+    CALL refresh_continuous_aggregate('energy_1d', ${refreshFrom.toISOString()}::timestamptz, ${refreshTo.toISOString()}::timestamptz, force => TRUE)
   `);
 }
 
@@ -170,21 +178,80 @@ describe('energyBaselineService integration', () => {
     await EnergyBaselineService.ensureSchema();
     await EnergyConfigService.ensureTable();
     // Two cleanup walls:
-    //  - 2024-04..2024-07 fixtures (used by lockBaseline tests — see header)
+    //  - rolling recent fixtures (used by lockBaseline/savings tests)
     //  - 2099+ fixtures (used by Plan 01 raw-SQL FK + schema tests)
     await db.execute(sql`DELETE FROM baseline_evidence WHERE baseline_id IN
       (SELECT baseline_id FROM energy_baselines
        WHERE period_from >= '2099-01-01'::timestamptz
-          OR (period_from >= '2024-04-01'::timestamptz AND period_from < '2024-07-01'::timestamptz))`);
+          OR (period_from >= ${CLEANUP_FROM.toISOString()}::timestamptz
+            AND period_from < ${CLEANUP_TO.toISOString()}::timestamptz))`);
     await db.execute(sql`DELETE FROM energy_baselines
       WHERE period_from >= '2099-01-01'::timestamptz
-         OR (period_from >= '2024-04-01'::timestamptz AND period_from < '2024-07-01'::timestamptz)`);
+         OR (period_from >= ${CLEANUP_FROM.toISOString()}::timestamptz
+           AND period_from < ${CLEANUP_TO.toISOString()}::timestamptz)`);
     await db.execute(sql`DELETE FROM machine_snapshots
       WHERE timestamp >= '2099-01-01'::timestamptz
-         OR (timestamp >= '2024-04-01'::timestamptz AND timestamp < '2024-07-01'::timestamptz)`);
+         OR (timestamp >= ${CLEANUP_FROM.toISOString()}::timestamptz
+           AND timestamp < ${CLEANUP_TO.toISOString()}::timestamptz)`);
     await db.execute(sql`DELETE FROM cycle_records
       WHERE started_at >= '2099-01-01'::timestamptz
-         OR (started_at >= '2024-04-01'::timestamptz AND started_at < '2024-07-01'::timestamptz)`);
+         OR (started_at >= ${CLEANUP_FROM.toISOString()}::timestamptz
+           AND started_at < ${CLEANUP_TO.toISOString()}::timestamptz)`);
+
+    // Purge stale materialized buckets left behind by prior fixture rows.
+    // Deleting machine_snapshots alone is not enough here: the savings tests
+    // read energy_1d, and previously-materialized buckets can survive until
+    // the CAGG chain is refreshed over the same wall. Refresh bottom-up so
+    // baseline lock freezes evidence from the current test only.
+    await db.execute(sql`
+      CALL refresh_continuous_aggregate(
+        'energy_5min',
+        ${CLEANUP_FROM.toISOString()}::timestamptz,
+        ${CLEANUP_TO.toISOString()}::timestamptz,
+        force => TRUE
+      )
+    `);
+    await db.execute(sql`
+      CALL refresh_continuous_aggregate(
+        'energy_1h',
+        ${CLEANUP_FROM.toISOString()}::timestamptz,
+        ${CLEANUP_TO.toISOString()}::timestamptz,
+        force => TRUE
+      )
+    `);
+    await db.execute(sql`
+      CALL refresh_continuous_aggregate(
+        'energy_1d',
+        ${CLEANUP_FROM.toISOString()}::timestamptz,
+        ${CLEANUP_TO.toISOString()}::timestamptz,
+        force => TRUE
+      )
+    `);
+
+    await db.execute(sql`
+      CALL refresh_continuous_aggregate(
+        'energy_5min',
+        '2098-12-31T00:00:00Z'::timestamptz,
+        '2100-01-02T00:00:00Z'::timestamptz,
+        force => TRUE
+      )
+    `);
+    await db.execute(sql`
+      CALL refresh_continuous_aggregate(
+        'energy_1h',
+        '2098-12-31T00:00:00Z'::timestamptz,
+        '2100-01-02T00:00:00Z'::timestamptz,
+        force => TRUE
+      )
+    `);
+    await db.execute(sql`
+      CALL refresh_continuous_aggregate(
+        'energy_1d',
+        '2098-12-31T00:00:00Z'::timestamptz,
+        '2100-01-02T00:00:00Z'::timestamptz,
+        force => TRUE
+      )
+    `);
   });
 
   afterAll(async () => {
@@ -562,9 +629,9 @@ describe('energyBaselineService integration', () => {
   it('GET savings default', async () => {
     // Seed baseline + measurement windows.
     //
-    // Baseline window: 2024-05-01..2024-05-31 = 30 days × 1 cycle × 20 kg = 600 kg,
+    // Baseline window: 30 days × 1 cycle × 20 kg = 600 kg,
     // 300 kWh → baselineEnpi = 0.5 kwh/kg.
-    // Measurement window: 2024-06-01..2024-06-30 = 29 days × 1 cycle × 20 kg = 580 kg.
+    // Measurement window: 29 days × 1 cycle × 20 kg = 580 kg.
     // Target: -10% deltaPct → measurementEnpi = 0.45 → totalKwh = 580 * 0.45 = 261.
     await seedEnergyDayBuckets({ from: BASELINE_FROM, to: BASELINE_TO, totalKwh: 300 });
     await seedCycleRecords({
@@ -685,7 +752,7 @@ describe('energyBaselineService integration', () => {
   });
 
   it('GET savings 204', async () => {
-    // beforeEach already wiped 2024-* and 2099+ baselines; no lock happens
+    // beforeEach already wiped the rolling fixture wall and 2099+ baselines; no lock happens
     // in this test so getActiveBaseline() must return null and the route
     // must respond 204 with no body.
     const app = await buildTestServer();
@@ -754,7 +821,7 @@ describe('energyBaselineService integration', () => {
   // --- Plan 05: startup validator + predates-data ---
   it('startup validator fatal log', async () => {
     // First seed fresh data so energy_1d has a known MIN bucket. The CAGG may
-    // have stale buckets from prior tests (1999-*, other 2024-*, 2099-*) that
+    // have stale buckets from prior tests (older rolling windows, 2099-*) that
     // we cannot DELETE directly — we must pick a baseline period_from EARLIER
     // than the CURRENT MIN(bucket_1d) at runtime. Seeding first is just a
     // safety: guarantees energy_1d is non-empty so the first-boot skip path
@@ -858,7 +925,7 @@ describe('energyBaselineService integration', () => {
     // Manually rewind period_from to a date EARLIER than the oldest energy_1d
     // bucket. Read the current MIN(bucket_1d) at runtime so the test is
     // resilient to stale CAGG chunks that survive between test runs (the
-    // beforeEach wall deletes machine_snapshots inside 2024-04..2024-07 and
+    // beforeEach wall deletes machine_snapshots inside the rolling fixture wall and
     // 2099+, but cannot DELETE the CAGG directly). One day earlier makes the
     // "predates" check deterministic.
     const minRes = await db.execute(sql`
