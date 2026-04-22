@@ -10,7 +10,7 @@
 --
 --   PART B (callable function — run AFTER backend creates tables via Drizzle):
 --     Converts machine_snapshots to a hypertable, creates continuous aggregates
---     for 5-minute and 1-hour downsampling, and configures retention + compression
+--     for 5-minute / 1-hour / 1-day downsampling, and configures retention + compression
 --     policies.
 --
 -- After first startup, connect and run:
@@ -232,7 +232,89 @@ BEGIN
   END IF;
 
   -- =========================================================================
-  -- 4. Refresh policies for continuous aggregates
+  -- 4. Continuous aggregate: snapshots_1d (1-day buckets)
+  -- =========================================================================
+  IF NOT EXISTS (
+    SELECT 1 FROM timescaledb_information.continuous_aggregates WHERE view_name = 'snapshots_1d'
+  ) THEN
+    EXECUTE $ca1d$
+      CREATE MATERIALIZED VIEW snapshots_1d
+      WITH (timescaledb.continuous) AS
+      SELECT
+        time_bucket('1 day', bucket) AS bucket,
+
+        -- Temperatures (AVG)
+        AVG(thermo_left_lower)       AS thermo_left_lower,
+        AVG(thermo_left_medium)      AS thermo_left_medium,
+        AVG(thermo_left_upper)       AS thermo_left_upper,
+        AVG(thermo_right_lower)      AS thermo_right_lower,
+        AVG(thermo_right_medium)     AS thermo_right_medium,
+        AVG(thermo_right_upper)      AS thermo_right_upper,
+        AVG(thermo_left_high_lower)  AS thermo_left_high_lower,
+        AVG(thermo_left_high_medium) AS thermo_left_high_medium,
+        AVG(thermo_left_high_upper)  AS thermo_left_high_upper,
+        AVG(thermo_right_high_lower) AS thermo_right_high_lower,
+        AVG(garbage_temp)            AS garbage_temp,
+
+        -- Setpoint (AVG)
+        AVG(holding_temp_setpoint)   AS holding_temp_setpoint,
+
+        -- Pressure (AVG)
+        AVG(chamber_pressure)        AS chamber_pressure,
+
+        -- Motor (AVG)
+        AVG(main_motor_speed)        AS main_motor_speed,
+        AVG(main_motor_torque)       AS main_motor_torque,
+        AVG(main_motor_current)      AS main_motor_current,
+
+        -- Vacuum (AVG)
+        AVG(vacuum_pump_speed_01)    AS vacuum_pump_speed_01,
+        AVG(vacuum_pump_speed_02)    AS vacuum_pump_speed_02,
+
+        -- Weights (AVG)
+        AVG(material_input_weight)   AS material_input_weight,
+        AVG(material_output_weight)  AS material_output_weight,
+
+        -- Energy (AVG)
+        AVG(energy_consumption)      AS energy_consumption,
+        AVG(rms_curr_l1)             AS rms_curr_l1,
+        AVG(rms_curr_l2)             AS rms_curr_l2,
+        AVG(rms_curr_l3)             AS rms_curr_l3,
+        AVG(rms_curr_n)              AS rms_curr_n,
+        AVG(water_consumption)       AS water_consumption,
+
+        -- Status (LAST value per bucket)
+        last(selected_cycle, bucket)   AS selected_cycle,
+        last(current_phase, bucket)    AS current_phase,
+        last(machine_status, bucket)   AS machine_status,
+        last(completed_cycles, bucket) AS completed_cycles,
+
+        -- Strings (LAST value per bucket)
+        last("user", bucket)           AS "user",
+        last(supervisor, bucket)       AS supervisor,
+        last(order_number, bucket)     AS order_number,
+        last(serial_number, bucket)    AS serial_number,
+
+        -- BYTE selectors (LAST value per bucket)
+        last(thermo_left_low_sel, bucket)   AS thermo_left_low_sel,
+        last(thermo_left_med_sel, bucket)   AS thermo_left_med_sel,
+        last(thermo_left_high_sel, bucket)  AS thermo_left_high_sel,
+        last(thermo_right_low_sel, bucket)  AS thermo_right_low_sel,
+        last(thermo_right_med_sel, bucket)  AS thermo_right_med_sel,
+        last(thermo_right_high_sel, bucket) AS thermo_right_high_sel
+
+      FROM snapshots_1h
+      GROUP BY bucket
+      WITH NO DATA
+    $ca1d$;
+
+    RAISE NOTICE 'Continuous aggregate snapshots_1d created.';
+  ELSE
+    RAISE NOTICE 'Continuous aggregate snapshots_1d already exists, skipping.';
+  END IF;
+
+  -- =========================================================================
+  -- 5. Refresh policies for continuous aggregates
   -- =========================================================================
   -- 5min aggregate: refresh every 5 minutes, covering the last hour,
   -- with a 5-minute end offset to avoid refreshing in-progress buckets.
@@ -256,27 +338,62 @@ BEGIN
 
   RAISE NOTICE 'Refresh policy for snapshots_1h configured.';
 
+  -- 1d aggregate: refresh every day, covering the last 30 days,
+  -- with a 1-day end offset.
+  PERFORM add_continuous_aggregate_policy('snapshots_1d',
+    start_offset   => INTERVAL '30 days',
+    end_offset     => INTERVAL '1 day',
+    schedule_interval => INTERVAL '1 day',
+    if_not_exists  => true
+  );
+
+  RAISE NOTICE 'Refresh policy for snapshots_1d configured.';
+
   -- =========================================================================
-  -- 5. Retention policy: drop raw data older than 30 days
+  -- 6. Retention policies: converge existing deployments to bounded windows
   -- =========================================================================
-  -- Extended from 7 days to support report date ranges up to 1 month
-  -- (disk cost ~250MB/month, acceptable for single-machine IoT).
-  -- Raw snapshots arrive every 15s. Continuous aggregates still hold
-  -- downsampled data for longer historical trends.
+  -- Raw snapshots stay short-lived on the 32 GB IndustrialPI eMMC.
+  -- Historical telemetry is kept in bounded continuous aggregates instead:
+  --   snapshots_5min -> 90 days
+  --   snapshots_1h   -> 24 months
+  --   snapshots_1d   -> 24 months
   --
-  -- NOTE: For existing deployments with the 7-day policy already active,
-  -- if_not_exists => true will NOT replace it. Run manually:
-  --   SELECT remove_retention_policy('machine_snapshots', if_exists => true);
-  --   SELECT add_retention_policy('machine_snapshots', INTERVAL '30 days');
+  -- remove_retention_policy(..., if_exists => true) ensures boxes that already
+  -- have older settings converge to the new policy on the next boot.
+  PERFORM remove_retention_policy('machine_snapshots', if_exists => true);
   PERFORM add_retention_policy('machine_snapshots',
     INTERVAL '30 days',
-    if_not_exists => true
+    if_not_exists => false
   );
 
   RAISE NOTICE 'Retention policy (30 days) configured.';
 
+  PERFORM remove_retention_policy('snapshots_5min', if_exists => true);
+  PERFORM add_retention_policy('snapshots_5min',
+    INTERVAL '90 days',
+    if_not_exists => false
+  );
+
+  RAISE NOTICE 'Retention policy for snapshots_5min (90 days) configured.';
+
+  PERFORM remove_retention_policy('snapshots_1h', if_exists => true);
+  PERFORM add_retention_policy('snapshots_1h',
+    INTERVAL '24 months',
+    if_not_exists => false
+  );
+
+  RAISE NOTICE 'Retention policy for snapshots_1h (24 months) configured.';
+
+  PERFORM remove_retention_policy('snapshots_1d', if_exists => true);
+  PERFORM add_retention_policy('snapshots_1d',
+    INTERVAL '24 months',
+    if_not_exists => false
+  );
+
+  RAISE NOTICE 'Retention policy for snapshots_1d (24 months) configured.';
+
   -- =========================================================================
-  -- 6. Compression policy: compress chunks older than 2 days
+  -- 7. Compression policy: compress chunks older than 2 days
   -- =========================================================================
   -- Enable compression on the hypertable. Wrap in exception handler so that
   -- re-running when compression is already enabled is a no-op.
@@ -300,7 +417,7 @@ BEGIN
   RAISE NOTICE 'Compression policy (2 days) configured.';
 
   -- =========================================================================
-  -- 7. Phase 41 — machine_anomaly_events_shadow hypertable (D-01, D-04, SHADOW-02, SHADOW-05)
+  -- 8. Phase 41 — machine_anomaly_events_shadow hypertable (D-01, D-04, SHADOW-02, SHADOW-05)
   -- =========================================================================
   -- Shadow events are Timescale-instrumented (retention 30d, compression 2d,
   -- chunk_time_interval 7d per Tiger Data low-volume guidance). Primary
@@ -359,6 +476,15 @@ BEGIN
   );
 
   RAISE NOTICE 'Phase 41 shadow hypertable configured (retention 30d, compression 2d, chunk 7d).';
+
+  -- =========================================================================
+  -- 9. Backfill snapshots_1d on create / policy updates
+  -- =========================================================================
+  -- setup.sh already backfills the energy_* CAGGs. The backend boot path only
+  -- invokes setup_timescaledb_retention(), so we do the daily telemetry backfill
+  -- here to ensure existing deployments gain immediate historical coverage.
+  CALL refresh_continuous_aggregate('snapshots_1d', NULL, NULL);
+  RAISE NOTICE 'snapshots_1d backfill requested.';
 
   -- =========================================================================
   -- Done
@@ -540,6 +666,35 @@ BEGIN
     if_not_exists     => true
   );
   RAISE NOTICE 'Refresh policy for energy_1mo configured.';
+
+  -- Bound energy aggregates so they cannot grow forever on the edge box.
+  PERFORM remove_retention_policy('energy_5min', if_exists => true);
+  PERFORM add_retention_policy('energy_5min',
+    INTERVAL '90 days',
+    if_not_exists => false
+  );
+  RAISE NOTICE 'Retention policy for energy_5min (90 days) configured.';
+
+  PERFORM remove_retention_policy('energy_1h', if_exists => true);
+  PERFORM add_retention_policy('energy_1h',
+    INTERVAL '24 months',
+    if_not_exists => false
+  );
+  RAISE NOTICE 'Retention policy for energy_1h (24 months) configured.';
+
+  PERFORM remove_retention_policy('energy_1d', if_exists => true);
+  PERFORM add_retention_policy('energy_1d',
+    INTERVAL '24 months',
+    if_not_exists => false
+  );
+  RAISE NOTICE 'Retention policy for energy_1d (24 months) configured.';
+
+  PERFORM remove_retention_policy('energy_1mo', if_exists => true);
+  PERFORM add_retention_policy('energy_1mo',
+    INTERVAL '24 months',
+    if_not_exists => false
+  );
+  RAISE NOTICE 'Retention policy for energy_1mo (24 months) configured.';
 
 END;
 $$;

@@ -168,7 +168,7 @@ export function useNearbyCycle(observedAt: string | null): UseNearbyCycleResult 
 // ---------------------------------------------------------------------------
 
 export interface ChartDataResponse {
-  resolution: 'raw' | '5min' | '1h';
+  resolution: 'raw' | '5min' | '1h' | '1d';
   points: Array<Record<string, number>>;
 }
 

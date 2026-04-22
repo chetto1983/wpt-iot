@@ -13,7 +13,7 @@ interface IChartFilter {
 }
 
 interface IChartResponse {
-  resolution: 'raw' | '5min' | '1h';
+  resolution: 'raw' | '5min' | '1h' | '1d';
   points: Array<Record<string, number | string>>;
 }
 
@@ -71,7 +71,8 @@ const SNAKE_TO_CAMEL: Record<string, string> = Object.fromEntries(
 );
 
 /**
- * Columns available in the snapshots_5min / snapshots_1h continuous aggregates.
+ * Columns available in the snapshots_5min / snapshots_1h / snapshots_1d
+ * continuous aggregates.
  * Fields NOT in this set only exist in the raw machine_snapshots table.
  * Must stay in sync with docker/init-timescaledb.sql.
  */
@@ -100,16 +101,19 @@ export class ChartService {
   /**
    * Auto-select resolution based on time range span.
    * - raw:  <= 6 hours (15s granularity from machine_snapshots)
-   * - 5min: 6h to 3 days (snapshots_5min continuous aggregate)
-   * - 1h:   > 3 days (snapshots_1h continuous aggregate)
+   * - 5min: 6h to 7 days (snapshots_5min continuous aggregate)
+   * - 1h:   7d to 180 days (snapshots_1h continuous aggregate)
+   * - 1d:   > 180 days (snapshots_1d continuous aggregate)
    */
-  static selectResolution(from: Date, to: Date): 'raw' | '5min' | '1h' {
+  static selectResolution(from: Date, to: Date): 'raw' | '5min' | '1h' | '1d' {
     const spanMs = to.getTime() - from.getTime();
     const SIX_HOURS = 6 * 60 * 60 * 1000;
-    const THREE_DAYS = 3 * 24 * 60 * 60 * 1000;
+    const SEVEN_DAYS = 7 * 24 * 60 * 60 * 1000;
+    const ONE_HUNDRED_EIGHTY_DAYS = 180 * 24 * 60 * 60 * 1000;
     if (spanMs <= SIX_HOURS) return 'raw';
-    if (spanMs <= THREE_DAYS) return '5min';
-    return '1h';
+    if (spanMs <= SEVEN_DAYS) return '5min';
+    if (spanMs <= ONE_HUNDRED_EIGHTY_DAYS) return '1h';
+    return '1d';
   }
 
   /**
@@ -164,9 +168,13 @@ export class ChartService {
 
   private static async queryAggregate(
     filter: IChartFilter,
-    resolution: '5min' | '1h',
+    resolution: '5min' | '1h' | '1d',
   ): Promise<IChartResponse> {
-    const viewName = resolution === '5min' ? 'snapshots_5min' : 'snapshots_1h';
+    const viewName = resolution === '5min'
+      ? 'snapshots_5min'
+      : resolution === '1h'
+        ? 'snapshots_1h'
+        : 'snapshots_1d';
 
     // Map requested camelCase fields to snake_case column names,
     // filtering out any that don't exist in the aggregate view.
@@ -225,7 +233,7 @@ export class ChartService {
     from: Date,
     to: Date,
     queries: Array<{ id: string; fields: string[] }>,
-  ): Promise<{ resolution: 'raw' | '5min' | '1h'; results: Record<string, { points: Array<Record<string, number | string>> }> }> {
+  ): Promise<{ resolution: 'raw' | '5min' | '1h' | '1d'; results: Record<string, { points: Array<Record<string, number | string>> }> }> {
     // 1. Collect all unique fields across all queries
     const allFields = [...new Set(queries.flatMap(q => q.fields))];
 

@@ -81,7 +81,7 @@ PG_SYNCHRONOUS_COMMIT=off
 Rationale:
 - `shared_buffers=2GB` — 25% of 8 GB RAM, within mainstream Postgres guidance. Leaves ~4 GB for the Node backend (~500 MB), Next frontend server (~300 MB), nginx, mosquitto, OS, and working memory.
 - `work_mem=16MB` / `effective_cache_size=5GB` — reflect the available RAM headroom on the Pilz.
-- `synchronous_commit=off` — eMMC wear mitigation. Up to `~1 s` of committed transactions may be lost if the Pilz loses power before WAL fsync. Acceptable because machine data is a rolling 30-day window and configuration/user writes survive round-trip through the PLC handshake FSM.
+- `synchronous_commit=off` — eMMC wear mitigation. Up to `~1 s` of committed transactions may be lost if the Pilz loses power before WAL fsync. Acceptable because dense raw telemetry is still a rolling 30-day window; the 2-year history lives in bounded aggregate tiers (`snapshots_1h`, `snapshots_1d`, `energy_1h`, `energy_1d`) rather than in raw packets.
 
 Note: `wal_level` is intentionally NOT overridden. The TimescaleDB default (`replica`) is required for continuous aggregates, which back the v1.1 energy module (`setup_energy_aggregates()`).
 
@@ -93,7 +93,7 @@ If you observe `OOMKilled` / exit 137 on the backend or frontend containers unde
 |------------------------------------------------------------|----------------|
 | RPi OS base                                                | ~4 GB          |
 | Docker engine + five images (db, mosquitto, backend, frontend, nginx) | ~4 GB |
-| PostgreSQL data (rolling 30 days machine_snapshots + cycle_records + alarm_events) | ~8 GB ceiling |
+| PostgreSQL data (30d raw + 90d 5min + 24mo 1h/1d aggregates + cycle_records + alarm_events) | ~8 GB target ceiling |
 | Logs (json-file rotated, 10 MB × 3 files × ~6 services)    | ~200 MB        |
 | System headroom / swap / apt cache                         | ~4 GB          |
 | Working headroom (remainder)                               | ~10–12 GB      |

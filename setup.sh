@@ -152,7 +152,7 @@ fi
 # Backfill CAGGs from existing machine_snapshots history (NO DATA on create).
 # Safe to re-run — TimescaleDB skips already-materialized ranges.
 info "Backfilling energy aggregates from historical data..."
-for CAGG in energy_5min energy_1h energy_1d energy_1mo; do
+for CAGG in snapshots_1d energy_5min energy_1h energy_1d energy_1mo; do
   docker compose exec -T db psql -U wpt -d wpt \
     -c "CALL refresh_continuous_aggregate('${CAGG}', NULL, NULL);" >/dev/null 2>&1 \
     && ok "Refreshed ${CAGG}" \
@@ -173,7 +173,7 @@ fi
 CA=$(docker compose exec -T db psql -U wpt -d wpt -tAc \
   "SELECT count(*) FROM timescaledb_information.continuous_aggregates;" 2>/dev/null || echo "0")
 
-ok "Continuous aggregates: $CA (expected 6: snapshots_5min, snapshots_1h, energy_5min, energy_1h, energy_1d, energy_1mo)"
+ok "Continuous aggregates: $CA (expected 7: snapshots_5min, snapshots_1h, snapshots_1d, energy_5min, energy_1h, energy_1d, energy_1mo)"
 
 # ─── Print summary ──────────────────────────────────────────────────────────
 echo ""

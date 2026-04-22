@@ -7,9 +7,9 @@ import type { FastifyBaseLogger } from 'fastify';
  * every boot.
  *
  *   setup_timescaledb_retention()
- *     Converts machine_snapshots to a hypertable, creates snapshots_5min
- *     and snapshots_1h continuous aggregates, and installs retention +
- *     compression policies.
+ *     Converts machine_snapshots to a hypertable, creates snapshots_5min /
+ *     snapshots_1h / snapshots_1d continuous aggregates, and installs
+ *     bounded retention + compression policies.
  *
  *   setup_energy_aggregates()
  *     Creates the Phase 19 energy_5min / energy_1h / energy_1d / energy_1mo

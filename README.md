@@ -49,6 +49,7 @@ Backend (Fastify 5) --> TimescaleDB (PostgreSQL 17)
   |                         |-- machine_snapshots (hypertable)
   |                         |-- snapshots_5min (continuous aggregate)
   |                         |-- snapshots_1h (continuous aggregate)
+  |                         |-- snapshots_1d (continuous aggregate)
   |                         |-- alarm_events, rfid_users, jobs
   |
   +--> WebSocket --> Frontend (Next.js 16)
@@ -164,10 +165,13 @@ TimescaleDB manages time-series data with automatic downsampling:
 | Tier          | Resolution | Retention  | Rows/year |
 |---------------|------------|------------|-----------|
 | Raw snapshots | 15 seconds | 30 days    | ~172,800/month |
-| 5-min average | 5 minutes  | indefinite | ~105,120 |
-| 1-hour average| 1 hour     | indefinite | ~8,760   |
+| 5-min average | 5 minutes  | 90 days    | ~105,120 |
+| 1-hour average| 1 hour     | 24 months  | ~8,760   |
+| 1-day average | 1 day      | 24 months  | ~365     |
 
 Compression kicks in after 2 days (~90% storage reduction). Policies run automatically via TimescaleDB background jobs.
+
+Machine raw CSV/PDF reports are intentionally limited to the last 30 days. Longer historical trends must read from the bounded aggregate tiers above.
 
 To manually trigger retention setup (runs automatically via `setup.sh`):
 

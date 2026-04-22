@@ -87,7 +87,7 @@ export default function SingleDashboardPage() {
   const [panelData, setPanelData] = useState<
     Record<string, { points: Array<Record<string, number | string>> }>
   >({});
-  const [resolution, setResolution] = useState<'raw' | '5min' | '1h'>('raw');
+  const [resolution, setResolution] = useState<'raw' | '5min' | '1h' | '1d'>('raw');
   const [dataLoading, setDataLoading] = useState(false);
 
   // Panel editor dialog

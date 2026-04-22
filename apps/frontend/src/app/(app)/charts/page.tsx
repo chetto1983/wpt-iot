@@ -38,7 +38,7 @@ import { PageToolbar } from '@/components/shared/page-toolbar';
 import { FieldSelector, getChartableFields } from '@/components/shared/field-selector';
 
 interface IChartResponse {
-  resolution: 'raw' | '5min' | '1h';
+  resolution: 'raw' | '5min' | '1h' | '1d';
   points: Array<Record<string, number>>;
 }
 

@@ -3,8 +3,9 @@
  *
  * selectResolution() is pure logic — verified against exact thresholds in chartService.ts:
  *   raw:  spanMs <= 6h (6 * 60 * 60 * 1000)
- *   5min: 6h < spanMs <= 3 days (3 * 24 * 60 * 60 * 1000)
- *   1h:   spanMs > 3 days
+ *   5min: 6h < spanMs <= 7 days
+ *   1h:   7d < spanMs <= 180 days
+ *   1d:   spanMs > 180 days
  *
  * queryChartData() DB tests use only the 'raw' path (< 6h range) so they run
  * against the plain machine_snapshots table — no TimescaleDB CAGGs needed.
@@ -41,24 +42,30 @@ describe('ChartService', () => {
       expect(ChartService.selectResolution(from, to)).toBe('raw');
     });
 
-    it('returns "5min" for ranges between 6 hours and 3 days', () => {
+    it('returns "5min" for ranges between 6 hours and 7 days', () => {
       const from = new Date(`${WALL_DATE}T00:00:00Z`);
       // 1 day = well within 6h..3d window
       const to = new Date('2024-05-02T00:00:00Z');
       expect(ChartService.selectResolution(from, to)).toBe('5min');
     });
 
-    it('returns "1h" for ranges over 3 days', () => {
+    it('returns "1h" for ranges over 7 days and within 180 days', () => {
       const from = new Date(`${WALL_DATE}T00:00:00Z`);
-      // 9 days > 3 days threshold
+      // 9 days > 7 days threshold
       const to = new Date('2024-05-10T00:00:00Z');
       expect(ChartService.selectResolution(from, to)).toBe('1h');
     });
 
-    it('returns "1h" for exactly 30 days (max retention)', () => {
+    it('keeps 30-day windows on the hourly tier', () => {
       const from = new Date(`${WALL_DATE}T00:00:00Z`);
       const to = new Date('2024-05-31T00:00:00Z');
       expect(ChartService.selectResolution(from, to)).toBe('1h');
+    });
+
+    it('returns "1d" for 2-year windows', () => {
+      const from = new Date('2024-01-01T00:00:00Z');
+      const to = new Date('2026-01-01T00:00:00Z');
+      expect(ChartService.selectResolution(from, to)).toBe('1d');
     });
   });
 
@@ -93,7 +100,7 @@ describe('ChartService', () => {
         to: rawTo,
         fields: ['garbageTemp'],
       });
-      expect(['raw', '5min', '1h']).toContain(result.resolution);
+      expect(['raw', '5min', '1h', '1d']).toContain(result.resolution);
     });
 
     it('returns empty points array when no data in range', async () => {

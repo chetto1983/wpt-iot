@@ -98,6 +98,7 @@ function formatTooltipLabel(epochMs: number, resolution: string): string {
   const d = new Date(epochMs);
   if (resolution === 'raw') return format(d, 'dd/MM HH:mm:ss');
   if (resolution === '5min') return format(d, 'dd/MM HH:mm');
+  if (resolution === '1d') return format(d, 'dd/MM/yyyy');
   return format(d, 'dd/MM/yyyy HH:mm');
 }
 
@@ -105,7 +106,7 @@ interface PanelChartProps {
   chartType: ChartType;
   config: IPanelConfig;
   data: Array<Record<string, number | string>>;
-  resolution: 'raw' | '5min' | '1h';
+  resolution: 'raw' | '5min' | '1h' | '1d';
   locale: 'it' | 'en';
   loading?: boolean;
 }

@@ -5,6 +5,8 @@ import { ReportService } from '../services/reportService.js';
 import { PdfService } from '../services/pdf/index.js';
 import { formatEnumValue } from '../i18n/enumLabels.js';
 
+const RAW_MACHINE_RETENTION_DAYS = 30;
+
 /**
  * Machine data report endpoints (CSV + PDF).
  * All authenticated users can access; CLIENT gets limited columns.
@@ -21,6 +23,10 @@ export const reportRoutes: FastifyPluginAsync = async (server) => {
 
     if (!from || !to || isNaN(from.getTime()) || isNaN(to.getTime())) {
       return reply.code(400).send({ error: 'Invalid date range' });
+    }
+    const retentionViolation = getRawMachineRetentionViolation(from);
+    if (retentionViolation) {
+      return reply.code(422).send({ error: retentionViolation });
     }
 
     const role = request.session.role as UserRole;
@@ -51,6 +57,10 @@ export const reportRoutes: FastifyPluginAsync = async (server) => {
 
     if (!from || !to || isNaN(from.getTime()) || isNaN(to.getTime())) {
       return reply.code(400).send({ error: 'Invalid date range' });
+    }
+    const retentionViolation = getRawMachineRetentionViolation(from);
+    if (retentionViolation) {
+      return reply.code(422).send({ error: retentionViolation });
     }
 
     const role = request.session.role as UserRole;
@@ -85,6 +95,10 @@ export const reportRoutes: FastifyPluginAsync = async (server) => {
 
     if (!from || !to || isNaN(from.getTime()) || isNaN(to.getTime())) {
       return reply.code(400).send({ error: 'Invalid date range' });
+    }
+    const retentionViolation = getRawMachineRetentionViolation(from);
+    if (retentionViolation) {
+      return reply.code(422).send({ error: retentionViolation });
     }
 
     const role = request.session.role as UserRole;
@@ -169,4 +183,12 @@ function resolveFields(role: UserRole, fieldsParam?: string): string[] {
 
 function formatDateForFile(d: Date): string {
   return d.toISOString().split('T')[0]!;
+}
+
+function getRawMachineRetentionViolation(from: Date, now = new Date()): string | null {
+  const oldestAvailable = new Date(now.getTime() - RAW_MACHINE_RETENTION_DAYS * 24 * 60 * 60 * 1000);
+  if (from < oldestAvailable) {
+    return `Machine raw reports are limited to the last ${RAW_MACHINE_RETENTION_DAYS} days; available from ${oldestAvailable.toISOString()}`;
+  }
+  return null;
 }

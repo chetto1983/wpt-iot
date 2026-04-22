@@ -15,7 +15,7 @@ const EMPTY_POINTS: Array<Record<string, number | string>> = [];
 interface DashboardPanelItemProps {
   panel: IPanel;
   data: Array<Record<string, number | string>> | undefined;
-  resolution: 'raw' | '5min' | '1h';
+  resolution: 'raw' | '5min' | '1h' | '1d';
   locale: 'it' | 'en';
   loading: boolean;
   editMode: boolean;
