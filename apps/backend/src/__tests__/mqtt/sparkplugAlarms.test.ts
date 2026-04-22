@@ -146,6 +146,8 @@ describe('Phase 37 Plan 02 — alarms Sparkplug device (D-06)', () => {
     mockConnectAsync.mockResolvedValue({
       publishAsync: mockPublishAsync,
       endAsync: vi.fn(),
+      on: vi.fn(),
+      connected: true,
     });
     mockGetActiveAlarmIndices.mockResolvedValue([]);
     mockEncodePayload.mockImplementation(() => Buffer.from('encoded'));

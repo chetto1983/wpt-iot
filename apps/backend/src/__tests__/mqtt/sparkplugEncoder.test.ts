@@ -81,6 +81,8 @@ describe('Sparkplug B cycle-record encoding (GREEN — Phase 24)', () => {
     mockConnectAsync.mockResolvedValue({
       publishAsync: mockPublishAsync,
       endAsync: vi.fn(),
+      on: vi.fn(),
+      connected: true,
     });
     // Seed latestState so resolveEdgeNodeId() returns a serial even when
     // NODE_ENV is not explicitly 'test' — otherwise init() defers and the
@@ -313,9 +315,14 @@ describe('Phase 37 alignment — D-01..D-05 (Sparkplug B 3.0 + SPEC §14)', () =
   beforeEach(async () => {
     vi.clearAllMocks();
     mockPublishAsync.mockResolvedValue(undefined);
+    // SparkplugService.init() wires a `.on('connect', ...)` handler for
+    // reconnect-drain. Without a mock `on`, init's try/catch swallows the
+    // `.on is not a function` and NBIRTH is never published.
     mockConnectAsync.mockResolvedValue({
       publishAsync: mockPublishAsync,
       endAsync: vi.fn(),
+      on: vi.fn(),
+      connected: true,
     });
     // Seed latestState with a realistic serialNumber so resolveEdgeNodeId()
     // uses the machine-derived edge id (D-02 happy path).
