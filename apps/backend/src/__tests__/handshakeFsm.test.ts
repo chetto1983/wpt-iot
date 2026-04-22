@@ -5,6 +5,10 @@ import type { IRfidUser, IJobData } from '@wpt/types';
 import { USER_DATA_PACKET_SIZE, JOB_DATA_PACKET_SIZE } from '../udp/packetSizes.js';
 import { buildUserWritePacket, buildJobWritePacket } from '../udp/parsers.js';
 
+vi.mock('../udp/plcConfigService.js', () => ({
+  getCachedPlcConfig: vi.fn(async () => ({ targetHost: '127.0.0.1' })),
+}));
+
 // ---------------------------------------------------------------------------
 // Mock socket helper
 // ---------------------------------------------------------------------------
