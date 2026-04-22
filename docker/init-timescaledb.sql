@@ -241,7 +241,7 @@ BEGIN
       CREATE MATERIALIZED VIEW snapshots_1d
       WITH (timescaledb.continuous) AS
       SELECT
-        time_bucket('1 day', bucket) AS bucket,
+        time_bucket('1 day', bucket) AS bucket_1d,
 
         -- Temperatures (AVG)
         AVG(thermo_left_lower)       AS thermo_left_lower,
@@ -304,7 +304,7 @@ BEGIN
         last(thermo_right_high_sel, bucket) AS thermo_right_high_sel
 
       FROM snapshots_1h
-      GROUP BY bucket
+      GROUP BY bucket_1d
       WITH NO DATA
     $ca1d$;
 
@@ -478,16 +478,7 @@ BEGIN
   RAISE NOTICE 'Phase 41 shadow hypertable configured (retention 30d, compression 2d, chunk 7d).';
 
   -- =========================================================================
-  -- 9. Backfill snapshots_1d on create / policy updates
-  -- =========================================================================
-  -- setup.sh already backfills the energy_* CAGGs. The backend boot path only
-  -- invokes setup_timescaledb_retention(), so we do the daily telemetry backfill
-  -- here to ensure existing deployments gain immediate historical coverage.
-  CALL refresh_continuous_aggregate('snapshots_1d', NULL, NULL);
-  RAISE NOTICE 'snapshots_1d backfill requested.';
-
-  -- =========================================================================
-  -- Done
+  -- 9. Done
   -- =========================================================================
   RAISE NOTICE '=== TimescaleDB retention setup complete ===';
 

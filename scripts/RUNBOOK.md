@@ -93,7 +93,7 @@ If you observe `OOMKilled` / exit 137 on the backend or frontend containers unde
 |------------------------------------------------------------|----------------|
 | RPi OS base                                                | ~4 GB          |
 | Docker engine + five images (db, mosquitto, backend, frontend, nginx) | ~4 GB |
-| PostgreSQL data (30d raw + 90d 5min + 24mo 1h/1d aggregates + cycle_records + alarm_events) | ~8 GB target ceiling |
+| PostgreSQL data (30d raw + 90d 5min + 24mo 1h/1d aggregates + 24mo alarm_events + cycle_records) | ~8 GB target ceiling |
 | Logs (json-file rotated, 10 MB × 3 files × ~6 services)    | ~200 MB        |
 | System headroom / swap / apt cache                         | ~4 GB          |
 | Working headroom (remainder)                               | ~10–12 GB      |
@@ -164,6 +164,83 @@ docker compose exec db psql -U wpt -d wpt -c "SELECT setup_energy_aggregates();"
 ```
 
 This installs the TimescaleDB continuous aggregates and helper objects that back `/energy`, `/settings/energy`, reconciliation, and the ISO 50001 PDF route.
+
+## Retention Verification
+
+After a deploy, DB restore, or retention-policy change, verify both the Timescale jobs and the plain-table alarm cleanup horizon:
+
+```bash
+docker compose exec db psql -U wpt -d wpt -c "
+WITH jobs AS (
+  SELECT
+    j.proc_name,
+    j.schedule_interval,
+    j.config,
+    COALESCE((j.config->>'mat_hypertable_id')::int, (j.config->>'hypertable_id')::int) AS target_id
+  FROM timescaledb_information.jobs j
+  WHERE j.proc_name IN ('policy_retention','policy_refresh_continuous_aggregate','policy_compression')
+)
+SELECT
+  jobs.proc_name,
+  COALESCE(c.view_name, h.table_name) AS target,
+  jobs.schedule_interval,
+  jobs.config
+FROM jobs
+LEFT JOIN _timescaledb_catalog.hypertable ht
+  ON ht.id = jobs.target_id
+LEFT JOIN timescaledb_information.continuous_aggregates c
+  ON c.materialization_hypertable_schema = ht.schema_name
+ AND c.materialization_hypertable_name = ht.table_name
+LEFT JOIN information_schema.tables h
+  ON h.table_schema = ht.schema_name
+ AND h.table_name = ht.table_name
+ORDER BY jobs.proc_name, target;
+"
+```
+
+Expected targets:
+- `machine_snapshots`: retention `30 days`, compression `2 days`
+- `snapshots_5min`, `energy_5min`: retention `90 days`
+- `snapshots_1h`, `snapshots_1d`, `energy_1h`, `energy_1d`, `energy_1mo`: retention `2 years`
+- `machine_anomaly_events_shadow`: retention `30 days`, compression `2 days`
+
+`alarm_events` is not a Timescale hypertable. It is trimmed by the backend once at startup and then every 24 hours, deleting rows with `activated_at < now() - interval '24 months'`.
+
+## Storage Measurement
+
+Capture actual PostgreSQL footprint after 24-48h of realistic ingest on the Pilz:
+
+```bash
+docker compose exec db psql -U wpt -d wpt -c "
+SELECT
+  relname AS relation,
+  pg_size_pretty(pg_total_relation_size(oid)) AS total_size
+FROM pg_class
+WHERE relname IN (
+  'machine_snapshots',
+  'snapshots_5min',
+  'snapshots_1h',
+  'snapshots_1d',
+  'energy_5min',
+  'energy_1h',
+  'energy_1d',
+  'energy_1mo',
+  'alarm_events',
+  'cycle_records'
+)
+ORDER BY pg_total_relation_size(oid) DESC;
+"
+```
+
+Also record WAL pressure:
+
+```bash
+docker compose exec db psql -U wpt -d wpt -c "
+SELECT
+  pg_size_pretty(sum(size)) AS total_wal
+FROM pg_ls_waldir();
+"
+```
 
 ## Roll Back a Machine
 

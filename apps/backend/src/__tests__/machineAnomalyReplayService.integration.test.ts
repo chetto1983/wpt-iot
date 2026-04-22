@@ -203,12 +203,20 @@ describe('MachineAnomalyReplayService seeded DB validation', () => {
       from: base,
       to: minuteOffset(base, 40),
       topN: 5,
+      // Match the scenario + unit-test conventions — 33 rows cannot
+      // saturate minReliableSamples=200, and the run is too fast for the
+      // 30s grace period to elapse naturally.
+      detectorConfig: { minReliableSamples: 30, modeChangeGraceMs: 0 },
     });
 
     expect(result.tracking.replayedRows).toBe(33);
     expect(result.tracking.activeAlarmCount).toBe(1);
     expect(result.summary.flaggedRows).toBeGreaterThan(0);
-    expect(result.summary.firstFlaggedAt).toBe(anomalyTs.toISOString());
+    // C4 persistence filter (N=3 flags in M=5 window) — first finalFlagged
+    // lands on the 3rd consecutive anomalous row (anomalyTs + 2 minutes),
+    // not the 1st. Keep `topAnomalies[0]` pinned to the primary anomaly
+    // timestamp since topAnomalies is ranked by score, not time.
+    expect(result.summary.firstFlaggedAt).toBe(minuteOffset(anomalyTs, 2).toISOString());
     expect(result.summary.maxScore).toBeGreaterThanOrEqual(3);
     expect(result.summary.maxScore).toBeLessThanOrEqual(25);
     expect(Number.isFinite(result.summary.maxScore)).toBe(true);

@@ -4,8 +4,7 @@ import { requireAuth } from '../auth/authHooks.js';
 import { ReportService } from '../services/reportService.js';
 import { PdfService } from '../services/pdf/index.js';
 import { formatEnumValue } from '../i18n/enumLabels.js';
-
-const RAW_MACHINE_RETENTION_DAYS = 30;
+import { getRawMachineRetentionViolation } from '../lib/dataRetention.js';
 
 /**
  * Machine data report endpoints (CSV + PDF).
@@ -183,12 +182,4 @@ function resolveFields(role: UserRole, fieldsParam?: string): string[] {
 
 function formatDateForFile(d: Date): string {
   return d.toISOString().split('T')[0]!;
-}
-
-function getRawMachineRetentionViolation(from: Date, now = new Date()): string | null {
-  const oldestAvailable = new Date(now.getTime() - RAW_MACHINE_RETENTION_DAYS * 24 * 60 * 60 * 1000);
-  if (from < oldestAvailable) {
-    return `Machine raw reports are limited to the last ${RAW_MACHINE_RETENTION_DAYS} days; available from ${oldestAvailable.toISOString()}`;
-  }
-  return null;
 }

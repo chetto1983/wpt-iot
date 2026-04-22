@@ -3,6 +3,7 @@ import { UserRole, getAlarmFieldLabels } from '@wpt/types';
 import { requireRole } from '../auth/authHooks.js';
 import { ReportService } from '../services/reportService.js';
 import { PdfService } from '../services/pdf/index.js';
+import { getAlarmHistoryRetentionViolation } from '../lib/dataRetention.js';
 
 const ALARM_EXPORT_FIELDS = [
   'alarmCode',
@@ -30,6 +31,10 @@ export const alarmReportRoutes: FastifyPluginAsync = async (server) => {
     if (!from || !to || isNaN(from.getTime()) || isNaN(to.getTime())) {
       return reply.code(400).send({ error: 'Invalid date range' });
     }
+    const retentionViolation = getAlarmHistoryRetentionViolation(from);
+    if (retentionViolation) {
+      return reply.code(422).send({ error: retentionViolation });
+    }
 
     const rows = await ReportService.queryAlarmEvents({ from, to, status });
     const events = rows.map((row) =>
@@ -53,6 +58,10 @@ export const alarmReportRoutes: FastifyPluginAsync = async (server) => {
 
     if (!from || !to || isNaN(from.getTime()) || isNaN(to.getTime())) {
       return reply.code(400).send({ error: 'Invalid date range' });
+    }
+    const retentionViolation = getAlarmHistoryRetentionViolation(from);
+    if (retentionViolation) {
+      return reply.code(422).send({ error: retentionViolation });
     }
 
     const rows = await ReportService.queryAlarmEvents({ from, to, status });
@@ -87,6 +96,10 @@ export const alarmReportRoutes: FastifyPluginAsync = async (server) => {
 
     if (!from || !to || isNaN(from.getTime()) || isNaN(to.getTime())) {
       return reply.code(400).send({ error: 'Invalid date range' });
+    }
+    const retentionViolation = getAlarmHistoryRetentionViolation(from);
+    if (retentionViolation) {
+      return reply.code(422).send({ error: retentionViolation });
     }
 
     const rows = await ReportService.queryAlarmEvents({ from, to, status });

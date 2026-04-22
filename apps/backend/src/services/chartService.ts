@@ -175,6 +175,7 @@ export class ChartService {
       : resolution === '1h'
         ? 'snapshots_1h'
         : 'snapshots_1d';
+    const bucketColumn = resolution === '1d' ? 'bucket_1d' : 'bucket';
 
     // Map requested camelCase fields to snake_case column names,
     // filtering out any that don't exist in the aggregate view.
@@ -194,7 +195,7 @@ export class ChartService {
     // Use sql template with raw() for column/view names (from our mapping)
     // and parameterized values for user-supplied dates
     const result = await db.execute(
-      sql`SELECT bucket, ${sql.raw(columnList)} FROM ${sql.raw(viewName)} WHERE bucket >= ${filter.from} AND bucket <= ${filter.to} ORDER BY bucket ASC LIMIT 5000`,
+      sql`SELECT ${sql.raw(`"${bucketColumn}" AS bucket`)}, ${sql.raw(columnList)} FROM ${sql.raw(viewName)} WHERE ${sql.raw(`"${bucketColumn}"`)} >= ${filter.from} AND ${sql.raw(`"${bucketColumn}"`)} <= ${filter.to} ORDER BY ${sql.raw(`"${bucketColumn}"`)} ASC LIMIT 5000`,
     );
 
     const rows = (result as unknown as { rows: Record<string, unknown>[] }).rows

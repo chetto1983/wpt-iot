@@ -13,7 +13,16 @@ describe('MachineAnomalyScenarioService', () => {
     'pressure_runaway',
     'energy_drift',
   ] as const)('elevates score in the %s scenario after warmup', (scenario) => {
-    const result = MachineAnomalyScenarioService.run({ scenario });
+    const result = MachineAnomalyScenarioService.run({
+      scenario,
+      // 8 scenario samples are too few to saturate the production
+      // minReliableSamples=200 confidence multiplier. Override to match the
+      // 30-sample warmup so the confidence-scaled score can reach warning
+      // level during the scenario phase. modeChangeGraceMs=0 disables the
+      // 30s grace window that would otherwise suppress flagged=true during
+      // the synthetic run (which completes in microseconds).
+      detectorConfig: { minReliableSamples: 30, modeChangeGraceMs: 0 },
+    });
 
     expect(result.summary.maxScore).toBeGreaterThan(0);
     // Warmup baseline is flat — no scenario-level signal should appear there.

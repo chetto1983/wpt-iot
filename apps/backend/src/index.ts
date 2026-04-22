@@ -15,6 +15,7 @@ import { MachineSchemaMigrationService } from './db/machineSchemaMigrationServic
 import { applyMigrations } from './db/migrator.js';
 import { applyTimescaleSetup } from './db/timescaleSetup.js';
 import { pool } from './db/index.js';
+import { AlarmRetentionService } from './services/alarmRetentionService.js';
 
 function setupGracefulShutdown(server: ReturnType<typeof buildServer>): void {
   let shuttingDown = false;
@@ -43,7 +44,10 @@ function setupGracefulShutdown(server: ReturnType<typeof buildServer>): void {
       // 4. Stop UDP pipeline (close sockets)
       stopUdpPipeline(server.log);
 
-      // 5. Close database connection pool
+      // 5. Stop app-owned background cleanup before closing the DB pool
+      AlarmRetentionService.stop();
+
+      // 6. Close database connection pool
       await pool.end();
       server.log.info({ name: 'Shutdown' }, 'Database pool closed');
 
@@ -132,6 +136,11 @@ async function main(): Promise<void> {
 
     // Initialize WebSocket broadcaster (subscribes to dataHub, seeds active alarms)
     await initBroadcaster(server.log);
+
+    // Keep plain alarm_events bounded to 24 months. Start after the broadcaster
+    // seeds active alarms from the DB so the first boot snapshot is intact even
+    // if very old rows get trimmed immediately afterward.
+    AlarmRetentionService.start(server.log);
 
     // Connect to MQTT broker using DB-backed config and initialize publisher +
     // command handler. Reads enabled / brokerHost / brokerPort / siteId /

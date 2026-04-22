@@ -168,10 +168,12 @@ TimescaleDB manages time-series data with automatic downsampling:
 | 5-min average | 5 minutes  | 90 days    | ~105,120 |
 | 1-hour average| 1 hour     | 24 months  | ~8,760   |
 | 1-day average | 1 day      | 24 months  | ~365     |
+| Alarm history | event rows | 24 months  | workload-dependent |
 
 Compression kicks in after 2 days (~90% storage reduction). Policies run automatically via TimescaleDB background jobs.
 
 Machine raw CSV/PDF reports are intentionally limited to the last 30 days. Longer historical trends must read from the bounded aggregate tiers above.
+Alarm history CSV/PDF reports are intentionally limited to the last 24 months, and the backend trims `alarm_events` daily to keep the edge box bounded.
 
 To manually trigger retention setup (runs automatically via `setup.sh`):
 

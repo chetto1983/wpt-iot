@@ -2,6 +2,7 @@ import {
   OnlineAnomalyDetector,
   type IAnomalyInput,
   type IAnomalyResult,
+  type IDetectorConfig,
 } from './onlineAnomalyDetector.js';
 
 type AnomalyScenarioName =
@@ -17,6 +18,8 @@ interface IScenarioRunOptions {
   scenario: AnomalyScenarioName;
   warmupSamples?: number;
   scenarioSamples?: number;
+  /** Optional detector overrides — matches replay API for parity. */
+  detectorConfig?: Partial<IDetectorConfig>;
 }
 
 interface IScenarioPoint extends IAnomalyResult {
@@ -138,7 +141,7 @@ export class MachineAnomalyScenarioService {
   static run(options: IScenarioRunOptions): IScenarioRunResult {
     const warmupSamples = options.warmupSamples ?? 30;
     const scenarioSamples = options.scenarioSamples ?? 8;
-    const detector = new OnlineAnomalyDetector();
+    const detector = new OnlineAnomalyDetector(options.detectorConfig ?? {});
     const timeline: IScenarioPoint[] = [];
 
     for (let i = 0; i < warmupSamples; i += 1) {
