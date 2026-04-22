@@ -48,13 +48,13 @@ vi.mock('../services/anomaly/machineAnomalyService.js', () => ({
   },
 }));
 
-vi.mock('../services/energyAttributionService.js', () => ({
+vi.mock('../services/energy/energyAttributionService.js', () => ({
   EnergyAttributionService: {
     detectAndPersistClosedCycles: vi.fn(async () => 0),
   },
 }));
 
-vi.mock('../services/energyBaselineService.js', () => {
+vi.mock('../services/energy/energyBaselineService.js', () => {
   class BaselineOverlapError extends Error {
     code = 'BASELINE_OVERLAP' as const;
     details = {};
@@ -92,7 +92,7 @@ vi.mock('../services/energyBaselineService.js', () => {
   };
 });
 
-vi.mock('../services/energyDashboardService.js', () => ({
+vi.mock('../services/energy/energyDashboardService.js', () => ({
   EnergyDashboardService: {
     getDashboardSummary: getDashboardSummaryMock,
     getCycles: getCyclesMock,

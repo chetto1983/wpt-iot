@@ -30,26 +30,26 @@ const REQUIRED_ITALIAN_HEADINGS = [
   'Fonti',
 ] as const;
 
-vi.mock('../services/energyAggregateService.js', () => ({
+vi.mock('../services/energy/energyAggregateService.js', () => ({
   EnergyAggregateService: {
     getAggregate: getAggregateMock,
   },
 }));
 
-vi.mock('../services/energyBaselineService.js', () => ({
+vi.mock('../services/energy/energyBaselineService.js', () => ({
   EnergyBaselineService: {
     getBaselineById: getBaselineByIdMock,
     computeSavings: computeSavingsMock,
   },
 }));
 
-vi.mock('../services/energyDashboardService.js', () => ({
+vi.mock('../services/energy/energyDashboardService.js', () => ({
   EnergyDashboardService: {
     getCycles: getCyclesMock,
   },
 }));
 
-vi.mock('../services/energyConfigService.js', () => ({
+vi.mock('../services/energy/energyConfigService.js', () => ({
   EnergyConfigService: {
     getActivePeriod: getActivePeriodMock,
   },

@@ -12,12 +12,27 @@
  * Pattern: mirrors wpt-iot/apps/backend/src/__tests__/energy/tariffPeriods.test.ts.
  */
 
-import { describe, it, expect, beforeEach, afterAll } from 'vitest';
+import { describe, it, expect, beforeAll, beforeEach, afterAll, vi } from 'vitest';
 import Fastify, { type FastifyInstance } from 'fastify';
 import { sql } from 'drizzle-orm';
 import { db, pool } from '../db/index.js';
 import { EnergyBaselineService, EnergyConfigService } from '../services/energy/index.js';
-import { energyRoutes } from '../routes/energy.js';
+
+// Auth is bypassed in this integration test so POST /baseline/lock and
+// GET /savings routes hit the real service layer instead of 401/500-ing
+// on the missing session cookie. The Phase 20 route handlers gate on
+// requireRole(SUPER_ADMIN); for this integration test we inject a fake
+// SUPER_ADMIN session directly.
+vi.mock('../auth/authHooks.js', () => ({
+  requireAuth: async (request: any): Promise<void> => {
+    request.session = { userId: 1, role: 'SUPER_ADMIN' };
+  },
+  requireRole: () => async (request: any): Promise<void> => {
+    request.session = { userId: 1, role: 'SUPER_ADMIN' };
+  },
+}));
+
+const { energyRoutes } = await import('../routes/energy.js');
 
 async function buildTestServer(): Promise<FastifyInstance> {
   const app = Fastify({ logger: false });
@@ -140,6 +155,17 @@ async function seedCycleRecords(args: {
 }
 
 describe('energyBaselineService integration', () => {
+  // Ensure the TimescaleDB continuous aggregates exist. The Docker init script
+  // at docker/init-timescaledb.sql defines the `setup_*` PL/pgSQL functions
+  // but does not call them — the backend calls applyTimescaleSetup() on boot.
+  // This test bypasses the backend bootstrap, so it materialises the CAGGs
+  // once per run. Both functions are idempotent but `setup_timescaledb_retention`
+  // must NOT run between tests or the CAGG policies reset mid-suite.
+  beforeAll(async () => {
+    await db.execute(sql`SELECT setup_timescaledb_retention()`);
+    await db.execute(sql`SELECT setup_energy_aggregates()`);
+  });
+
   beforeEach(async () => {
     await EnergyBaselineService.ensureSchema();
     await EnergyConfigService.ensureTable();

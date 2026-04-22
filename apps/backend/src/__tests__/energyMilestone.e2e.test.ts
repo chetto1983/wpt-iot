@@ -50,9 +50,9 @@ vi.mock('../services/anomaly/machineAnomalyService.js', () => ({
   },
 }));
 
-vi.mock('../services/energyAttributionService.js', async () => {
+vi.mock('../services/energy/energyAttributionService.js', async () => {
   const actual = await vi.importActual<typeof EnergyAttributionServiceModule>(
-    '../services/energyAttributionService.js',
+    '../services/energy/energyAttributionService.js',
   );
   actual.EnergyAttributionService.detectAndPersistClosedCycles = vi.fn(async () => 0);
   return actual;
