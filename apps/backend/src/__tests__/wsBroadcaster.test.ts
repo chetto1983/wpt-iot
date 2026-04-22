@@ -105,6 +105,15 @@ function makeSnapshotFixture(): IMachineSnapshot {
 interface IWsTestClient {
   ws: WebSocket;
   next(timeoutMs?: number): Promise<Record<string, unknown>>;
+  /**
+   * Drain messages until one of `type` arrives. Handles unordered interleavings
+   * of initial ALARM_UPDATE / PLC_STATUS / transition PLC_STATUS envelopes.
+   * `onMachineData` fires a fast-path PLC_STATUS when plcConnected transitions
+   * from false → true, so the first emitMachineData pushes PLC_STATUS then
+   * MACHINE_DATA — tests that expect MACHINE_DATA must use this helper so the
+   * transition envelope is tolerated instead of flaking assertions.
+   */
+  nextOf(type: string, timeoutMs?: number): Promise<Record<string, unknown>>;
 }
 
 async function openWsClient(rawCookie: string): Promise<IWsTestClient> {
@@ -147,7 +156,22 @@ async function openWsClient(rawCookie: string): Promise<IWsTestClient> {
     });
   }
 
-  return { ws, next };
+  async function nextOf(
+    type: string,
+    timeoutMs = 1500,
+  ): Promise<Record<string, unknown>> {
+    const deadline = Date.now() + timeoutMs;
+    while (true) {
+      const remaining = deadline - Date.now();
+      if (remaining <= 0) {
+        throw new Error(`WS nextOf('${type}') timeout`);
+      }
+      const msg = await next(remaining);
+      if (msg.type === type) return msg;
+    }
+  }
+
+  return { ws, next, nextOf };
 }
 
 let app: FastifyInstance;
@@ -245,7 +269,7 @@ describe('WsBroadcaster', () => {
     it('sends MACHINE_DATA message to connected client when dataHub emits machine:data', async () => {
       const user = await createClientUser();
       const { sessionId } = await createSessionForUser(user.id);
-      const { ws, next } = await openWsClient(makeSignedCookie(sessionId));
+      const { ws, next, nextOf } = await openWsClient(makeSignedCookie(sessionId));
 
       // Drain the initial ALARM_UPDATE sent by addClient on connect
       await next();
@@ -253,7 +277,9 @@ describe('WsBroadcaster', () => {
       await next();
 
       dataHub.emitMachineData(makeSnapshotFixture(), new Date());
-      const msg = await next();
+      // onMachineData flips plcConnected false→true and fires a transition
+      // PLC_STATUS before MACHINE_DATA — nextOf skips past it.
+      const msg = await nextOf(WsMessageType.MACHINE_DATA);
 
       expect(msg.type).toBe(WsMessageType.MACHINE_DATA);
       ws.close();
@@ -262,7 +288,7 @@ describe('WsBroadcaster', () => {
     it('message envelope has type, payload, and ISO timestamp (D-05)', async () => {
       const user = await createClientUser();
       const { sessionId } = await createSessionForUser(user.id);
-      const { ws, next } = await openWsClient(makeSignedCookie(sessionId));
+      const { ws, next, nextOf } = await openWsClient(makeSignedCookie(sessionId));
 
       // Drain the initial ALARM_UPDATE
       await next();
@@ -271,7 +297,7 @@ describe('WsBroadcaster', () => {
 
       const emittedAt = new Date();
       dataHub.emitMachineData(makeSnapshotFixture(), emittedAt);
-      const msg = await next();
+      const msg = await nextOf(WsMessageType.MACHINE_DATA);
 
       expect(msg.type).toBe(WsMessageType.MACHINE_DATA);
       expect(msg.payload).toBeDefined();
@@ -298,7 +324,10 @@ describe('WsBroadcaster', () => {
 
       dataHub.emitMachineData(makeSnapshotFixture(), new Date());
 
-      const [msg1, msg2] = await Promise.all([c1.next(), c2.next()]);
+      const [msg1, msg2] = await Promise.all([
+        c1.nextOf(WsMessageType.MACHINE_DATA),
+        c2.nextOf(WsMessageType.MACHINE_DATA),
+      ]);
 
       expect(msg1.type).toBe(WsMessageType.MACHINE_DATA);
       expect(msg2.type).toBe(WsMessageType.MACHINE_DATA);
@@ -311,13 +340,13 @@ describe('WsBroadcaster', () => {
     it('CLIENT-role client receives only CLIENT_VISIBLE_FIELDS (18 fields)', async () => {
       const user = await createClientUser();
       const { sessionId } = await createSessionForUser(user.id);
-      const { ws, next } = await openWsClient(makeSignedCookie(sessionId));
+      const { ws, next, nextOf } = await openWsClient(makeSignedCookie(sessionId));
 
       await next(); // drain initial ALARM_UPDATE
       await next(); // drain initial PLC_STATUS
 
       dataHub.emitMachineData(makeSnapshotFixture(), new Date());
-      const msg = await next();
+      const msg = await nextOf(WsMessageType.MACHINE_DATA);
 
       expect(msg.type).toBe(WsMessageType.MACHINE_DATA);
       const payload = msg.payload as Record<string, unknown>;
@@ -332,13 +361,13 @@ describe('WsBroadcaster', () => {
     it('WPT-role client receives WPT_VISIBLE_FIELDS (42 fields)', async () => {
       const user = await createWptUser();
       const { sessionId } = await createSessionForUser(user.id);
-      const { ws, next } = await openWsClient(makeSignedCookie(sessionId));
+      const { ws, next, nextOf } = await openWsClient(makeSignedCookie(sessionId));
 
       await next(); // drain initial ALARM_UPDATE
       await next(); // drain initial PLC_STATUS
 
       dataHub.emitMachineData(makeSnapshotFixture(), new Date());
-      const msg = await next();
+      const msg = await nextOf(WsMessageType.MACHINE_DATA);
 
       expect(msg.type).toBe(WsMessageType.MACHINE_DATA);
       const payload = msg.payload as Record<string, unknown>;
@@ -367,7 +396,10 @@ describe('WsBroadcaster', () => {
       await cWpt.next();
 
       dataHub.emitMachineData(makeSnapshotFixture(), new Date());
-      const [clientMsg, wptMsg] = await Promise.all([cClient.next(), cWpt.next()]);
+      const [clientMsg, wptMsg] = await Promise.all([
+        cClient.nextOf(WsMessageType.MACHINE_DATA),
+        cWpt.nextOf(WsMessageType.MACHINE_DATA),
+      ]);
 
       const clientKeys = Object.keys(clientMsg.payload as object);
       const wptKeys = Object.keys(wptMsg.payload as object);
