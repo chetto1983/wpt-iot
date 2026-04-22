@@ -7,6 +7,12 @@ The production layout is:
 - nginx terminates TLS on the edge machine
 - the backend still runs with `network_mode: host` so PLC UDP reaches it
 
+> **Related:** for field-deploy procedures (CODESYS flash, wire-verify, digest rollback,
+> pre-flash `.EXP` commit rule) see
+> [../../.planning/runbooks/deploy-runbook.md](../../.planning/runbooks/deploy-runbook.md).
+> That runbook covers what happens AFTER install.sh has placed a working stack on the edge
+> device; this runbook covers install + operational procedures.
+
 ## Provision a New Customer Machine
 
 Fresh Ubuntu 22.04 / 24.04 install with:
