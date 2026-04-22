@@ -213,10 +213,13 @@ describe('MachineAnomalyReplayService seeded DB validation', () => {
     expect(result.tracking.activeAlarmCount).toBe(1);
     expect(result.summary.flaggedRows).toBeGreaterThan(0);
     // C4 persistence filter (N=3 flags in M=5 window) — first finalFlagged
-    // lands on the 3rd consecutive anomalous row (anomalyTs + 2 minutes),
-    // not the 1st. Keep `topAnomalies[0]` pinned to the primary anomaly
-    // timestamp since topAnomalies is ranked by score, not time.
-    expect(result.summary.firstFlaggedAt).toBe(minuteOffset(anomalyTs, 2).toISOString());
+    // lands on the row where the rolling window first has 3 rawFlagged=true.
+    // The last warmup row already contributes one rawFlagged=true (because
+    // the seed's linear energy ramp is close to warning threshold by row 30),
+    // so the rolling count reaches 3 on anomalyTs + 1 min (2nd anomalous row).
+    // Keep `topAnomalies[0]` pinned to the primary anomaly timestamp since
+    // topAnomalies is ranked by score, not time.
+    expect(result.summary.firstFlaggedAt).toBe(minuteOffset(anomalyTs, 1).toISOString());
     expect(result.summary.maxScore).toBeGreaterThanOrEqual(3);
     expect(result.summary.maxScore).toBeLessThanOrEqual(25);
     expect(Number.isFinite(result.summary.maxScore)).toBe(true);
