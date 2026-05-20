@@ -2,6 +2,7 @@ import type { FastifyPluginAsync } from 'fastify';
 import { latestState } from '../cache/latestState.js';
 import { db } from '../db/index.js';
 import { sql } from 'drizzle-orm';
+import { getCurrentPlcEndian } from '../udp/parsers.js';
 
 /**
  * Extended health endpoint reporting DB connection + UDP pipeline status (D-13).
@@ -32,6 +33,7 @@ export const healthRoute: FastifyPluginAsync = async (server) => {
       lastMachineData: lastMachineTs?.toISOString() ?? null,
       lastAlarmPacket: lastAlarmTs?.toISOString() ?? null,
       machineDataStale,
+      plcEndian: getCurrentPlcEndian(),
     };
   });
 };
