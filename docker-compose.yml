@@ -37,7 +37,13 @@ services:
       test: ["CMD-SHELL", "pg_isready -U wpt"]
       interval: 5s
       timeout: 3s
-      retries: 5
+      retries: 10
+      # First boot of timescale/timescaledb runs init scripts (extension creation,
+      # tuner — which panics on cgroup v2 missing memory.max but Postgres recovers),
+      # then a WAL recovery pass. That can take 30-50s on a Pi 4 SD card. Without
+      # start_period, retries kick in before bootstrap finishes and dependents
+      # bail out.
+      start_period: 90s
     restart: unless-stopped
     logging:
       driver: json-file
@@ -131,7 +137,9 @@ services:
       interval: 10s
       timeout: 3s
       retries: 5
-      start_period: 15s
+      # Backend bootstrap: open PG pool, run Drizzle migrations, register routes,
+      # bind UDP listeners. On a Pi 4 SD card the first cold boot can take 25-40s.
+      start_period: 45s
     restart: unless-stopped
     stop_grace_period: 15s
     logging:
@@ -163,7 +171,9 @@ services:
       interval: 10s
       timeout: 3s
       retries: 5
-      start_period: 10s
+      # Next.js standalone cold start on Pi 4 ARM64: 8-15s. 20s start_period gives
+      # margin without delaying the dependent nginx unnecessarily.
+      start_period: 20s
     restart: unless-stopped
     logging:
       driver: json-file

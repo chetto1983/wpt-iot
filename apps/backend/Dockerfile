@@ -1,12 +1,14 @@
+# syntax=docker/dockerfile:1.7
 FROM node:22-alpine AS base
-RUN corepack enable && corepack prepare pnpm@latest --activate
+RUN corepack enable && corepack prepare pnpm@9 --activate
 
 FROM base AS deps
 WORKDIR /app
 COPY pnpm-workspace.yaml package.json pnpm-lock.yaml .npmrc ./
 COPY apps/backend/package.json apps/backend/
 COPY packages/types/package.json packages/types/
-RUN pnpm install --frozen-lockfile --filter @wpt/backend --filter @wpt/types
+RUN --mount=type=cache,id=pnpm-store,target=/root/.local/share/pnpm/store \
+    pnpm install --frozen-lockfile --filter @wpt/backend --filter @wpt/types
 
 FROM base AS builder
 WORKDIR /app
@@ -24,7 +26,11 @@ COPY pnpm-workspace.yaml package.json pnpm-lock.yaml .npmrc ./
 COPY apps/backend/package.json apps/backend/
 COPY packages/types/package.json packages/types/
 ENV NODE_ENV=production
-RUN pnpm install --frozen-lockfile --filter @wpt/backend --filter @wpt/types
+# --shamefully-hoist places shared deps in /app/node_modules so the runner
+# stage can COPY them. Without this, pnpm's isolated linker leaves /app/node_modules
+# empty when used with --filter, breaking the runner stage.
+RUN --mount=type=cache,id=pnpm-store,target=/root/.local/share/pnpm/store \
+    pnpm install --frozen-lockfile --shamefully-hoist --filter @wpt/backend --filter @wpt/types
 
 FROM node:22-alpine AS runner
 WORKDIR /app

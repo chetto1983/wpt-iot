@@ -1,12 +1,14 @@
+# syntax=docker/dockerfile:1.7
 FROM node:22-alpine AS base
-RUN corepack enable && corepack prepare pnpm@latest --activate
+RUN corepack enable && corepack prepare pnpm@9 --activate
 
 FROM base AS deps
 WORKDIR /app
 COPY pnpm-workspace.yaml package.json pnpm-lock.yaml .npmrc ./
 COPY apps/frontend/package.json apps/frontend/
 COPY packages/types/package.json packages/types/
-RUN pnpm install --frozen-lockfile --filter @wpt/frontend --filter @wpt/types
+RUN --mount=type=cache,id=pnpm-store,target=/root/.local/share/pnpm/store \
+    pnpm install --frozen-lockfile --filter @wpt/frontend --filter @wpt/types
 
 FROM base AS builder
 WORKDIR /app
