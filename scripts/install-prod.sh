@@ -36,6 +36,22 @@ upsert_env() {
   fi
 }
 
+# Set KEY only if missing or empty; NEVER overwrite an existing non-empty value.
+# SECRETS_ENCRYPTION_KEY must stay identical across reboots — rotating it makes
+# already-encrypted secrets (e.g. mqtt_config.password) unrecoverable.
+ensure_env_secret() {
+  local file="$1" key="$2" value="$3" current
+  if grep -q "^${key}=" "$file"; then
+    current="$(grep -m1 "^${key}=" "$file" | cut -d= -f2-)"
+    if [[ -n "$current" ]]; then
+      return 0
+    fi
+    sed -i "s|^${key}=.*|${key}=${value}|" "$file"
+  else
+    echo "${key}=${value}" >> "$file"
+  fi
+}
+
 [[ "$(uname -s)" == "Linux" ]] || fail "Linux only."
 [[ $EUID -eq 0 ]] || fail "Run as root: curl ... | sudo bash"
 command -v curl >/dev/null 2>&1 || fail "curl is required."
@@ -152,6 +168,11 @@ if [[ ! -f .env ]]; then
   fi
   SESSION_SECRET="$(head -c 32 /dev/urandom | base64 | tr -d '/+=' | head -c 32)"
   PG_PASSWORD="$(head -c 24 /dev/urandom | base64 | tr -d '/+=' | head -c 24)"
+  # AES-256-GCM key for secrets at rest (mqtt_config.password). Full base64 of
+  # 32 random bytes — must decode to exactly 32 bytes (see secretCipher.ts).
+  # Do NOT reuse the SESSION_SECRET pattern: that truncates to 32 chars, which
+  # decodes to ~24 bytes and the backend rejects it.
+  SECRETS_ENCRYPTION_KEY="$(head -c 32 /dev/urandom | base64 | tr -d '\n')"
 
   cat > .env <<ENVEOF
 PG_HOST=127.0.0.1
@@ -170,6 +191,7 @@ SIM_ACK_PORT=9093
 SIM_DATA_PORT=9090
 SIM_USERS_PORT=9092
 SESSION_SECRET=${SESSION_SECRET}
+SECRETS_ENCRYPTION_KEY=${SECRETS_ENCRYPTION_KEY}
 ADMIN_PASSWORD=${ADMIN_PASSWORD}
 NEXT_PUBLIC_API_URL=
 SESSION_COOKIE_SECURE=true
@@ -191,6 +213,9 @@ else
   upsert_env .env "NEXT_PUBLIC_API_URL" ""
   upsert_env .env "SESSION_COOKIE_SECURE" "true"
   upsert_env .env "TRUST_PROXY" "true"
+  # Backfill the encryption key on installs that predate it. Generate only if
+  # missing/empty — preserve any existing key so encrypted secrets stay readable.
+  ensure_env_secret .env "SECRETS_ENCRYPTION_KEY" "$(head -c 32 /dev/urandom | base64 | tr -d '\n')"
   ok ".env preserved and updated for same-origin HTTPS."
 fi
 
