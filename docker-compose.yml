@@ -123,13 +123,9 @@ services:
       SECRETS_ENCRYPTION_KEY: ${SECRETS_ENCRYPTION_KEY:-}
       SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-true}
       TRUST_PROXY: ${TRUST_PROXY:-true}
-      MQTT_HOST: ${MQTT_HOST:-127.0.0.1}
-      MQTT_PORT: ${MQTT_PORT:-1883}
-      MQTT_USERNAME: ${MQTT_USERNAME:-wpt-backend}
-      MQTT_PASSWORD: ${MQTT_PASSWORD:-wpt_mqtt_dev_password}
-      MQTT_ENABLED: ${MQTT_ENABLED:-true}
-      MQTT_SITE_ID: ${MQTT_SITE_ID:-site-01}
-      MQTT_MACHINE_ID: ${MQTT_MACHINE_ID:-wpt40-001}
+      # MQTT/Sparkplug settings (broker host/port, credentials, site/machine
+      # identity, publish flags) are NOT env-driven: they live in the
+      # mqtt_config DB row, managed via the admin UI. See apps/backend/src/config.ts.
     volumes:
       - uploads:/app/uploads
     healthcheck:

@@ -197,13 +197,8 @@ ADMIN_PASSWORD=${ADMIN_PASSWORD}
 NEXT_PUBLIC_API_URL=
 SESSION_COOKIE_SECURE=true
 TRUST_PROXY=true
-MQTT_HOST=127.0.0.1
-MQTT_PORT=1883
-MQTT_USERNAME=wpt-backend
-MQTT_PASSWORD=wpt_mqtt_dev_password
-MQTT_ENABLED=true
-MQTT_SITE_ID=site-01
-MQTT_MACHINE_ID=wpt40-001
+# MQTT/Sparkplug config is DB-backed (mqtt_config table, set via the admin UI),
+# not env-driven. See apps/backend/src/config.ts.
 ENVEOF
   chmod 600 "${INSTALL_DIR}/.env"
   ok ".env generated with random secrets."
