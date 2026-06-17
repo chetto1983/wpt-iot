@@ -68,11 +68,11 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha,scope=${{ matrix.app }}
           cache-to: type=gha,mode=max,scope=${{ matrix.app }}
-          # Frontend bundle bakes the API URL at build time. Customer machines
-          # all use the same HTTPS origin once the nginx TLS overlay is
-          # installed on the edge machine.
-          build-args: |
-            NEXT_PUBLIC_API_URL=https://wpt.local/api
+          # No NEXT_PUBLIC_API_URL build-arg: the frontend Dockerfile defaults it
+          # to empty so the bundle uses relative URLs (same-origin via nginx).
+          # The image stays host/IP-agnostic — works for wpt.local, the LAN IP,
+          # and the per-device wpt-<serial>.local alias without a rebuild. Baking
+          # an absolute URL would break those origins (CORS removed in Phase 37.3).
 
       - name: Image digest
         run: echo "${{ matrix.app }} digest = ${{ steps.meta.outputs.json && fromJSON(steps.meta.outputs.json).tags[0] }}"
