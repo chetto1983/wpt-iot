@@ -19,23 +19,92 @@ permissions:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_OWNER: ${{ github.repository_owner }}
 
 jobs:
+  # Per-arch build on NATIVE runners (no QEMU emulation). arm64 builds on
+  # ubuntu-24.04-arm — free for public repos and ~10x faster than emulating
+  # the Next.js build under QEMU. Each leg pushes by digest; the merge job
+  # below assembles the multi-arch manifest and applies the tags.
   build:
-    name: Build ${{ matrix.app }}
-    runs-on: ubuntu-latest
+    name: Build ${{ matrix.service }} (${{ matrix.platform }})
+    runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
       matrix:
-        app: [backend, frontend]
-
+        include:
+          - service: backend
+            platform: linux/amd64
+            runner: ubuntu-latest
+          - service: backend
+            platform: linux/arm64
+            runner: ubuntu-24.04-arm
+          - service: frontend
+            platform: linux/amd64
+            runner: ubuntu-latest
+          - service: frontend
+            platform: linux/arm64
+            runner: ubuntu-24.04-arm
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up QEMU (multi-arch)
-        uses: docker/setup-qemu-action@v3
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Platform slug
+        id: platform
+        run: echo "slug=$(echo '${{ matrix.platform }}' | sed 's|/|-|g')" >> "$GITHUB_OUTPUT"
+
+      - name: Build and push by digest
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/${{ matrix.service }}/Dockerfile
+          platforms: ${{ matrix.platform }}
+          # No NEXT_PUBLIC_API_URL build-arg: the frontend Dockerfile defaults it
+          # to empty so the bundle uses relative URLs (same-origin via nginx). The
+          # image stays host/IP-agnostic; baking an absolute URL would break
+          # LAN-IP / wpt-<serial>.local access (CORS removed in Phase 37.3).
+          outputs: type=image,name=${{ env.REGISTRY }}/${{ github.repository_owner }}/wpt-${{ matrix.service }},push-by-digest=true,name-canonical=true,push=true
+          cache-from: type=gha,scope=${{ matrix.service }}-${{ steps.platform.outputs.slug }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.service }}-${{ steps.platform.outputs.slug }}
+
+      - name: Export digest
+        run: |
+          mkdir -p /tmp/digests
+          echo "${{ steps.build.outputs.digest }}" > "/tmp/digests/${{ steps.platform.outputs.slug }}.digest"
+
+      - name: Upload digest artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: digests-${{ matrix.service }}-${{ steps.platform.outputs.slug }}
+          path: /tmp/digests/*
+          retention-days: 1
+          if-no-files-found: error
+
+  # Assemble the multi-arch manifest from the per-arch digests and apply tags.
+  merge:
+    name: Merge ${{ matrix.service }} manifest
+    needs: build
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: [backend, frontend]
+    steps:
+      - name: Download digest artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: digests-${{ matrix.service }}-*
+          merge-multiple: true
+          path: /tmp/digests
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -51,28 +120,18 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_OWNER }}/wpt-${{ matrix.app }}
+          images: ${{ env.REGISTRY }}/${{ github.repository_owner }}/wpt-${{ matrix.service }}
           tags: |
             type=raw,value=latest
             type=sha,prefix=master-,format=short
             type=raw,value=master-{{date 'YYYYMMDD-HHmmss'}}
 
-      - name: Build and push image
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: apps/${{ matrix.app }}/Dockerfile
-          platforms: linux/amd64,linux/arm64
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha,scope=${{ matrix.app }}
-          cache-to: type=gha,mode=max,scope=${{ matrix.app }}
-          # No NEXT_PUBLIC_API_URL build-arg: the frontend Dockerfile defaults it
-          # to empty so the bundle uses relative URLs (same-origin via nginx).
-          # The image stays host/IP-agnostic — works for wpt.local, the LAN IP,
-          # and the per-device wpt-<serial>.local alias without a rebuild. Baking
-          # an absolute URL would break those origins (CORS removed in Phase 37.3).
+      - name: Create multi-arch manifest
+        working-directory: /tmp/digests
+        run: |
+          docker buildx imagetools create \
+            $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
+            $(for f in *.digest; do echo "${{ env.REGISTRY }}/${{ github.repository_owner }}/wpt-${{ matrix.service }}@$(cat "$f")"; done)
 
-      - name: Image digest
-        run: echo "${{ matrix.app }} digest = ${{ steps.meta.outputs.json && fromJSON(steps.meta.outputs.json).tags[0] }}"
+      - name: Inspect manifest
+        run: docker buildx imagetools inspect ${{ env.REGISTRY }}/${{ github.repository_owner }}/wpt-${{ matrix.service }}:${{ steps.meta.outputs.version }}
