@@ -259,7 +259,21 @@ systemctl daemon-reload
 systemctl enable --now wpt-tls-refresh.timer
 ok "wpt-tls-refresh timer enabled (boot + every 15 min)."
 
-step "Step 7/7  Pull images + start stack"
+step "Step 7/7  Firewall + pull images + start stack"
+
+# Open PLC UDP ports in firewalld if active (RevPi/IndustrialPI ships firewalld).
+# The backend runs network_mode:host, so 9090-9093/udp are NOT covered by Docker's
+# iptables integration — without this, inbound PLC packets are dropped and no
+# machine data reaches the backend even though it is listening on those ports.
+if command -v firewall-cmd >/dev/null 2>&1 && firewall-cmd --state >/dev/null 2>&1; then
+  FW_ZONE="$(firewall-cmd --get-default-zone 2>/dev/null || echo public)"
+  firewall-cmd --permanent --zone="${FW_ZONE}" --add-port=9090-9093/udp >/dev/null 2>&1 || true
+  firewall-cmd --reload >/dev/null 2>&1 || true
+  ok "firewalld: opened UDP 9090-9093 on zone ${FW_ZONE} (PLC data + handshake)."
+else
+  info "firewalld not active — if you use ufw/iptables, allow inbound UDP 9090-9093."
+fi
+
 docker compose pull
 docker compose up -d
 
