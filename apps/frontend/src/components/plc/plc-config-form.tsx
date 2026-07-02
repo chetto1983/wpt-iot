@@ -16,10 +16,18 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 export interface PlcConfig {
   id: number;
   targetHost: string | null;
+  endian: 'be' | 'le';
   updatedAt: string;
 }
 
@@ -35,6 +43,7 @@ export function PlcConfigForm({ config, onSaved }: PlcConfigFormProps) {
   const tCommon = useTranslations('common');
 
   const [targetHost, setTargetHost] = useState(config.targetHost ?? '');
+  const [endian, setEndian] = useState<'be' | 'le'>(config.endian ?? 'le');
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
   const [lastTestResult, setLastTestResult] = useState<{
@@ -46,34 +55,39 @@ export function PlcConfigForm({ config, onSaved }: PlcConfigFormProps) {
   const restoredDraftRef = useRef(false);
 
   useEffect(() => {
-    const draft = readSessionDraft<{ targetHost: string }>(PLC_CONFIG_DRAFT_KEY);
+    const draft = readSessionDraft<{ targetHost: string; endian?: 'be' | 'le' }>(PLC_CONFIG_DRAFT_KEY);
     if (!draft?.targetHost) return;
 
     restoredDraftRef.current = true;
     setTargetHost(draft.targetHost);
+    if (draft.endian === 'be' || draft.endian === 'le') setEndian(draft.endian);
   }, []);
 
   useEffect(() => {
     if (!restoredDraftRef.current) {
       setTargetHost(config.targetHost ?? '');
+      setEndian(config.endian ?? 'le');
     }
-  }, [config.targetHost]);
+  }, [config.targetHost, config.endian]);
 
   useEffect(() => {
-    if (targetHost.trim() === (config.targetHost?.trim() ?? '')) {
+    const unchanged =
+      targetHost.trim() === (config.targetHost?.trim() ?? '') &&
+      endian === (config.endian ?? 'le');
+    if (unchanged) {
       clearSessionDraft(PLC_CONFIG_DRAFT_KEY);
       return;
     }
 
-    writeSessionDraft(PLC_CONFIG_DRAFT_KEY, { targetHost });
-  }, [config.targetHost, targetHost]);
+    writeSessionDraft(PLC_CONFIG_DRAFT_KEY, { targetHost, endian });
+  }, [config.targetHost, config.endian, targetHost, endian]);
 
   const handleSave = useCallback(async () => {
     setSaving(true);
     try {
       await apiFetch('/api/plc/config', {
         method: 'PUT',
-        body: JSON.stringify({ targetHost }),
+        body: JSON.stringify({ targetHost, endian }),
       });
       restoredDraftRef.current = false;
       clearSessionDraft(PLC_CONFIG_DRAFT_KEY);
@@ -85,7 +99,7 @@ export function PlcConfigForm({ config, onSaved }: PlcConfigFormProps) {
     } finally {
       setSaving(false);
     }
-  }, [targetHost, onSaved, t, tCommon]);
+  }, [targetHost, endian, onSaved, t, tCommon]);
 
   const handleTestConnection = useCallback(async () => {
     setTesting(true);
@@ -136,6 +150,23 @@ export function PlcConfigForm({ config, onSaved }: PlcConfigFormProps) {
             placeholder="192.168.101.145"
           />
           <p className="text-xs text-muted-foreground">{t('targetHostHelp')}</p>
+        </div>
+
+        <div className="grid gap-2">
+          <Label htmlFor="plc-endian">{t('endian')}</Label>
+          <Select
+            value={endian}
+            onValueChange={(v) => { if (v === 'be' || v === 'le') setEndian(v); }}
+          >
+            <SelectTrigger id="plc-endian" className="w-full" aria-label={t('endian')}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="be">{t('endianBig')}</SelectItem>
+              <SelectItem value="le">{t('endianLittle')}</SelectItem>
+            </SelectContent>
+          </Select>
+          <p className="text-xs text-muted-foreground">{t('endianHelp')}</p>
         </div>
 
         <div className="flex items-center justify-between gap-2">
