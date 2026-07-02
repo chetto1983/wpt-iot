@@ -1,0 +1,194 @@
+# =============================================================================
+# WPT IoT — GHCR image-pull production stack (end-user / customer edge install)
+#
+# Same topology as docker-compose.yml, but the backend and frontend are PULLED
+# as prebuilt multi-arch images from GHCR (linux/amd64 + linux/arm64) instead of
+# built from source. This is what scripts/install-enduser.sh deploys: no source
+# tree, no build toolchain, no compile step on the edge box — just `pull` + `up`.
+#
+# Docker auto-selects the arm64 variant on the Pilz IndustrialPI 4 / Raspberry Pi.
+# Pin an immutable digest by overriding WPT_BACKEND_IMAGE / WPT_FRONTEND_IMAGE
+# in .env, e.g. ghcr.io/chetto1983/wpt-backend@sha256:<digest>.
+#
+# The backend keeps network_mode: host — PLC UDP (9090-9093) requires it.
+# =============================================================================
+
+services:
+  db:
+    image: timescale/timescaledb:2.26.3-pg17
+    command:
+      - "postgres"
+      - "-c"
+      - "shared_buffers=${PG_SHARED_BUFFERS:-128MB}"
+      - "-c"
+      - "work_mem=${PG_WORK_MEM:-4MB}"
+      - "-c"
+      - "effective_cache_size=${PG_EFFECTIVE_CACHE_SIZE:-1GB}"
+      - "-c"
+      - "maintenance_work_mem=${PG_MAINTENANCE_WORK_MEM:-64MB}"
+      - "-c"
+      - "synchronous_commit=${PG_SYNCHRONOUS_COMMIT:-on}"
+    ports:
+      - "127.0.0.1:5432:5432"
+    environment:
+      POSTGRES_DB: wpt
+      POSTGRES_USER: wpt
+      POSTGRES_PASSWORD: ${PG_PASSWORD:-wpt_dev_password}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./docker/init-timescaledb.sql:/docker-entrypoint-initdb.d/010-timescaledb.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U wpt"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 90s
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # TEMPORARY local broker for the internal pub/sub bus. Production with the
+  # remote Sparkplug B broker over GSM removes this service entirely.
+  mosquitto:
+    image: eclipse-mosquitto:2.0.22
+    container_name: mosquitto
+    ports:
+      - "1883:1883"
+      - "9001:9001"
+    volumes:
+      - ./mosquitto/config:/mosquitto/config
+      - mosquitto_data:/mosquitto/data
+      - mosquitto_log:/mosquitto/log
+    healthcheck:
+      test: ["CMD-SHELL", "pidof mosquitto || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # backend runs on the host network so PLC UDP frames (9090-9093) reach the
+  # listener sockets. Bridge networking silently drops them. Host mode also
+  # means Docker DNS doesn't resolve service names — the backend uses
+  # 127.0.0.1 for db and mosquitto (both bound to loopback above).
+  backend:
+    image: ${WPT_BACKEND_IMAGE:-ghcr.io/chetto1983/wpt-backend:latest}
+    network_mode: host
+    depends_on:
+      db:
+        condition: service_healthy
+      mosquitto:
+        condition: service_healthy
+    environment:
+      PG_HOST: 127.0.0.1
+      PG_PORT: 5432
+      PG_DB: wpt
+      PG_USERNAME: wpt
+      PG_PASSWORD: ${PG_PASSWORD:-wpt_dev_password}
+      PORT: 3000
+      HOST: 0.0.0.0
+      UDP_PORT_DATA: 9090
+      UDP_PORT_ALARMS: 9091
+      UDP_PORT_USERS: 9092
+      UDP_PORT_ACK: 9093
+      SIM_ACK_PORT: 9093
+      SIM_DATA_PORT: 9090
+      SIM_USERS_PORT: 9092
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+      SESSION_SECRET: ${SESSION_SECRET:-dev-only-session-secret-minimum-32-chars!!}
+      # AES-256-GCM key for mqtt_config.password (and future secrets) at rest.
+      # MUST be set in .env and identical across reboots — losing it makes
+      # encrypted secrets unrecoverable.
+      SECRETS_ENCRYPTION_KEY: ${SECRETS_ENCRYPTION_KEY:-}
+      SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-true}
+      TRUST_PROXY: ${TRUST_PROXY:-true}
+      # MQTT/Sparkplug settings live in the mqtt_config DB row (admin UI), not env.
+    volumes:
+      - uploads:/app/uploads
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:3000/api/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 45s
+    restart: unless-stopped
+    stop_grace_period: 15s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  frontend:
+    image: ${WPT_FRONTEND_IMAGE:-ghcr.io/chetto1983/wpt-frontend:latest}
+    # Same-origin bundle (relative URLs); nginx routes /api/* to the backend.
+    # The image is IP/hostname-agnostic — no rebuild on LAN/IP change.
+    depends_on:
+      backend:
+        condition: service_healthy
+    environment:
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-}
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:3001"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 20s
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # TLS terminator + same-origin router. /api/* and /uploads/* -> backend (host
+  # network via host.docker.internal), everything else -> frontend.
+  nginx:
+    image: nginx:1.28.3-alpine
+    depends_on:
+      backend:
+        condition: service_healthy
+      frontend:
+        condition: service_healthy
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOLLAR: "$"
+      FRONTEND_SERVER_NAME: ${WPT_FRONTEND_HOST:-wpt.local}
+      FRONTEND_UPSTREAM: frontend:3001
+      BACKEND_UPSTREAM: host.docker.internal:${PORT:-3000}
+      TLS_CERT_PATH: /etc/nginx/certs/server.crt
+      TLS_KEY_PATH: /etc/nginx/certs/server.key
+      NGINX_ENTRYPOINT_QUIET_LOGS: "1"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./docker/nginx/templates:/etc/nginx/templates:ro
+      - ${WPT_TLS_CERT_DIR:-./certs}:/etc/nginx/certs:ro
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1/nginx-health || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  pgdata:
+  uploads:
+  mosquitto_data:
+  mosquitto_log:
