@@ -110,6 +110,13 @@ if systemctl is-active --quiet grafana-server 2>/dev/null; then
   systemctl stop grafana-server
   systemctl disable grafana-server 2>/dev/null || true
 fi
+# apache2 ships on RevPi/IndustrialPI (PiCtory + Cockpit web console) and holds
+# :80/:443 — nginx cannot bind until it is stopped.
+if systemctl is-active --quiet apache2 2>/dev/null; then
+  warn "Stopping apache2 (holds :80/:443 — RevPi web console/PiCtory)..."
+  systemctl stop apache2
+  systemctl disable apache2 2>/dev/null || true
+fi
 if snap list mosquitto >/dev/null 2>&1; then
   warn "Removing snap mosquitto..."
   snap remove --purge mosquitto
