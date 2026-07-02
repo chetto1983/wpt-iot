@@ -11,6 +11,7 @@ import { CloudUplinkWorker } from './mqtt/cloudUplinkWorker.js';
 import { EnergyConfigService, EnergyBaselineService } from './services/energy/index.js';
 import { MachineAnomalyEventService } from './services/anomaly/index.js';
 import { PlcConfigService, setPlcConfigLogger } from './udp/plcConfigService.js';
+import { setPlcEndian } from './udp/parsers.js';
 import { MachineSchemaMigrationService } from './db/machineSchemaMigrationService.js';
 import { applyMigrations } from './db/migrator.js';
 import { applyTimescaleSetup } from './db/timescaleSetup.js';
@@ -111,11 +112,18 @@ async function main(): Promise<void> {
     // from the live in-memory detector for later inspection and UI use.
     await MachineAnomalyEventService.ensureSchema();
 
-    // Ensure PLC config table exists with default row (target_host='localhost').
-    // Operators update the target from the frontend (SUPER_ADMIN only) and the
-    // handshake FSM picks it up via the 30s-TTL cache on its next read.
+    // Ensure PLC config table exists with a default row (target_host NULL until
+    // the operator sets it). Operators update the target from the frontend
+    // (SUPER_ADMIN only) and the handshake FSM picks it up via the 30s-TTL cache
+    // on its next read.
     await PlcConfigService.ensureTable();
     setPlcConfigLogger(server.log);
+
+    // Apply the persisted PLC byte order to the parsers BEFORE the UDP pipeline
+    // starts, so the running decoder matches the DB. The PUT /api/plc/config
+    // route re-applies it live on save (no restart needed).
+    const plcCfg = await PlcConfigService.getConfig();
+    setPlcEndian(plcCfg.endian);
 
     // [BLOCKING] V03 protocol schema migration (PROT-V03-04, PROT-V03-05).
     // Renames spare_int_71/72 -> cycle_status/container and adds 8 new REAL

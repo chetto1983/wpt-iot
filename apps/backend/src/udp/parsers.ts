@@ -8,37 +8,28 @@ import {
 } from './packetSizes.js';
 
 // =============================================================================
-// Endianness auto-detect
+// Endianness (config-driven)
 //
-// V03 spec defaults to Big-Endian (CODESYS V2.3 on ABB AC500). However, during
-// field deploys we have observed PLC firmware variants that emit Little-Endian
-// frames — likely because a CODESYS swap-bytes FB is configured (or not)
-// upstream of the SEND_UDP call. Rather than force the operator to flip a
-// config flag, we sample the 15 REAL fields of each incoming machine packet
-// and score them in both endiannesses; the one yielding more "plausible"
-// floats (finite, magnitude < 1e6) wins.
+// Byte order is DETERMINISTIC by protocol version — V2 mapping = Big-Endian,
+// V3 mapping = Little-Endian — so it is a config value, never something to
+// auto-detect. The real ABB AC500 in the field is Little-Endian (V3). The
+// value lives in plc_config.endian (default 'le'), is applied at startup, and
+// is re-applied live by the PUT /api/plc/config route via setPlcEndian(), so a
+// saved change takes effect on the very next PLC packet with no restart.
 //
-// The decision is sticky module-level state, re-evaluated every
-// REDETECT_INTERVAL packets in case the PLC firmware is hot-swapped without
-// restarting the backend. A single decision drives BOTH machine-data parsing
-// (port 9090) AND the write-back paths (alarms, job, user) so the backend
-// stays internally consistent.
-//
-// Override via env: PLC_ENDIAN=big|little forces and skips detection.
+// A single module-level value drives BOTH machine-data parsing (port 9090) AND
+// the alarm/job/write-back paths so the backend stays internally consistent —
+// this also removes the former startup-order bug where alarms (arriving ~1s
+// before the first machine packet) decoded Big-Endian by default.
 // =============================================================================
 type Endian = 'be' | 'le';
 
-const PLC_ENDIAN_FORCED: Endian | null = (() => {
-  const raw = process.env.PLC_ENDIAN?.toLowerCase();
-  if (raw === 'little' || raw === 'le') return 'le';
-  if (raw === 'big' || raw === 'be') return 'be';
-  return null;
-})();
+let plcEndian: Endian = 'le';
 
-const REDETECT_INTERVAL = 100;
-let cachedEndian: Endian | null = PLC_ENDIAN_FORCED;
-let packetCounter = 0;
-let lastDetectionInfo: { be: number; le: number; chosen: Endian } | null = null;
+/** Set the byte order used to decode/encode every multi-byte PLC field. */
+export function setPlcEndian(e: Endian): void {
+  plcEndian = e;
+}
 
 function r16(buf: Buffer, off: number, end: Endian): number {
   return end === 'le' ? buf.readInt16LE(off) : buf.readInt16BE(off);
@@ -58,62 +49,11 @@ function w16(buf: Buffer, val: number, off: number, end: Endian): void {
 }
 
 /**
- * Score the 15 REAL fields of a machine packet under a given endianness.
- * A "plausible" float is finite and within +/- 1e6 (V03 reals are voltages,
- * currents, energies — all well under 1e6 in real units). Higher score = more
- * likely correct endianness.
+ * Public accessor for the active endianness. Used by /api/health to surface
+ * state; the value is config-driven, so `source` is always 'config'.
  */
-function scoreMachineReals(buf: Buffer, end: Endian): number {
-  let score = 0;
-  for (let i = 0; i < 15; i++) {
-    const v = rF(buf, 260 + i * 4, end);
-    if (Number.isFinite(v) && Math.abs(v) < 1e6) score++;
-  }
-  return score;
-}
-
-/**
- * Decide endianness for a machine-data packet. Sticky after the first
- * resolution; re-checked every REDETECT_INTERVAL packets so we catch
- * a mid-run firmware swap without a backend restart.
- *
- * Tie → prefer BE (V03 spec default).
- */
-function resolveEndianForMachine(buf: Buffer): Endian {
-  if (PLC_ENDIAN_FORCED !== null) return PLC_ENDIAN_FORCED;
-
-  const shouldDetect = cachedEndian === null || packetCounter % REDETECT_INTERVAL === 0;
-  if (!shouldDetect) return cachedEndian ?? 'be';
-
-  const scoreBE = scoreMachineReals(buf, 'be');
-  const scoreLE = scoreMachineReals(buf, 'le');
-  const chosen: Endian = scoreLE > scoreBE ? 'le' : 'be';
-  lastDetectionInfo = { be: scoreBE, le: scoreLE, chosen };
-
-  if (chosen !== cachedEndian) {
-    const prev = cachedEndian ?? 'unknown';
-    console.warn(
-      `[parsers] PLC endianness auto-detected: ${chosen} (BE score=${scoreBE}/15, LE score=${scoreLE}/15, was=${prev})`
-    );
-    cachedEndian = chosen;
-  }
-  return chosen;
-}
-
-/**
- * Public accessor for the resolved endianness. Returns null before the first
- * machine packet has been parsed. Used by /api/health to surface state.
- */
-export function getCurrentPlcEndian(): {
-  endian: Endian | null;
-  forced: boolean;
-  lastDetection: { be: number; le: number; chosen: Endian } | null;
-} {
-  return {
-    endian: cachedEndian,
-    forced: PLC_ENDIAN_FORCED !== null,
-    lastDetection: lastDetectionInfo,
-  };
+export function getCurrentPlcEndian(): { endian: Endian; source: 'config' } {
+  return { endian: plcEndian, source: 'config' as const };
 }
 
 /**
@@ -258,13 +198,12 @@ export function parseMachineData(buf: Buffer): IMachineSnapshot {
     throw new Error(`Machine data packet too short: ${buf.length} bytes (expected >= ${MACHINE_PACKET_SIZE})`);
   }
 
-  packetCounter++;
-  const endian = resolveEndianForMachine(buf);
+  const endian = plcEndian;
 
   const snapshot: Record<string, number | string> = {};
   let offset = 0;
 
-  // 72 INT fields -- 16-bit signed, endian per resolveEndianForMachine
+  // 72 INT fields -- 16-bit signed, using the configured endianness
   for (const field of MACHINE_DATA_INT_FIELDS) {
     snapshot[field] = r16(buf, offset, endian);
     offset += 2;
@@ -333,9 +272,7 @@ export function parseAlarmWords(buf: Buffer): IAlarmWords {
     throw new Error(`Alarm packet too short: ${buf.length} bytes (expected >= ${ALARM_PACKET_SIZE})`);
   }
 
-  // Alarm packets piggyback on the endianness decided by machine-data parsing.
-  // Default to BE before the first machine packet arrives.
-  const endian: Endian = cachedEndian ?? 'be';
+  const endian: Endian = plcEndian;
 
   const words: number[] = [];
   for (let i = 0; i < 40; i++) {
@@ -408,7 +345,7 @@ export function parseJobData(buf: Buffer): IJobData {
     throw new Error(`Job data packet too short: ${buf.length} bytes (expected >= ${JOB_DATA_PACKET_SIZE})`);
   }
 
-  const endian: Endian = cachedEndian ?? 'be';
+  const endian: Endian = plcEndian;
 
   const slot = (start: number): string => {
     const s = buf.toString('ascii', start, start + 21);
@@ -495,8 +432,8 @@ export function buildJobWritePacket(job: IJobData): Buffer {
 
   // 6 INT fields starting at offset 84 (4 * 21).
   // V03 added spareInt02/spareInt03 at the tail.
-  // Use the same endianness the PLC is sending so write-back round-trips correctly.
-  const endian: Endian = cachedEndian ?? 'be';
+  // Use the configured endianness so write-back round-trips correctly.
+  const endian: Endian = plcEndian;
   w16(buf, job.remoteJobEnable, offset, endian); offset += 2;       // 84
   w16(buf, job.maintenanceRequest, offset, endian); offset += 2;    // 86
   w16(buf, job.remoteCycleSelection, offset, endian); offset += 2;  // 88

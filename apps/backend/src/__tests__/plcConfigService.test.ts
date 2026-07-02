@@ -16,7 +16,7 @@ import { PlcConfigUnavailableError } from '../udp/plcConfigService.js';
 // ---------------------------------------------------------------------------
 interface IMinimalPlcModule {
   PlcConfigService: {
-    getConfig: () => Promise<{ id: number; targetHost: string | null; updatedAt: Date }>;
+    getConfig: () => Promise<{ id: number; targetHost: string | null; endian: 'be' | 'le'; updatedAt: Date }>;
   };
   PlcConfigUnavailableError: typeof PlcConfigUnavailableError;
   getCachedPlcConfig: () => Promise<{ targetHost: string }>;
@@ -61,6 +61,7 @@ describe('getCachedPlcConfig', () => {
     vi.spyOn(mod.PlcConfigService, 'getConfig').mockResolvedValue({
       id: 1,
       targetHost: null,
+      endian: 'le',
       updatedAt: new Date(),
     });
 
@@ -75,6 +76,7 @@ describe('getCachedPlcConfig', () => {
     vi.spyOn(mod.PlcConfigService, 'getConfig').mockResolvedValue({
       id: 1,
       targetHost: '',
+      endian: 'le',
       updatedAt: new Date(),
     });
 
@@ -99,6 +101,7 @@ describe('getCachedPlcConfig', () => {
     const spy = vi.spyOn(mod.PlcConfigService, 'getConfig').mockResolvedValue({
       id: 1,
       targetHost: '192.168.0.10',
+      endian: 'le',
       updatedAt: new Date(),
     });
 
@@ -116,10 +119,30 @@ describe('getCachedPlcConfig', () => {
     vi.spyOn(mod.PlcConfigService, 'getConfig').mockResolvedValue({
       id: 1,
       targetHost: '10.0.0.5',
+      endian: 'le',
       updatedAt: new Date(),
     });
 
     const result = await mod.getCachedPlcConfig();
     expect(result.targetHost).toBe('10.0.0.5');
+  });
+
+  it('resolves targetHost while the config shape carries endian', async () => {
+    const mod = await loadFreshModule();
+    vi.spyOn(mod.PlcConfigService, 'getConfig').mockResolvedValue({
+      id: 1,
+      targetHost: '192.168.0.42',
+      endian: 'le',
+      updatedAt: new Date(),
+    });
+
+    // getCachedPlcConfig only surfaces targetHost to the handshake FSM; the
+    // endian field lives on IPlcConfig and is applied to the parsers elsewhere.
+    const result = await mod.getCachedPlcConfig();
+    expect(result.targetHost).toBe('192.168.0.42');
+    expect(result).not.toHaveProperty('endian');
+
+    const cfg = await mod.PlcConfigService.getConfig();
+    expect(cfg.endian).toBe('le');
   });
 });

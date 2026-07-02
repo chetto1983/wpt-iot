@@ -3,6 +3,7 @@ import { z } from 'zod/v4';
 import { UserRole } from '@wpt/types';
 import { requireRole } from '../auth/authHooks.js';
 import { PlcConfigService } from '../udp/plcConfigService.js';
+import { setPlcEndian } from '../udp/parsers.js';
 import { getSockets } from '../udp/sockets.js';
 import { readUsers } from '../udp/handshakeFsm.js';
 
@@ -30,8 +31,10 @@ export const plcConfigRoutes: FastifyPluginAsync = async (server) => {
 
   /**
    * PUT /api/plc/config
-   * Update the PLC target host. Invalidates the FSM's cached target so
-   * the change takes effect on the next handshake operation.
+   * Update the PLC target host and/or byte order. Invalidates the FSM's cached
+   * target so a host change takes effect on the next handshake operation, and
+   * re-applies the endianness to the live parsers so a byte-order change takes
+   * effect on the very next PLC packet — both with no backend restart.
    */
   server.put('/plc/config', async (request, reply) => {
     const result = z.object({
@@ -42,13 +45,16 @@ export const plcConfigRoutes: FastifyPluginAsync = async (server) => {
         .regex(/^[a-zA-Z0-9._-]+$/, 'Must be a valid IP or hostname')
         .refine(v => v !== 'localhost', { message: 'Use the real PLC address, not "localhost"' })
         .optional(),
+      endian: z.enum(['be', 'le']).optional(),
     }).safeParse(request.body);
 
     if (!result.success) {
       return reply.code(400).send({ error: 'Invalid config', details: result.error.issues });
     }
 
-    return PlcConfigService.updateConfig(result.data);
+    const updated = await PlcConfigService.updateConfig(result.data);
+    setPlcEndian(updated.endian);
+    return updated;
   });
 
   /**

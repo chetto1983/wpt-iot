@@ -63,6 +63,14 @@ export class PlcConfigService {
       )
     `);
 
+    // Idempotent, non-destructive: add the endian column on existing deployments.
+    // Backfills the id=1 row to 'le' (V3 / real ABB AC500 default) without
+    // touching target_host. Safe to run on every startup.
+    await db.execute(sql`
+      ALTER TABLE plc_config
+      ADD COLUMN IF NOT EXISTS endian VARCHAR(2) NOT NULL DEFAULT 'le'
+    `);
+
     const existing = await db.execute(
       sql`SELECT id FROM plc_config WHERE id = 1`,
     );

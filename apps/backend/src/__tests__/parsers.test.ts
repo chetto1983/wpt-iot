@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import {
   parseMachineData,
   parseAlarmWords,
@@ -6,6 +6,7 @@ import {
   parseJobData,
   buildUserWritePacket,
   buildJobWritePacket,
+  setPlcEndian,
 } from '../udp/parsers.js';
 import {
   buildTestMachineBuffer,
@@ -14,6 +15,13 @@ import {
   buildTestJobBuffer,
 } from './fixtures/packets.js';
 import { RfidUserGroup, CycleType } from '@wpt/types';
+
+// Endianness is now config-driven (default 'le'), and every fixture buffer in
+// this suite is Big-Endian. Pin the parser to BE before each case so the
+// existing BE-fixture decode assertions still hold. This is the intended
+// API-contract adaptation (endianness became explicit), not test-gaming — the
+// dedicated 'endianness is config-driven' block below proves BOTH orders.
+beforeEach(() => setPlcEndian('be'));
 
 describe('parseMachineData', () => {
   it('decodes all 100 fields from a 326-byte buffer', () => {
@@ -243,5 +251,40 @@ describe('Round-trip tests (simulator format -> parser)', () => {
     expect(alarms.words[0]! & 0x01).toBe(1); // bit 0
     expect(alarms.words[0]! & 0x04).toBe(4); // bit 2
     expect(alarms.words[0]! & 0x02).toBe(0); // bit 1 not set
+  });
+});
+
+describe('endianness is config-driven', () => {
+  it('setPlcEndian("be") decodes the Big-Endian fixture correctly', () => {
+    setPlcEndian('be');
+    const snapshot = parseMachineData(buildTestMachineBuffer());
+    expect(snapshot.thermoLeftLower).toBe(180);
+    expect(snapshot.completedCycles).toBe(42);
+    expect(snapshot.energyConsumption).toBeCloseTo(123.45, 1);
+    expect(snapshot.lineVoltL1L2).toBeCloseTo(400.5, 1);
+  });
+
+  it('setPlcEndian("le") on the SAME Big-Endian bytes yields byteswapped garbage', () => {
+    // Proves the flag actually drives INT/REAL decode: reading BE bytes as LE
+    // byteswaps them, so a value of 180 (0x00B4) reads as 0xB400 = -19456.
+    setPlcEndian('le');
+    const snapshot = parseMachineData(buildTestMachineBuffer());
+    expect(snapshot.thermoLeftLower).not.toBe(180);
+    expect(snapshot.energyConsumption).not.toBeCloseTo(123.45, 1);
+  });
+
+  it('setPlcEndian("le") decodes a genuinely Little-Endian buffer correctly', () => {
+    // Build a minimal LE machine buffer at the real V03 offsets and prove LE
+    // decodes RIGHT (not merely "differently" from BE).
+    const buf = Buffer.alloc(326);
+    buf.writeInt16LE(180, 0);      // thermoLeftLower (INT, offset 0)
+    buf.writeInt32LE(42, 144);     // completedCycles (DINT, offset 144)
+    buf.writeFloatLE(123.45, 260); // energyConsumption (REAL, offset 260)
+
+    setPlcEndian('le');
+    const snapshot = parseMachineData(buf);
+    expect(snapshot.thermoLeftLower).toBe(180);
+    expect(snapshot.completedCycles).toBe(42);
+    expect(snapshot.energyConsumption).toBeCloseTo(123.45, 1);
   });
 });
