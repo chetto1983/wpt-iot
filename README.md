@@ -175,13 +175,18 @@ Compression kicks in after 2 days (~90% storage reduction). Policies run automat
 Machine raw CSV/PDF reports are intentionally limited to the last 30 days. Longer historical trends must read from the bounded aggregate tiers above.
 Alarm history CSV/PDF reports are intentionally limited to the last 24 months, and the backend trims `alarm_events` daily to keep the edge box bounded.
 
-To manually trigger retention setup (runs automatically via `setup.sh`):
+Retention, runtime schema migrations, and every Timescale aggregate are applied
+automatically before the backend becomes healthy. This runs on fresh databases,
+existing volumes, restores, and every backend image update. The database server
+timezone remains UTC.
+
+The following commands are diagnostics/manual retries only:
 
 ```bash
 docker compose exec db psql -U wpt -d wpt -c "SELECT setup_timescaledb_retention();"
 ```
 
-To install the v1.1 energy aggregates used by `/energy`, `/settings/energy`, reconciliation, and the ISO 50001 PDF report:
+To retry the energy aggregate setup used by `/energy`, `/settings/energy`, reconciliation, and the ISO 50001 PDF report:
 
 ```bash
 docker compose exec db psql -U wpt -d wpt -c "SELECT setup_energy_aggregates();"

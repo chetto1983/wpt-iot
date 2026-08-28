@@ -43,6 +43,7 @@ COPY --from=builder /app/apps/backend/package.json ./apps/backend/package.json
 COPY --from=builder /app/apps/backend/dist ./apps/backend/dist
 COPY --from=builder /app/apps/backend/drizzle ./apps/backend/drizzle
 COPY --from=builder /app/packages/types ./packages/types
+COPY docker/init-timescaledb.sql ./docker/init-timescaledb.sql
 
 EXPOSE 3000
 CMD ["node", "apps/backend/dist/index.js"]

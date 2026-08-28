@@ -151,6 +151,10 @@ export default function SingleDashboardPage() {
   const { width, containerRef, mounted } = useContainerWidth({ initialWidth: 1200 });
 
   const abortRef = useRef<AbortController | null>(null);
+  const initialDateFiltersRef = useRef({
+    from: dateFilters.from,
+    to: dateFilters.to,
+  });
   const fromRef = useRef(rangeFrom);
   const toRef = useRef(rangeTo);
   useEffect(() => { fromRef.current = rangeFrom; }, [rangeFrom]);
@@ -226,6 +230,19 @@ export default function SingleDashboardPage() {
     void fetchDashboard();
     return () => { cancelled = true; };
   }, [id, fetchPanelData]);
+
+  // A relative auto-refresh changes the URL range without going through
+  // handleRangeChange. Promote that first range change to a data refresh;
+  // Effect 1 still remains the sole owner of the initial request.
+  useEffect(() => {
+    if (dataVersion !== 0) return;
+    if (
+      dateFilters.from !== initialDateFiltersRef.current.from ||
+      dateFilters.to !== initialDateFiltersRef.current.to
+    ) {
+      setDataVersion(1);
+    }
+  }, [dataVersion, dateFilters.from, dateFilters.to]);
 
   // Effect 2: Re-fetch on range change or panel edits.
   // NOTE: depends on the primitive ISO strings (dateFilters.from/to), NOT the

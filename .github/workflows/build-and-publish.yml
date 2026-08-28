@@ -5,6 +5,7 @@ on:
     branches: [master]
     paths:
       - 'apps/backend/**'
+      - 'docker/init-timescaledb.sql'
       - 'apps/frontend/**'
       - 'packages/types/**'
       - 'pnpm-lock.yaml'

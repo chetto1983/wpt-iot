@@ -5,16 +5,11 @@ import { seedDefaultAdmin } from './auth/seed.js';
 import { startUdpPipeline, stopUdpPipeline } from './udp/index.js';
 import { initBroadcaster, shutdownBroadcaster } from './ws/broadcaster.js';
 import { connectMqtt, disconnectMqtt } from './mqtt/connectionManager.js';
-import { MqttConfigService } from './mqtt/configService.js';
 import { SparkplugService } from './mqtt/sparkplugService.js';
 import { CloudUplinkWorker } from './mqtt/cloudUplinkWorker.js';
-import { EnergyConfigService, EnergyBaselineService } from './services/energy/index.js';
-import { MachineAnomalyEventService } from './services/anomaly/index.js';
 import { PlcConfigService, setPlcConfigLogger } from './udp/plcConfigService.js';
 import { setPlcEndian } from './udp/parsers.js';
-import { MachineSchemaMigrationService } from './db/machineSchemaMigrationService.js';
-import { applyMigrations } from './db/migrator.js';
-import { applyTimescaleSetup } from './db/timescaleSetup.js';
+import { applyDatabaseBootstrap } from './db/databaseBootstrap.js';
 import { pool } from './db/index.js';
 import { AlarmRetentionService } from './services/alarmRetentionService.js';
 import { ApplicationConfigService } from './services/applicationConfigService.js';
@@ -79,45 +74,15 @@ async function main(): Promise<void> {
     // but cosmetically ugly. Order: tables first, then listen.
     // ───────────────────────────────────────────────────────────────────
 
-    // Apply Drizzle migrations (idempotent — skips already-applied files).
-    // Must run first so every table exists before any service touches the DB.
-    // Emits Pino { name: 'Migrations' } logs before + after the run.
-    await applyMigrations(pool, server.log);
-
-    // Convert machine_snapshots to a hypertable and (re)create the snapshots_*
-    // + energy_* continuous aggregates. Both setup functions are idempotent.
-    // Closes the 2026-04-14 gap where /api/energy/* returned 500 because the
-    // runbook step SELECT setup_energy_aggregates() was never invoked on the
-    // VM deployment. Must run AFTER applyMigrations so machine_snapshots exists.
-    await applyTimescaleSetup(pool, server.log);
+    // Blocking, repository-wide bootstrap. Runs every Drizzle migration and
+    // every idempotent runtime schema migration before installing, backfilling,
+    // and verifying all Timescale continuous aggregates. The server is not
+    // marked healthy when any step fails, so the edge updater can retry safely.
+    await applyDatabaseBootstrap(server.log);
 
     // Seed default admin account if auth_users table is empty
     await seedDefaultAdmin(server.log);
 
-    // Ensure MQTT config table exists with default row
-    await MqttConfigService.ensureTable();
-
-    // Ensure Phase 19 energy tables exist + seed the default tariff period
-    // (energy_config singleton, energy_config_periods, cycle_records,
-    // cycle_resets). Direct SQL idempotent — never drizzle-kit push.
-    // Pattern mirrors MqttConfigService.ensureTable() exactly. ECFG-01..06.
-    await EnergyConfigService.ensureTable();
-
-    // Phase 20 baseline schema — energy_baselines + baseline_evidence.
-    // Direct SQL idempotent CREATE TABLE IF NOT EXISTS. Must run AFTER
-    // EnergyConfigService.ensureTable() because Phase 20 references the
-    // `energy_config_periods` values at lock time (ENBL-01, ENBL-06).
-    await EnergyBaselineService.ensureSchema();
-
-    // Machine anomaly persistence schema — stores flagged anomaly events
-    // from the live in-memory detector for later inspection and UI use.
-    await MachineAnomalyEventService.ensureSchema();
-
-    // Ensure PLC config table exists with a default row (target_host NULL until
-    // the operator sets it). Operators update the target from the frontend
-    // (SUPER_ADMIN only) and the handshake FSM picks it up via the 30s-TTL cache
-    // on its next read.
-    await PlcConfigService.ensureTable();
     setPlcConfigLogger(server.log);
 
     // Load global UI settings before any request or export can format a date.
@@ -128,12 +93,6 @@ async function main(): Promise<void> {
     // route re-applies it live on save (no restart needed).
     const plcCfg = await PlcConfigService.getConfig();
     setPlcEndian(plcCfg.endian);
-
-    // [BLOCKING] V03 protocol schema migration (PROT-V03-04, PROT-V03-05).
-    // Renames spare_int_71/72 -> cycle_status/container and adds 8 new REAL
-    // columns. Idempotent. MUST run before startUdpPipeline() — the UDP parser
-    // INSERTs rows assuming the V03 schema and would throw on a pre-V03 DB.
-    await MachineSchemaMigrationService.ensureV03Columns();
 
     // Load alarm i18n descriptions before UDP pipeline starts
     loadAlarmDescriptions();

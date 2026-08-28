@@ -161,15 +161,32 @@ The shipping path is a full bundle rebuild on the golden-master host
 LAN regardless of hostname or IP. OTA automation (Mender) is the
 planned path forward; watchtower is no longer part of the stack.
 
-## Post-Deploy Energy Step
+## Automatic Database Bootstrap
 
-Run this once after a deploy or database restore before declaring the v1.1 energy module live on a machine:
+There is no manual post-deploy energy step. Before opening its HTTP port, every
+backend image runs the complete repository migration chain:
+
+1. all tracked Drizzle migrations;
+2. all idempotent runtime schemas (MQTT, energy, baselines, anomaly, PLC,
+   application settings, and the V03 machine schema);
+3. the bundled TimescaleDB setup SQL;
+4. all seven `snapshots_*` and `energy_*` continuous aggregates;
+5. a one-time bounded backfill when any aggregate is empty;
+6. a final aggregate-count verification.
+
+The backend does not become healthy if any step fails. Consequently,
+`wpt-image-update.service` fails and its timer retries without deleting the
+PostgreSQL volume. PostgreSQL stays configured with `timezone=UTC`.
+
+For diagnostics, the setup functions can still be retried manually:
 
 ```bash
 docker compose exec db psql -U wpt -d wpt -c "SELECT setup_energy_aggregates();"
 ```
 
-This installs the TimescaleDB continuous aggregates and helper objects that back `/energy`, `/settings/energy`, reconciliation, and the ISO 50001 PDF route.
+The updater also verifies that all seven aggregates exist and synchronizes the
+SQL asset embedded in the backend image back to
+`/opt/wpt-iot/docker/init-timescaledb.sql` for future fresh volumes.
 
 ## Retention Verification
 
