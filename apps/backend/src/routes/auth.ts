@@ -2,6 +2,7 @@ import type { FastifyPluginAsync } from 'fastify';
 import { LoginRequestSchema } from '@wpt/types';
 import { AuthService } from '../auth/authService.js';
 import { requireAuth } from '../auth/authHooks.js';
+import { config } from '../config.js';
 
 /**
  * Auth routes: login, logout, me, change-password.
@@ -37,6 +38,7 @@ export const authRoutes: FastifyPluginAsync = async (server) => {
       role: user.role,
       avatar: user.avatar ?? null,
       language: request.session.language,
+      timezone: config.timezone,
     };
   });
 
@@ -70,6 +72,7 @@ export const authRoutes: FastifyPluginAsync = async (server) => {
       role: user.role,
       avatar: user.avatar ?? null,
       language: request.session.language ?? 'it',
+      timezone: config.timezone,
     };
   });
 

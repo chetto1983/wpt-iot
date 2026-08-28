@@ -1,3 +1,5 @@
+import { DEFAULT_TIMEZONE, formatZonedDate, formatZonedDateTime } from './timezone.js';
+
 /**
  * Italian-locale format helpers — EFMT-01 single source of truth.
  *
@@ -73,13 +75,8 @@ export function formatItKgCO2(kg: number): string {
  * Always uses Europe/Rome — Phase 19/21/22 surfaces are timezone-locked to Italy
  * regardless of the host timezone (RESEARCH.md Pitfall 11).
  */
-export function formatItDate(d: Date): string {
-  return new Intl.DateTimeFormat('it-IT', {
-    timeZone: 'Europe/Rome',
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-  }).format(d);
+export function formatItDate(d: Date, timezone = DEFAULT_TIMEZONE): string {
+  return formatZonedDate(d, timezone);
 }
 
 /**
@@ -88,16 +85,10 @@ export function formatItDate(d: Date): string {
  *
  * Always uses Europe/Rome (see formatItDate).
  */
-export function formatItDateTime(d: Date): string {
-  return new Intl.DateTimeFormat('it-IT', {
-    timeZone: 'Europe/Rome',
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-  }).format(d);
+export function formatItDateTime(d: Date, timezone = DEFAULT_TIMEZONE): string {
+  const formatted = formatZonedDateTime(d, timezone);
+  const separatorIndex = formatted.indexOf(' ');
+  return `${formatted.slice(0, separatorIndex)},${formatted.slice(separatorIndex)}`;
 }
 
 /**

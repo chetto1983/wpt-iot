@@ -5,6 +5,8 @@ import { ReportService } from '../services/reportService.js';
 import { PdfService } from '../services/pdf/index.js';
 import { formatEnumValue } from '../i18n/enumLabels.js';
 import { getRawMachineRetentionViolation } from '../lib/dataRetention.js';
+import { config } from '../config.js';
+import { formatZonedDate } from '@wpt/types';
 
 /**
  * Machine data report endpoints (CSV + PDF).
@@ -78,7 +80,7 @@ export const reportRoutes: FastifyPluginAsync = async (server) => {
         .send({ error: 'No data found for the specified range' });
     }
 
-    const csv = ReportService.toCSV(rows, allFields, headers, lang);
+    const csv = ReportService.toCSV(rows, allFields, headers, lang, config.timezone);
     const filename = `machine-report-${formatDateForFile(from)}-${formatDateForFile(to)}.csv`;
 
     return reply
@@ -118,7 +120,14 @@ export const reportRoutes: FastifyPluginAsync = async (server) => {
 
     const title =
       lang === 'it' ? 'Report Dati Macchina' : 'Machine Data Report';
-    const pdf = await PdfService.generatePdf(rows, allFields, headers, title, lang);
+    const pdf = await PdfService.generatePdf(
+      rows,
+      allFields,
+      headers,
+      title,
+      lang,
+      config.timezone,
+    );
     const filename = `machine-report-${formatDateForFile(from)}-${formatDateForFile(to)}.pdf`;
 
     return reply
@@ -181,5 +190,5 @@ function resolveFields(role: UserRole, fieldsParam?: string): string[] {
 }
 
 function formatDateForFile(d: Date): string {
-  return d.toISOString().split('T')[0]!;
+  return formatZonedDate(d, config.timezone).split('/').reverse().join('-');
 }

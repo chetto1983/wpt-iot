@@ -4,7 +4,11 @@
  * Extracted to eliminate duplicated formatTick implementations (Phase 28-04).
  */
 
-import { format } from 'date-fns';
+import {
+  DEFAULT_TIMEZONE,
+  formatZonedDate,
+  formatZonedTime,
+} from '@wpt/types';
 
 /**
  * Format an epoch-ms timestamp for X-axis ticks based on chart resolution.
@@ -14,10 +18,14 @@ import { format } from 'date-fns';
  * - 1h aggregates: show dd/MM HH:mm
  * - 1d aggregates: show dd/MM/yyyy
  */
-export function formatTick(epochMs: number, resolution: string): string {
+export function formatTick(
+  epochMs: number,
+  resolution: string,
+  timezone = DEFAULT_TIMEZONE,
+): string {
   const d = new Date(epochMs);
-  if (resolution === 'raw') return format(d, 'HH:mm:ss');
-  if (resolution === '5min') return format(d, 'HH:mm');
-  if (resolution === '1d') return format(d, 'dd/MM/yyyy');
-  return format(d, 'dd/MM HH:mm');
+  if (resolution === 'raw') return formatZonedTime(d, timezone, true);
+  if (resolution === '5min') return formatZonedTime(d, timezone);
+  if (resolution === '1d') return formatZonedDate(d, timezone);
+  return `${formatZonedDate(d, timezone).slice(0, 5)} ${formatZonedTime(d, timezone)}`;
 }

@@ -182,6 +182,7 @@ PG_USERNAME=wpt
 PG_PASSWORD=${PG_PASSWORD}
 PORT=3000
 HOST=0.0.0.0
+APP_TIMEZONE=${APP_TIMEZONE:-Europe/Rome}
 UDP_PORT_DATA=9090
 UDP_PORT_ALARMS=9091
 UDP_PORT_USERS=9092
@@ -208,6 +209,7 @@ else
   upsert_env .env "NEXT_PUBLIC_API_URL" ""
   upsert_env .env "SESSION_COOKIE_SECURE" "true"
   upsert_env .env "TRUST_PROXY" "true"
+  ensure_env_secret .env "APP_TIMEZONE" "${APP_TIMEZONE:-Europe/Rome}"
   # Backfill the encryption key on installs that predate it. Generate only if
   # missing/empty — preserve any existing key so encrypted secrets stay readable.
   ensure_env_secret .env "SECRETS_ENCRYPTION_KEY" "$(head -c 32 /dev/urandom | base64 | tr -d '\n')"

@@ -4,6 +4,8 @@ import { requireRole } from '../auth/authHooks.js';
 import { ReportService } from '../services/reportService.js';
 import { PdfService } from '../services/pdf/index.js';
 import { getAlarmHistoryRetentionViolation } from '../lib/dataRetention.js';
+import { config } from '../config.js';
+import { formatZonedDate } from '@wpt/types';
 
 const ALARM_EXPORT_FIELDS = [
   'alarmCode',
@@ -66,7 +68,7 @@ export const alarmReportRoutes: FastifyPluginAsync = async (server) => {
 
     const rows = await ReportService.queryAlarmEvents({ from, to, status });
     const formatted = rows.map((row) =>
-      ReportService.formatAlarmForExport(row, lang),
+      ReportService.formatAlarmForExport(row, lang, config.timezone),
     );
 
     if (formatted.length === 0) {
@@ -80,6 +82,7 @@ export const alarmReportRoutes: FastifyPluginAsync = async (server) => {
       formatted as Record<string, unknown>[],
       ALARM_EXPORT_FIELDS as unknown as readonly string[],
       headers,
+      lang,
     );
     const filename = `alarm-report-${formatDateForFile(from)}-${formatDateForFile(to)}.csv`;
 
@@ -104,7 +107,7 @@ export const alarmReportRoutes: FastifyPluginAsync = async (server) => {
 
     const rows = await ReportService.queryAlarmEvents({ from, to, status });
     const formatted = rows.map((row) =>
-      ReportService.formatAlarmForExport(row, lang),
+      ReportService.formatAlarmForExport(row, lang, config.timezone),
     );
 
     if (formatted.length === 0) {
@@ -160,5 +163,5 @@ function parseAlarmQuery(
 }
 
 function formatDateForFile(d: Date): string {
-  return d.toISOString().split('T')[0]!;
+  return formatZonedDate(d, config.timezone).split('/').reverse().join('-');
 }

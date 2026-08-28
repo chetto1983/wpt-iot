@@ -39,7 +39,7 @@ interface IMachinePreview {
 export default function ReportsPage() {
   const t = useTranslations('reports');
   const { user } = useAuth();
-  const { language: locale, formatDateTime } = useAppLocale();
+  const { language: locale, timezone, formatDateTime } = useAppLocale();
   const role = user?.role ?? UserRole.CLIENT;
 
   // All meaningful fields for the role (no spareIntNN)
@@ -101,8 +101,8 @@ export default function ReportsPage() {
     setLoading(true);
 
     const params = new URLSearchParams({
-      from: buildDateTimeISO(new Date(filters.from), filters.fromTime),
-      to: buildDateTimeISO(new Date(filters.to), filters.toTime),
+      from: buildDateTimeISO(new Date(filters.from), filters.fromTime, timezone),
+      to: buildDateTimeISO(new Date(filters.to), filters.toTime, timezone),
       lang: locale,
     });
     if (selectedFields.length > 0) {
@@ -127,7 +127,7 @@ export default function ReportsPage() {
 
     return () => controller.abort();
  
-  }, [filters.from, filters.to, filters.fromTime, filters.toTime, filters.cycle, locale, selectedFields.join(','), t]);
+  }, [filters.from, filters.to, filters.fromTime, filters.toTime, filters.cycle, locale, timezone, selectedFields.join(','), t]);
 
   // Phase 35 UI-01 — fetch cycle options when the date range changes
   useEffect(() => {
@@ -138,8 +138,8 @@ export default function ReportsPage() {
 
     const controller = new AbortController();
     const params = new URLSearchParams({
-      from: buildDateTimeISO(new Date(filters.from), filters.fromTime),
-      to: buildDateTimeISO(new Date(filters.to), filters.toTime),
+      from: buildDateTimeISO(new Date(filters.from), filters.fromTime, timezone),
+      to: buildDateTimeISO(new Date(filters.to), filters.toTime, timezone),
     });
 
     apiFetch<{ cycles: number[] }>(`/api/cycles/list?${params.toString()}`, {
@@ -160,7 +160,7 @@ export default function ReportsPage() {
       });
 
     return () => controller.abort();
-  }, [filters.from, filters.to, filters.fromTime, filters.toTime]);
+  }, [filters.from, filters.to, filters.fromTime, filters.toTime, timezone]);
 
   const downloadReport = useCallback(async () => {
     if (!dateRange?.from || !dateRange?.to) return;
@@ -168,8 +168,8 @@ export default function ReportsPage() {
     setDownloading(true);
     try {
       const params = new URLSearchParams({
-        from: buildDateTimeISO(dateRange.from, filters.fromTime),
-        to: buildDateTimeISO(dateRange.to, filters.toTime),
+        from: buildDateTimeISO(dateRange.from, filters.fromTime, timezone),
+        to: buildDateTimeISO(dateRange.to, filters.toTime, timezone),
         lang: locale,
       });
       if (selectedFields.length > 0) {
@@ -206,7 +206,7 @@ export default function ReportsPage() {
     } finally {
       setDownloading(false);
     }
-  }, [dateRange, filters.fromTime, filters.toTime, filters.cycle, exportFormat, locale, selectedFields, t]);
+  }, [dateRange, filters.fromTime, filters.toTime, filters.cycle, exportFormat, locale, timezone, selectedFields, t]);
 
   const hasDateRange = Boolean(dateRange?.from && dateRange?.to);
 

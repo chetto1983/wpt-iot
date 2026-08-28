@@ -95,6 +95,7 @@ services:
       PG_PASSWORD: ${PG_PASSWORD:-wpt_dev_password}
       PORT: 3000
       HOST: 0.0.0.0
+      APP_TIMEZONE: ${APP_TIMEZONE:-Europe/Rome}
       UDP_PORT_DATA: 9090
       UDP_PORT_ALARMS: 9091
       UDP_PORT_USERS: 9092

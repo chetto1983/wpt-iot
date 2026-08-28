@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { format } from 'date-fns';
 import {
   CartesianGrid,
   Line,
@@ -22,6 +21,8 @@ import {
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { EnergyMetric, EnergyBucket, IEnergyAggregateResponse } from '@wpt/types';
+import { formatZonedDate, formatZonedTime } from '@wpt/types';
+import { useAppLocale } from '@/lib/locale';
 
 function selectEnergyBucket(
   from: Date,
@@ -66,6 +67,7 @@ export function EnergyTrendCard({
   onMetricChange,
 }: EnergyTrendCardProps) {
   const t = useTranslations('energy');
+  const { timezone } = useAppLocale();
   const chartContainerRef = useRef<HTMLDivElement | null>(null);
   const [chartSize, setChartSize] = useState({ width: 0, height: 0 });
 
@@ -100,10 +102,10 @@ export function EnergyTrendCard({
         timestamp: bucketDate.getTime(),
         label:
           aggregate.bucket === 'day'
-            ? format(bucketDate, 'dd/MM')
+            ? formatZonedDate(bucketDate, timezone).slice(0, 5)
             : aggregate.bucket === 'hour'
-              ? format(bucketDate, 'dd/MM HH:mm')
-              : format(bucketDate, 'HH:mm'),
+              ? `${formatZonedDate(bucketDate, timezone).slice(0, 5)} ${formatZonedTime(bucketDate, timezone)}`
+              : formatZonedTime(bucketDate, timezone),
         kwh: row.kwhDelta,
         eur: row.costEur,
         kgco2: row.co2Kg,

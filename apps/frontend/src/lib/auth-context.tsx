@@ -17,6 +17,7 @@ interface User {
   role: string;
   avatar?: string | null;
   language: string;
+  timezone: string;
 }
 
 interface AuthContextValue {

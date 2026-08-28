@@ -18,6 +18,7 @@ import {
 import { ModeToggle } from '@/components/shared/mode-toggle';
 import { LanguageSelector } from '@/components/shared/language-selector';
 import { cn } from '@/lib/utils';
+import { useAppLocale } from '@/lib/locale';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || '';
 
@@ -55,18 +56,11 @@ export function AppHeader() {
   const tDash = useTranslations('dashboard');
   const { connected, lastUpdate } = useWsData();
   const { user } = useAuth();
+  const { formatDate, formatTimeFull } = useAppLocale();
   const now = useClock();
 
-  const timeStr = now.toLocaleTimeString([], {
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-  });
-  const dateStr = now.toLocaleDateString([], {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-  });
+  const timeStr = formatTimeFull(now);
+  const dateStr = formatDate(now);
   const pageTitle = t(getPageTitleKey(pathname));
 
   useEffect(() => {

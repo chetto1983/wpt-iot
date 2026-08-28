@@ -17,6 +17,7 @@ import { applyMigrations } from './db/migrator.js';
 import { applyTimescaleSetup } from './db/timescaleSetup.js';
 import { pool } from './db/index.js';
 import { AlarmRetentionService } from './services/alarmRetentionService.js';
+import { ApplicationConfigService } from './services/applicationConfigService.js';
 
 function setupGracefulShutdown(server: ReturnType<typeof buildServer>): void {
   let shuttingDown = false;
@@ -118,6 +119,9 @@ async function main(): Promise<void> {
     // on its next read.
     await PlcConfigService.ensureTable();
     setPlcConfigLogger(server.log);
+
+    // Load global UI settings before any request or export can format a date.
+    await ApplicationConfigService.initialize();
 
     // Apply the persisted PLC byte order to the parsers BEFORE the UDP pipeline
     // starts, so the running decoder matches the DB. The PUT /api/plc/config

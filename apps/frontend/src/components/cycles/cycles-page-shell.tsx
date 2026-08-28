@@ -4,9 +4,10 @@ import { useState, useEffect, useMemo } from 'react';
 import { RotateCcw, Wifi, WifiOff, FileSpreadsheet, FileText } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
-import { startOfMonth, endOfMonth } from 'date-fns';
+import { getZonedDateTimeParts, getZonedMonthRange } from '@wpt/types';
 
 import { apiFetch } from '@/lib/api';
+import { useAppLocale } from '@/lib/locale';
 import { useWsData } from '@/lib/ws-context';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -24,9 +25,13 @@ type SortOrder = 'asc' | 'desc';
 export function CyclesPageShell() {
   const t = useTranslations('cycles');
   const { connected } = useWsData();
+  const { timezone } = useAppLocale();
 
-  const now = new Date();
-  const [selectedMonth, setSelectedMonth] = useState({ year: now.getFullYear(), month: now.getMonth() + 1 });
+  const currentMonth = getZonedDateTimeParts(new Date(), timezone);
+  const [selectedMonth, setSelectedMonth] = useState({
+    year: currentMonth.year,
+    month: currentMonth.month,
+  });
   const [viewMode, setViewMode] = useState<ViewMode>('register');
   const [sortColumn, setSortColumn] = useState('cycleNumber');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
@@ -39,8 +44,10 @@ export function CyclesPageShell() {
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
   const [isExporting, setIsExporting] = useState<'csv' | 'pdf' | null>(null);
 
-  const fromDate = useMemo(() => startOfMonth(new Date(selectedMonth.year, selectedMonth.month - 1, 1)), [selectedMonth]);
-  const toDate = useMemo(() => endOfMonth(new Date(selectedMonth.year, selectedMonth.month - 1, 1)), [selectedMonth]);
+  const { from: fromDate, to: toDate } = useMemo(
+    () => getZonedMonthRange(selectedMonth.year, selectedMonth.month, timezone),
+    [selectedMonth, timezone],
+  );
 
   useEffect(() => {
     const controller = new AbortController();

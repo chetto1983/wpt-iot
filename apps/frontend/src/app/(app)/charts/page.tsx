@@ -23,6 +23,7 @@ import { useAuth } from '@/lib/auth-context';
 import { apiFetch } from '@/lib/api';
 import { CHART_COLORS } from '@/lib/chart-colors';
 import { formatTick } from '@/lib/chart-format';
+import { useAppLocale } from '@/lib/locale';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -45,6 +46,7 @@ interface IChartResponse {
 export default function ChartsPage() {
   const t = useTranslations('charts');
   const { user } = useAuth();
+  const { timezone } = useAppLocale();
   const locale = (user?.language ?? 'it') as 'it' | 'en';
   const role = user?.role ?? 'CLIENT';
 
@@ -342,7 +344,7 @@ export default function ChartsPage() {
                       type="number"
                       domain={xDomain ?? ['dataMin', 'dataMax']}
                       tickFormatter={(v: number) =>
-                        formatTick(v, chartData.resolution)
+                        formatTick(v, chartData.resolution, timezone)
                       }
                       tick={{
                         fill: 'var(--color-muted-foreground)',
@@ -359,7 +361,7 @@ export default function ChartsPage() {
                     />
                     <RechartsTooltip
                       labelFormatter={(v) =>
-                        formatTick(v as number, chartData.resolution)
+                        formatTick(v as number, chartData.resolution, timezone)
                       }
                       formatter={(value) =>
                         typeof value === 'number'
@@ -399,7 +401,7 @@ export default function ChartsPage() {
                       height={30}
                       stroke="var(--color-primary)"
                       tickFormatter={(v: number) =>
-                        formatTick(v, chartData.resolution)
+                        formatTick(v, chartData.resolution, timezone)
                       }
                     />
                   </LineChart>

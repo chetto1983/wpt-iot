@@ -17,7 +17,13 @@
 import { sql } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import { createDeterministicPdfBuffer } from './pdf/index.js';
-import { formatItDate, formatItDateTime } from '@wpt/types';
+import {
+  formatItDate,
+  formatItDateTime,
+  formatZonedTime,
+  getZonedDateTimeParts,
+} from '@wpt/types';
+import { config as appConfig } from '../config.js';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -83,19 +89,15 @@ function escapeCsv(value: string | number | null | undefined): string {
  * Format time as HH:MM from Date.
  */
 function formatTime(d: Date): string {
-  return new Intl.DateTimeFormat('it-IT', {
-    timeZone: 'Europe/Rome',
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-  }).format(d);
+  return formatZonedTime(d, appConfig.timezone);
 }
 
 /**
  * Format month-year for filename: YYYY_MM (e.g., 2026_04).
  */
 function formatMonthYear(d: Date): string {
-  return `${d.getUTCFullYear()}_${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
+  const parts = getZonedDateTimeParts(d, appConfig.timezone);
+  return `${parts.year}_${String(parts.month).padStart(2, '0')}`;
 }
 
 /**
@@ -106,9 +108,10 @@ function formatMonthYearItalian(d: Date, uppercase = false): string {
     'gennaio', 'febbraio', 'marzo', 'aprile', 'maggio', 'giugno',
     'luglio', 'agosto', 'settembre', 'ottobre', 'novembre', 'dicembre',
   ];
-  const monthIdx = d.getUTCMonth();
+  const parts = getZonedDateTimeParts(d, appConfig.timezone);
+  const monthIdx = parts.month - 1;
   const month = monthNames[monthIdx] ?? 'sconosciuto';
-  const year = d.getUTCFullYear();
+  const year = parts.year;
   if (uppercase) {
     return `${month.toUpperCase()} ${year}`;
   }
@@ -152,7 +155,7 @@ function buildCsvContent(records: ICycleRecord[]): string {
     const values = [
       r.orderNumber ?? '',           // Numero Ordine
       r.cycleNumber,                 // Ciclo
-      formatItDate(r.startedAt),     // Data
+      formatItDate(r.startedAt, appConfig.timezone), // Data
       formatTime(r.startedAt),       // Ora Inizio
       formatTime(r.endedAt),         // Ora Fine
       r.cycleStatusLabel ?? '',      // Stato Ciclo
@@ -199,7 +202,7 @@ function buildPdfDocumentDefinition(
   // Table data rows
   const tableRows = records.map((r) => [
     r.cycleNumber,
-    formatItDate(r.startedAt),
+    formatItDate(r.startedAt, appConfig.timezone),
     formatTime(r.startedAt),
     formatTime(r.endedAt),
     r.cycleStatusLabel ?? '',
@@ -223,7 +226,7 @@ function buildPdfDocumentDefinition(
       style: 'subtitle',
     },
     { text: `Registro Mensile Cicli - ${monthYear}`, style: 'title' },
-    { text: `Generato: ${formatItDateTime(generatedAt)}`, style: 'timestamp' },
+    { text: `Generato: ${formatItDateTime(generatedAt, appConfig.timezone)}`, style: 'timestamp' },
     { text: '', margin: [0, 10, 0, 10] as [number, number, number, number] }, // spacer
   ];
 

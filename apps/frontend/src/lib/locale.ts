@@ -1,26 +1,10 @@
 'use client';
 
 import { useMemo } from 'react';
-import { format, type Locale } from 'date-fns';
+import type { Locale } from 'date-fns';
 import { it as itLocale } from 'date-fns/locale';
+import { getZonedDateTimeParts, resolveTimezone } from '@wpt/types';
 import { useAuth } from '@/lib/auth-context';
-
-// ---------------------------------------------------------------------------
-// Browser timezone detection (cached once per session)
-// ---------------------------------------------------------------------------
-
-let _cachedTz: string | undefined;
-
-function getBrowserTimezone(): string {
-  if (!_cachedTz) {
-    try {
-      _cachedTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    } catch {
-      _cachedTz = 'Europe/Rome'; // safe default for WPT deployments
-    }
-  }
-  return _cachedTz;
-}
 
 // ---------------------------------------------------------------------------
 // Locale value type
@@ -29,7 +13,7 @@ function getBrowserTimezone(): string {
 interface AppLocale {
   /** 'it' or 'en' — from user DB setting, default 'it' */
   language: 'it' | 'en';
-  /** IANA timezone string from browser, e.g. 'Europe/Rome' */
+  /** IANA timezone string configured for this WPT installation */
   timezone: string;
   /** BCP 47 locale tag for Intl APIs: 'it-IT' or 'en-GB' */
   bcp47: string;
@@ -58,7 +42,7 @@ export function useAppLocale(): AppLocale {
   const language = (user?.language ?? 'it') as 'it' | 'en';
 
   return useMemo<AppLocale>(() => {
-    const timezone = getBrowserTimezone();
+    const timezone = resolveTimezone(user?.timezone);
     const dateFnsLocale = language === 'it' ? itLocale : undefined;
     const bcp47 = language === 'it' ? 'it-IT' : 'en-GB';
 
@@ -101,11 +85,16 @@ export function useAppLocale(): AppLocale {
       timezone,
       bcp47,
       dateFnsLocale,
-      formatDateParam: (d: Date) => format(d, 'yyyy-MM-dd'),
+      formatDateParam: (d: Date) => {
+        const parts = getZonedDateTimeParts(d, timezone);
+        return `${parts.year}-${String(parts.month).padStart(2, '0')}-${String(
+          parts.day,
+        ).padStart(2, '0')}`;
+      },
       formatDate: (d: Date) => dateFormatter.format(d),
       formatDateTime: (d: Date) => dateTimeFormatter.format(d),
       formatTime: (d: Date) => timeFormatter.format(d),
       formatTimeFull: (d: Date) => timeFullFormatter.format(d),
     };
-  }, [language]);
+  }, [language, user?.timezone]);
 }

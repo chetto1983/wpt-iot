@@ -3,6 +3,7 @@ import { db } from '../db/index.js';
 import { machineSnapshots } from '../db/schema/machine.js';
 import { alarmEvents } from '../db/schema/alarms.js';
 import { formatEnumValue } from '../i18n/enumLabels.js';
+import { formatZonedDateTime } from '@wpt/types';
 
 // ---------------------------------------------------------------------------
 // Interfaces
@@ -101,6 +102,7 @@ export class ReportService {
     fields: readonly string[],
     headers: string[],
     locale: 'it' | 'en' = 'it',
+    timezone?: string,
   ): string {
     const lines: string[] = [];
 
@@ -112,7 +114,11 @@ export class ReportService {
       const values = fields.map((field) => {
         const val = row[field];
         if (val === null || val === undefined) return '';
-        if (val instanceof Date) return val.toISOString();
+        if (val instanceof Date) {
+          return timezone
+            ? escapeCSV(formatZonedDateTime(val, timezone, true))
+            : val.toISOString();
+        }
         return escapeCSV(formatEnumValue(field, val, locale));
       });
       lines.push(values.join(','));
@@ -128,17 +134,22 @@ export class ReportService {
   static formatAlarmForExport(
     event: IAlarmEventRow,
     locale: 'it' | 'en',
+    timezone?: string,
   ): Record<string, string | boolean> {
     const alarmCode = `A${String(event.alarmIndex + 1).padStart(4, '0')}`;
     const description =
       locale === 'it' ? event.descriptionIt : event.descriptionEn;
-    const activatedAt = event.activatedAt.toISOString();
+    const activatedAt = timezone
+      ? formatZonedDateTime(event.activatedAt, timezone, true)
+      : event.activatedAt.toISOString();
     const isActive = event.resetAt === null;
     const resetAt = isActive
       ? locale === 'it'
         ? 'Attivo'
         : 'Active'
-      : event.resetAt!.toISOString();
+      : timezone
+        ? formatZonedDateTime(event.resetAt!, timezone, true)
+        : event.resetAt!.toISOString();
 
     let duration = '--';
     if (event.resetAt) {

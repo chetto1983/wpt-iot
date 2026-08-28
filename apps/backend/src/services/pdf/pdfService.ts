@@ -3,6 +3,7 @@ import type pdfmakeType from 'pdfmake';
 import { formatEnumValue } from '../../i18n/enumLabels.js';
 import { createDeterministicPdfBuffer } from './pdfDocumentFactory.js';
 import { ensurePdfFonts } from './pdfFonts.js';
+import { DEFAULT_TIMEZONE, formatZonedDateTime } from '@wpt/types';
 
 const LEGACY_REPORT_METADATA_DATE = '2026-04-09T00:00:00.000Z';
 const require = createRequire(import.meta.url);
@@ -24,6 +25,7 @@ export class PdfService {
     headers: string[],
     title: string,
     locale: 'it' | 'en' = 'it',
+    timezone = DEFAULT_TIMEZONE,
   ): Promise<Buffer> {
     ensurePdfFonts(pdfmake);
 
@@ -43,7 +45,9 @@ export class PdfService {
       fields.map((field) => {
         const val = row[field];
         if (val === null || val === undefined) return { text: '', fontSize };
-        if (val instanceof Date) return { text: val.toISOString(), fontSize };
+        if (val instanceof Date) {
+          return { text: formatZonedDateTime(val, timezone, true), fontSize };
+        }
         return { text: formatEnumValue(field, val, locale), fontSize };
       }),
     );

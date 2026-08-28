@@ -20,7 +20,6 @@ import {
   Brush,
   ReferenceArea,
 } from 'recharts';
-import { format } from 'date-fns';
 import { ErrorBoundary } from 'react-error-boundary';
 import { useTranslations } from 'next-intl';
 import { AlertCircle, AlertTriangle, RotateCcw } from 'lucide-react';
@@ -36,6 +35,8 @@ import {
 } from '@/lib/field-units';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
+import { useAppLocale } from '@/lib/locale';
+import { formatZonedDate, formatZonedTime } from '@wpt/types';
 
 /* ========================================================================
  * Grafana-style chart constants
@@ -94,12 +95,17 @@ function PanelErrorFallback({ resetErrorBoundary }: { resetErrorBoundary: () => 
   );
 }
 
-function formatTooltipLabel(epochMs: number, resolution: string): string {
+function formatTooltipLabel(
+  epochMs: number,
+  resolution: string,
+  timezone: string,
+): string {
   const d = new Date(epochMs);
-  if (resolution === 'raw') return format(d, 'dd/MM HH:mm:ss');
-  if (resolution === '5min') return format(d, 'dd/MM HH:mm');
-  if (resolution === '1d') return format(d, 'dd/MM/yyyy');
-  return format(d, 'dd/MM/yyyy HH:mm');
+  const date = formatZonedDate(d, timezone);
+  if (resolution === 'raw') return `${date.slice(0, 5)} ${formatZonedTime(d, timezone, true)}`;
+  if (resolution === '5min') return `${date.slice(0, 5)} ${formatZonedTime(d, timezone)}`;
+  if (resolution === '1d') return date;
+  return `${date} ${formatZonedTime(d, timezone)}`;
 }
 
 interface PanelChartProps {
@@ -119,6 +125,7 @@ export const PanelChart = React.memo(function PanelChart({
   locale,
   loading,
 }: PanelChartProps) {
+  const { timezone } = useAppLocale();
   if (loading) {
     return <Skeleton className="h-full w-full" />;
   }
@@ -142,6 +149,7 @@ export const PanelChart = React.memo(function PanelChart({
           data={data}
           resolution={resolution}
           locale={locale}
+          timezone={timezone}
         />
       )}
     </ErrorBoundary>
@@ -266,12 +274,14 @@ function TimeSeriesRenderer({
   data,
   resolution,
   locale,
+  timezone,
 }: {
   chartType: 'line' | 'bar' | 'area';
   config: IPanelConfig;
   data: Array<Record<string, number | string>>;
   resolution: string;
   locale: 'it' | 'en';
+  timezone: string;
 }) {
   const yDomain: [number | string, number | string] = config.yAxisRange
     ? [config.yAxisRange.min, config.yAxisRange.max]
@@ -379,7 +389,7 @@ function TimeSeriesRenderer({
         type="number"
         scale="time"
         domain={xDomain ?? ['dataMin', 'dataMax']}
-        tickFormatter={(v: number) => formatTick(v, resolution)}
+        tickFormatter={(v: number) => formatTick(v, resolution, timezone)}
         tick={AXIS_TICK}
         tickLine={{ stroke: 'var(--color-border)' }}
         axisLine={{ stroke: 'var(--color-border)' }}
@@ -396,7 +406,7 @@ function TimeSeriesRenderer({
         width={yUnit ? 56 : 44}
       />
       <Tooltip
-        labelFormatter={(v) => formatTooltipLabel(v as number, resolution)}
+        labelFormatter={(v) => formatTooltipLabel(v as number, resolution, timezone)}
         formatter={tooltipFormatter}
         contentStyle={TOOLTIP_STYLE}
         itemStyle={TOOLTIP_ITEM_STYLE}
@@ -465,7 +475,7 @@ function TimeSeriesRenderer({
               height={20}
               stroke="var(--color-primary)"
               travellerWidth={10}
-              tickFormatter={(v: number) => formatTick(v, resolution)}
+              tickFormatter={(v: number) => formatTick(v, resolution, timezone)}
             />
           </LineChart>
         </ResponsiveContainer>

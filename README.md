@@ -214,6 +214,7 @@ Copy `.env.example` to `.env` (done automatically by `setup.sh`):
 | `SESSION_COOKIE_SECURE` | `false` | Set `true` behind HTTPS |
 | `TRUST_PROXY`     | `false` | Set `true` when TLS terminates at nginx |
 | `PORT`            | `3000`             | Backend HTTP port              |
+| `APP_TIMEZONE`    | `Europe/Rome`       | IANA timezone used by UI, filters and exports |
 
 ## Roles
 

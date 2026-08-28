@@ -1,7 +1,7 @@
 'use client';
 
 import { memo } from 'react';
-import { useLocale, useTranslations } from 'next-intl';
+import { useTranslations } from 'next-intl';
 import {
   AreaChart,
   Area,
@@ -11,6 +11,7 @@ import {
   ResponsiveContainer,
   ReferenceLine,
 } from 'recharts';
+import { useAppLocale } from '@/lib/locale';
 
 export interface ITimelinePoint {
   time: string;
@@ -30,7 +31,7 @@ export const AnomalyTimeline = memo(function AnomalyTimeline({
   criticalThreshold = 3.5,
 }: AnomalyTimelineProps) {
   const t = useTranslations('dashboard');
-  const locale = useLocale();
+  const { formatTimeFull } = useAppLocale();
 
   const criticalColor = typeof window !== 'undefined'
     ? getComputedStyle(document.documentElement).getPropertyValue('--severity-critical').trim()
@@ -50,8 +51,6 @@ export const AnomalyTimeline = memo(function AnomalyTimeline({
     );
   }
 
-  const fmt = new Intl.DateTimeFormat(locale, { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-
   return (
     <div className="space-y-2">
       <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
@@ -67,7 +66,7 @@ export const AnomalyTimeline = memo(function AnomalyTimeline({
           </defs>
           <XAxis
             dataKey="time"
-            tickFormatter={(v: string) => fmt.format(new Date(v))}
+            tickFormatter={(v: string) => formatTimeFull(new Date(v))}
             tick={{ fontSize: 10, fill: '#888' }}
             tickLine={false}
             axisLine={false}
@@ -88,7 +87,7 @@ export const AnomalyTimeline = memo(function AnomalyTimeline({
               borderRadius: 8,
               fontSize: 12,
             }}
-            labelFormatter={(v) => fmt.format(new Date(String(v)))}
+            labelFormatter={(v) => formatTimeFull(new Date(String(v)))}
             formatter={(value) => [Number(value).toFixed(2), 'Score']}
           />
           <ReferenceLine

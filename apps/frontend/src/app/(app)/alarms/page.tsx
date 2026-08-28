@@ -69,7 +69,7 @@ export default function AlarmsPage() {
 
 function AlarmsContent({ locale }: { locale: string }) {
   const t = useTranslations('alarms');
-  const { formatDateTime } = useAppLocale();
+  const { timezone, formatDateTime } = useAppLocale();
 
   const [filters, setFilters] = useQueryStates({
     from: parseAsString,
@@ -113,8 +113,8 @@ function AlarmsContent({ locale }: { locale: string }) {
     setLoading(true);
 
     const params = new URLSearchParams({
-      from: buildDateTimeISO(new Date(filters.from), filters.fromTime),
-      to: buildDateTimeISO(new Date(filters.to), filters.toTime),
+      from: buildDateTimeISO(new Date(filters.from), filters.fromTime, timezone),
+      to: buildDateTimeISO(new Date(filters.to), filters.toTime, timezone),
       status: filters.status,
       lang: locale,
     });
@@ -139,7 +139,7 @@ function AlarmsContent({ locale }: { locale: string }) {
       });
 
     return () => controller.abort();
-  }, [filters.from, filters.to, filters.fromTime, filters.toTime, filters.status, locale, t]);
+  }, [filters.from, filters.to, filters.fromTime, filters.toTime, filters.status, locale, timezone, t]);
 
   const downloadAlarmReport = useCallback(async () => {
     if (!dateRange?.from || !dateRange?.to) return;
@@ -147,8 +147,8 @@ function AlarmsContent({ locale }: { locale: string }) {
     setDownloading(true);
     try {
       const params = new URLSearchParams({
-        from: buildDateTimeISO(dateRange.from, filters.fromTime),
-        to: buildDateTimeISO(dateRange.to, filters.toTime),
+        from: buildDateTimeISO(dateRange.from, filters.fromTime, timezone),
+        to: buildDateTimeISO(dateRange.to, filters.toTime, timezone),
         status: filters.status,
         lang: locale,
       });
@@ -180,7 +180,7 @@ function AlarmsContent({ locale }: { locale: string }) {
     } finally {
       setDownloading(false);
     }
-  }, [dateRange, filters.fromTime, filters.toTime, filters.status, exportFormat, locale, t]);
+  }, [dateRange, filters.fromTime, filters.toTime, filters.status, exportFormat, locale, timezone, t]);
 
   const hasDateRange = Boolean(dateRange?.from && dateRange?.to);
 

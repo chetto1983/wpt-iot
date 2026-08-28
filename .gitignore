@@ -20,3 +20,4 @@ test-results/
 docs/bachi.docx
 docs/bachi.pdf
 tmp/*
+.codex-tmp/playwright-table-audit/*

@@ -27,6 +27,7 @@ import { anomalyShadowRoutes } from './routes/anomalyShadow.js';
 import { anomalyDebugRoutes } from './routes/anomalyDebug.js';
 import { cycleRoutes } from './routes/cycles.js';
 import { alarmCatalogRoutes } from './routes/alarmCatalog.js';
+import { applicationConfigRoutes } from './routes/applicationConfig.js';
 import { wsRoute } from './ws/route.js';
 
 const isDev = process.env.NODE_ENV !== 'production';
@@ -226,6 +227,9 @@ export function buildServer(): FastifyInstance {
 
   // 23. Alarm catalog route — /api/alarms/catalog?lang=en|it
   server.register(alarmCatalogRoutes, apiOpts);
+
+  // 24. Global application settings (Super Admin only).
+  server.register(applicationConfigRoutes, apiOpts);
 
   return server;
 }

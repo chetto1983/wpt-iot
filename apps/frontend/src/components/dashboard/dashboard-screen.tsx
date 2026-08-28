@@ -1,6 +1,5 @@
 'use client';
 
-import { format } from 'date-fns';
 import { AlertTriangle } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useWsData } from '@/lib/ws-context';
@@ -12,15 +11,17 @@ import { ProcessSnapshotCard } from './process-snapshot-card';
 import { JobSnapshotCard } from './job-snapshot-card';
 import { TechnicalSignalsCard } from './technical-signals-card';
 import { ActiveAlarmsPanel } from './active-alarms-panel';
+import { useAppLocale } from '@/lib/locale';
 
 export function DashboardScreen() {
   const { machineData, alarms, connected, plcConnected, plcLastPacketAt } = useWsData();
   const t = useTranslations('dashboard');
+  const { formatDateTime } = useAppLocale();
   const connectionState = getConnectionState(machineData, connected, plcConnected);
 
   if (connectionState === 'plc-offline') {
     const lastSeen = plcLastPacketAt
-      ? format(new Date(plcLastPacketAt), 'dd/MM/yyyy HH:mm:ss')
+      ? formatDateTime(new Date(plcLastPacketAt))
       : null;
     return (
       <div className="flex min-h-full items-center justify-center p-6">

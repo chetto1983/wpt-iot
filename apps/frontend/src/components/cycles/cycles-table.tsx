@@ -4,6 +4,7 @@ import { useTranslations } from 'next-intl';
 import { ChevronUp, ChevronDown } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
+import { useAppLocale } from '@/lib/locale';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -78,6 +79,7 @@ export function CyclesTable({
   isLoading = false,
 }: CyclesTableProps) {
   const t = useTranslations('cycles');
+  const { formatDate, formatTime } = useAppLocale();
   const shouldRenderMobileCards = process.env.NODE_ENV !== 'test';
 
   const columns: ColumnDef[] = [
@@ -109,15 +111,17 @@ export function CyclesTable({
   function formatCellValue(column: ColumnDef, cycle: ICycleRecordResponse): string {
     switch (column.key) {
       case 'date':
-        return cycle.date || '-';
+        return cycle.startedAt ? formatDate(new Date(cycle.startedAt)) : '-';
       case 'startTime':
         // Backfilled UNKNOWN rows only know the completion snapshot. Their
         // synthetic five-second "start" is not a real PLC cycle start.
         return cycle.cycleStatusLabel?.toUpperCase() === 'UNKNOWN'
           ? '-'
-          : cycle.startTime || '-';
+          : cycle.startedAt
+            ? formatTime(new Date(cycle.startedAt))
+            : '-';
       case 'endTime':
-        return cycle.endTime || '-';
+        return cycle.endedAt ? formatTime(new Date(cycle.endedAt)) : '-';
       case 'materialInputKg':
         return cycle.materialInputKg != null ? `${cycle.materialInputKg} kg` : '-';
       case 'materialOutputKg':
@@ -237,7 +241,9 @@ export function CyclesTable({
                       {t('columns.cycleNumber')}
                     </p>
                     <p className="text-lg font-semibold">{cycle.cycleNumber}</p>
-                    <p className="text-sm text-muted-foreground">{cycle.date || '-'}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {cycle.startedAt ? formatDate(new Date(cycle.startedAt)) : '-'}
+                    </p>
                   </div>
                   {renderStatusBadge(cycle)}
                 </div>
@@ -258,7 +264,9 @@ export function CyclesTable({
                     <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
                       {t('columns.endTime')}
                     </p>
-                    <p className="mt-1 text-sm font-medium">{cycle.endTime || '-'}</p>
+                    <p className="mt-1 text-sm font-medium">
+                      {cycle.endedAt ? formatTime(new Date(cycle.endedAt)) : '-'}
+                    </p>
                   </div>
                 </div>
 

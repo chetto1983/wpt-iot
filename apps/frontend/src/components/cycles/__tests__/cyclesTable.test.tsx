@@ -21,6 +21,20 @@ vi.mock('next-intl', () => ({
   },
 }));
 
+vi.mock('@/lib/locale', () => ({
+  useAppLocale: () => ({
+    formatDate: (date: Date) =>
+      new Intl.DateTimeFormat('it-IT', { timeZone: 'Europe/Rome' }).format(date),
+    formatTime: (date: Date) =>
+      new Intl.DateTimeFormat('it-IT', {
+        timeZone: 'Europe/Rome',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+      }).format(date),
+  }),
+}));
+
 import { CyclesTable } from '../cycles-table';
 import type { ICycleRecordResponse, ICyclesPagination } from '@/lib/api/cycles';
 
