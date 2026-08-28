@@ -1,0 +1,12 @@
+[Unit]
+Description=WPT IoT edge image update timer
+
+[Timer]
+OnBootSec=2min
+OnUnitInactiveSec=5min
+RandomizedDelaySec=30sec
+Persistent=true
+Unit=wpt-image-update.service
+
+[Install]
+WantedBy=timers.target

@@ -162,12 +162,14 @@ curl -fsSL "${RAW_URL}/mosquitto/config/mosquitto.conf"             -o mosquitto
 curl -fsSL "${RAW_URL}/mosquitto/config/dynamic-security.json"      -o mosquitto/config/dynamic-security.json
 curl -fsSL "${RAW_URL}/scripts/generate-local-tls.sh"               -o generate-local-tls.sh
 curl -fsSL "${RAW_URL}/scripts/wpt-local-alias.sh"                  -o wpt-local-alias.sh
-chmod +x generate-local-tls.sh wpt-local-alias.sh
+curl -fsSL "${RAW_URL}/scripts/wpt-image-update.sh"                 -o wpt-image-update.sh
+chmod +x generate-local-tls.sh wpt-local-alias.sh wpt-image-update.sh
 ok "Compose file, DB/mosquitto/nginx assets, and helpers downloaded."
 
 step "Step 5/7  avahi-daemon (mDNS aliases)"
 systemctl enable --now avahi-daemon
 install -m 0755 "${INSTALL_DIR}/wpt-local-alias.sh" /usr/local/sbin/wpt-local-alias.sh
+install -m 0755 "${INSTALL_DIR}/wpt-image-update.sh" /usr/local/sbin/wpt-image-update.sh
 
 cat > /etc/systemd/system/wpt-local-alias.service <<'UNITEOF'
 [Unit]
@@ -262,9 +264,13 @@ DEFEOF
 chmod 644 /etc/default/wpt-iot
 curl -fsSL "${RAW_URL}/scripts/wpt-tls-refresh.service" -o /etc/systemd/system/wpt-tls-refresh.service
 curl -fsSL "${RAW_URL}/scripts/wpt-tls-refresh.timer"   -o /etc/systemd/system/wpt-tls-refresh.timer
+curl -fsSL "${RAW_URL}/scripts/wpt-image-update.service" -o /etc/systemd/system/wpt-image-update.service
+curl -fsSL "${RAW_URL}/scripts/wpt-image-update.timer"   -o /etc/systemd/system/wpt-image-update.timer
 systemctl daemon-reload
 systemctl enable --now wpt-tls-refresh.timer
+systemctl enable --now wpt-image-update.timer
 ok "wpt-tls-refresh timer enabled (boot + every 15 min)."
+ok "wpt-image-update timer enabled (boot + every 5 min)."
 
 step "Step 7/7  Firewall + pull images + start stack"
 
