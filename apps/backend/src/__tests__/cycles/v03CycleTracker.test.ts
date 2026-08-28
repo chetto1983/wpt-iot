@@ -442,6 +442,26 @@ describe('V03 Cycle_Status edge detection FSM (RED — Phase 24)', () => {
     }));
   });
 
+  it('does not invent a close when the first snapshot after startup is terminal', async () => {
+    const log = { info: vi.fn(), warn: vi.fn(), error: vi.fn() };
+    await startV03CycleTracker(log);
+
+    machineDataHandler!(makeSnapshot({
+      cycleStatus: CycleStatus.FAILED,
+      completedCycles: 65,
+    }), new Date('2026-08-28T10:46:00Z'));
+
+    expect(emitCycleStart).not.toHaveBeenCalled();
+    expect(emitCycleClosed).not.toHaveBeenCalled();
+    expect(log.info).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: 'V03CycleTracker',
+        cycleStatus: CycleStatus.FAILED,
+      }),
+      'Initial terminal PLC state observed; waiting for a new start edge',
+    );
+  });
+
   it('replays the observed PLC sequence using status entry edges', async () => {
     const log = { info: vi.fn(), warn: vi.fn(), error: vi.fn() };
     await startV03CycleTracker(log);

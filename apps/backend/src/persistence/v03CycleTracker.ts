@@ -470,14 +470,18 @@ export async function startV03CycleTracker(log: IStoreLogger): Promise<void> {
           emitCycleClose(timestamp, snapshot, currentStatus);
         } else if (
           lastCycleStatus === CycleStatus.CYCLE_START ||
-          lastCycleStatus === CycleStatus.NONE ||
-          lastCycleStatus === null
+          lastCycleStatus === CycleStatus.NONE
         ) {
           log.warn?.(
             { name: 'V03CycleTracker', cycleStatus: currentStatus },
             'Skipped CYCLE_START state — cycle end detected without in-flight cycle',
           );
           emitSkippedCycleClose(timestamp, snapshot, currentStatus);
+        } else if (lastCycleStatus === null) {
+          log.info(
+            { name: 'V03CycleTracker', cycleStatus: currentStatus },
+            'Initial terminal PLC state observed; waiting for a new start edge',
+          );
         }
       }
 
