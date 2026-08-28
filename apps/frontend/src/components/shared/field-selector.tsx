@@ -22,6 +22,11 @@ const NON_CHARTABLE = new Set([
   'selectedCycle',
   'currentPhase',
   'machineStatus',
+  // Field mapping marks these slots as constant/reserved, so plotting them is
+  // misleading even though WPT payloads retain the raw values.
+  'thermoRightHighLower',
+  'spareReal01',
+  'spareReal02',
   // V03 — state-like INTs, not meaningful as time-series numbers
   'cycleStatus',
   'container',
@@ -39,7 +44,6 @@ const FIELD_CATEGORIES: Record<string, string[]> = {
     'thermoLeftHighLower',
     'thermoLeftHighMedium',
     'thermoLeftHighUpper',
-    'thermoRightHighLower',
     'holdingTempSetpoint',
   ],
   pressures: ['chamberPressure'],
@@ -62,8 +66,6 @@ const FIELD_CATEGORIES: Record<string, string[]> = {
     'materialOutputWeight',
     'energyConsumption',
     'waterConsumption',
-    'spareReal01',
-    'spareReal02',
   ],
   timers: ['completedCycles'],
 };

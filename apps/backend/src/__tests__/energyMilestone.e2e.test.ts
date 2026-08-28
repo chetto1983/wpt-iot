@@ -329,7 +329,6 @@ describe('energy milestone e2e', () => {
       url: pdfUrl,
       headers: { 'x-test-role': 'WPT' },
     });
-    let secondPdf: Buffer | null = null;
     if (firstPdfResponse.statusCode !== 200) {
       let pdfErrorMessage = 'unknown';
       try {
@@ -346,7 +345,7 @@ describe('energy milestone e2e', () => {
         `PDF route failed: status=${firstPdfResponse.statusCode} body=${firstPdfResponse.body}; service=${pdfErrorMessage}`,
       );
     }
-    secondPdf = await EnergyPdfService.generateIso50001Pdf({
+    const secondPdf = await EnergyPdfService.generateIso50001Pdf({
       from: MEASUREMENT_FROM,
       to: MEASUREMENT_TO,
       lang: 'en',

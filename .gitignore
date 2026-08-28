@@ -15,3 +15,6 @@ certs/
 
 *.tar*
 screenshots/*
+docs/bachi.docx
+docs/bachi.pdf
+tmp/*

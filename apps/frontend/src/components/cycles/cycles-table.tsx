@@ -60,6 +60,8 @@ function formatStatusLabel(
       return t('status.FAILED');
     case 'ABORTED':
       return t('status.ABORTED');
+    case 'UNKNOWN':
+      return t('status.UNKNOWN');
     default:
       return status || '-';
   }
@@ -109,7 +111,11 @@ export function CyclesTable({
       case 'date':
         return cycle.date || '-';
       case 'startTime':
-        return cycle.startTime || '-';
+        // Backfilled UNKNOWN rows only know the completion snapshot. Their
+        // synthetic five-second "start" is not a real PLC cycle start.
+        return cycle.cycleStatusLabel?.toUpperCase() === 'UNKNOWN'
+          ? '-'
+          : cycle.startTime || '-';
       case 'endTime':
         return cycle.endTime || '-';
       case 'materialInputKg':
@@ -241,7 +247,12 @@ export function CyclesTable({
                     <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
                       {t('columns.startTime')}
                     </p>
-                    <p className="mt-1 text-sm font-medium">{cycle.startTime || '-'}</p>
+                    <p className="mt-1 text-sm font-medium">
+                      {formatCellValue(
+                        { key: 'startTime', label: t('columns.startTime'), sortable: true },
+                        cycle,
+                      )}
+                    </p>
                   </div>
                   <div>
                     <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">

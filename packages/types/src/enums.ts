@@ -6,28 +6,36 @@ export enum CycleType {
   DRY_MIXED = 3,
   ORGANIC = 4,
   PAPER_CARDBOARD = 5,
-  CANS = 6,
+  MILK = 6,
   HOSPITAL = 7,
   GLASS = 8,
   PLASTIC = 9,
   PAPER_CARDBOARD_END = 10,
-  CANS_END = 11,
+  MILK_END = 11,
   PLASTIC_END = 12,
 }
 
-/** Machine phase from Mappatura S1_I_DATO_60 -- 5 states per spec PDF.
- * Members removed in Phase 28 cleanup (unused in code).
- * PLC sends raw INT16 values 0-4; parser stores as-is.
- * Frontend formatters fall back to 'N/A' for unlisted values.
- * Regenerate from spec if runtime code needs to branch on specific phases. */
-export enum MachinePhase {}
+/** Machine phase from Mappatura S1_I_DATO_60 -- 5 states per PLC mapping. */
+export enum MachinePhase {
+  NO_SELECTION = 0,
+  STANDBY = 1,
+  MANUAL = 2,
+  AUTOMATIC_STARTED = 3,
+  IN_ALARM = 4,
+}
 
-/** Machine status / processing sub-stage from Mappatura S1_I_DATO_61 -- 9 states per spec PDF.
- * Members removed in Phase 28 cleanup (unused in code).
- * PLC sends raw INT16 values 0-8; parser stores as-is.
- * Frontend formatters fall back to 'N/A' for unlisted values.
- * Regenerate from spec if runtime code needs to branch on specific statuses. */
-export enum MachineStatus {}
+/** Machine status / processing sub-stage from Mappatura S1_I_DATO_61. */
+export enum MachineStatus {
+  LOADING = 0,
+  SHREDDING = 1,
+  HEATING = 2,
+  EVAPORATION = 3,
+  OVERHEATING = 4,
+  HOLDING = 5,
+  COOLING = 6,
+  FINAL_DRYING = 7,
+  DISCHARGE = 8,
+}
 
 /** V03 Cycle_Status (S1_I_DATO_71) — lifecycle marker for cycle register.
  * 0=nothing (idle), 1=Cycle_START (snapshot start counters),

@@ -326,10 +326,10 @@
           "lineNeutralVoltL2": "Volt L2-N",
           "lineNeutralVoltL3": "Volt L3-N",
           "pfTotal": "Power Factor",
-          "thermoLeftHighLower": "HiTemp L-Low",
-          "thermoLeftHighMedium": "HiTemp L-Mid",
-          "thermoLeftHighUpper": "HiTemp L-Up",
-          "thermoRightHighLower": "HiTemp R-Low"
+          "thermoLeftHighLower": "Thermal Band 01",
+          "thermoLeftHighMedium": "Thermal Band 02",
+          "thermoLeftHighUpper": "Thermal Band 03",
+          "thermoRightHighLower": "Spare INT 10"
         }
       },
       "timeline": {
@@ -404,9 +404,9 @@
         "thermoRightLower": "Thermo Right Lower",
         "thermoRightMedium": "Thermo Right Medium",
         "thermoRightUpper": "Thermo Right Upper",
-        "thermoLeftHighLower": "Thermo Left High Lower",
-        "thermoLeftHighMedium": "Thermo Left High Medium",
-        "thermoLeftHighUpper": "Thermo Left High Upper",
+        "thermoLeftHighLower": "Thermal Band 01",
+        "thermoLeftHighMedium": "Thermal Band 02",
+        "thermoLeftHighUpper": "Thermal Band 03",
         "thermoRightHighLower": "Thermo Right High Lower",
         "holdingTempSetpoint": "Holding Temp Setpoint",
         "mainMotorTorque": "Main Motor Torque",
@@ -439,12 +439,12 @@
       "DRY_MIXED": "Dry Mixed",
       "ORGANIC": "Organic",
       "PAPER_CARDBOARD": "Paper/Cardboard",
-      "CANS": "Cans",
+      "MILK": "Milk",
       "HOSPITAL": "Hospital",
       "GLASS": "Glass",
       "PLASTIC": "Plastic",
       "PAPER_CARDBOARD_END": "Paper/Cardboard End",
-      "CANS_END": "Cans End",
+      "MILK_END": "Milk End",
       "PLASTIC_END": "Plastic End"
     },
     "machinePhases": {
@@ -1235,7 +1235,8 @@
       "OK": "OK",
       "COMPLETED": "Completed",
       "FAILED": "Failed",
-      "ABORTED": "Aborted"
+      "ABORTED": "Aborted",
+      "UNKNOWN": "Missing PLC data"
     },
     "empty": "No cycles found",
     "emptyDescription": "No completed cycles in the selected period",

@@ -146,7 +146,6 @@ export class MqttConfigService {
     // Leave the row untouched and log so the operator provisions the key.
     const key = loadEncryptionKey();
     if (!key) {
-      // eslint-disable-next-line no-console
       console.warn(
         '[mqtt] mqtt_config.password is plaintext but SECRETS_ENCRYPTION_KEY is not set. The secret is stored unencrypted at rest. Provision SECRETS_ENCRYPTION_KEY and restart to migrate.',
       );
@@ -163,7 +162,6 @@ export class MqttConfigService {
         .update(mqttConfig)
         .set({ password: encrypted, updatedAt: new Date() })
         .where(eq(mqttConfig.id, 1));
-      // eslint-disable-next-line no-console
       console.warn(
         '[mqtt] migrated legacy default password to AES-256-GCM at rest. ROTATE IT SOON — every deployment before this commit shipped the same plaintext default, so the credential is effectively public. Set a new password via /mqtt and re-key the broker with mosquitto_ctrl dynsec setClientPassword wpt-backend <new>.',
       );
@@ -175,7 +173,6 @@ export class MqttConfigService {
       .update(mqttConfig)
       .set({ password: encrypted, updatedAt: new Date() })
       .where(eq(mqttConfig.id, 1));
-    // eslint-disable-next-line no-console
     console.info('[mqtt] migrated mqtt_config.password from plaintext to AES-256-GCM.');
   }
 

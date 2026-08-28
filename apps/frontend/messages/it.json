@@ -326,10 +326,10 @@
           "lineNeutralVoltL2": "Volt L2-N",
           "lineNeutralVoltL3": "Volt L3-N",
           "pfTotal": "Fattore potenza",
-          "thermoLeftHighLower": "HiTemp SX-basso",
-          "thermoLeftHighMedium": "HiTemp SX-medio",
-          "thermoLeftHighUpper": "HiTemp SX-alto",
-          "thermoRightHighLower": "HiTemp DX-basso"
+          "thermoLeftHighLower": "Termo Fascia 01",
+          "thermoLeftHighMedium": "Termo Fascia 02",
+          "thermoLeftHighUpper": "Termo Fascia 03",
+          "thermoRightHighLower": "Riserva INT 10"
         }
       },
       "timeline": {
@@ -404,9 +404,9 @@
         "thermoRightLower": "Termo destra basso",
         "thermoRightMedium": "Termo destra medio",
         "thermoRightUpper": "Termo destra alto",
-        "thermoLeftHighLower": "Termo sinistra alto basso",
-        "thermoLeftHighMedium": "Termo sinistra alto medio",
-        "thermoLeftHighUpper": "Termo sinistra alto alto",
+        "thermoLeftHighLower": "Termo Fascia 01",
+        "thermoLeftHighMedium": "Termo Fascia 02",
+        "thermoLeftHighUpper": "Termo Fascia 03",
         "thermoRightHighLower": "Termo destra alto basso",
         "holdingTempSetpoint": "Setpoint temperatura mantenimento",
         "mainMotorTorque": "Coppia motore principale",
@@ -439,12 +439,12 @@
       "DRY_MIXED": "Secco misto",
       "ORGANIC": "Organico",
       "PAPER_CARDBOARD": "Carta/Cartone",
-      "CANS": "Lattine",
+      "MILK": "Latte",
       "HOSPITAL": "Ospedaliero",
       "GLASS": "Vetro",
       "PLASTIC": "Plastica",
       "PAPER_CARDBOARD_END": "Fine carta/cartone",
-      "CANS_END": "Fine lattine",
+      "MILK_END": "Fine latte",
       "PLASTIC_END": "Fine plastica"
     },
     "machinePhases": {
@@ -1235,7 +1235,8 @@
       "OK": "OK",
       "COMPLETED": "Completato",
       "FAILED": "Fallito",
-      "ABORTED": "Interrotto"
+      "ABORTED": "Interrotto",
+      "UNKNOWN": "Dati PLC mancanti"
     },
     "empty": "Nessun ciclo trovato",
     "emptyDescription": "Nessun ciclo completato nel periodo selezionato",

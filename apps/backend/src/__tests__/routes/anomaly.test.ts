@@ -8,8 +8,6 @@ import Fastify, { type FastifyInstance } from 'fastify';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { IMachineAnomalyEvent } from '@wpt/types';
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
 // requireAuth preHandler mock: 401 on missing x-test-role header, otherwise pass.
 // Mirrors the Phase 42 test file shape but for the `requireAuth` (any role) gate.
 const requireAuthMock = vi.fn(async (request: any, reply: any) => {

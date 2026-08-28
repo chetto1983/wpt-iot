@@ -7,8 +7,6 @@
 import Fastify, { type FastifyInstance } from 'fastify';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
 // requireRole(...) preHandler mock: 401 no header / 403 wrong role / pass otherwise.
 const requireRoleMock = vi.fn(
   (...requiredRoles: string[]) => async (request: any, reply: any) => {

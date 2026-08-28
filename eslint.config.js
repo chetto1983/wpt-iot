@@ -46,7 +46,7 @@ export default tseslint.config(
       // Our backend uses the TypeScript ESM convention `import … from
       // '…/foo.js'` even though source files end in `.ts` — the node
       // resolver returns `null` for those targets, so the `boundaries/
-      // element-types` rule cannot classify them as `shadow` and the
+      // dependencies` rule cannot classify them as `shadow` and the
       // forbidden-import check silently passes. Making the rule actually
       // fire requires installing `eslint-import-resolver-typescript` and
       // wiring it via `settings['import/resolver']`. That is a new
@@ -61,16 +61,24 @@ export default tseslint.config(
       ],
     },
     rules: {
-      'boundaries/element-types': ['error', {
+      'boundaries/dependencies': ['error', {
         default: 'allow',
         rules: [
           {
-            from: ['user-broadcast'],
-            disallow: ['shadow'],
+            from: { type: 'user-broadcast' },
+            disallow: { to: { type: 'shadow' } },
             message: 'SHADOW-03 violation: files reachable by end users (ws/, mqtt/sparkplug*, routes/alarm*) must not import from services/anomaly/shadow/**. Shadow events are evaluation-only (D-06/D-07/D-08).',
           },
         ],
       }],
+    },
+  },
+  {
+    files: ['**/__tests__/**/*.{ts,tsx}', '**/*.test.{ts,tsx}'],
+    rules: {
+      // Test doubles frequently stand in for framework and database objects
+      // whose complete runtime shape is irrelevant to the assertion.
+      '@typescript-eslint/no-explicit-any': 'off',
     },
   },
   {

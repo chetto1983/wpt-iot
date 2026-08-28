@@ -122,6 +122,22 @@ describe('CyclesTable component', () => {
     expect(abortedBadge).toHaveAttribute('data-status', 'aborted');
   });
 
+  it('does not present a synthetic start time as real for UNKNOWN backfills', () => {
+    const cycles = [makeCycle({
+      cycleStatusLabel: 'UNKNOWN',
+      startTime: '09:52',
+      endTime: '09:53',
+    })];
+
+    render(
+      <CyclesTable cycles={cycles} viewMode="register" {...defaultProps} />,
+    );
+
+    expect(screen.queryByText('09:52')).not.toBeInTheDocument();
+    expect(screen.getByText('09:53')).toBeInTheDocument();
+    expect(screen.getByText('UNKNOWN')).toHaveAttribute('data-status', 'unknown');
+  });
+
   // ====================================================================
   // Test 4: Clicking column header triggers onSort callback
   // ====================================================================

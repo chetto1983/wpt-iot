@@ -25,7 +25,6 @@ export const PROCESS_FIELDS = [
   'selectedCycle',
   'currentPhase',
   'machineStatus',
-  'cycleStatus',           // V03 — Cycle_Status verdict (decoded via decodeCycleStatus)
   'materialInputWeight',
   'completedCycles',
 ] as const satisfies ReadonlyArray<keyof IMachineSnapshot>;
@@ -46,8 +45,11 @@ export const TECHNICAL_GROUPS = [
     fields: [
       'thermoLeftLower', 'thermoLeftMedium', 'thermoLeftUpper',
       'thermoRightLower', 'thermoRightMedium', 'thermoRightUpper',
+      // PLC S1_I_DATO_7..9 are thermal bands 01..03. Historical TypeScript
+      // names stay in place to avoid a storage-schema migration.
       'thermoLeftHighLower', 'thermoLeftHighMedium', 'thermoLeftHighUpper',
-      'thermoRightHighLower', 'holdingTempSetpoint',
+      // S1_I_DATO_10 is a constant zero in the field mapping: do not surface it.
+      'holdingTempSetpoint',
     ] as Array<keyof IMachineSnapshot>,
   },
   {
@@ -73,9 +75,5 @@ export const TECHNICAL_GROUPS = [
       'thermoLeftLowSel', 'thermoLeftMedSel', 'thermoLeftHighSel',
       'thermoRightLowSel', 'thermoRightMedSel', 'thermoRightHighSel',
     ] as Array<keyof IMachineSnapshot>,
-  },
-  {
-    groupKey: 'reservedSignal',
-    fields: ['spareReal01', 'spareReal02'] as Array<keyof IMachineSnapshot>,
   },
 ] as const;
