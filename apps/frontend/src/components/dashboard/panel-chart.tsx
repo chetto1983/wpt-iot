@@ -126,7 +126,7 @@ export const PanelChart = React.memo(function PanelChart({
   loading,
 }: PanelChartProps) {
   const { timezone } = useAppLocale();
-  if (loading) {
+  if (loading && data.length === 0) {
     return <Skeleton className="h-full w-full" />;
   }
 
