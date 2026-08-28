@@ -46,10 +46,12 @@ describe('ApplicationSettingsForm timezone', () => {
 
     render(<ApplicationSettingsForm />);
 
-    const input = await screen.findByLabelText('timezone');
-    expect(input).toHaveValue('Europe/Rome');
+    const selector = await screen.findByRole('combobox', { name: 'timezone' });
+    expect(await screen.findByText(/Europe\/Rome/)).toBeInTheDocument();
 
-    fireEvent.change(input, { target: { value: 'Asia/Tokyo' } });
+    fireEvent.focus(selector);
+    fireEvent.keyDown(selector, { key: 'ArrowDown' });
+    fireEvent.click(await screen.findByRole('option', { name: /Asia\/Tokyo/ }));
     fireEvent.click(screen.getByRole('button', { name: 'save' }));
 
     await waitFor(() => {
@@ -59,6 +61,44 @@ describe('ApplicationSettingsForm timezone', () => {
       });
       expect(refreshUserMock).toHaveBeenCalledOnce();
     });
+  });
+
+  it('offers the complete searchable IANA timezone list', async () => {
+    apiFetchMock.mockResolvedValueOnce({
+      id: 1,
+      timezone: 'Europe/Rome',
+      updatedAt: '2026-08-28T12:00:00.000Z',
+    });
+
+    render(<ApplicationSettingsForm />);
+
+    const selector = await screen.findByRole('combobox', { name: 'timezone' });
+    fireEvent.focus(selector);
+    fireEvent.keyDown(selector, { key: 'ArrowDown' });
+
+    expect(
+      await screen.findByRole('option', { name: /Pacific\/Auckland/ }),
+    ).toBeInTheDocument();
+  });
+
+  it('renders the timezone menu outside the card that would clip it', async () => {
+    apiFetchMock.mockResolvedValueOnce({
+      id: 1,
+      timezone: 'Europe/Rome',
+      updatedAt: '2026-08-28T12:00:00.000Z',
+    });
+
+    render(<ApplicationSettingsForm />);
+
+    const selector = await screen.findByRole('combobox', { name: 'timezone' });
+    fireEvent.focus(selector);
+    fireEvent.keyDown(selector, { key: 'ArrowDown' });
+
+    const listbox = await screen.findByRole('listbox');
+    const card = screen.getByText('title').closest('[data-slot="card"]');
+
+    expect(card).not.toContainElement(listbox);
+    expect(document.body).toContainElement(listbox);
   });
 
   it('shows the translated load error instead of a backend error string', async () => {

@@ -963,6 +963,8 @@
     "title": "Fuso orario",
     "description": "Le date restano memorizzate in UTC e vengono convertite soltanto per visualizzazione e input.",
     "timezone": "Fuso orario IANA",
+    "timezonePlaceholder": "Cerca un fuso orario...",
+    "noTimezones": "Nessun fuso orario trovato.",
     "timezoneHelp": "Esempio: Europe/Rome. La modifica si applica subito a tutte le pagine.",
     "invalidTimezone": "Inserisci un fuso orario IANA valido.",
     "save": "Salva",

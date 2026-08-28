@@ -963,6 +963,8 @@
     "title": "Timezone",
     "description": "Dates remain stored in UTC and are converted only for display and input.",
     "timezone": "IANA timezone",
+    "timezonePlaceholder": "Search for a timezone...",
+    "noTimezones": "No timezone found.",
     "timezoneHelp": "Example: Europe/Rome. The change applies to every page immediately.",
     "invalidTimezone": "Enter a valid IANA timezone.",
     "save": "Save",
