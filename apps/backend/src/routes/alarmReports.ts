@@ -3,8 +3,8 @@ import { UserRole, getAlarmFieldLabels } from '@wpt/types';
 import { requireRole } from '../auth/authHooks.js';
 import { ReportService } from '../services/reportService.js';
 import { PdfService } from '../services/pdf/index.js';
+import { ApplicationConfigService } from '../services/applicationConfigService.js';
 import { getAlarmHistoryRetentionViolation } from '../lib/dataRetention.js';
-import { config } from '../config.js';
 import { formatZonedDate } from '@wpt/types';
 
 const ALARM_EXPORT_FIELDS = [
@@ -68,7 +68,11 @@ export const alarmReportRoutes: FastifyPluginAsync = async (server) => {
 
     const rows = await ReportService.queryAlarmEvents({ from, to, status });
     const formatted = rows.map((row) =>
-      ReportService.formatAlarmForExport(row, lang, config.timezone),
+      ReportService.formatAlarmForExport(
+        row,
+        lang,
+        ApplicationConfigService.getTimezone(),
+      ),
     );
 
     if (formatted.length === 0) {
@@ -107,7 +111,11 @@ export const alarmReportRoutes: FastifyPluginAsync = async (server) => {
 
     const rows = await ReportService.queryAlarmEvents({ from, to, status });
     const formatted = rows.map((row) =>
-      ReportService.formatAlarmForExport(row, lang, config.timezone),
+      ReportService.formatAlarmForExport(
+        row,
+        lang,
+        ApplicationConfigService.getTimezone(),
+      ),
     );
 
     if (formatted.length === 0) {
@@ -163,5 +171,8 @@ function parseAlarmQuery(
 }
 
 function formatDateForFile(d: Date): string {
-  return formatZonedDate(d, config.timezone).split('/').reverse().join('-');
+  return formatZonedDate(d, ApplicationConfigService.getTimezone())
+    .split('/')
+    .reverse()
+    .join('-');
 }

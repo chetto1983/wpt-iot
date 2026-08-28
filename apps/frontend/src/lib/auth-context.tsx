@@ -32,6 +32,10 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || '';
 
+function syncTimezoneCookie(timezone: string): void {
+  document.cookie = `APP_TIMEZONE=${encodeURIComponent(timezone)};path=/;max-age=31536000;samesite=strict`;
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -51,6 +55,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const data = (await res.json()) as User;
         if (!cancelled) {
           setUser(data);
+          syncTimezoneCookie(data.timezone);
         }
       } catch {
         if (!cancelled) {
@@ -88,6 +93,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       const data = (await res.json()) as User;
       setUser(data);
+      syncTimezoneCookie(data.timezone);
 
       // Set NEXT_LOCALE cookie for next-intl SSR
       document.cookie = `NEXT_LOCALE=${language};path=/;max-age=31536000`;
@@ -108,6 +114,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Ignore errors — clear local state regardless
     }
     setUser(null);
+    document.cookie = 'APP_TIMEZONE=;path=/;max-age=0;samesite=strict';
     window.location.href = '/';
   }, []);
 
@@ -119,6 +126,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!res.ok) return;
       const data = (await res.json()) as User;
       setUser(data);
+      syncTimezoneCookie(data.timezone);
     } catch {
       // Ignore — user state stays as-is
     }

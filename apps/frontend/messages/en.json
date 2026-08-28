@@ -27,6 +27,7 @@
       "dashboards": "Dashboards",
       "mqtt": "MQTT Gateway",
       "plc": "PLC Settings",
+      "applicationSettings": "Application Settings",
       "energySettings": "Energy Settings",
       "debugDetector": "Debug Detector"
     },
@@ -955,6 +956,19 @@
       "error": "Error",
       "refresh": "Refresh activity log"
     }
+  },
+  "applicationSettings": {
+    "pageTitle": "Application settings",
+    "pageDescription": "Configure the timezone used by every page and export.",
+    "title": "Timezone",
+    "description": "Dates remain stored in UTC and are converted only for display and input.",
+    "timezone": "IANA timezone",
+    "timezoneHelp": "Example: Europe/Rome. The change applies to every page immediately.",
+    "invalidTimezone": "Enter a valid IANA timezone.",
+    "save": "Save",
+    "saved": "Timezone updated.",
+    "loadError": "Unable to load the timezone.",
+    "saveError": "Unable to save the timezone."
   },
   "plc": {
     "pageTitle": "PLC Settings",

@@ -1,4 +1,9 @@
-import type { ChartType } from '@wpt/types';
+import {
+  DEFAULT_TIMEZONE,
+  getZonedDateTimeParts,
+  zonedDateTimeToUtc,
+  type ChartType,
+} from '@wpt/types';
 
 /** ISA-101 aligned categorical palette, teal-anchored for WPT brand */
 export const CHART_COLORS = [
@@ -53,15 +58,29 @@ export const REFRESH_INTERVALS = [
  * Used by both the TimeRangePicker (preset click) and the auto-refresh
  * effect (sliding-window refresh) so they stay in sync.
  */
-export function computePresetRange(presetLabel: string): { from: Date; to: Date } | null {
+export function computePresetRange(
+  presetLabel: string,
+  timezone = DEFAULT_TIMEZONE,
+): { from: Date; to: Date } | null {
   const now = new Date();
   const preset = TIME_PRESETS.find((p) => p.label === presetLabel);
   if (!preset || preset.minutes === 0) return null;
   if (preset.minutes === -1) {
     // todaySoFar: from midnight today
-    const midnight = new Date(now);
-    midnight.setHours(0, 0, 0, 0);
-    return { from: midnight, to: now };
+    const parts = getZonedDateTimeParts(now, timezone);
+    return {
+      from: zonedDateTimeToUtc(
+        {
+          year: parts.year,
+          month: parts.month,
+          day: parts.day,
+          hour: 0,
+          minute: 0,
+        },
+        timezone,
+      ),
+      to: now,
+    };
   }
   return { from: new Date(now.getTime() - preset.minutes * 60_000), to: now };
 }

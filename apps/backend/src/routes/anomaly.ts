@@ -1,6 +1,11 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod/v4';
-import { UserRole } from '@wpt/types';
+import {
+  UserRole,
+  formatZonedDate,
+  formatZonedDateTime,
+  getZonedDateTimeParts,
+} from '@wpt/types';
 import {
   machineAnomalyService,
   MachineAnomalyEvaluationService,
@@ -9,6 +14,7 @@ import {
   MachineAnomalyScenarioService,
 } from '../services/anomaly/index.js';
 import { requireAuth, requireRole } from '../auth/authHooks.js';
+import { ApplicationConfigService } from '../services/applicationConfigService.js';
 
 const anomalySimulationSchema = z.object({
   scenario: z.enum(['temperature_spike', 'pressure_runaway', 'energy_drift', 'voltage_sag', 'pump_failure', 'water_leak', 'thermal_gradient']),
@@ -346,6 +352,7 @@ export const anomalyRoutes: FastifyPluginAsync = async (server) => {
       const data = await MachineAnomalyEventService.getReportData({ days });
       const { createDeterministicPdfBuffer } = await import('../services/pdf/index.js');
       const now = new Date();
+      const timezone = ApplicationConfigService.getTimezone();
 
       const tableBody = [
         [
@@ -360,7 +367,7 @@ export const anomalyRoutes: FastifyPluginAsync = async (server) => {
           const corr = data.correlations.find((c) => c.event.id === e.id);
           const alarmCount = corr?.alarms.length ?? 0;
           return [
-            { text: new Date(e.observedAt).toLocaleString('it-IT'), fontSize: 8 },
+            { text: formatZonedDateTime(new Date(e.observedAt), timezone, true), fontSize: 8 },
             { text: e.score.toFixed(2), fontSize: 8 },
             { text: e.status, fontSize: 8 },
             { text: e.modeKey, fontSize: 8 },
@@ -388,7 +395,7 @@ export const anomalyRoutes: FastifyPluginAsync = async (server) => {
           pageMargins: [40, 60, 40, 50],
           content: [
             { text: 'WPT IoT — Anomaly Detection Report', fontSize: 18, bold: true, margin: [0, 0, 0, 10] },
-            { text: `Period: ${days} days (${new Date(data.period.from).toLocaleDateString('it-IT')} — ${now.toLocaleDateString('it-IT')})`, fontSize: 10, color: '#666', margin: [0, 0, 0, 15] },
+            { text: `Period: ${days} days (${formatZonedDate(new Date(data.period.from), timezone)} — ${formatZonedDate(now, timezone)})`, fontSize: 10, color: '#666', margin: [0, 0, 0, 15] },
             { text: 'Summary', fontSize: 14, bold: true, margin: [0, 0, 0, 8] },
             {
               columns: [
@@ -418,7 +425,9 @@ export const anomalyRoutes: FastifyPluginAsync = async (server) => {
         },
       );
 
-      const filename = `anomaly-report-${days}d-${now.toISOString().slice(0, 10)}.pdf`;
+      const filenameParts = getZonedDateTimeParts(now, timezone);
+      const filenameDate = `${filenameParts.year}-${String(filenameParts.month).padStart(2, '0')}-${String(filenameParts.day).padStart(2, '0')}`;
+      const filename = `anomaly-report-${days}d-${filenameDate}.pdf`;
       return reply
         .header('Content-Type', 'application/pdf')
         .header('Content-Disposition', `attachment; filename="${filename}"`)

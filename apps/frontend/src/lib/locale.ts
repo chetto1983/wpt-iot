@@ -62,14 +62,14 @@ export function useAppLocale(): AppLocale {
       hour: '2-digit',
       minute: '2-digit',
       second: '2-digit',
-      hour12: false,
+      hourCycle: 'h23',
     });
 
     const timeFormatter = new Intl.DateTimeFormat(bcp47, {
       timeZone: timezone,
       hour: '2-digit',
       minute: '2-digit',
-      hour12: false,
+      hourCycle: 'h23',
     });
 
     const timeFullFormatter = new Intl.DateTimeFormat(bcp47, {
@@ -77,7 +77,7 @@ export function useAppLocale(): AppLocale {
       hour: '2-digit',
       minute: '2-digit',
       second: '2-digit',
-      hour12: false,
+      hourCycle: 'h23',
     });
 
     return {

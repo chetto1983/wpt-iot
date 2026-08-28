@@ -4,6 +4,8 @@ import type { DateRange } from 'react-day-picker';
 import { format, endOfDay } from 'date-fns';
 import { CalendarIcon } from 'lucide-react';
 
+import { toZonedCalendarDate } from '@/lib/date-utils';
+import { useAppLocale } from '@/lib/locale';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
@@ -26,6 +28,7 @@ export function DateRangePicker({
   placeholder = 'Select date range',
   disabled = false,
 }: DateRangePickerProps) {
+  const { timezone } = useAppLocale();
   let triggerText = placeholder;
   if (value?.from) {
     triggerText = value.to
@@ -58,7 +61,7 @@ export function DateRangePicker({
           selected={value}
           onSelect={onChange}
           numberOfMonths={2}
-          disabled={{ after: endOfDay(new Date()) }}
+          disabled={{ after: endOfDay(toZonedCalendarDate(new Date(), timezone)) }}
         />
       </PopoverContent>
     </Popover>

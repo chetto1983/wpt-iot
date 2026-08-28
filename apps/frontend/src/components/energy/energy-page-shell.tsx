@@ -13,6 +13,7 @@ import {
 } from '@wpt/types';
 import { apiFetch } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
+import { useAppLocale } from '@/lib/locale';
 import { useWsData } from '@/lib/ws-context';
 import { Badge } from '@/components/ui/badge';
 import { BaselineLockDialog } from './baseline-lock-dialog';
@@ -57,6 +58,7 @@ function buildEnergyDashboardPath(from: Date, to: Date): string {
 export function EnergyPageShell() {
   const t = useTranslations('energy');
   const { user } = useAuth();
+  const { formatDateParam } = useAppLocale();
   const { machineData, connected, lastUpdate } = useWsData();
   const initialRange = getDefaultRange();
   const [from, setFrom] = useState(initialRange.from);
@@ -229,7 +231,7 @@ export function EnergyPageShell() {
       const blob = await res.blob();
       const anchor = document.createElement('a');
       anchor.href = URL.createObjectURL(blob);
-      anchor.download = `energy-iso50001-${from.toISOString().slice(0, 10)}-${to.toISOString().slice(0, 10)}.pdf`;
+      anchor.download = `energy-iso50001-${formatDateParam(from)}-${formatDateParam(to)}.pdf`;
       document.body.appendChild(anchor);
       anchor.click();
       URL.revokeObjectURL(anchor.href);

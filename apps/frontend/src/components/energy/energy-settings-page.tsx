@@ -11,6 +11,7 @@ import {
 import { toast } from 'sonner';
 
 import { apiFetch } from '@/lib/api';
+import { useAppLocale } from '@/lib/locale';
 import { useAuth } from '@/lib/auth-context';
 import { BaselineLockDialog } from '@/components/energy/baseline-lock-dialog';
 import { EnergySettingsForm } from '@/components/energy/energy-settings-form';
@@ -47,6 +48,7 @@ export function EnergySettingsPage() {
   const t = useTranslations('energySettings');
   const tAuth = useTranslations('auth');
   const { user } = useAuth();
+  const { formatDateParam } = useAppLocale();
   const [config, setConfig] = useState<IEnergyAdminConfigResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -180,7 +182,7 @@ export function EnergySettingsPage() {
       const url = URL.createObjectURL(blob);
       const anchor = document.createElement('a');
       anchor.href = url;
-      anchor.download = `energy-settings-sample-${from.toISOString().slice(0, 10)}-${to.toISOString().slice(0, 10)}-${lang}.pdf`;
+      anchor.download = `energy-settings-sample-${formatDateParam(from)}-${formatDateParam(to)}-${lang}.pdf`;
       document.body.appendChild(anchor);
       anchor.click();
       anchor.remove();

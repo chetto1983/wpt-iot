@@ -23,7 +23,7 @@ import {
   formatZonedTime,
   getZonedDateTimeParts,
 } from '@wpt/types';
-import { config as appConfig } from '../config.js';
+import { ApplicationConfigService } from './applicationConfigService.js';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -89,14 +89,14 @@ function escapeCsv(value: string | number | null | undefined): string {
  * Format time as HH:MM from Date.
  */
 function formatTime(d: Date): string {
-  return formatZonedTime(d, appConfig.timezone);
+  return formatZonedTime(d, ApplicationConfigService.getTimezone());
 }
 
 /**
  * Format month-year for filename: YYYY_MM (e.g., 2026_04).
  */
 function formatMonthYear(d: Date): string {
-  const parts = getZonedDateTimeParts(d, appConfig.timezone);
+  const parts = getZonedDateTimeParts(d, ApplicationConfigService.getTimezone());
   return `${parts.year}_${String(parts.month).padStart(2, '0')}`;
 }
 
@@ -108,7 +108,7 @@ function formatMonthYearItalian(d: Date, uppercase = false): string {
     'gennaio', 'febbraio', 'marzo', 'aprile', 'maggio', 'giugno',
     'luglio', 'agosto', 'settembre', 'ottobre', 'novembre', 'dicembre',
   ];
-  const parts = getZonedDateTimeParts(d, appConfig.timezone);
+  const parts = getZonedDateTimeParts(d, ApplicationConfigService.getTimezone());
   const monthIdx = parts.month - 1;
   const month = monthNames[monthIdx] ?? 'sconosciuto';
   const year = parts.year;
@@ -155,7 +155,7 @@ function buildCsvContent(records: ICycleRecord[]): string {
     const values = [
       r.orderNumber ?? '',           // Numero Ordine
       r.cycleNumber,                 // Ciclo
-      formatItDate(r.startedAt, appConfig.timezone), // Data
+      formatItDate(r.startedAt, ApplicationConfigService.getTimezone()), // Data
       formatTime(r.startedAt),       // Ora Inizio
       formatTime(r.endedAt),         // Ora Fine
       r.cycleStatusLabel ?? '',      // Stato Ciclo
@@ -202,7 +202,7 @@ function buildPdfDocumentDefinition(
   // Table data rows
   const tableRows = records.map((r) => [
     r.cycleNumber,
-    formatItDate(r.startedAt, appConfig.timezone),
+    formatItDate(r.startedAt, ApplicationConfigService.getTimezone()),
     formatTime(r.startedAt),
     formatTime(r.endedAt),
     r.cycleStatusLabel ?? '',
@@ -226,7 +226,7 @@ function buildPdfDocumentDefinition(
       style: 'subtitle',
     },
     { text: `Registro Mensile Cicli - ${monthYear}`, style: 'title' },
-    { text: `Generato: ${formatItDateTime(generatedAt, appConfig.timezone)}`, style: 'timestamp' },
+    { text: `Generato: ${formatItDateTime(generatedAt, ApplicationConfigService.getTimezone())}`, style: 'timestamp' },
     { text: '', margin: [0, 10, 0, 10] as [number, number, number, number] }, // spacer
   ];
 

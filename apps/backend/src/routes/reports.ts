@@ -3,9 +3,9 @@ import { UserRole, CLIENT_VISIBLE_FIELDS, WPT_VISIBLE_FIELDS, getFieldLabel } fr
 import { requireAuth } from '../auth/authHooks.js';
 import { ReportService } from '../services/reportService.js';
 import { PdfService } from '../services/pdf/index.js';
+import { ApplicationConfigService } from '../services/applicationConfigService.js';
 import { formatEnumValue } from '../i18n/enumLabels.js';
 import { getRawMachineRetentionViolation } from '../lib/dataRetention.js';
-import { config } from '../config.js';
 import { formatZonedDate } from '@wpt/types';
 
 /**
@@ -80,7 +80,13 @@ export const reportRoutes: FastifyPluginAsync = async (server) => {
         .send({ error: 'No data found for the specified range' });
     }
 
-    const csv = ReportService.toCSV(rows, allFields, headers, lang, config.timezone);
+    const csv = ReportService.toCSV(
+      rows,
+      allFields,
+      headers,
+      lang,
+      ApplicationConfigService.getTimezone(),
+    );
     const filename = `machine-report-${formatDateForFile(from)}-${formatDateForFile(to)}.csv`;
 
     return reply
@@ -126,7 +132,7 @@ export const reportRoutes: FastifyPluginAsync = async (server) => {
       headers,
       title,
       lang,
-      config.timezone,
+      ApplicationConfigService.getTimezone(),
     );
     const filename = `machine-report-${formatDateForFile(from)}-${formatDateForFile(to)}.pdf`;
 
@@ -190,5 +196,8 @@ function resolveFields(role: UserRole, fieldsParam?: string): string[] {
 }
 
 function formatDateForFile(d: Date): string {
-  return formatZonedDate(d, config.timezone).split('/').reverse().join('-');
+  return formatZonedDate(d, ApplicationConfigService.getTimezone())
+    .split('/')
+    .reverse()
+    .join('-');
 }

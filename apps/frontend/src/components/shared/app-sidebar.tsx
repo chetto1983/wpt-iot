@@ -23,6 +23,7 @@ import {
   BrainCircuit,
   RotateCcw,
   Stethoscope,
+  Settings,
 } from 'lucide-react';
 
 import { useAuth } from '@/lib/auth-context';
@@ -89,6 +90,7 @@ export function AppSidebar() {
   ];
 
   const adminItems: NavItem[] = [
+    { label: t('nav.applicationSettings'), href: '/settings/application', icon: Settings },
     { label: t('nav.users'), href: '/users', icon: UserCog },
     { label: t('nav.mqtt'), href: '/mqtt', icon: Radio },
     { label: t('nav.plc'), href: '/plc', icon: Cpu },

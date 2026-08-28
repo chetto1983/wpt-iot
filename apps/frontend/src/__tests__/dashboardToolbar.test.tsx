@@ -19,6 +19,20 @@ vi.mock('next-intl', () => ({
   },
 }));
 
+vi.mock('@/lib/locale', () => ({
+  useAppLocale: () => ({
+    timezone: 'Europe/Rome',
+    formatTimeFull: (date: Date) =>
+      new Intl.DateTimeFormat('it-IT', {
+        timeZone: 'Europe/Rome',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false,
+      }).format(date),
+  }),
+}));
+
 import { DashboardToolbar } from '@/components/dashboard/dashboard-toolbar';
 
 function renderDashboardToolbar(overrides: Record<string, unknown> = {}) {

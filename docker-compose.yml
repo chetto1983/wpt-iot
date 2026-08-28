@@ -22,6 +22,8 @@ services:
       - "maintenance_work_mem=${PG_MAINTENANCE_WORK_MEM:-64MB}"
       - "-c"
       - "synchronous_commit=${PG_SYNCHRONOUS_COMMIT:-on}"
+      - "-c"
+      - "timezone=UTC"
     # Loopback-only binding. Backend reaches the DB via 127.0.0.1 because
     # it runs on the host network; nothing on the LAN should touch pg.
     ports:

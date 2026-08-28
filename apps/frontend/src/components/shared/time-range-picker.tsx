@@ -1,11 +1,18 @@
 'use client';
 
 import { useRef, useState } from 'react';
-import { format, endOfDay } from 'date-fns';
+import { endOfDay } from 'date-fns';
 import { useTranslations } from 'next-intl';
 import { Clock, RefreshCw, Loader2 } from 'lucide-react';
+import {
+  formatZonedDate,
+  formatZonedTime,
+  zonedDateTimeToUtc,
+} from '@wpt/types';
 
 import { REFRESH_INTERVALS, computePresetRange } from '@/lib/chart-colors';
+import { toZonedCalendarDate } from '@/lib/date-utils';
+import { useAppLocale } from '@/lib/locale';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
@@ -63,30 +70,33 @@ export function TimeRangePicker({
   loading = false,
 }: TimeRangePickerProps) {
   const t = useTranslations('dashboards');
+  const { timezone, formatTimeFull } = useAppLocale();
+  const toCalendarDate = (date: Date): Date => toZonedCalendarDate(date, timezone);
+  const zonedTime = (date: Date): string => formatZonedTime(date, timezone);
   const [popoverOpen, setPopoverOpen] = useState(false);
   const [showCustom, setShowCustom] = useState(!activePreset);
-  const [customFrom, setCustomFrom] = useState<Date>(from);
-  const [customTo, setCustomTo] = useState<Date>(to);
-  const [customFromTime, setCustomFromTime] = useState(format(from, 'HH:mm'));
-  const [customToTime, setCustomToTime] = useState(format(to, 'HH:mm'));
+  const [customFrom, setCustomFrom] = useState<Date>(() => toCalendarDate(from));
+  const [customTo, setCustomTo] = useState<Date>(() => toCalendarDate(to));
+  const [customFromTime, setCustomFromTime] = useState(() => zonedTime(from));
+  const [customToTime, setCustomToTime] = useState(() => zonedTime(to));
   const actionsRef = useRef<{ unmount: () => void; close: () => void } | null>(null);
 
   // Compute display text for the trigger button
   const triggerText = activePreset
     ? t(`timeRange.${activePreset}`)
-    : `${format(from, 'dd/MM HH:mm')} - ${format(to, 'dd/MM HH:mm')}`;
+    : `${formatZonedDate(from, timezone).slice(0, 5)} ${zonedTime(from)} - ${formatZonedDate(to, timezone).slice(0, 5)} ${zonedTime(to)}`;
 
   function handlePresetClick(presetLabel: string) {
     if (presetLabel === 'custom') {
       setShowCustom(true);
-      setCustomFrom(from);
-      setCustomTo(to);
-      setCustomFromTime(format(from, 'HH:mm'));
-      setCustomToTime(format(to, 'HH:mm'));
+      setCustomFrom(toCalendarDate(from));
+      setCustomTo(toCalendarDate(to));
+      setCustomFromTime(zonedTime(from));
+      setCustomToTime(zonedTime(to));
       return;
     }
 
-    const range = computePresetRange(presetLabel);
+    const range = computePresetRange(presetLabel, timezone);
     if (!range) return;
     onPresetChange(presetLabel);
     onRangeChange(range.from, range.to);
@@ -98,11 +108,29 @@ export function TimeRangePicker({
     const [fh, fm] = customFromTime.split(':').map(Number);
     const [th, tm] = customToTime.split(':').map(Number);
 
-    const finalFrom = new Date(customFrom);
-    finalFrom.setHours(fh ?? 0, fm ?? 0, 0, 0);
+    const finalFrom = zonedDateTimeToUtc(
+      {
+        year: customFrom.getFullYear(),
+        month: customFrom.getMonth() + 1,
+        day: customFrom.getDate(),
+        hour: fh ?? 0,
+        minute: fm ?? 0,
+      },
+      timezone,
+    );
 
-    const finalTo = new Date(customTo);
-    finalTo.setHours(th ?? 0, tm ?? 0, 59, 999);
+    const finalTo = zonedDateTimeToUtc(
+      {
+        year: customTo.getFullYear(),
+        month: customTo.getMonth() + 1,
+        day: customTo.getDate(),
+        hour: th ?? 0,
+        minute: tm ?? 0,
+        second: 59,
+      },
+      timezone,
+    );
+    finalTo.setUTCMilliseconds(999);
 
     onPresetChange(null);
     onRangeChange(finalFrom, finalTo);
@@ -181,7 +209,7 @@ export function TimeRangePicker({
                     mode="single"
                     selected={customFrom}
                     onSelect={(d) => d && setCustomFrom(d)}
-                    disabled={{ after: endOfDay(new Date()) }}
+                    disabled={{ after: endOfDay(toCalendarDate(new Date())) }}
                   />
                   <Input
                     id="time-range-from-time"
@@ -199,7 +227,7 @@ export function TimeRangePicker({
                     mode="single"
                     selected={customTo}
                     onSelect={(d) => d && setCustomTo(d)}
-                    disabled={{ after: endOfDay(new Date()) }}
+                    disabled={{ after: endOfDay(toCalendarDate(new Date())) }}
                   />
                   <Input
                     id="time-range-to-time"
@@ -251,7 +279,7 @@ export function TimeRangePicker({
       {/* Last updated badge */}
       {lastUpdated ? (
         <span className="text-xs text-muted-foreground">
-          {t('lastUpdated', { time: format(lastUpdated, 'HH:mm:ss') })}
+          {t('lastUpdated', { time: formatTimeFull(lastUpdated) })}
         </span>
       ) : null}
     </div>

@@ -7,6 +7,11 @@ import { type BaselineWarning, type IBaselineLockResponse } from '@wpt/types';
 import { toast } from 'sonner';
 
 import { apiFetch } from '@/lib/api';
+import { useAppLocale } from '@/lib/locale';
+import {
+  formatZonedDateTimeLocal,
+  parseZonedDateTimeLocal,
+} from '@/lib/date-utils';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -29,12 +34,6 @@ interface BaselineLockDialogProps {
 
 const MIN_BASELINE_WINDOW_MS = 14 * 24 * 60 * 60 * 1000;
 
-function toLocalInputValue(date: Date): string {
-  return new Date(date.getTime() - date.getTimezoneOffset() * 60_000)
-    .toISOString()
-    .slice(0, 16);
-}
-
 function warningKey(warning: BaselineWarning): 'lowCycleCount' | 'highDataGapRatio' {
   return warning === 'LOW_CYCLE_COUNT' ? 'lowCycleCount' : 'highDataGapRatio';
 }
@@ -48,6 +47,7 @@ export function BaselineLockDialog({
 }: BaselineLockDialogProps) {
   const t = useTranslations('energy');
   const tCommon = useTranslations('common');
+  const { timezone } = useAppLocale();
   const [label, setLabel] = useState('');
   const [periodFrom, setPeriodFrom] = useState('');
   const [periodTo, setPeriodTo] = useState('');
@@ -58,12 +58,12 @@ export function BaselineLockDialog({
   useEffect(() => {
     if (!open) return;
     setLabel('');
-    setPeriodFrom(toLocalInputValue(suggestedFrom));
-    setPeriodTo(toLocalInputValue(suggestedTo));
+    setPeriodFrom(formatZonedDateTimeLocal(suggestedFrom, timezone));
+    setPeriodTo(formatZonedDateTimeLocal(suggestedTo, timezone));
     setJustification('');
     setValidationError(null);
     setSubmitting(false);
-  }, [open, suggestedFrom, suggestedTo]);
+  }, [open, suggestedFrom, suggestedTo, timezone]);
 
   const handleSubmit = useCallback(
     async (event: React.FormEvent) => {
@@ -75,9 +75,9 @@ export function BaselineLockDialog({
         return;
       }
 
-      const fromDate = new Date(periodFrom);
-      const toDate = new Date(periodTo);
-      if (!Number.isFinite(fromDate.getTime()) || !Number.isFinite(toDate.getTime()) || toDate <= fromDate) {
+      const fromDate = parseZonedDateTimeLocal(periodFrom, timezone);
+      const toDate = parseZonedDateTimeLocal(periodTo, timezone);
+      if (!fromDate || !toDate || toDate <= fromDate) {
         setValidationError(t('savings.baselineDialog.validationRange'));
         return;
       }
@@ -112,7 +112,7 @@ export function BaselineLockDialog({
         setSubmitting(false);
       }
     },
-    [justification, label, onLocked, onOpenChange, periodFrom, periodTo, t, tCommon],
+    [justification, label, onLocked, onOpenChange, periodFrom, periodTo, t, tCommon, timezone],
   );
 
   return (

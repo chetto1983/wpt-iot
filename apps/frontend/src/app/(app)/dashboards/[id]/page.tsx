@@ -24,6 +24,7 @@ import type {
 } from '@wpt/types';
 import { apiFetch } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
+import { useAppLocale } from '@/lib/locale';
 import { PANEL_SIZE_DEFAULTS, computePresetRange } from '@/lib/chart-colors';
 import { cn } from '@/lib/utils';
 import { DashboardPanelItem } from '@/components/dashboard/dashboard-panel-item';
@@ -74,6 +75,7 @@ export default function SingleDashboardPage() {
   const params = useParams();
   const id = params.id as string;
   const { user } = useAuth();
+  const { timezone } = useAppLocale();
   const locale = (user?.language ?? 'it') as 'it' | 'en';
 
   const [dashboard, setDashboard] = useState<IDashboard | null>(null);
@@ -245,7 +247,7 @@ export default function SingleDashboardPage() {
     if (refreshInterval === 0 || panels.length === 0) return;
     const timer = setInterval(() => {
       if (activePreset && activePreset !== 'custom') {
-        const range = computePresetRange(activePreset);
+        const range = computePresetRange(activePreset, timezone);
         if (range) {
           void setDateFilters({
             from: range.from.toISOString(),
@@ -259,7 +261,7 @@ export default function SingleDashboardPage() {
       void fetchPanelData(panels);
     }, refreshInterval);
     return () => clearInterval(timer);
-  }, [refreshInterval, panels, fetchPanelData, activePreset, setDateFilters]);
+  }, [refreshInterval, panels, fetchPanelData, activePreset, setDateFilters, timezone]);
 
   // Clean up any in-flight undo timers on unmount only — NOT on every change.
   // The previous version cleared the timer whenever pendingDelete changed,

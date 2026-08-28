@@ -6,6 +6,7 @@ import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { apiFetch } from '@/lib/api';
+import { useAppLocale } from '@/lib/locale';
 import { clearSessionDraft, readSessionDraft, writeSessionDraft } from '@/lib/session-draft';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -41,6 +42,7 @@ const PLC_CONFIG_DRAFT_KEY = 'plc-config-form';
 export function PlcConfigForm({ config, onSaved }: PlcConfigFormProps) {
   const t = useTranslations('plc');
   const tCommon = useTranslations('common');
+  const { formatTimeFull } = useAppLocale();
 
   const [targetHost, setTargetHost] = useState(config.targetHost ?? '');
   const [endian, setEndian] = useState<'be' | 'le'>(config.endian ?? 'le');
@@ -108,7 +110,7 @@ export function PlcConfigForm({ config, onSaved }: PlcConfigFormProps) {
         '/api/plc/test-connection',
         { method: 'POST' },
       );
-      const time = new Date().toLocaleTimeString();
+      const time = formatTimeFull(new Date());
       if (result.ok) {
         toast.success(t('testSuccess', { durationMs: result.durationMs }));
         setLastTestResult({ ok: true, time, durationMs: result.durationMs });
@@ -123,11 +125,11 @@ export function PlcConfigForm({ config, onSaved }: PlcConfigFormProps) {
     } catch (err) {
       const msg = err instanceof Error ? err.message : tCommon('error');
       toast.error(msg);
-      setLastTestResult({ ok: false, time: new Date().toLocaleTimeString(), error: msg });
+      setLastTestResult({ ok: false, time: formatTimeFull(new Date()), error: msg });
     } finally {
       setTesting(false);
     }
-  }, [t, tCommon]);
+  }, [formatTimeFull, t, tCommon]);
 
   return (
     <Card>

@@ -1,12 +1,12 @@
 'use client';
 
 import { useState } from 'react';
-import { format as formatDate } from 'date-fns';
 import { FileSpreadsheet, FileText } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 
 import { exportCycles } from '@/lib/api/cycles';
+import { useAppLocale } from '@/lib/locale';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -35,6 +35,7 @@ type ExportFormat = 'csv' | 'pdf';
 
 export function ExportDialog({ from, to, open, onOpenChange }: ExportDialogProps) {
   const t = useTranslations('cycles');
+  const { formatDate, formatDateParam } = useAppLocale();
   const [format, setFormat] = useState<ExportFormat>('csv');
   const [isExporting, setIsExporting] = useState(false);
 
@@ -47,7 +48,7 @@ export function ExportDialog({ from, to, open, onOpenChange }: ExportDialogProps
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `cycles-${formatDate(from, 'yyyy-MM-dd')}-to-${formatDate(to, 'yyyy-MM-dd')}.${format}`;
+      link.download = `cycles-${formatDateParam(from)}-to-${formatDateParam(to)}.${format}`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -79,7 +80,7 @@ export function ExportDialog({ from, to, open, onOpenChange }: ExportDialogProps
           <div className="rounded-md bg-muted p-3 text-sm">
             <p className="font-medium text-muted-foreground">Periodo selezionato:</p>
             <p className="mt-1">
-              {formatDate(from, 'dd/MM/yyyy')} - {formatDate(to, 'dd/MM/yyyy')}
+              {formatDate(from)} - {formatDate(to)}
             </p>
           </div>
 

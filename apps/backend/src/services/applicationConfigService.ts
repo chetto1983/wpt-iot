@@ -8,7 +8,8 @@ import {
 import { db } from '../db/index.js';
 import { applicationConfig } from '../db/schema/appConfig.js';
 
-let activeTimezone = DEFAULT_TIMEZONE;
+const initialTimezone = resolveTimezone(process.env.APP_TIMEZONE, DEFAULT_TIMEZONE);
+let activeTimezone = initialTimezone;
 
 /**
  * Global, DB-backed application settings.
@@ -29,7 +30,7 @@ export class ApplicationConfigService {
 
     await db.execute(sql`
       INSERT INTO application_config (id, timezone)
-      VALUES (1, 'Europe/Rome')
+      VALUES (1, ${initialTimezone})
       ON CONFLICT (id) DO NOTHING
     `);
   }

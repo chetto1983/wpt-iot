@@ -5,6 +5,7 @@ import { format, startOfMonth, subMonths, endOfDay } from 'date-fns';
 import { CalendarIcon, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useAppLocale } from '@/lib/locale';
+import { toZonedCalendarDate } from '@/lib/date-utils';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import {
@@ -40,7 +41,7 @@ const PRESETS: { key: PresetKey; labelKey: string }[] = [
 
 export function MonthPicker({ value, onChange }: MonthPickerProps) {
   const t = useTranslations('cycles');
-  const { dateFnsLocale } = useAppLocale();
+  const { dateFnsLocale, timezone } = useAppLocale();
   const [open, setOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date>(
     new Date(value.year, value.month - 1, 1)
@@ -66,7 +67,7 @@ export function MonthPicker({ value, onChange }: MonthPickerProps) {
   }
 
   function handlePresetChange(presetKey: PresetKey) {
-    const now = new Date();
+    const now = toZonedCalendarDate(new Date(), timezone);
     let targetDate: Date;
 
     switch (presetKey) {
@@ -167,7 +168,7 @@ export function MonthPicker({ value, onChange }: MonthPickerProps) {
             onSelect={handleMonthSelect}
             month={selectedDate}
             onMonthChange={setSelectedDate}
-            disabled={{ after: endOfDay(new Date()) }}
+            disabled={{ after: endOfDay(toZonedCalendarDate(new Date(), timezone)) }}
             className="rounded-md border"
           />
 

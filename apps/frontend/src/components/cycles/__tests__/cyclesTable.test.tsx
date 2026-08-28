@@ -141,6 +141,7 @@ describe('CyclesTable component', () => {
       cycleStatusLabel: 'UNKNOWN',
       startTime: '09:52',
       endTime: '09:53',
+      endedAt: '2026-04-10T07:53:00.000Z',
     })];
 
     render(

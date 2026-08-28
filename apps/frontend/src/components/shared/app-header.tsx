@@ -23,6 +23,7 @@ import { useAppLocale } from '@/lib/locale';
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || '';
 
 function getPageTitleKey(path: string): string {
+  if (path.startsWith('/settings/application')) return 'nav.applicationSettings';
   if (path.startsWith('/settings/energy')) return 'nav.energySettings';
   if (path.startsWith('/dashboards/')) return 'nav.dashboards';
   if (path === '/dashboards') return 'nav.dashboards';

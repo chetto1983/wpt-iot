@@ -3,7 +3,10 @@
 import { startTransition } from 'react';
 import { Download, Loader2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
+import { zonedDateTimeToUtc } from '@wpt/types';
 import { computePresetRange } from '@/lib/chart-colors';
+import { toZonedCalendarDate } from '@/lib/date-utils';
+import { useAppLocale } from '@/lib/locale';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { TimeRangePicker } from '@/components/shared/time-range-picker';
@@ -22,10 +25,21 @@ interface EnergyRangeControlsProps {
   onExportPdf: () => void;
 }
 
-function getLast12MonthsRange(): { from: Date; to: Date } {
+function getLast12MonthsRange(timezone: string): { from: Date; to: Date } {
   const to = new Date();
-  const from = new Date(to);
-  from.setMonth(from.getMonth() - 12);
+  const wallClockFrom = toZonedCalendarDate(to, timezone);
+  wallClockFrom.setMonth(wallClockFrom.getMonth() - 12);
+  const from = zonedDateTimeToUtc(
+    {
+      year: wallClockFrom.getFullYear(),
+      month: wallClockFrom.getMonth() + 1,
+      day: wallClockFrom.getDate(),
+      hour: wallClockFrom.getHours(),
+      minute: wallClockFrom.getMinutes(),
+      second: wallClockFrom.getSeconds(),
+    },
+    timezone,
+  );
   return { from, to };
 }
 
@@ -43,12 +57,13 @@ export function EnergyRangeControls({
   onExportPdf,
 }: EnergyRangeControlsProps) {
   const t = useTranslations('energy');
+  const { timezone } = useAppLocale();
 
   function applyPreset(nextPreset: 'last7d' | 'last30d' | 'last12mo') {
     const range =
       nextPreset === 'last12mo'
-        ? getLast12MonthsRange()
-        : computePresetRange(nextPreset);
+        ? getLast12MonthsRange(timezone)
+        : computePresetRange(nextPreset, timezone);
     if (!range) return;
     startTransition(() => {
       onPresetChange(nextPreset);

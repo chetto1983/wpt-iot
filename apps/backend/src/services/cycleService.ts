@@ -18,8 +18,9 @@ import {
   VALID_SORT_COLUMNS,
   formatZonedDate,
   formatZonedTime,
+  getZonedDateTimeParts,
 } from '@wpt/types';
-import { config } from '../config.js';
+import { ApplicationConfigService } from './applicationConfigService.js';
 
 /**
  * Service for querying and exporting cycle register records.
@@ -166,9 +167,9 @@ export class CycleService {
       cycleNumber: row.cycleNumber,
       startedAt: row.startedAt,
       endedAt: row.endedAt,
-      date: formatZonedDate(start, config.timezone),
-      startTime: formatZonedTime(start, config.timezone),
-      endTime: formatZonedTime(end, config.timezone),
+      date: formatZonedDate(start, ApplicationConfigService.getTimezone()),
+      startTime: formatZonedTime(start, ApplicationConfigService.getTimezone()),
+      endTime: formatZonedTime(end, ApplicationConfigService.getTimezone()),
       cycleType: row.cycleType,
       cycleStatusLabel: row.cycleStatusLabel,
       materialInputKg: row.materialInputKg,
@@ -243,12 +244,13 @@ export class CycleService {
 
     // Generate CSV content (stub — Wave 4 will enhance)
     const header = 'Ciclo,Data Inizio,Data Fine,Tipo,Stato,Input (kg),Output (kg),Bruto (kg),Bidoni,Operatore,Ordine\n';
+    const timezone = ApplicationConfigService.getTimezone();
     const csvRows = rows.map((row) => {
-      const startedAtFormatted = new Date(row.startedAt).toLocaleDateString('it-IT');
+      const startedAtFormatted = formatZonedDate(new Date(row.startedAt), timezone);
       return [
         row.cycleNumber,
         startedAtFormatted,
-        new Date(row.endedAt).toLocaleDateString('it-IT'),
+        formatZonedDate(new Date(row.endedAt), timezone),
         row.cycleType,
         row.cycleStatusLabel ?? '',
         row.materialInputKg ?? '',
@@ -262,7 +264,8 @@ export class CycleService {
 
     const content = header + csvRows;
     // Format: YYYY_MM (e.g., 2026_04 for April 2026)
-    const monthLabel = `${fromDate.getUTCFullYear()}_${String(fromDate.getUTCMonth() + 1).padStart(2, '0')}`;
+    const monthParts = getZonedDateTimeParts(fromDate, timezone);
+    const monthLabel = `${monthParts.year}_${String(monthParts.month).padStart(2, '0')}`;
 
     return {
       content,
@@ -280,9 +283,11 @@ export class CycleService {
    */
   static async exportPdf(request: ICycleExportRequest): Promise<ICycleExportResult> {
     const fromDate = new Date(request.from);
+    const timezone = ApplicationConfigService.getTimezone();
 
     // Format: YYYY_MM (e.g., 2026_04 for April 2026)
-    const monthLabel = `${fromDate.getUTCFullYear()}_${String(fromDate.getUTCMonth() + 1).padStart(2, '0')}`;
+    const monthParts = getZonedDateTimeParts(fromDate, timezone);
+    const monthLabel = `${monthParts.year}_${String(monthParts.month).padStart(2, '0')}`;
 
     // Minimal valid PDF content (header only) — Wave 4 will generate proper PDF
     const pdfHeader = '%PDF-1.4\n1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n2 0 obj\n<< /Type /Pages /Kids [] /Count 0 >>\nendobj\nxref\n0 3\n0000000000 65535 f\n0000000009 00000 n\n0000000058 00000 n\ntrailer\n<< /Size 3 /Root 1 0 R >>\nstartxref\n106\n%%EOF';

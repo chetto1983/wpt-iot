@@ -28,6 +28,8 @@ services:
       - "maintenance_work_mem=${PG_MAINTENANCE_WORK_MEM:-64MB}"
       - "-c"
       - "synchronous_commit=${PG_SYNCHRONOUS_COMMIT:-on}"
+      - "-c"
+      - "timezone=UTC"
     ports:
       - "127.0.0.1:5432:5432"
     environment:

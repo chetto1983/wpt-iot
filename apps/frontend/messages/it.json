@@ -27,6 +27,7 @@
       "dashboards": "Dashboard",
       "mqtt": "Gateway MQTT",
       "plc": "Impostazioni PLC",
+      "applicationSettings": "Impostazioni applicazione",
       "energySettings": "Impostazioni energia",
       "debugDetector": "Debug Rilevatore"
     },
@@ -955,6 +956,19 @@
       "error": "Errore",
       "refresh": "Aggiorna log attività"
     }
+  },
+  "applicationSettings": {
+    "pageTitle": "Impostazioni applicazione",
+    "pageDescription": "Configura il fuso orario usato da tutte le pagine e dalle esportazioni.",
+    "title": "Fuso orario",
+    "description": "Le date restano memorizzate in UTC e vengono convertite soltanto per visualizzazione e input.",
+    "timezone": "Fuso orario IANA",
+    "timezoneHelp": "Esempio: Europe/Rome. La modifica si applica subito a tutte le pagine.",
+    "invalidTimezone": "Inserisci un fuso orario IANA valido.",
+    "save": "Salva",
+    "saved": "Fuso orario aggiornato.",
+    "loadError": "Impossibile caricare il fuso orario.",
+    "saveError": "Impossibile salvare il fuso orario."
   },
   "plc": {
     "pageTitle": "Impostazioni PLC",

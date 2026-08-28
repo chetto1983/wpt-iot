@@ -9,6 +9,9 @@ export const pool = new Pool({
   database: config.pgDb,
   user: config.pgUser,
   password: config.pgPassword,
+  // Keep the PostgreSQL session on UTC. Application timezone conversion is
+  // performed explicitly at the API/UI boundaries.
+  options: '-c timezone=UTC',
 });
 
 export const db = drizzle(pool, { schema });

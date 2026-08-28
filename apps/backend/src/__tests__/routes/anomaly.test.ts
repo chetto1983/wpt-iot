@@ -43,6 +43,8 @@ vi.mock('../../auth/authHooks.js', () => ({
 // Anomaly service mocks: routes must never reach the real services / DB / detector.
 const getByIdMock = vi.fn();
 const listRecentMock = vi.fn();
+const getReportDataMock = vi.fn();
+const createPdfMock = vi.fn(async () => Buffer.from('%PDF-1.4 timezone test'));
 const loadStateMock = vi.fn(async () => undefined);
 const startMock = vi.fn();
 const stopMock = vi.fn();
@@ -68,10 +70,20 @@ vi.mock('../../services/anomaly/index.js', () => ({
     deleteEvent: vi.fn(),
     getFeedbackStats: vi.fn(),
     getCorrelatedAlarms: vi.fn(),
-    getReportData: vi.fn(),
+    getReportData: getReportDataMock,
   },
   MachineAnomalyReplayService: { replay: vi.fn() },
   MachineAnomalyScenarioService: { run: vi.fn() },
+}));
+
+vi.mock('../../services/pdf/index.js', () => ({
+  createDeterministicPdfBuffer: createPdfMock,
+}));
+
+vi.mock('../../services/applicationConfigService.js', () => ({
+  ApplicationConfigService: {
+    getTimezone: vi.fn(() => 'Asia/Tokyo'),
+  },
 }));
 
 const { anomalyRoutes } = await import('../../routes/anomaly.js');
@@ -213,5 +225,46 @@ describe('GET /api/anomaly/events/:id', () => {
     expect(res.statusCode).toBe(500);
     const body = res.json();
     expect(body).toEqual({ error: 'Internal error' });
+  });
+});
+
+describe('GET /api/anomaly/report/pdf timezone', () => {
+  let app: FastifyInstance;
+
+  beforeEach(async () => {
+    createPdfMock.mockClear();
+    getReportDataMock.mockReset();
+    app = await buildApp();
+  });
+
+  afterEach(async () => {
+    await app.close();
+  });
+
+  it('formats report timestamps in the configured application timezone', async () => {
+    getReportDataMock.mockResolvedValue({
+      period: {
+        from: '2026-04-21T15:30:00.000Z',
+        to: '2026-04-22T15:30:00.000Z',
+        days: 1,
+      },
+      totalEvents: 1,
+      byStatus: { OPEN: 1 },
+      events: [{ ...sampleEvent, observedAt: '2026-04-21T15:30:00.000Z' }],
+      feedback: { totalResolved: 0, truePositive: 0, falsePositive: 0, tpRate: null, fpRate: null, suggestion: null },
+      correlations: [],
+    });
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/anomaly/report/pdf?days=1',
+      headers: { 'x-test-role': 'WPT' },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(createPdfMock).toHaveBeenCalledOnce();
+    expect(JSON.stringify(createPdfMock.mock.calls[0]?.[0])).toContain(
+      '22/04/2026 00:30:00',
+    );
   });
 });

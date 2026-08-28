@@ -10,6 +10,12 @@ import {
 } from '@wpt/types';
 import { toast } from 'sonner';
 
+import { useAppLocale } from '@/lib/locale';
+import {
+  formatZonedDateTimeLocal,
+  parseZonedDateTimeLocal,
+  toZonedCalendarDate,
+} from '@/lib/date-utils';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -64,12 +70,10 @@ const TARIFF_BAND_FIELD_MAP: Record<EnergyTariffBandKey, TariffBandFieldName> = 
   f3: 'tariffBandF3',
 };
 
-function toLocalDateTimeInput(value?: string): string {
+function toLocalDateTimeInput(value: string | undefined, timezone: string): string {
   const date = value ? new Date(value) : new Date();
   const safe = Number.isFinite(date.getTime()) ? date : new Date();
-  return new Date(safe.getTime() - safe.getTimezoneOffset() * 60_000)
-    .toISOString()
-    .slice(0, 16);
+  return formatZonedDateTimeLocal(safe, timezone);
 }
 
 function toLocalizedNumberInput(value: number | undefined, locale: string, fallback: string): string {
@@ -100,6 +104,7 @@ function formatLocalizedPreview(raw: string, locale: string, digits = 3): string
 function buildInitialDraft(
   initialValue: Partial<IEnergyConfigUpdateRequest> | undefined,
   locale: string,
+  timezone: string,
 ): EnergySettingsDraft {
   return {
     customerName: initialValue?.customerName ?? '',
@@ -108,7 +113,7 @@ function buildInitialDraft(
     installSite: initialValue?.installSite ?? '',
     cosphi: toLocalizedNumberInput(initialValue?.cosphi, locale, '0,85'),
     shiftStartHour: initialValue?.shiftStartHour != null ? String(initialValue.shiftStartHour) : '6',
-    effectiveFrom: toLocalDateTimeInput(initialValue?.effectiveFrom),
+    effectiveFrom: toLocalDateTimeInput(initialValue?.effectiveFrom, timezone),
     emissionFactorKgPerKwh: toLocalizedNumberInput(
       initialValue?.emissionFactorKgPerKwh,
       locale,
@@ -117,7 +122,7 @@ function buildInitialDraft(
     emissionFactorYear:
       initialValue?.emissionFactorYear != null
         ? String(initialValue.emissionFactorYear)
-        : String(new Date().getFullYear()),
+        : String(toZonedCalendarDate(new Date(), timezone).getFullYear()),
     emissionFactorSource: initialValue?.emissionFactorSource ?? 'ISPRA',
     tariffMode: initialValue?.tariffMode ?? 'single',
     tariffSingleEurPerKwh: toLocalizedNumberInput(
@@ -152,11 +157,12 @@ export function EnergySettingsForm({
   successMessage,
 }: EnergySettingsFormProps) {
   const locale = useLocale();
+  const { timezone } = useAppLocale();
   const t = useTranslations('energySettings');
   const tCommon = useTranslations('common');
   const pristineDraft = useMemo(
-    () => buildInitialDraft(initialValue, locale),
-    [initialValue, locale],
+    () => buildInitialDraft(initialValue, locale, timezone),
+    [initialValue, locale, timezone],
   );
   const [draft, setDraft] = useState<EnergySettingsDraft>(pristineDraft);
   const [errors, setErrors] = useState<FieldErrors>({});
@@ -272,7 +278,9 @@ export function EnergySettingsForm({
       ? Number.NaN
       : Number(draft.shiftStartHour);
     const effectiveFrom = draft.effectiveFrom.trim();
-    const effectiveFromDate = effectiveFrom ? new Date(effectiveFrom) : null;
+    const effectiveFromDate = effectiveFrom
+      ? parseZonedDateTimeLocal(effectiveFrom, timezone)
+      : null;
 
     if (!effectiveFromDate || !Number.isFinite(effectiveFromDate.getTime())) {
       nextErrors.effectiveFrom = t('validation.invalidDate');

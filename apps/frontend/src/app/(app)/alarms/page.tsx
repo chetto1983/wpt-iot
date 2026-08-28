@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import type { DateRange } from 'react-day-picker';
-import { format as formatDate } from 'date-fns';
 import { useTranslations } from 'next-intl';
 import { useQueryStates, parseAsString, parseAsStringEnum } from 'nuqs';
 import { AlertTriangle, CalendarDays } from 'lucide-react';
@@ -31,7 +30,11 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { ReportFilters } from '@/components/shared/report-filters';
-import { buildDateTimeISO } from '@/lib/date-utils';
+import {
+  buildDateTimeISO,
+  formatCalendarDateParam,
+  parseCalendarDateParam,
+} from '@/lib/date-utils';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || '';
 
@@ -80,13 +83,16 @@ function AlarmsContent({ locale }: { locale: string }) {
   });
 
   const dateRange: DateRange | undefined = filters.from && filters.to
-    ? { from: new Date(filters.from), to: new Date(filters.to) }
+    ? {
+        from: parseCalendarDateParam(filters.from),
+        to: parseCalendarDateParam(filters.to),
+      }
     : undefined;
 
   const setDateRange = useCallback((range: DateRange | undefined) => {
     void setFilters({
-      from: range?.from ? formatDate(range.from, 'yyyy-MM-dd') : null,
-      to: range?.to ? formatDate(range.to, 'yyyy-MM-dd') : null,
+      from: range?.from ? formatCalendarDateParam(range.from) : null,
+      to: range?.to ? formatCalendarDateParam(range.to) : null,
     });
   }, [setFilters]);
 
@@ -113,8 +119,8 @@ function AlarmsContent({ locale }: { locale: string }) {
     setLoading(true);
 
     const params = new URLSearchParams({
-      from: buildDateTimeISO(new Date(filters.from), filters.fromTime, timezone),
-      to: buildDateTimeISO(new Date(filters.to), filters.toTime, timezone),
+      from: buildDateTimeISO(filters.from, filters.fromTime, timezone),
+      to: buildDateTimeISO(filters.to, filters.toTime, timezone),
       status: filters.status,
       lang: locale,
     });
@@ -168,7 +174,7 @@ function AlarmsContent({ locale }: { locale: string }) {
       const blob = await res.blob();
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
-      a.download = `alarm-report-${formatDate(dateRange.from, 'yyyy-MM-dd')}-${formatDate(dateRange.to, 'yyyy-MM-dd')}.${exportFormat}`;
+      a.download = `alarm-report-${formatCalendarDateParam(dateRange.from)}-${formatCalendarDateParam(dateRange.to)}.${exportFormat}`;
       document.body.appendChild(a);
       a.click();
       URL.revokeObjectURL(a.href);
