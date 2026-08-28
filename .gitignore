@@ -15,6 +15,8 @@ certs/
 
 *.tar*
 screenshots/*
+playwright-report/
+test-results/
 docs/bachi.docx
 docs/bachi.pdf
 tmp/*

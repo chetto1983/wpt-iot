@@ -7,6 +7,7 @@
     "dev": "pnpm -r run dev",
     "lint": "pnpm -r run lint",
     "test": "pnpm -r run test",
+    "test:e2e": "playwright test",
     "clean": "pnpm -r run clean",
     "validate:sparkplug:e2e": "pnpm --filter @wpt/backend run validate:sparkplug:e2e",
     "scan:knip": "knip --reporter json",
