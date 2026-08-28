@@ -1,6 +1,6 @@
 'use client';
 
-import { startTransition, useDeferredValue, useEffect, useRef, useState } from 'react';
+import { startTransition, useEffect, useRef, useState } from 'react';
 import { Bolt, Wifi, WifiOff } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
@@ -59,7 +59,7 @@ export function EnergyPageShell() {
   const t = useTranslations('energy');
   const { user } = useAuth();
   const { formatDateParam } = useAppLocale();
-  const { machineData, connected, lastUpdate } = useWsData();
+  const { connected, lastUpdate } = useWsData();
   const initialRange = getDefaultRange();
   const [from, setFrom] = useState(initialRange.from);
   const [to, setTo] = useState(initialRange.to);
@@ -89,8 +89,6 @@ export function EnergyPageShell() {
   const showCyclesLoading = cyclesLoading && cycles == null;
   const showReconciliationLoading = reconciliationLoading && reconciliation == null;
 
-  const liveSignal = `${connected}:${lastUpdate?.getTime() ?? 0}:${machineData?.energyConsumption ?? 0}:${machineData?.completedCycles ?? 0}`;
-  const deferredLiveSignal = useDeferredValue(liveSignal);
   const canManageBaseline = user?.role === 'SUPER_ADMIN';
   const baselineWindow = getSuggestedBaselineWindow(from, to);
   const pdfLang = user?.language === 'en' ? 'en' : 'it';
@@ -131,7 +129,7 @@ export function EnergyPageShell() {
       });
 
     return () => controller.abort();
-  }, [from, to, deferredLiveSignal, refreshTick, t]);
+  }, [from, to, refreshTick, t]);
 
   useEffect(() => {
     widgetsAbortRef.current?.abort();
