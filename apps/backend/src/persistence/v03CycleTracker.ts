@@ -31,13 +31,13 @@ const STUCK_CYCLE_MS = 24 * 60 * 60 * 1000;
  * V03 Cycle_Status edge detection FSM (Phase 24 Wave 1).
  *
  * Subscribes to `dataHub.onMachineData` and watches Cycle_Status (S1_I_DATO_71)
- * for rising edge transitions:
- *   - 0 -> 1 (NONE -> CYCLE_START): Capture start snapshot
- *   - 1 -> {2,3,4} (CYCLE_START -> COMPLETED/FAILED/ABORTED): Emit cycle closed
+ * for entry-edge transitions:
+ *   - any non-1 -> 1: Capture start snapshot
+ *   - entry into {2,3,4} with an open cycle: Emit cycle closed
  *
  * Replaces the old currentPhase-based FSM from cycleTracker.ts.
  */
-export function startV03CycleTracker(log: IStoreLogger): void {
+export async function startV03CycleTracker(log: IStoreLogger): Promise<void> {
   // Closure-held FSM state
   let lastCompletedCycles: number | null = null;
   let lastCycleStatus: CycleStatus | null = null;
@@ -51,48 +51,104 @@ export function startV03CycleTracker(log: IStoreLogger): void {
   // double-detection on normal operation.
   let lastKnownMaxCycleNumber: number | null = null;
 
-  // Seed the resetEpoch from the latest cycle_resets row on startup, and load
-  // the max cycle_number persisted at that epoch so we can detect a cross-restart
-  // counter reset on the first incoming snapshot.
-  void (async () => {
-    try {
-      const rows = await db.execute(sql`
-        SELECT reset_epoch AS "resetEpoch"
-        FROM cycle_resets
-        ORDER BY reset_epoch DESC
-        LIMIT 1
-      `);
-      if (rows.rows.length > 0) {
-        resetEpoch = Number((rows.rows[0] as { resetEpoch: number }).resetEpoch);
-        log.info(
-          { name: 'V03CycleTracker', resetEpoch },
-          'V03CycleTracker resumed resetEpoch from DB',
-        );
-      }
-
-      const maxRows = await db.execute(sql`
-        SELECT MAX(cycle_number) AS "maxCycleNumber"
-        FROM cycle_records
-        WHERE reset_epoch = ${resetEpoch}
-      `);
-      if (maxRows.rows.length > 0) {
-        const raw = (maxRows.rows[0] as { maxCycleNumber: number | string | null })
-          .maxCycleNumber;
-        if (raw !== null) {
-          lastKnownMaxCycleNumber = Number(raw);
-          log.info(
-            { name: 'V03CycleTracker', resetEpoch, lastKnownMaxCycleNumber },
-            'Loaded persisted max cycle_number for current epoch',
-          );
-        }
-      }
-    } catch (err) {
-      log.error(
-        { name: 'V03CycleTracker', err: (err as Error).message },
-        'Failed to load resetEpoch/maxCycleNumber from DB',
+  // Complete bootstrap before registering the machine-data handler. The UDP
+  // pipeline starts only after Fastify plugins are ready, so no edge can race
+  // reset-epoch/open-cycle recovery.
+  try {
+    const rows = await db.execute(sql`
+      SELECT reset_epoch AS "resetEpoch"
+      FROM cycle_resets
+      ORDER BY reset_epoch DESC
+      LIMIT 1
+    `);
+    if (rows.rows.length > 0) {
+      resetEpoch = Number((rows.rows[0] as { resetEpoch: number }).resetEpoch);
+      log.info(
+        { name: 'V03CycleTracker', resetEpoch },
+        'V03CycleTracker resumed resetEpoch from DB',
       );
     }
-  })();
+
+    const maxRows = await db.execute(sql`
+      SELECT MAX(cycle_number) AS "maxCycleNumber"
+      FROM cycle_records
+      WHERE reset_epoch = ${resetEpoch}
+    `);
+    if (maxRows.rows.length > 0) {
+      const raw = (maxRows.rows[0] as { maxCycleNumber: number | string | null })
+        .maxCycleNumber;
+      if (raw !== null) {
+        lastKnownMaxCycleNumber = Number(raw);
+        log.info(
+          { name: 'V03CycleTracker', resetEpoch, lastKnownMaxCycleNumber },
+          'Loaded persisted max cycle_number for current epoch',
+        );
+      }
+    }
+
+    const openRows = await db.execute(sql`
+      SELECT
+        s.started_at AS "startAt",
+        s.start_energy_kwh AS "startEnergyKwh",
+        s.start_water_l AS "startWaterL",
+        s.operator,
+        s.order_number AS "orderNumber",
+        s.cycle_number AS "cycleNumber",
+        s.containers,
+        s.material_input_kg AS "materialInputKg",
+        s.gross_input_kg AS "grossInputKg"
+      FROM cycle_starts s
+      WHERE s.reset_epoch = ${resetEpoch}
+        AND NOT EXISTS (
+          SELECT 1
+          FROM cycle_records r
+          WHERE r.reset_epoch = s.reset_epoch
+            AND r.cycle_number = s.cycle_number
+            AND COALESCE(r.cycle_status_label, 'UNKNOWN') <> 'UNKNOWN'
+        )
+      ORDER BY s.started_at DESC
+      LIMIT 1
+    `);
+    if (openRows.rows.length > 0) {
+      const row = openRows.rows[0] as {
+        startAt: Date | string;
+        startEnergyKwh: number | string | null;
+        startWaterL: number | string | null;
+        operator: string;
+        orderNumber: string;
+        cycleNumber: number | string;
+        containers: number | string;
+        materialInputKg: number | string;
+        grossInputKg: number | string;
+      };
+      inFlightCycle = {
+        startAt: row.startAt instanceof Date ? row.startAt : new Date(row.startAt),
+        startEnergyKwh:
+          row.startEnergyKwh === null ? null : Number(row.startEnergyKwh),
+        startWaterL: row.startWaterL === null ? null : Number(row.startWaterL),
+        operator: row.operator,
+        orderNumber: row.orderNumber,
+        cycleNumber: Number(row.cycleNumber),
+        containers: Number(row.containers),
+        materialInputKg: Number(row.materialInputKg),
+        grossInputKg: Number(row.grossInputKg),
+      };
+      log.info(
+        {
+          name: 'V03CycleTracker',
+          resetEpoch,
+          cycleNumber: inFlightCycle.cycleNumber,
+          startedAt: inFlightCycle.startAt.toISOString(),
+        },
+        'Recovered open cycle start from DB',
+      );
+    }
+  } catch (err) {
+    log.error(
+      { name: 'V03CycleTracker', err: (err as Error).message },
+      'Failed to load resetEpoch/open cycle from DB',
+    );
+  }
 
   /**
    * Emit cycle:closed event and clear in-flight state
@@ -336,77 +392,96 @@ export function startV03CycleTracker(log: IStoreLogger): void {
         }
       }
 
-      // --- 3. Rising edge 0 -> 1: Cycle started ---
-      if (
-        lastCycleStatus === CycleStatus.NONE &&
-        currentStatus === CycleStatus.CYCLE_START
-      ) {
-        inFlightCycle = {
-          startAt: timestamp,
-          startEnergyKwh: snapshot.energyConsumption ?? null,
-          startWaterL: snapshot.waterConsumption ?? null,
-          operator: snapshot.user ?? '',
-          orderNumber: snapshot.orderNumber ?? '',
-          cycleNumber: snapshot.completedCycles + 1,
-          containers: snapshot.container ?? 0,
-          materialInputKg: snapshot.materialInputWeight ?? 0,
-          grossInputKg: snapshot.materialInputWeight ?? 0,
-        };
-
-        // Emit cycle start event
-        dataHub.emitCycleStart({
-          startEnergyKwh: inFlightCycle.startEnergyKwh,
-          startWaterL: inFlightCycle.startWaterL,
-          operator: inFlightCycle.operator,
-          orderNumber: inFlightCycle.orderNumber,
-          containers: inFlightCycle.containers,
-          cycleNumber: inFlightCycle.cycleNumber,
-          startedAt: timestamp,
-        });
-
-        log.info(
-          {
-            name: 'V03CycleTracker',
-            cycleNumber: inFlightCycle.cycleNumber,
-            startedAt: timestamp.toISOString(),
-          },
-          'Cycle started (0->1 edge)',
-        );
-      }
-
-      // --- 4. Rising edge 1 -> {2,3,4}: Cycle ended ---
-      if (
-        lastCycleStatus === CycleStatus.CYCLE_START &&
+      const enteredStart =
+        lastCycleStatus !== CycleStatus.CYCLE_START &&
+        currentStatus === CycleStatus.CYCLE_START;
+      const enteredTerminal =
+        lastCycleStatus !== currentStatus &&
         (currentStatus === CycleStatus.COMPLETED ||
           currentStatus === CycleStatus.FAILED ||
-          currentStatus === CycleStatus.ABORTED)
-      ) {
-        if (inFlightCycle) {
-          emitCycleClose(timestamp, snapshot, currentStatus);
+          currentStatus === CycleStatus.ABORTED);
+
+      // --- 3. Entry edge x -> 1: Cycle started ---
+      // The PLC can begin the next cycle directly from a terminal state, so
+      // requiring exactly 0 -> 1 loses every 2/3/4 -> 1 start.
+      if (enteredStart) {
+        const expectedCycleNumber = snapshot.completedCycles + 1;
+        if (inFlightCycle && lastCycleStatus === null) {
+          log.info(
+            {
+              name: 'V03CycleTracker',
+              cycleNumber: inFlightCycle.cycleNumber,
+              from: lastCycleStatus,
+            },
+            'Recovered cycle start confirmed by PLC state',
+          );
         } else {
-          // Edge case: cycle end without start (shouldn't happen with valid PLC)
-          log.warn?.(
-            { name: 'V03CycleTracker', cycleStatus: currentStatus },
-            'Cycle end detected without in-flight cycle',
+          if (inFlightCycle) {
+            log.warn?.(
+              {
+                name: 'V03CycleTracker',
+                previousCycleNumber: inFlightCycle.cycleNumber,
+                cycleNumber: expectedCycleNumber,
+              },
+              'Replacing stale in-flight cycle on a new start edge',
+            );
+          }
+
+          inFlightCycle = {
+            startAt: timestamp,
+            startEnergyKwh: snapshot.energyConsumption ?? null,
+            startWaterL: snapshot.waterConsumption ?? null,
+            operator: snapshot.user ?? '',
+            orderNumber: snapshot.orderNumber ?? '',
+            cycleNumber: expectedCycleNumber,
+            containers: snapshot.container ?? 0,
+            materialInputKg: snapshot.materialInputWeight ?? 0,
+            grossInputKg: snapshot.materialInputWeight ?? 0,
+          };
+
+          dataHub.emitCycleStart({
+            resetEpoch,
+            startEnergyKwh: inFlightCycle.startEnergyKwh,
+            startWaterL: inFlightCycle.startWaterL,
+            operator: inFlightCycle.operator,
+            orderNumber: inFlightCycle.orderNumber,
+            containers: inFlightCycle.containers,
+            materialInputKg: inFlightCycle.materialInputKg,
+            grossInputKg: inFlightCycle.grossInputKg,
+            cycleNumber: inFlightCycle.cycleNumber,
+            startedAt: timestamp,
+          });
+
+          log.info(
+            {
+              name: 'V03CycleTracker',
+              cycleNumber: inFlightCycle.cycleNumber,
+              from: lastCycleStatus,
+              startedAt: timestamp.toISOString(),
+            },
+            'Cycle started on entry edge to status 1',
           );
         }
       }
 
-      // --- 5. Skipped state: 0 -> {2,3,4} directly ---
-      if (
-        (lastCycleStatus === CycleStatus.NONE || lastCycleStatus === null) &&
-        (currentStatus === CycleStatus.COMPLETED ||
-          currentStatus === CycleStatus.FAILED ||
-          currentStatus === CycleStatus.ABORTED)
-      ) {
-        log.warn?.(
-          { name: 'V03CycleTracker', from: lastCycleStatus, to: currentStatus },
-          'Skipped CYCLE_START state',
-        );
-        emitSkippedCycleClose(timestamp, snapshot, currentStatus);
+      // --- 4. Entry edge into {2,3,4}: Cycle ended ---
+      if (enteredTerminal) {
+        if (inFlightCycle) {
+          emitCycleClose(timestamp, snapshot, currentStatus);
+        } else if (
+          lastCycleStatus === CycleStatus.CYCLE_START ||
+          lastCycleStatus === CycleStatus.NONE ||
+          lastCycleStatus === null
+        ) {
+          log.warn?.(
+            { name: 'V03CycleTracker', cycleStatus: currentStatus },
+            'Skipped CYCLE_START state — cycle end detected without in-flight cycle',
+          );
+          emitSkippedCycleClose(timestamp, snapshot, currentStatus);
+        }
       }
 
-      // --- 6. Update tracked state ---
+      // --- 5. Update tracked state ---
       lastCompletedCycles = snapshot.completedCycles;
       lastCycleStatus = currentStatus;
     } catch (err) {

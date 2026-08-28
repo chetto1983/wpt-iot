@@ -143,6 +143,32 @@ export class EnergyConfigService {
       CREATE INDEX IF NOT EXISTS cycle_records_composite_idx
         ON cycle_records (reset_epoch, cycle_number)
     `);
+    await db.execute(sql`
+      CREATE UNIQUE INDEX IF NOT EXISTS cycle_records_identity_uidx
+        ON cycle_records (reset_epoch, cycle_number)
+    `);
+
+    // Durable start-edge state. Keeping open cycles separate preserves the
+    // completed-only contract of cycle_records (ended_at remains NOT NULL).
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS cycle_starts (
+        reset_epoch INTEGER NOT NULL DEFAULT 0,
+        cycle_number INTEGER NOT NULL,
+        started_at TIMESTAMPTZ NOT NULL,
+        start_energy_kwh REAL,
+        start_water_l REAL,
+        containers INTEGER NOT NULL DEFAULT 0,
+        operator VARCHAR(20) NOT NULL DEFAULT '',
+        order_number VARCHAR(20) NOT NULL DEFAULT '',
+        material_input_kg REAL NOT NULL DEFAULT 0,
+        gross_input_kg REAL NOT NULL DEFAULT 0,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+    await db.execute(sql`
+      CREATE UNIQUE INDEX IF NOT EXISTS cycle_starts_identity_uidx
+        ON cycle_starts (reset_epoch, cycle_number)
+    `);
 
     // ─── cycle_resets (counter rollover anchors) ─────────────────────────
     await db.execute(sql`
@@ -191,6 +217,9 @@ export class EnergyConfigService {
         END IF;
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'cycle_records' AND column_name = 'published_at') THEN
           ALTER TABLE cycle_records ADD COLUMN published_at TIMESTAMPTZ;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'cycle_records' AND column_name = 'record_source') THEN
+          ALTER TABLE cycle_records ADD COLUMN record_source VARCHAR(8) NOT NULL DEFAULT 'BACKFILL';
         END IF;
       END $$;
     `);

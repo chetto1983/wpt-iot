@@ -23,6 +23,7 @@ import type { IMachineSnapshot } from '@wpt/types';
 // ---------------------------------------------------------------------------
 const emitCycleClosed = vi.fn();
 const emitCycleStart = vi.fn();
+const { dbExecute } = vi.hoisted(() => ({ dbExecute: vi.fn() }));
 
 // Store the registered handler so tests can trigger it
 let machineDataHandler: ((snapshot: IMachineSnapshot, timestamp: Date) => void) | null = null;
@@ -36,6 +37,10 @@ vi.mock('../../events/hub.js', () => ({
       return { on: vi.fn() };
     }),
   },
+}));
+
+vi.mock('../../db/index.js', () => ({
+  db: { execute: dbExecute },
 }));
 
 // ---------------------------------------------------------------------------
@@ -97,14 +102,15 @@ const { startV03CycleTracker } = await import('../../persistence/v03CycleTracker
 describe('V03 Cycle_Status edge detection FSM (RED — Phase 24)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    dbExecute.mockResolvedValue({ rows: [] });
   });
 
   // ==========================================================================
   // Test 1: Rising edge 0→1 captures start snapshot
   // ==========================================================================
-  it('Cycle_Status 0->1 edge detection triggers start snapshot capture', () => {
+  it('Cycle_Status 0->1 edge detection triggers start snapshot capture', async () => {
     const log = { info: vi.fn(), warn: vi.fn(), error: vi.fn() };
-    startV03CycleTracker(log);
+    await startV03CycleTracker(log);
 
     // First: Establish initial state as NONE (0)
     const initialSnapshot = makeSnapshot({
@@ -138,9 +144,9 @@ describe('V03 Cycle_Status edge detection FSM (RED — Phase 24)', () => {
   // ==========================================================================
   // Test 2: Rising edge 1→2 emits COMPLETED cycle event
   // ==========================================================================
-  it('Cycle_Status 1->2 edge detection emits COMPLETED cycle event', () => {
+  it('Cycle_Status 1->2 edge detection emits COMPLETED cycle event', async () => {
     const log = { info: vi.fn(), warn: vi.fn(), error: vi.fn() };
-    startV03CycleTracker(log);
+    await startV03CycleTracker(log);
 
     // Step 1: Establish NONE state
     machineDataHandler!(makeSnapshot({ cycleStatus: CycleStatus.NONE, completedCycles: 10 }), new Date());
@@ -177,9 +183,9 @@ describe('V03 Cycle_Status edge detection FSM (RED — Phase 24)', () => {
   // ==========================================================================
   // Test 3: Rising edge 1→3 emits FAILED cycle event
   // ==========================================================================
-  it('Cycle_Status 1->3 edge detection emits FAILED cycle event', () => {
+  it('Cycle_Status 1->3 edge detection emits FAILED cycle event', async () => {
     const log = { info: vi.fn(), warn: vi.fn(), error: vi.fn() };
-    startV03CycleTracker(log);
+    await startV03CycleTracker(log);
 
     // Step 1: Establish NONE state
     machineDataHandler!(makeSnapshot({ cycleStatus: CycleStatus.NONE, completedCycles: 10 }), new Date());
@@ -209,9 +215,9 @@ describe('V03 Cycle_Status edge detection FSM (RED — Phase 24)', () => {
   // ==========================================================================
   // Test 4: Rising edge 1→4 emits ABORTED cycle event
   // ==========================================================================
-  it('Cycle_Status 1->4 edge detection emits ABORTED cycle event', () => {
+  it('Cycle_Status 1->4 edge detection emits ABORTED cycle event', async () => {
     const log = { info: vi.fn(), warn: vi.fn(), error: vi.fn() };
-    startV03CycleTracker(log);
+    await startV03CycleTracker(log);
 
     // Step 1: Establish NONE state
     machineDataHandler!(makeSnapshot({ cycleStatus: CycleStatus.NONE, completedCycles: 10 }), new Date());
@@ -242,9 +248,9 @@ describe('V03 Cycle_Status edge detection FSM (RED — Phase 24)', () => {
   // ==========================================================================
   // Test 5: Skipped state 0→2 logs WARN and emits data_gap annotation
   // ==========================================================================
-  it('Skipped state 0->2 logs WARN and emits data_gap annotation', () => {
+  it('Skipped state 0->2 logs WARN and emits data_gap annotation', async () => {
     const log = { info: vi.fn(), warn: vi.fn(), error: vi.fn() };
-    startV03CycleTracker(log);
+    await startV03CycleTracker(log);
 
     // Step 1: Establish NONE state
     machineDataHandler!(makeSnapshot({ cycleStatus: CycleStatus.NONE, completedCycles: 10 }), new Date());
@@ -275,9 +281,9 @@ describe('V03 Cycle_Status edge detection FSM (RED — Phase 24)', () => {
   // ==========================================================================
   // Test 6: Stuck cycle (>24h in CYCLE_START) logs WARN only
   // ==========================================================================
-  it('Stuck cycle (>24h in CYCLE_START) logs WARN only', () => {
+  it('Stuck cycle (>24h in CYCLE_START) logs WARN only', async () => {
     const log = { info: vi.fn(), warn: vi.fn(), error: vi.fn() };
-    startV03CycleTracker(log);
+    await startV03CycleTracker(log);
 
     const now = new Date();
 
@@ -313,9 +319,9 @@ describe('V03 Cycle_Status edge detection FSM (RED — Phase 24)', () => {
   // ==========================================================================
   // Test 7: Counter reset during cycle clears in-flight state
   // ==========================================================================
-  it('Counter reset during cycle clears in-flight state', () => {
+  it('Counter reset during cycle clears in-flight state', async () => {
     const log = { info: vi.fn(), warn: vi.fn(), error: vi.fn() };
-    startV03CycleTracker(log);
+    await startV03CycleTracker(log);
 
     // Step 1: Establish initial state with completedCycles = 10
     machineDataHandler!(makeSnapshot({ cycleStatus: CycleStatus.NONE, completedCycles: 10 }), new Date());
@@ -337,9 +343,9 @@ describe('V03 Cycle_Status edge detection FSM (RED — Phase 24)', () => {
   // ==========================================================================
   // Test 8: In-memory snapshot holds start counters until cycle end
   // ==========================================================================
-  it('In-memory snapshot holds start counters until cycle end', () => {
+  it('In-memory snapshot holds start counters until cycle end', async () => {
     const log = { info: vi.fn(), warn: vi.fn(), error: vi.fn() };
-    startV03CycleTracker(log);
+    await startV03CycleTracker(log);
 
     // Step 1: Establish NONE state
     machineDataHandler!(makeSnapshot({ cycleStatus: CycleStatus.NONE, completedCycles: 10 }), new Date());
@@ -387,9 +393,9 @@ describe('V03 Cycle_Status edge detection FSM (RED — Phase 24)', () => {
   // ==========================================================================
   // Test 9: Edge case - rapid status changes
   // ==========================================================================
-  it('Rapid status changes within debounce window are coalesced', () => {
+  it('Rapid status changes within debounce window are coalesced', async () => {
     const log = { info: vi.fn(), warn: vi.fn(), error: vi.fn() };
-    startV03CycleTracker(log);
+    await startV03CycleTracker(log);
 
     // Step 1: Establish NONE state
     machineDataHandler!(makeSnapshot({ cycleStatus: CycleStatus.NONE, completedCycles: 10 }), new Date());
@@ -409,12 +415,106 @@ describe('V03 Cycle_Status edge detection FSM (RED — Phase 24)', () => {
     expect(emitCycleClosed).toHaveBeenCalledTimes(1);
   });
 
+  it('opens the next cycle on a 2->1 entry edge without duplicating repeated status 1', async () => {
+    const log = { info: vi.fn(), warn: vi.fn(), error: vi.fn() };
+    await startV03CycleTracker(log);
+
+    machineDataHandler!(makeSnapshot({
+      cycleStatus: CycleStatus.COMPLETED,
+      completedCycles: 64,
+    }), new Date('2026-08-28T09:52:46Z'));
+    emitCycleStart.mockClear();
+
+    machineDataHandler!(makeSnapshot({
+      cycleStatus: CycleStatus.CYCLE_START,
+      completedCycles: 65,
+    }), new Date('2026-08-28T09:53:36Z'));
+    machineDataHandler!(makeSnapshot({
+      cycleStatus: CycleStatus.CYCLE_START,
+      completedCycles: 65,
+    }), new Date('2026-08-28T09:53:41Z'));
+
+    expect(emitCycleStart).toHaveBeenCalledTimes(1);
+    expect(emitCycleStart).toHaveBeenCalledWith(expect.objectContaining({
+      resetEpoch: 0,
+      cycleNumber: 66,
+      startedAt: new Date('2026-08-28T09:53:36Z'),
+    }));
+  });
+
+  it('replays the observed PLC sequence using status entry edges', async () => {
+    const log = { info: vi.fn(), warn: vi.fn(), error: vi.fn() };
+    await startV03CycleTracker(log);
+
+    machineDataHandler!(makeSnapshot({ cycleStatus: CycleStatus.NONE, completedCycles: 63 }), new Date('2026-08-28T07:30:17Z'));
+    machineDataHandler!(makeSnapshot({ cycleStatus: CycleStatus.CYCLE_START, completedCycles: 63 }), new Date('2026-08-28T09:38:30Z'));
+    machineDataHandler!(makeSnapshot({ cycleStatus: CycleStatus.CYCLE_START, completedCycles: 64 }), new Date('2026-08-28T09:40:37Z'));
+    machineDataHandler!(makeSnapshot({ cycleStatus: CycleStatus.CYCLE_START, completedCycles: 65 }), new Date('2026-08-28T09:52:25Z'));
+    machineDataHandler!(makeSnapshot({ cycleStatus: CycleStatus.COMPLETED, completedCycles: 65 }), new Date('2026-08-28T09:52:46Z'));
+    machineDataHandler!(makeSnapshot({ cycleStatus: CycleStatus.CYCLE_START, completedCycles: 65 }), new Date('2026-08-28T09:53:36Z'));
+    machineDataHandler!(makeSnapshot({ cycleStatus: CycleStatus.FAILED, completedCycles: 65 }), new Date('2026-08-28T09:54:22Z'));
+
+    expect(emitCycleStart).toHaveBeenCalledTimes(2);
+    expect(emitCycleClosed).toHaveBeenCalledTimes(2);
+    expect(emitCycleClosed.mock.calls[0][0]).toEqual(expect.objectContaining({
+      cycleNumber: 64,
+      cycleStatusLabel: 'OK',
+      startedAt: new Date('2026-08-28T09:38:30Z'),
+      endedAt: new Date('2026-08-28T09:52:46Z'),
+    }));
+    expect(emitCycleClosed.mock.calls[1][0]).toEqual(expect.objectContaining({
+      cycleNumber: 66,
+      cycleStatusLabel: 'FAILED',
+      startedAt: new Date('2026-08-28T09:53:36Z'),
+      endedAt: new Date('2026-08-28T09:54:22Z'),
+    }));
+  });
+
+  it('recovers a durable start and closes it after a backend restart', async () => {
+    const log = { info: vi.fn(), warn: vi.fn(), error: vi.fn() };
+    dbExecute
+      .mockResolvedValueOnce({ rows: [{ resetEpoch: 1 }] })
+      .mockResolvedValueOnce({ rows: [{ maxCycleNumber: 65 }] })
+      .mockResolvedValueOnce({
+        rows: [{
+          startAt: new Date('2026-08-28T09:38:30Z'),
+          startEnergyKwh: 100,
+          startWaterL: 20,
+          operator: 'MARIO',
+          orderNumber: 'ORD-64',
+          cycleNumber: 64,
+          containers: 5,
+          materialInputKg: 90,
+          grossInputKg: 100,
+        }],
+      });
+    await startV03CycleTracker(log);
+
+    machineDataHandler!(makeSnapshot({
+      cycleStatus: CycleStatus.CYCLE_START,
+      completedCycles: 65,
+    }), new Date('2026-08-28T09:52:25Z'));
+    expect(emitCycleStart).not.toHaveBeenCalled();
+
+    machineDataHandler!(makeSnapshot({
+      cycleStatus: CycleStatus.COMPLETED,
+      completedCycles: 65,
+    }), new Date('2026-08-28T09:52:46Z'));
+
+    expect(emitCycleClosed).toHaveBeenCalledWith(expect.objectContaining({
+      resetEpoch: 1,
+      cycleNumber: 64,
+      startedAt: new Date('2026-08-28T09:38:30Z'),
+      endedAt: new Date('2026-08-28T09:52:46Z'),
+    }));
+  });
+
   // ==========================================================================
   // Test 10: Edge case - invalid status values are logged and ignored
   // ==========================================================================
-  it('Invalid Cycle_Status values (5+) are logged and ignored', () => {
+  it('Invalid Cycle_Status values (5+) are logged and ignored', async () => {
     const log = { info: vi.fn(), warn: vi.fn(), error: vi.fn() };
-    startV03CycleTracker(log);
+    await startV03CycleTracker(log);
 
     // Step 1: Establish NONE state
     machineDataHandler!(makeSnapshot({ cycleStatus: CycleStatus.NONE, completedCycles: 10 }), new Date());

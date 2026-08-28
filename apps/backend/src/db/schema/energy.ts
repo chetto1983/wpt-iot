@@ -10,6 +10,7 @@ import {
   bigint,
   bigserial,
   text,
+  uniqueIndex,
 } from 'drizzle-orm/pg-core';
 
 /**
@@ -117,11 +118,37 @@ export const cycleRecords = pgTable(
     operator: varchar('operator', { length: 20 }),
     cycleStatusLabel: varchar('cycle_status_label', { length: 16 }),
     grossInputKg: real('gross_input_kg'),
+    recordSource: varchar('record_source', { length: 8 })
+      .notNull()
+      .default('BACKFILL'),
   },
   (t) => [
     index('cycle_records_started_at_idx').on(t.startedAt),
     index('cycle_records_cycle_type_idx').on(t.cycleType),
     index('cycle_records_composite_idx').on(t.resetEpoch, t.cycleNumber),
+    uniqueIndex('cycle_records_identity_uidx').on(t.resetEpoch, t.cycleNumber),
+  ],
+);
+
+// Durable start-edge snapshots. A row exists only while a cycle is open, so
+// the V03 tracker can recover the real start after a backend restart.
+export const cycleStarts = pgTable(
+  'cycle_starts',
+  {
+    resetEpoch: integer('reset_epoch').notNull().default(0),
+    cycleNumber: integer('cycle_number').notNull(),
+    startedAt: timestamp('started_at', { withTimezone: true }).notNull(),
+    startEnergyKwh: real('start_energy_kwh'),
+    startWaterL: real('start_water_l'),
+    containers: integer('containers').notNull().default(0),
+    operator: varchar('operator', { length: 20 }).notNull().default(''),
+    orderNumber: varchar('order_number', { length: 20 }).notNull().default(''),
+    materialInputKg: real('material_input_kg').notNull().default(0),
+    grossInputKg: real('gross_input_kg').notNull().default(0),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex('cycle_starts_identity_uidx').on(t.resetEpoch, t.cycleNumber),
   ],
 );
 
@@ -145,6 +172,7 @@ export const cycleResets = pgTable(
 export type EnergyConfigRow = typeof energyConfig.$inferSelect;
 export type EnergyConfigPeriodRow = typeof energyConfigPeriods.$inferSelect;
 export type CycleRecordRow = typeof cycleRecords.$inferSelect;
+export type CycleStartRow = typeof cycleStarts.$inferSelect;
 export type CycleResetRow = typeof cycleResets.$inferSelect;
 
 // =============================================================================

@@ -15,6 +15,13 @@
       "when": 1776355200000,
       "tag": "0001_nullable_target_host",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1787912666104,
+      "tag": "0002_cycle_start_persistence",
+      "breakpoints": true
     }
   ]
 }

@@ -1,6 +1,6 @@
 import { sql } from 'drizzle-orm';
 import { db } from '../../db/index.js';
-import type { ICycleClosedEvent } from '@wpt/types';
+import type { ICycleClosedEvent, ICycleStartEvent } from '@wpt/types';
 import { AttributionStatus } from '@wpt/types';
 
 // =============================================================================
@@ -50,6 +50,48 @@ interface IServiceLogger {
  * apps/backend/src/routes/energy.ts provides it.
  */
 export class EnergyAttributionService {
+  /** Persist an open-cycle start edge. Replays preserve the earliest capture. */
+  static async upsertCycleStart(
+    event: ICycleStartEvent,
+    log: IServiceLogger,
+  ): Promise<void> {
+    await db.execute(sql`
+      INSERT INTO cycle_starts (
+        reset_epoch, cycle_number, started_at,
+        start_energy_kwh, start_water_l,
+        containers, operator, order_number,
+        material_input_kg, gross_input_kg
+      ) VALUES (
+        ${event.resetEpoch}, ${event.cycleNumber}, ${event.startedAt}::timestamptz,
+        ${event.startEnergyKwh}, ${event.startWaterL},
+        ${event.containers}, ${event.operator}, ${event.orderNumber},
+        ${event.materialInputKg}, ${event.grossInputKg}
+      )
+      ON CONFLICT (reset_epoch, cycle_number) DO NOTHING
+    `);
+    log.info(
+      {
+        name: 'EnergyAttribution',
+        cycleNumber: event.cycleNumber,
+        resetEpoch: event.resetEpoch,
+        startedAt: event.startedAt.toISOString(),
+      },
+      'Cycle start persisted',
+    );
+  }
+
+  /** Remove durable open-cycle state after an authoritative close is stored. */
+  static async deleteCycleStart(
+    resetEpoch: number,
+    cycleNumber: number,
+  ): Promise<void> {
+    await db.execute(sql`
+      DELETE FROM cycle_starts
+      WHERE reset_epoch = ${resetEpoch}
+        AND cycle_number = ${cycleNumber}
+    `);
+  }
+
   /**
    * Compute the kWh delta over a closed-half-open window
    * [startedAt, endedAt) from machine_snapshots, plus sample count and
@@ -155,31 +197,19 @@ export class EnergyAttributionService {
    * classifyAttribution() above (Plan 07); the ENRG-09 kwh_per_kg null guard
    * lives in this method after the classifier returns.
    *
-   * Idempotency (ENRG-03): skip insert if a row with the same
-   * (reset_epoch, cycle_number) already exists. Called by both the
-   * cycle:closed subscriber (cyclePersister.ts) and the 5-minute backfill
-   * scan; both paths MUST be safe to re-run.
+   * Idempotency (ENRG-03): the unique natural key makes the write atomic.
+   * An authoritative live close upgrades an UNKNOWN backfill row, while an
+   * already-authoritative row is preserved.
    *
-   * Returns `true` if a row was inserted, `false` if the idempotency check
-   * found an existing row.
+   * Returns `true` if a row was inserted/upgraded, `false` if an existing
+   * authoritative row was preserved.
    */
   static async insertCycleFromEvent(
     event: ICycleClosedEvent,
     log: IServiceLogger,
+    opts: { source?: 'LIVE' | 'BACKFILL' } = {},
   ): Promise<boolean> {
-    // Idempotency check -- composite natural key (reset_epoch, cycle_number)
-    // per ENRG-04. If a row already exists for this cycle, do NOT insert
-    // again; the backfill and live path can race and we must not duplicate.
-    const existing = await db.execute(sql`
-      SELECT id FROM cycle_records
-      WHERE reset_epoch = ${event.resetEpoch}
-        AND cycle_number = ${event.cycleNumber}
-      LIMIT 1
-    `);
-    if (existing.rows.length > 0) {
-      return false;
-    }
-
+    const source = opts.source ?? 'LIVE';
     const window = await EnergyAttributionService.windowKwhDelta(
       event.startedAt,
       event.endedAt,
@@ -213,7 +243,7 @@ export class EnergyAttributionService {
     }
 
     // Phase 24: Insert with full 14 register fields
-    await db.execute(sql`
+    const persisted = await db.execute(sql`
       INSERT INTO cycle_records (
         reset_epoch, cycle_number,
         started_at, ended_at,
@@ -226,7 +256,7 @@ export class EnergyAttributionService {
         start_water_l, end_water_l,
         containers, operator,
         cycle_status_label, gross_input_kg,
-        published_at
+        published_at, record_source
       ) VALUES (
         ${event.resetEpoch}, ${event.cycleNumber},
         ${event.startedAt}::timestamptz, ${event.endedAt}::timestamptz,
@@ -239,9 +269,44 @@ export class EnergyAttributionService {
         ${event.startWaterL}, ${event.endWaterL},
         ${event.containers}, ${event.operator},
         ${event.cycleStatusLabel}, ${event.grossInputKg ?? window.material_input_kg},
-        NULL
+        NULL, ${source}
       )
+      ON CONFLICT (reset_epoch, cycle_number) DO UPDATE SET
+        started_at = EXCLUDED.started_at,
+        ended_at = EXCLUDED.ended_at,
+        cycle_type = EXCLUDED.cycle_type,
+        duration_seconds = EXCLUDED.duration_seconds,
+        material_input_kg = EXCLUDED.material_input_kg,
+        material_output_kg = EXCLUDED.material_output_kg,
+        energy_kwh = EXCLUDED.energy_kwh,
+        water_l = EXCLUDED.water_l,
+        avg_rms_current = EXCLUDED.avg_rms_current,
+        kwh_per_kg = EXCLUDED.kwh_per_kg,
+        attribution_status = EXCLUDED.attribution_status,
+        serial_number = EXCLUDED.serial_number,
+        order_number = EXCLUDED.order_number,
+        start_energy_kwh = EXCLUDED.start_energy_kwh,
+        end_energy_kwh = EXCLUDED.end_energy_kwh,
+        start_water_l = EXCLUDED.start_water_l,
+        end_water_l = EXCLUDED.end_water_l,
+        containers = EXCLUDED.containers,
+        operator = EXCLUDED.operator,
+        cycle_status_label = EXCLUDED.cycle_status_label,
+        gross_input_kg = EXCLUDED.gross_input_kg,
+        published_at = NULL,
+        record_source = EXCLUDED.record_source
+      WHERE (
+          cycle_records.record_source = 'BACKFILL'
+          AND EXCLUDED.record_source = 'LIVE'
+        ) OR (
+          COALESCE(cycle_records.cycle_status_label, 'UNKNOWN') = 'UNKNOWN'
+          AND EXCLUDED.cycle_status_label <> 'UNKNOWN'
+        )
+      RETURNING id
     `);
+    if (persisted.rows.length === 0) {
+      return false;
+    }
     log.info(
       {
         name: 'EnergyAttribution',
@@ -252,6 +317,7 @@ export class EnergyAttributionService {
         sampleCount: window.sample_count,
         maxGapSeconds: window.max_gap_seconds,
         hint: event.attributionStatusHint ?? null,
+        source,
       },
       'Cycle record persisted',
     );
@@ -259,23 +325,13 @@ export class EnergyAttributionService {
   }
 
   /**
-   * Idempotent backfill: scan machine_snapshots for completedCycles
-   * increments since `since` whose corresponding cycle_records row is
-   * missing, and persist them. Called every 5 minutes from the Fastify
-   * route plugin scheduler in apps/backend/src/routes/energy.ts.
+   * Idempotent backfill: reconstruct closed cycles from Cycle_Status entry
+   * edges in machine_snapshots. Counter changes alone are not boundaries:
+   * the observed PLC increments completedCycles while Cycle_Status is still 1.
    *
-   * Heuristic: find every snapshot where completed_cycles increased
-   * relative to the previous snapshot. The "started at" is the previous
-   * snapshot, the "ended at" is the increment snapshot. Resolve resetEpoch
-   * by joining to the most recent cycle_resets row whose observed_at <= the
-   * increment timestamp (or 0 if none).
-   *
-   * Backfill does NOT set attributionStatusHint -- it can only detect
-   * completedCycles-increment cycles (the happy path). Aborted cycles are
-   * detected only by the real-time cycleTracker FSM which has access to
-   * the full currentPhase transition history. This is accepted per
-   * T-19-17b: the backfill is a safety net for missed happy-path cycles
-   * after a backend restart, not a replacement for live tracking.
+   * A start is any entry into status 1. It is paired with the first entry into
+   * terminal status 2/3/4 before another start. The counter is used only to
+   * assign the natural cycle number captured at the start edge.
    *
    * ENRG-03: re-running this over the same window MUST NOT duplicate rows.
    * The idempotency guarantee comes from insertCycleFromEvent's existence
@@ -287,32 +343,66 @@ export class EnergyAttributionService {
     opts: { since: Date },
     log: IServiceLogger,
   ): Promise<number> {
-    // 1. Find candidate cycle boundaries -- snapshots where completed_cycles
-    //    incremented vs the prior snapshot. Window-bounded by `since` so the
-    //    scan is cheap (T-19-15 mitigation).
+    // Include up to 24h before the requested close window so a long-running
+    // cycle that starts before `since` can still be paired with its end edge.
     const candidates = await db.execute(sql`
-      WITH ordered AS (
+      WITH scan_rows AS (
+        (
+          SELECT timestamp, completed_cycles, cycle_status,
+                 machine_status, selected_cycle
+          FROM machine_snapshots
+          WHERE timestamp < (${opts.since}::timestamptz - INTERVAL '24 hours')
+          ORDER BY timestamp DESC
+          LIMIT 1
+        )
+        UNION ALL
+        SELECT timestamp, completed_cycles, cycle_status,
+               machine_status, selected_cycle
+        FROM machine_snapshots
+        WHERE timestamp >= (${opts.since}::timestamptz - INTERVAL '24 hours')
+      ), ordered AS (
         SELECT
           timestamp,
           completed_cycles,
+          cycle_status,
           machine_status,
           selected_cycle,
-          LAG(completed_cycles) OVER (ORDER BY timestamp) AS prev_completed,
-          LAG(timestamp)        OVER (ORDER BY timestamp) AS prev_ts
-        FROM machine_snapshots
-        WHERE timestamp >= ${opts.since}::timestamptz
-        ORDER BY timestamp
+          LAG(cycle_status) OVER (ORDER BY timestamp) AS prev_status
+        FROM scan_rows
+      ), edges AS (
+        SELECT *
+        FROM ordered
+        WHERE cycle_status IS DISTINCT FROM prev_status
+      ), starts AS (
+        SELECT
+          timestamp AS started_at,
+          completed_cycles + 1 AS cycle_number
+        FROM edges
+        WHERE cycle_status = 1
       )
       SELECT
-        timestamp        AS "endedAt",
-        prev_ts          AS "startedAt",
-        completed_cycles AS "cycleNumber",
-        machine_status   AS "machineStatus",
-        selected_cycle   AS "cycleType"
-      FROM ordered
-      WHERE prev_completed IS NOT NULL
-        AND completed_cycles IS NOT NULL
-        AND completed_cycles > prev_completed
+        terminal.timestamp      AS "endedAt",
+        starts.started_at       AS "startedAt",
+        starts.cycle_number     AS "cycleNumber",
+        terminal.machine_status AS "machineStatus",
+        terminal.selected_cycle AS "cycleType",
+        terminal.cycle_status   AS "cycleStatus"
+      FROM starts
+      CROSS JOIN LATERAL (
+        SELECT e.timestamp, e.machine_status, e.selected_cycle, e.cycle_status
+        FROM edges e
+        WHERE e.timestamp > starts.started_at
+          AND e.cycle_status IN (2, 3, 4)
+          AND NOT EXISTS (
+            SELECT 1
+            FROM starts next_start
+            WHERE next_start.started_at > starts.started_at
+              AND next_start.started_at < e.timestamp
+          )
+        ORDER BY e.timestamp
+        LIMIT 1
+      ) terminal
+      WHERE terminal.timestamp >= ${opts.since}::timestamptz
     `);
 
     let inserted = 0;
@@ -322,6 +412,7 @@ export class EnergyAttributionService {
       cycleNumber: number | string;
       machineStatus: number | string;
       cycleType: number | string;
+      cycleStatus: number | string;
     }>) {
       if (raw.startedAt == null) continue; // first-ever snapshot has no prev_ts
 
@@ -357,8 +448,12 @@ export class EnergyAttributionService {
           endedAt,
           cycleType: Number(raw.cycleType),
           machineStatus: Number(raw.machineStatus),
-          // Phase 24: V03 cycle register fields (null for backfilled legacy cycles)
-          cycleStatusLabel: 'UNKNOWN',
+          cycleStatusLabel:
+            Number(raw.cycleStatus) === 2
+              ? 'OK'
+              : Number(raw.cycleStatus) === 3
+                ? 'FAILED'
+                : 'ABORTED',
           startEnergyKwh: null,
           endEnergyKwh: null,
           startWaterL: null,
@@ -370,8 +465,12 @@ export class EnergyAttributionService {
           materialInputKg: null,
           energyKwh: null,
           waterL: null,
+          ...(Number(raw.cycleStatus) === 4
+            ? { attributionStatusHint: 'ABORTED' as const }
+            : {}),
         },
         log,
+        { source: 'BACKFILL' },
       );
       if (wasInserted) inserted += 1;
     }

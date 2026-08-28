@@ -91,8 +91,8 @@ export const energyRoutes: FastifyPluginAsync = async (server) => {
   //
   // onClose cleanup clears the interval so vitest processes don't leak.
   // ─────────────────────────────────────────────────────────────────
-  startV03CycleTracker(server.log);
   startCyclePersister(server.log);
+  await startV03CycleTracker(server.log);
 
   const BACKFILL_INTERVAL_MS = 5 * 60 * 1000;
   const BACKFILL_WINDOW_MS = 15 * 60 * 1000;

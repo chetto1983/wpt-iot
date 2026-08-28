@@ -1,6 +1,6 @@
 import { dataHub } from '../events/hub.js';
 import { EnergyAttributionService } from '../services/energy/index.js';
-import type { ICycleClosedEvent } from '@wpt/types';
+import type { ICycleClosedEvent, ICycleStartEvent } from '@wpt/types';
 
 /** Logger interface compatible with Pino/Fastify logger */
 interface IStoreLogger {
@@ -9,41 +9,59 @@ interface IStoreLogger {
 }
 
 /**
- * Subscribe to `cycle:closed` events and persist each cycle to
- * `cycle_records` via EnergyAttributionService.insertCycleFromEvent.
+ * Persist start and close lifecycle events in emission order.
  *
- * ENRG-02 (per-cycle records), ENRG-03 (idempotent persistence) — the
- * insertCycleFromEvent call is a no-op if the (reset_epoch, cycle_number)
- * row already exists, so this subscriber is safe to race with the
- * 5-minute backfill scheduler registered in routes/energy.ts.
- *
- * Pattern mirrors `apps/backend/src/persistence/machineStore.ts:17-33`:
- *   - start-function, closure-free, logs and continues on error
- *   - never crashes the process on a bad cycle
- *   - registered from the Fastify energy route plugin body (Plan 19-06
- *     Pattern 3 per RESEARCH.md — NOT a hypothetical onReady hook)
+ * EventEmitter does not await async listeners. A single queue guarantees that
+ * a rapid start->close stores the durable start before the close removes it.
  */
 export function startCyclePersister(log: IStoreLogger): void {
-  dataHub.onCycleClosed(async (event: ICycleClosedEvent) => {
-    try {
-      await EnergyAttributionService.insertCycleFromEvent(event, log);
-    } catch (err) {
-      // D-12: Log and continue — cycleTracker FSM keeps running, the next
-      // backfill scan will re-attempt any missed cycles via the idempotency
-      // check in insertCycleFromEvent.
+  let persistenceQueue = Promise.resolve();
+
+  const enqueue = (
+    task: () => Promise<void>,
+    context: { cycleNumber: number; resetEpoch: number; operation: string },
+  ): void => {
+    persistenceQueue = persistenceQueue.then(task).catch((err: unknown) => {
       log.error(
         {
           name: 'CyclePersister',
           err: (err as Error).message,
-          cycleNumber: event.cycleNumber,
-          resetEpoch: event.resetEpoch,
+          ...context,
         },
-        'Failed to persist cycle record',
+        'Failed to persist cycle lifecycle event',
       );
-    }
+    });
+  };
+
+  dataHub.onCycleStart((event: ICycleStartEvent) => {
+    enqueue(
+      () => EnergyAttributionService.upsertCycleStart(event, log),
+      {
+        cycleNumber: event.cycleNumber,
+        resetEpoch: event.resetEpoch,
+        operation: 'start',
+      },
+    );
   });
+
+  dataHub.onCycleClosed((event: ICycleClosedEvent) => {
+    enqueue(async () => {
+      await EnergyAttributionService.insertCycleFromEvent(event, log, {
+        source: 'LIVE',
+      });
+      await EnergyAttributionService.deleteCycleStart(
+        event.resetEpoch,
+        event.cycleNumber,
+      );
+    }, {
+      cycleNumber: event.cycleNumber,
+      resetEpoch: event.resetEpoch,
+      operation: 'close',
+    });
+  });
+
   log.info(
     { name: 'CyclePersister' },
-    'Cycle persistence subscriber started',
+    'Cycle lifecycle persistence subscriber started',
   );
 }

@@ -163,6 +163,8 @@ export interface ICycleClosedEvent {
 /** Cycle start event payload — emitted by dataHub.emitCycleStart (Phase 24) */
 export interface ICycleStartEvent {
   cycleNumber: number;
+  /** PLC counter-reset epoch used with cycleNumber as the natural key. */
+  resetEpoch: number;
   /** Absolute energy meter reading at cycle start (S1_R_DATO_1 snapshot) */
   startEnergyKwh: number | null;
   /** Absolute water meter reading at cycle start (S1_R_DATO_14 snapshot) */
@@ -173,6 +175,10 @@ export interface ICycleStartEvent {
   orderNumber: string;
   /** Bidoni count (S1_I_DATO_72, V03 Container) */
   containers: number;
+  /** Material input weight captured on the start edge. */
+  materialInputKg: number;
+  /** Gross input weight captured on the start edge. */
+  grossInputKg: number;
   /** Cycle start timestamp */
   startedAt: Date;
 }

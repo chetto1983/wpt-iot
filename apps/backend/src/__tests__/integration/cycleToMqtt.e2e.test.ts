@@ -470,7 +470,7 @@ describe('cycleToMqtt E2E', () => {
     };
 
     // Start tracker with mock logger
-    startV03CycleTracker(warnLogger);
+    await startV03CycleTracker(warnLogger);
 
     // Emit a snapshot with cycleStatus=0
     const snapshot = _makeSnapshot({ cycleStatus: CycleStatus.NONE });
