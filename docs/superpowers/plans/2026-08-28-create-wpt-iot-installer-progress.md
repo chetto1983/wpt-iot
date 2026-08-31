@@ -17,10 +17,10 @@ Plan: `2026-08-28-create-wpt-iot-installer.md`
 | 5. Immutable installer artifact | Complete | RED observed for missing module; 36 package tests, lint, typecheck, build, ref/hash stamp pass |
 | 6. Bash config contract and update toggle | Complete | RED observed from root checks on source; Git Bash and Ubuntu 24.04 parser/syntax tests pass; 36 package tests and lint pass |
 | 7. Local Linux flow | Complete | RED observed for missing modules; 44 package tests, lint, and typecheck pass |
-| 8. Remote OpenSSH/SCP flow | Complete | RED observed for missing module/stdin API; 52 package tests, lint, typecheck, and build pass |
+| 8. Remote OpenSSH/SCP flow | Complete | Native-terminal regression fixed after live Windows/RPi test; 61 package tests, lint, typecheck, and build pass |
 | 9. CLI, README and tarball | Complete | RED observed for missing CLI; 60 package tests, lint, typecheck, build, packed help/version smoke pass |
-| 10. CI, publication and deployment docs | Pending | — |
-| 11. Disposable Raspberry acceptance | Pending | Requires a disposable target and credentials |
+| 10. CI, publication and deployment docs | In progress | Windows/Ubuntu workflow and trusted-publishing gate drafted; verification pending |
+| 11. Disposable Raspberry acceptance | Partial | Pi 2 negative-path test passed; full install requires a supported arm64/amd64 target |
 
 ## Locked decisions
 
@@ -58,3 +58,6 @@ Plan: `2026-08-28-create-wpt-iot-installer.md`
 - 2026-08-31 — Task 8 GREEN: 52 tests, lint, typecheck, and build pass; one SCP transfer uses UUID names, SSH uses a constant stdin script, both modes enforce 12 GiB free, and cleanup preserves the primary error.
 - 2026-08-31 — Task 9 RED: missing CLI orchestration module.
 - 2026-08-31 — Task 9 GREEN: 60 tests, lint, typecheck, and build pass; packed tarball excludes tests and executes localized help plus version through its published binary.
+- 2026-08-31 — Native SSH regression RED: the live Windows wizard reached remote preflight but OpenSSH could not display/read its password while subprocess `stdin` and `stderr` were both piped.
+- 2026-08-31 — Native SSH regression GREEN: remote scripts no longer consume the authentication channel; SSH/SCP and remote sudo keep terminal input, application output remains captured, and 61 package tests plus lint/typecheck/build pass.
+- 2026-08-31 — Live target check: `192.168.1.31` is a Raspberry Pi 2 Model B Rev 1.1 running 32-bit Raspbian 10 (`armv7l`). The real wizard accepted the native SSH password, rejected the unsupported architecture before download/transfer/install, and left `/opt/wpt-iot` absent with zero installer temp files.

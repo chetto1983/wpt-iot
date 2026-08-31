@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { chmod, copyFile, mkdtemp, rm } from 'node:fs/promises';
+import { chmod, copyFile, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { isIP } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -13,6 +13,7 @@ import { validateHost, validatePort, validateUsername } from './validation.js';
 const REMOTE_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
 const REMOTE_PROBE = `set -eu
+exec 2>&1
 INSTALL_DIR="$(printf '%s' "$1" | base64 --decode)"
 case "$INSTALL_DIR" in
   /*) ;;
@@ -49,16 +50,21 @@ printf 'disk_available_kb=%s\\n' "$DISK_AVAILABLE_KB"
 `;
 
 const STALE_CLEANUP = `set -eu
+exec 2>&1
 find /tmp -xdev -maxdepth 1 -type f -user "$(id -un)" -mtime +0 \\
   \\( -name 'create-wpt-iot-????????-????-????-????-????????????-installer.sh' \\
-     -o -name 'create-wpt-iot-????????-????-????-????-????????????-install.conf' \\) \\
+     -o -name 'create-wpt-iot-????????-????-????-????-????????????-install.conf' \\
+     -o -name 'create-wpt-iot-????????-????-????-????-????????????-run.sh' \\) \\
   -delete
 `;
 
-const REMOTE_INSTALL = `set -eu
+const REMOTE_INSTALL = `#!/bin/sh
+set -eu
+exec 2>&1
 INSTALLER="$1"
 CONFIG="$2"
-cleanup() { rm -f -- "$CONFIG" "$INSTALLER"; }
+RUNNER="$0"
+cleanup() { rm -f -- "$CONFIG" "$INSTALLER" "$RUNNER"; }
 trap cleanup EXIT
 trap 'exit 129' HUP
 trap 'exit 130' INT
@@ -69,7 +75,8 @@ sudo bash "$INSTALLER" --config "$CONFIG"
 `;
 
 const CURRENT_CLEANUP = `set -eu
-rm -f -- "$1" "$2"
+exec 2>&1
+rm -f -- "$1" "$2" "$3"
 `;
 
 export type WarningSink = (message: string) => void;
@@ -77,6 +84,13 @@ export type WarningSink = (message: string) => void;
 interface StagedRemoteFiles extends TemporaryFile {
   installerPath: string;
   configPath: string;
+  runnerPath: string;
+}
+
+function remoteScriptCommand(script: string, args: readonly string[] = []): string {
+  const encodedScript = Buffer.from(script, 'utf8').toString('base64');
+  const suffix = args.length === 0 ? '' : ` -- ${args.join(' ')}`;
+  return `printf %s ${encodedScript} | base64 --decode | sh -s${suffix}`;
 }
 
 async function stageRemoteFiles(
@@ -88,13 +102,16 @@ async function stageRemoteFiles(
   const directory = await mkdtemp(join(tempRoot, 'create-wpt-iot-upload-'));
   const installerPath = join(directory, `create-wpt-iot-${remoteId}-installer.sh`);
   const configPath = join(directory, `create-wpt-iot-${remoteId}-install.conf`);
+  const runnerPath = join(directory, `create-wpt-iot-${remoteId}-run.sh`);
 
   try {
     await chmod(directory, 0o700);
     await copyFile(artifact.path, installerPath);
     await copyFile(config.path, configPath);
+    await writeFile(runnerPath, REMOTE_INSTALL, { mode: 0o700, flag: 'wx' });
     await chmod(installerPath, 0o700);
     await chmod(configPath, 0o600);
+    await chmod(runnerPath, 0o700);
   } catch (error) {
     await rm(directory, { recursive: true, force: true });
     throw error;
@@ -104,6 +121,7 @@ async function stageRemoteFiles(
     path: directory,
     installerPath,
     configPath,
+    runnerPath,
     cleanup: async () => rm(directory, { recursive: true, force: true }),
   };
 }
@@ -169,18 +187,15 @@ export async function preflightRemote(
     throw new Error('unsupportedRemoteClientPlatform');
   }
 
-  const result = await runner.runWithInput(
+  const result = await runner.run(
     'ssh',
     [
       '-p',
       String(validatePort(String(target.port))),
       sshDestination(target),
-      'sh',
-      '-s',
-      '--',
-      Buffer.from(installDir, 'utf8').toString('base64'),
+      remoteScriptCommand(REMOTE_PROBE, [Buffer.from(installDir, 'utf8').toString('base64')]),
     ],
-    REMOTE_PROBE,
+    { terminal: true },
   );
 
   return parseProbeOutput(result.stdout);
@@ -202,13 +217,13 @@ export async function installRemote(
   const port = String(validatePort(String(target.port)));
   const installerPath = `/tmp/create-wpt-iot-${remoteId}-installer.sh`;
   const configPath = `/tmp/create-wpt-iot-${remoteId}-install.conf`;
+  const runnerPath = `/tmp/create-wpt-iot-${remoteId}-run.sh`;
   const redactions = [settings.adminPassword];
 
-  await runner.runWithInput(
+  await runner.run(
     'ssh',
-    ['-p', port, destination, 'sh', '-s'],
-    STALE_CLEANUP,
-    { redactions },
+    ['-p', port, destination, remoteScriptCommand(STALE_CLEANUP)],
+    { terminal: true, redactions },
   );
 
   const staged = await stageRemoteFiles(artifact, config, remoteId, tempRoot);
@@ -217,24 +232,34 @@ export async function installRemote(
   try {
     await runner.run(
       'scp',
-      ['-P', port, staged.installerPath, staged.configPath, `${destination}:/tmp/`],
-      { redactions },
+      [
+        '-P',
+        port,
+        staged.installerPath,
+        staged.configPath,
+        staged.runnerPath,
+        `${destination}:/tmp/`,
+      ],
+      { terminal: true, redactions },
     );
-    await runner.runWithInput(
+    await runner.run(
       'ssh',
-      ['-tt', '-p', port, destination, 'sh', '-s', '--', installerPath, configPath],
-      REMOTE_INSTALL,
-      { redactions },
+      ['-tt', '-p', port, destination, 'sh', runnerPath, installerPath, configPath],
+      { terminal: true, redactions },
     );
   } catch (error) {
     operationFailed = true;
     operationError = error;
     try {
-      await runner.runWithInput(
+      await runner.run(
         'ssh',
-        ['-p', port, destination, 'sh', '-s', '--', installerPath, configPath],
-        CURRENT_CLEANUP,
-        { redactions },
+        [
+          '-p',
+          port,
+          destination,
+          remoteScriptCommand(CURRENT_CLEANUP, [installerPath, configPath, runnerPath]),
+        ],
+        { terminal: true, redactions },
       );
     } catch {
       warn('remoteCleanupFailed');

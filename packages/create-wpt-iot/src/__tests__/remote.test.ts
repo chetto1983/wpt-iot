@@ -41,7 +41,7 @@ describe('remote installer', () => {
     expect(sshDestination({ ...target, host: '2001:db8::1' })).toBe('pi@[2001:db8::1]');
   });
 
-  it('checks Windows OpenSSH tools and parses one constant-script target probe', async () => {
+  it('keeps native SSH password input attached while running the target probe', async () => {
     const probeOutput = [
       'architecture=aarch64',
       'existing_install=true',
@@ -50,8 +50,11 @@ describe('remote installer', () => {
       '',
     ].join('\n');
     const runner = {
-      run: vi.fn().mockResolvedValue(success),
-      runWithInput: vi.fn().mockResolvedValue({ ...success, stdout: probeOutput }),
+      run: vi.fn()
+        .mockResolvedValueOnce(success)
+        .mockResolvedValueOnce(success)
+        .mockResolvedValueOnce({ ...success, stdout: probeOutput }),
+      runWithInput: vi.fn(),
     };
 
     await expect(preflightRemote(runner, target, '/opt/wpt-iot', 'win32')).resolves.toEqual({
@@ -62,12 +65,16 @@ describe('remote installer', () => {
 
     expect(runner.run).toHaveBeenCalledWith('ssh', ['-V']);
     expect(runner.run).toHaveBeenCalledWith('where.exe', ['scp.exe']);
-    expect(runner.runWithInput).toHaveBeenCalledWith(
+    expect(runner.run).toHaveBeenLastCalledWith(
       'ssh',
-      ['-p', '22', 'pi@192.168.1.40', 'sh', '-s', '--', 'L29wdC93cHQtaW90'],
-      expect.stringContaining('command -v "$REQUIRED_COMMAND"'),
+      ['-p', '22', 'pi@192.168.1.40', expect.stringMatching(/^printf %s [A-Za-z0-9+/=]+ \| base64 --decode \| sh -s -- L29wdC93cHQtaW90$/)],
+      { terminal: true },
     );
-    const probeScript = runner.runWithInput.mock.calls[0]?.[2] as string;
+    expect(runner.runWithInput).not.toHaveBeenCalled();
+    const remoteCommand = runner.run.mock.calls[2]?.[1]?.[3] as string;
+    const encodedProbe = remoteCommand.split(' ')[2] ?? '';
+    const probeScript = Buffer.from(encodedProbe, 'base64').toString('utf8');
+    expect(probeScript).toContain('command -v "$REQUIRED_COMMAND"');
     expect(probeScript).toContain('https://ghcr.io');
     expect(probeScript).toContain('https://raw.githubusercontent.com');
     expect(probeScript).toContain('https://get.docker.com');
@@ -76,18 +83,21 @@ describe('remote installer', () => {
 
   it('rejects insufficient remote disk before installation', async () => {
     const runner = {
-      run: vi.fn().mockResolvedValue(success),
-      runWithInput: vi.fn().mockResolvedValue({
-        ...success,
-        stdout: 'architecture=x86_64\nexisting_install=false\ndetected_serial_base64=\ndisk_available_kb=1000\n',
-      }),
+      run: vi.fn()
+        .mockResolvedValueOnce(success)
+        .mockResolvedValueOnce({ ...success, stdout: '/usr/bin/scp\n' })
+        .mockResolvedValueOnce({
+          ...success,
+          stdout: 'architecture=x86_64\nexisting_install=false\ndetected_serial_base64=\ndisk_available_kb=1000\n',
+        }),
+      runWithInput: vi.fn(),
     };
 
     await expect(preflightRemote(runner, target, '/opt/wpt-iot', 'linux'))
       .rejects.toThrow('insufficientDiskSpace:1000');
   });
 
-  it('transfers fixed UUID paths and executes them without a secret argument', async () => {
+  it('transfers a wrapper so SSH and remote sudo keep interactive terminal input', async () => {
     const runner = {
       run: vi.fn().mockResolvedValue(success),
       runWithInput: vi.fn().mockResolvedValue(success),
@@ -113,19 +123,23 @@ describe('remote installer', () => {
 
     const installerPath = `/tmp/create-wpt-iot-${remoteId}-installer.sh`;
     const configPath = `/tmp/create-wpt-iot-${remoteId}-install.conf`;
-    expect(runner.run).toHaveBeenCalledOnce();
-    const scpCall = runner.run.mock.calls[0];
+    const wrapperPath = `/tmp/create-wpt-iot-${remoteId}-run.sh`;
+    expect(runner.run).toHaveBeenCalledTimes(3);
+    expect(runner.runWithInput).not.toHaveBeenCalled();
+    expect(runner.run.mock.calls[0]?.[0]).toBe('ssh');
+    expect(runner.run.mock.calls[0]?.[2]).toEqual({ terminal: true, redactions: [password] });
+    const scpCall = runner.run.mock.calls[1];
     expect(scpCall?.[0]).toBe('scp');
     expect(scpCall?.[1]?.slice(0, 2)).toEqual(['-P', '22']);
     expect(basename(scpCall?.[1]?.[2] as string)).toBe(`create-wpt-iot-${remoteId}-installer.sh`);
     expect(basename(scpCall?.[1]?.[3] as string)).toBe(`create-wpt-iot-${remoteId}-install.conf`);
-    expect(scpCall?.[1]?.[4]).toBe('pi@192.168.1.40:/tmp/');
-    expect(scpCall?.[2]).toEqual({ redactions: [password] });
-    expect(runner.runWithInput).toHaveBeenLastCalledWith(
+    expect(basename(scpCall?.[1]?.[4] as string)).toBe(`create-wpt-iot-${remoteId}-run.sh`);
+    expect(scpCall?.[1]?.[5]).toBe('pi@192.168.1.40:/tmp/');
+    expect(scpCall?.[2]).toEqual({ terminal: true, redactions: [password] });
+    expect(runner.run).toHaveBeenLastCalledWith(
       'ssh',
-      ['-tt', '-p', '22', 'pi@192.168.1.40', 'sh', '-s', '--', installerPath, configPath],
-      expect.stringContaining('sudo bash "$INSTALLER" --config "$CONFIG"'),
-      { redactions: [password] },
+      ['-tt', '-p', '22', 'pi@192.168.1.40', 'sh', wrapperPath, installerPath, configPath],
+      { terminal: true, redactions: [password] },
     );
 
     const argvOnly = [
@@ -133,8 +147,12 @@ describe('remote installer', () => {
       ...runner.runWithInput.mock.calls.map((call) => [call[0], call[1]]),
     ];
     expect(JSON.stringify(argvOnly)).not.toContain(password);
-    expect(runner.runWithInput.mock.calls[0]?.[2]).toContain('-mtime +0');
-    expect(runner.runWithInput.mock.calls[0]?.[2]).toContain('-user "$(id -un)"');
+    const cleanupCommand = runner.run.mock.calls[0]?.[1]?.[3] as string;
+    const encodedCleanup = cleanupCommand.split(' ')[2] ?? '';
+    const cleanupScript = Buffer.from(encodedCleanup, 'base64').toString('utf8');
+    expect(cleanupScript).toContain('-mtime +0');
+    expect(cleanupScript).toContain('-user "$(id -un)"');
+    expect(cleanupScript).toContain('-run.sh');
   });
 
   it('rejects a malformed remote id before running commands', async () => {
@@ -157,11 +175,12 @@ describe('remote installer', () => {
     const warnings: string[] = [];
     const files = await makeTransferFiles();
     const runner = {
-      run: vi.fn().mockResolvedValue(success),
-      runWithInput: vi.fn()
+      run: vi.fn()
+        .mockResolvedValueOnce(success)
         .mockResolvedValueOnce(success)
         .mockRejectedValueOnce(installError)
         .mockRejectedValueOnce(new Error('cleanup failed')),
+      runWithInput: vi.fn(),
     };
 
     await expect(installRemote(

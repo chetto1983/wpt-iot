@@ -17,6 +17,18 @@ describe('redactText', () => {
 });
 
 describe('ProcessRunner', () => {
+  it('captures stdout while terminal mode leaves authentication channels inherited', async () => {
+    const runner = new ProcessRunner({ stdout: () => undefined, stderr: () => undefined });
+
+    const result = await runner.run(
+      process.execPath,
+      ['-e', 'process.stdout.write("terminal output")'],
+      { terminal: true },
+    );
+
+    expect(result).toMatchObject({ stdout: 'terminal output', stderr: '', exitCode: 0 });
+  });
+
   it('sends dedicated input to a subprocess without putting it in argv', async () => {
     const runner = new ProcessRunner({ stdout: () => undefined, stderr: () => undefined });
     const input = 'remote probe input';

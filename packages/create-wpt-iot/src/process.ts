@@ -16,6 +16,7 @@ export interface ProcessRunOptions {
   cwd?: string;
   env?: Readonly<Record<string, string | undefined>>;
   redactions?: readonly RedactionValue[];
+  terminal?: boolean;
 }
 
 export interface ProcessResult {
@@ -146,6 +147,9 @@ export class ProcessRunner implements InputCommandRunner {
     input: string | undefined,
     options: ProcessRunOptions,
   ): Promise<ProcessResult> {
+    if (input !== undefined && options.terminal) {
+      throw new Error('interactiveInputConflict');
+    }
     const redactions = options.redactions ?? [];
     const stdout = new StreamingRedactor(this.stdout, redactions);
     const stderr = new StreamingRedactor(this.stderr, redactions);
@@ -154,6 +158,7 @@ export class ProcessRunner implements InputCommandRunner {
       env: options.env,
       reject: false,
       encoding: 'utf8',
+      ...(options.terminal ? { stdin: 'inherit', stderr: 'inherit' } : {}),
       ...(input === undefined ? {} : { input }),
     });
 
@@ -162,9 +167,10 @@ export class ProcessRunner implements InputCommandRunner {
 
     try {
       const result = await subprocess;
+      const capturedStderr = typeof result.stderr === 'string' ? result.stderr : '';
       const processResult: ProcessResult = {
         stdout: redactText(result.stdout, redactions),
-        stderr: redactText(result.stderr, redactions),
+        stderr: redactText(capturedStderr, redactions),
         exitCode: result.exitCode ?? 1,
       };
 
