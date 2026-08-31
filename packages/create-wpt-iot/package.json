@@ -4,7 +4,7 @@
   "description": "Interactive local and remote installer for WPT IoT edge devices",
   "repository": {
     "type": "git",
-    "url": "https://github.com/chetto1983/wpt-iot",
+    "url": "git+https://github.com/chetto1983/wpt-iot.git",
     "directory": "packages/create-wpt-iot"
   },
   "type": "module",

@@ -216,7 +216,7 @@ The npm registry requires a package to exist before a trusted publisher can be a
 ```bash
 npm install --global "npm@^11.15.0"
 npm login
-npm publish ./packages/create-wpt-iot --access public
+npm publish ./packages/create-wpt-iot --access public --provenance=false
 npm trust github create-wpt-iot --file create-wpt-iot.yml --repo chetto1983/wpt-iot --allow-publish
 npm trust list create-wpt-iot
 ```

@@ -19,8 +19,8 @@ Plan: `2026-08-28-create-wpt-iot-installer.md`
 | 7. Local Linux flow | Complete | RED observed for missing modules; 44 package tests, lint, and typecheck pass |
 | 8. Remote OpenSSH/SCP flow | Complete | Native-terminal regression fixed after live Windows/RPi test; 61 package tests, lint, typecheck, and build pass |
 | 9. CLI, README and tarball | Complete | RED observed for missing CLI; 60 package tests, lint, typecheck, build, packed help/version smoke pass |
-| 10. CI, publication and deployment docs | In progress | Windows/Ubuntu workflow and trusted-publishing gate drafted; verification pending |
-| 11. Disposable Raspberry acceptance | Partial | Pi 2 negative-path test passed; full install requires a supported arm64/amd64 target |
+| 10. CI, publication and deployment docs | Complete | Commit `2031ac5`; Windows/Ubuntu jobs pass; manifest local/remote gate, tarball smoke, actionlint and OIDC trusted publishing pass |
+| 11. Disposable target acceptance | Complete | Ubuntu 26.04 amd64 fresh install, reinstall/persistence and manual auto-update pass; sanitized evidence recorded in `docs/deployment/create-wpt-iot-acceptance.md` |
 
 ## Locked decisions
 
@@ -61,3 +61,11 @@ Plan: `2026-08-28-create-wpt-iot-installer.md`
 - 2026-08-31 — Native SSH regression RED: the live Windows wizard reached remote preflight but OpenSSH could not display/read its password while subprocess `stdin` and `stderr` were both piped.
 - 2026-08-31 — Native SSH regression GREEN: remote scripts no longer consume the authentication channel; SSH/SCP and remote sudo keep terminal input, application output remains captured, and 61 package tests plus lint/typecheck/build pass.
 - 2026-08-31 — Live target check: `192.168.1.31` is a Raspberry Pi 2 Model B Rev 1.1 running 32-bit Raspbian 10 (`armv7l`). The real wizard accepted the native SSH password, rejected the unsupported architecture before download/transfer/install, and left `/opt/wpt-iot` absent with zero installer temp files.
+- 2026-08-31 — Task 10 RED/GREEN: a stale-manifest test failed before the verifier existed; all 64 package tests now pass. Every build/prepack stamps and verifies Git HEAD plus installer SHA-256, and the release job also verifies the raw GitHub artifact before publishing.
+- 2026-08-31 — Task 10 CI/release: `actionlint` passes; GitHub Windows and Ubuntu verification jobs are green; `create-wpt-iot@0.1.0` is public and executes from the npm registry; the npm trusted publisher is bound to `chetto1983/wpt-iot/.github/workflows/create-wpt-iot.yml` with publish permission.
+- 2026-08-31 — Disposable target reset: 16 containers, 22 volumes, all images/cache and prior WPT state were removed from the authorized Ubuntu miniPC, reclaiming approximately 27.2 GB. The removal is not recoverable.
+- 2026-08-31 — Live install RED: Ubuntu `needrestart` restarted systemd-networkd during apt prerequisites on a host also managed by NetworkManager, withdrawing the Ethernet address. Journal evidence identified the exact restart.
+- 2026-08-31 — Live install GREEN: commit `b58bb4a` prevents network/SSH service recycling during remote apt work and normalizes an optional `wpt-` serial prefix. Bash syntax/config tests and all 64 package tests pass.
+- 2026-08-31 — Task 11 GREEN: the exact `0.1.0` tarball stamped at `b58bb4a` completed a remote reinstall on Ubuntu 26.04 amd64. Five services are healthy, HTTPS returns 200, admin login succeeds, PostgreSQL is UTC, pgdata and `.env` fingerprints are unchanged, and no installer temp file remains.
+- 2026-08-31 — Automatic update GREEN: the timer is enabled/active; a manual service cycle exited `0/SUCCESS`, verified all migrations and 7 continuous aggregates, synchronized runtime SQL, and left backend/frontend healthy.
+- 2026-08-31 — Full repository test note: frontend (90), shared types (48), and installer (64) pass. Five pre-existing backend integration failures were observed against the shared Windows development database (four duplicate energy-cycle fixture keys and one alarm-route 403/422 expectation); they are outside the installer package and did not reproduce on the freshly provisioned target database.
