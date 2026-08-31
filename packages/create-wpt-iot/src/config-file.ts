@@ -4,10 +4,14 @@ import { join } from 'node:path';
 
 import type { InstallSettings } from './types.js';
 
-export interface TemporaryInstallConfig {
+export interface TemporaryFile {
+  path: string;
+  cleanup: () => Promise<void>;
+}
+
+export interface TemporaryInstallConfig extends TemporaryFile {
   path: string;
   directory: string;
-  cleanup: () => Promise<void>;
 }
 
 function encode(value: string): string {
