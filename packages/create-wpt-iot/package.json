@@ -1,0 +1,37 @@
+{
+  "name": "create-wpt-iot",
+  "version": "0.1.0",
+  "description": "Interactive local and remote installer for WPT IoT edge devices",
+  "type": "module",
+  "bin": {
+    "create-wpt-iot": "dist/bin.js"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "scripts": {
+    "build": "tsc && node scripts/stamp-installer.mjs",
+    "lint": "eslint src",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "prepack": "pnpm run build"
+  },
+  "dependencies": {
+    "@inquirer/prompts": "^8.7.0",
+    "execa": "^10.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.8.0",
+    "vitest": "^3.2.4"
+  },
+  "license": "UNLICENSED",
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  }
+}
