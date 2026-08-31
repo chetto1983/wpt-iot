@@ -1,5 +1,10 @@
 export const en = {
   cliDescription: 'Install or update one WPT IoT edge device',
+  helpUsage: 'Usage: create-wpt-iot [--mode local|remote] [--help] [--version]',
+  helpMode: '  --mode local|remote  Skip only the installation mode question',
+  helpHelp: '  --help               Show this help',
+  helpVersion: '  --version            Show the package version',
+  usageError: 'Invalid arguments. Use --help to see the supported options.',
   modeQuestion: 'Where do you want to install WPT IoT?',
   modeLocal: 'This Linux device',
   modeRemote: 'A remote Linux device over SSH',
@@ -33,5 +38,10 @@ export const en = {
   missingCommand: 'Required command not found: {command}',
   preflightFailed: 'Preflight failed: {reason}',
   checksumFailed: 'Installer integrity verification failed.',
+  insufficientDiskSpace: 'At least 12 GiB of free target disk space is required.',
+  cleanupWarning: 'Warning: a temporary file could not be removed.',
+  cleanupFailed: 'Temporary-file cleanup failed.',
+  invalidRemotePreflightOutput: 'The remote preflight returned an invalid response.',
+  unsupportedRemoteClientPlatform: 'Remote mode requires Windows or Linux.',
   installFailed: 'Installation failed during {phase}. It is safe to run the wizard again.',
 } as const;

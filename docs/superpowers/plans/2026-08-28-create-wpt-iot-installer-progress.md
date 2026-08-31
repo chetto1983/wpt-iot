@@ -18,7 +18,7 @@ Plan: `2026-08-28-create-wpt-iot-installer.md`
 | 6. Bash config contract and update toggle | Complete | RED observed from root checks on source; Git Bash and Ubuntu 24.04 parser/syntax tests pass; 36 package tests and lint pass |
 | 7. Local Linux flow | Complete | RED observed for missing modules; 44 package tests, lint, and typecheck pass |
 | 8. Remote OpenSSH/SCP flow | Complete | RED observed for missing module/stdin API; 52 package tests, lint, typecheck, and build pass |
-| 9. CLI, README and tarball | Pending | — |
+| 9. CLI, README and tarball | Complete | RED observed for missing CLI; 60 package tests, lint, typecheck, build, packed help/version smoke pass |
 | 10. CI, publication and deployment docs | Pending | — |
 | 11. Disposable Raspberry acceptance | Pending | Requires a disposable target and credentials |
 
@@ -56,3 +56,5 @@ Plan: `2026-08-28-create-wpt-iot-installer.md`
 - 2026-08-31 — Task 8 decision: user confirmed native OpenSSH/SCP; Windows `scp.exe` is resolved with `where.exe` because OpenSSH SCP does not support `-V`.
 - 2026-08-31 — Task 8 RED: missing remote module and dedicated subprocess stdin API.
 - 2026-08-31 — Task 8 GREEN: 52 tests, lint, typecheck, and build pass; one SCP transfer uses UUID names, SSH uses a constant stdin script, both modes enforce 12 GiB free, and cleanup preserves the primary error.
+- 2026-08-31 — Task 9 RED: missing CLI orchestration module.
+- 2026-08-31 — Task 9 GREEN: 60 tests, lint, typecheck, and build pass; packed tarball excludes tests and executes localized help plus version through its published binary.

@@ -2,6 +2,11 @@ import type { en } from './en.js';
 
 export const it: Record<keyof typeof en, string> = {
   cliDescription: 'Installa o aggiorna un dispositivo edge WPT IoT',
+  helpUsage: 'Uso: create-wpt-iot [--mode local|remote] [--help] [--version]',
+  helpMode: '  --mode local|remote  Salta soltanto la domanda sulla modalità',
+  helpHelp: '  --help               Mostra questo aiuto',
+  helpVersion: '  --version            Mostra la versione del pacchetto',
+  usageError: 'Argomenti non validi. Usa --help per vedere le opzioni supportate.',
   modeQuestion: 'Dove vuoi installare WPT IoT?',
   modeLocal: 'Su questo dispositivo Linux',
   modeRemote: 'Su un dispositivo Linux remoto tramite SSH',
@@ -35,5 +40,10 @@ export const it: Record<keyof typeof en, string> = {
   missingCommand: 'Comando richiesto non trovato: {command}',
   preflightFailed: 'Controlli preliminari non riusciti: {reason}',
   checksumFailed: 'Verifica di integrità dell’installer non riuscita.',
+  insufficientDiskSpace: 'Sono richiesti almeno 12 GiB liberi sul disco del dispositivo.',
+  cleanupWarning: 'Avviso: non è stato possibile rimuovere un file temporaneo.',
+  cleanupFailed: 'Rimozione dei file temporanei non riuscita.',
+  invalidRemotePreflightOutput: 'Il controllo remoto ha restituito una risposta non valida.',
+  unsupportedRemoteClientPlatform: 'La modalità remota richiede Windows o Linux.',
   installFailed: 'Installazione non riuscita durante: {phase}. È possibile eseguire nuovamente il wizard in sicurezza.',
 };

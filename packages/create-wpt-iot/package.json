@@ -14,7 +14,7 @@
     "node": ">=22.13.0"
   },
   "scripts": {
-    "build": "tsc && node scripts/stamp-installer.mjs",
+    "build": "node scripts/clean-dist.mjs && tsc && node scripts/stamp-installer.mjs",
     "lint": "eslint src",
     "test": "vitest run",
     "test:watch": "vitest",
