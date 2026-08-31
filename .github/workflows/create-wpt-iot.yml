@@ -1,0 +1,134 @@
+name: Verify and publish create-wpt-iot
+
+on:
+  pull_request:
+    paths:
+      - 'packages/create-wpt-iot/**'
+      - 'scripts/install-enduser.sh'
+      - 'scripts/__tests__/install-enduser-config.test.sh'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - '.github/workflows/create-wpt-iot.yml'
+  push:
+    branches: [master]
+    tags: ['installer-v*']
+    paths:
+      - 'packages/create-wpt-iot/**'
+      - 'scripts/install-enduser.sh'
+      - 'scripts/__tests__/install-enduser-config.test.sh'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - '.github/workflows/create-wpt-iot.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Verify (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 10.19.0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22.14.0
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint package
+        run: pnpm --filter create-wpt-iot lint
+
+      - name: Test package
+        run: pnpm --filter create-wpt-iot test
+
+      - name: Build package
+        run: pnpm --filter create-wpt-iot build
+
+      - name: Verify Bash installer
+        if: runner.os == 'Linux'
+        run: |
+          bash -n scripts/install-enduser.sh
+          pnpm test:installer:shell
+
+      - name: Pack and run published binary
+        shell: pwsh
+        run: |
+          $packDirectory = Join-Path $env:RUNNER_TEMP 'create-wpt-iot-pack'
+          New-Item -ItemType Directory -Force -Path $packDirectory | Out-Null
+          $packJson = npm pack ./packages/create-wpt-iot --ignore-scripts --pack-destination $packDirectory --json
+          if ($LASTEXITCODE -ne 0) { throw 'npm pack failed' }
+          $packResult = $packJson | ConvertFrom-Json
+          if ($packResult.Count -ne 1) { throw 'npm pack did not produce exactly one tarball' }
+          $tarballPath = Join-Path $packDirectory $packResult[0].filename
+          npm exec --yes --package="$tarballPath" -- create-wpt-iot --help
+          if ($LASTEXITCODE -ne 0) { throw 'packed create-wpt-iot --help failed' }
+
+  publish:
+    name: Publish to npm
+    if: startsWith(github.ref, 'refs/tags/installer-v')
+    needs: verify
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout tagged commit
+        uses: actions/checkout@v6
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 10.19.0
+
+      - name: Set up Node.js for trusted publishing
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22.14.0
+          registry-url: https://registry.npmjs.org
+          package-manager-cache: false
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Verify tag and clean installer source
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag_version="${GITHUB_REF_NAME#installer-v}"
+          package_version="$(node -p "require('./packages/create-wpt-iot/package.json').version")"
+          test "$tag_version" = "$package_version"
+          git diff --quiet -- scripts/install-enduser.sh
+
+      - name: Re-run release checks
+        run: |
+          pnpm --filter create-wpt-iot lint
+          pnpm --filter create-wpt-iot test
+          pnpm --filter create-wpt-iot build
+          pnpm --filter create-wpt-iot verify:manifest:remote
+          bash -n scripts/install-enduser.sh
+          pnpm test:installer:shell
+          git diff --quiet -- scripts/install-enduser.sh
+
+      - name: Install npm with trusted publishing support
+        run: npm install --global "npm@^11.15.0"
+
+      - name: Publish public package with provenance
+        run: npm publish ./packages/create-wpt-iot --access public --provenance

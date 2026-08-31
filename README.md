@@ -2,12 +2,48 @@
 
 Industrial IoT system for monitoring and controlling WPT waste processing machines (shredders/dryers). Communicates with ABB AC500 PLCs via UDP, stores time-series data in TimescaleDB, and serves a real-time dashboard accessible on the customer's LAN.
 
-## Quick Start
+## Install an Edge Device
+
+The recommended online installer is the bilingual interactive wizard:
+
+```console
+npx create-wpt-iot
+```
+
+It installs one device per run. Use local mode on an apt/systemd Linux target, or remote mode from Windows/Linux through native OpenSSH (`ssh` and `scp`). The workstation needs Node.js 22.13+; the target needs Internet access but does not need Node.js.
+
+Alternative deployment paths:
+
+```text
+Guided local/remote online install: npx create-wpt-iot
+Direct Linux Bash fallback:         scripts/install.sh
+Air-gapped bundle install:          scripts/install-offline.sh
+```
+
+For the direct online fallback on Linux:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/chetto1983/wpt-iot/master/scripts/install.sh | sudo bash
+```
+
+For an air-gapped target, build and transfer the repository bundle, extract it, then run its `install-offline.sh` with `sudo`. See [`scripts/RUNBOOK.md`](scripts/RUNBOOK.md) for the complete procedure.
+
+After login, configure PLC, MQTT/Sparkplug, application timezone, energy settings, and users in the frontend. The installer deliberately leaves these settings untouched. PostgreSQL and all stored timestamps remain in UTC; timezone conversion happens at the frontend/API boundary.
+
+Automatic backend/frontend image updates are enabled by default. They can be inspected, triggered, or disabled on the target with:
+
+```bash
+sudo systemctl status wpt-image-update.timer
+sudo systemctl start wpt-image-update.service
+sudo systemctl disable --now wpt-image-update.timer
+```
+
+## Local Development Quick Start
 
 ```bash
 git clone <repo-url> && cd wpt-iot
 chmod +x setup.sh
-./setup.sh          # Production
+./setup.sh
 ```
 
 The `setup.sh` flow is for local development and lab use. It handles environment generation, container builds, database initialization, and TimescaleDB retention policies.
@@ -25,12 +61,6 @@ For Linux installs that use the compose HTTPS overlay, the user-facing URL is:
 - API traffic is same-origin under `https://wpt.local/api`
 - first access on a new device must trust the generated local CA before PWA installability will work cleanly
 - the CA is exposed by nginx at `https://wpt.local/setup/wpt-local-ca.crt` after the operator proceeds past the initial browser warning once
-
-For customer edge installs, use the single installer entrypoint:
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/chetto1983/wpt-iot/master/scripts/install.sh | sudo bash
-```
 
 Login: `admin` / password in `.env` (`ADMIN_PASSWORD`)
 

@@ -2,6 +2,11 @@
   "name": "create-wpt-iot",
   "version": "0.1.0",
   "description": "Interactive local and remote installer for WPT IoT edge devices",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/chetto1983/wpt-iot",
+    "directory": "packages/create-wpt-iot"
+  },
   "type": "module",
   "bin": {
     "create-wpt-iot": "dist/bin.js"
@@ -14,10 +19,12 @@
     "node": ">=22.13.0"
   },
   "scripts": {
-    "build": "node scripts/clean-dist.mjs && tsc && node scripts/stamp-installer.mjs",
+    "build": "node scripts/clean-dist.mjs && tsc && node scripts/stamp-installer.mjs && node scripts/verify-installer-manifest.mjs",
     "lint": "eslint src",
     "test": "vitest run",
     "test:watch": "vitest",
+    "verify:manifest": "node scripts/verify-installer-manifest.mjs",
+    "verify:manifest:remote": "node scripts/verify-installer-manifest.mjs --remote",
     "prepack": "pnpm run build"
   },
   "dependencies": {

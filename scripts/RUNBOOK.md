@@ -15,15 +15,42 @@ The production layout is:
 
 ## Provision a New Customer Machine
 
-Fresh Ubuntu 22.04 / 24.04 install with:
-- network access to GitHub + `ghcr.io`
-- a LAN IP reachable by the operator devices
-- Docker not yet installed is fine
+The recommended path is the interactive installer from a workstation with Node.js 22.13+:
 
-Run as root:
+```console
+npx create-wpt-iot
+```
+
+Choose local mode when the command runs directly on the Linux target. Choose remote mode from Windows or Linux; it uses the workstation's native `ssh` and `scp`, and their normal password/host-key prompts. The wizard installs one target per run.
+
+Supported target prerequisites:
+
+- 64-bit Debian/Raspberry Pi OS/Ubuntu with `apt`, `systemd`, `sudo`, and `curl`;
+- `linux/arm64` or `linux/amd64` architecture;
+- at least 12 GiB free;
+- network access to GitHub, GHCR, Docker, and the OS package repositories;
+- a LAN IP reachable by operator devices.
+
+Node.js is not required on a remote target. For a new install, the wizard asks twice for a hidden 12+ character application administrator password. SSH and remote sudo may separately ask for the Linux user's password more than once.
+
+The direct Linux Bash fallback remains available:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/chetto1983/wpt-iot/master/scripts/install.sh | sudo bash
+```
+
+For an air-gapped target, run `scripts/build-bundle.sh` on an Internet-connected Linux host, transfer and extract the resulting tarball, then run:
+
+```bash
+sudo bash install-offline.sh
+```
+
+These are three distinct entrypoints:
+
+```text
+Guided local/remote online install: npx create-wpt-iot
+Direct Linux Bash fallback:         scripts/install.sh
+Air-gapped bundle install:          scripts/install-offline.sh
 ```
 
 What it does:
@@ -43,6 +70,20 @@ After install:
 - CA download URL: `https://wpt.local/setup/wpt-local-ca.crt`
 
 Important: client devices must trust `/opt/wpt-iot/certs/wpt-local-ca.crt` or the browser will reject the certificate and the PWA secure-context checks will still fail.
+
+After the first login, configure the PLC address/byte order, MQTT/Sparkplug, application timezone, energy settings, and users in the frontend. The installer intentionally does not configure or overwrite them. PostgreSQL remains configured in UTC; the selected application timezone is applied only when accepting or displaying dates.
+
+Automatic backend/frontend image updates are enabled by default. They preserve the database, uploads, credentials, certificates, Mosquitto, nginx, and Docker volumes. On the target:
+
+```bash
+sudo systemctl status wpt-image-update.timer
+sudo systemctl start wpt-image-update.service
+sudo systemctl status --no-pager wpt-image-update.service
+sudo systemctl disable --now wpt-image-update.timer
+sudo systemctl enable --now wpt-image-update.timer
+```
+
+The wizard can explicitly disable the timer during installation. Reinstalling does not replace an existing `.env`, `SECRETS_ENCRYPTION_KEY`, database, uploads, or volumes.
 
 ## Pilz IndustrialPI 4 (ARM64) Deployment
 
@@ -160,6 +201,36 @@ The shipping path is a full bundle rebuild on the golden-master host
 `NEXT_PUBLIC_API_URL` bake — so a single image works on any customer
 LAN regardless of hostname or IP. OTA automation (Mender) is the
 planned path forward; watchtower is no longer part of the stack.
+
+### Publish `create-wpt-iot`
+
+Do not publish the installer until the supported-device acceptance checklist in `docs/deployment/create-wpt-iot-acceptance.md` is complete and committed.
+
+The npm registry requires a package to exist before a trusted publisher can be attached to it. Therefore the one-time bootstrap for this currently unclaimed package name is:
+
+1. From the accepted, clean commit, run all installer checks and install npm 11.15 or newer.
+2. Publish the first version manually from a 2FA-authenticated maintainer session.
+3. Immediately configure the GitHub Actions trusted publisher and verify it.
+4. Restrict package publishing access to require 2FA and disallow traditional tokens.
+
+```bash
+npm install --global "npm@^11.15.0"
+npm login
+npm publish ./packages/create-wpt-iot --access public
+npm trust github create-wpt-iot --file create-wpt-iot.yml --repo chetto1983/wpt-iot --allow-publish
+npm trust list create-wpt-iot
+```
+
+The bootstrap commands require an interactive 2FA challenge and must never be placed in CI. They do not require or create a repository secret. After bootstrap, bump the package version and publish only by pushing a matching tag:
+
+```bash
+git tag installer-v<package-version>
+git push origin installer-v<package-version>
+```
+
+`.github/workflows/create-wpt-iot.yml` verifies Windows and Ubuntu first, checks that the tag exactly matches `package.json`, and publishes from a GitHub-hosted runner using OIDC with provenance. The trusted-publisher workflow filename must be exactly `create-wpt-iot.yml`.
+
+The installer manifest is not maintained by hand. Every package `build` and `prepack` stamps the current immutable Git commit and the SHA-256 of `scripts/install-enduser.sh`, then verifies both values. Before a tagged publish, CI also downloads that exact raw GitHub artifact and rejects the release if its bytes do not match the stamped hash.
 
 ## Automatic Database Bootstrap
 
@@ -334,5 +405,5 @@ sudo tcpdump -i <iface> -n 'udp and port 9090 or port 9091' -c 5
 1. Trust the local CA on client devices. Without that, HTTPS exists but the browser will not treat the origin as trustworthy enough for service workers and PWA installability.
 2. `network_mode: host` on the backend is mandatory. Do not move the backend back to bridge networking if the machine talks to a real PLC.
 3. Access the app through nginx (`https://wpt.local` or `https://<LAN_IP>`), not the raw frontend container port. The frontend image is **IP/host-agnostic** (same-origin via nginx) so it works for any hostname the customer routes to it, but only through the TLS terminator.
-4. The only operator-facing installer is `scripts/install.sh`. `install-prod.sh` and `install-offline.sh` are internal entrypoints behind it.
+4. Use `npx create-wpt-iot` for guided online installs. `scripts/install.sh` is the direct Linux fallback; `install-offline.sh` is used only inside an air-gapped bundle. `install-prod.sh` remains an internal helper.
 5. `wpt.local` depends on mDNS. If the client is on another VLAN or routed network, either fix name resolution or deploy real DNS with matching certificates.
