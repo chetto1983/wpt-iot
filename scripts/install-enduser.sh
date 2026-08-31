@@ -297,7 +297,10 @@ ok "Host services cleared."
 
 step "Step 4/7  Install dir + runtime files"
 apt-get update -qq
-apt-get install -y -qq avahi-daemon avahi-utils libnss-mdns openssl >/dev/null
+# Do not let needrestart recycle networkd/SSH under a remote installer session.
+# The target can apply pending service restarts during its normal maintenance.
+DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=l apt-get install -y -qq \
+  avahi-daemon avahi-utils libnss-mdns openssl >/dev/null
 
 mkdir -p "${INSTALL_DIR}/docker/nginx/templates" \
          "${INSTALL_DIR}/mosquitto/config" \

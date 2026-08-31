@@ -52,7 +52,8 @@ export function validateInstallDir(raw: string): string {
 }
 
 export function validateDeviceSerial(raw: string): string {
-  const value = raw.trim().toLowerCase();
+  const normalized = raw.trim().toLowerCase();
+  const value = normalized.startsWith('wpt-') ? normalized.slice(4) : normalized;
   if (!serialPattern.test(value) || value.length > 32) {
     throw new ValidationError('invalidSerial');
   }

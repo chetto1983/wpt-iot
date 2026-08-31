@@ -77,6 +77,12 @@ help_output="$(bash "${ROOT_DIR}/scripts/install-enduser.sh" --help)"
 [[ "${help_output}" == *'Usage: install-enduser.sh'* ]]
 [[ "${help_output}" != *'correct horse battery'* ]]
 
+if ! grep -Fq 'DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=l apt-get install' \
+  "${ROOT_DIR}/scripts/install-enduser.sh"; then
+  echo "apt prerequisites may restart remote network services" >&2
+  exit 1
+fi
+
 write_config "${TMP_DIR}/new-without-password.conf" "${TMP_DIR}/new-install" "wpt-0001" "" "true"
 if bash "${ROOT_DIR}/scripts/install-enduser.sh" --config "${TMP_DIR}/new-without-password.conf" >/dev/null 2>&1; then
   echo "new config-mode install accepted an empty password" >&2

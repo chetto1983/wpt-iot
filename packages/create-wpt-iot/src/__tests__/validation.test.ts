@@ -25,7 +25,7 @@ describe('installer validation', () => {
     expect(validatePort('22')).toBe(22);
     expect(validateUsername('pi')).toBe('pi');
     expect(validateInstallDir('/opt/wpt-iot/')).toBe('/opt/wpt-iot');
-    expect(validateDeviceSerial(' WPT-0001 ')).toBe('wpt-0001');
+    expect(validateDeviceSerial(' WPT-0001 ')).toBe('0001');
   });
 
   it.each(['/', 'relative/path', '/opt/wpt\nother', '/opt/wpt\0other'])(

@@ -58,7 +58,7 @@ describe('wizard prompts', () => {
 
     expect(settings).toEqual({
       installDir: '/opt/wpt-iot',
-      deviceSerial: 'wpt-0001',
+      deviceSerial: '0001',
       enableAutoUpdate: true,
       adminPassword: 'correct horse battery',
     });
@@ -83,6 +83,7 @@ describe('wizard prompts', () => {
     );
 
     expect(settings?.adminPassword).toBeUndefined();
+    expect(settings?.deviceSerial).toBe('0001');
     expect(settings?.enableAutoUpdate).toBe(true);
     expect(prompt.password).not.toHaveBeenCalled();
   });
