@@ -28,6 +28,10 @@ REPO_NAME="${REPO_NAME:-wpt-iot}"
 BRANCH="${BRANCH:-master}"
 INSTALL_DIR="${INSTALL_DIR:-/opt/wpt-iot}"
 ADMIN_PASSWORD="${ADMIN_PASSWORD:-}"
+WPT_SERIAL="${WPT_SERIAL:-}"
+ENABLE_AUTO_UPDATE="${ENABLE_AUTO_UPDATE:-true}"
+CONFIG_FILE=""
+CONFIG_MODE="false"
 
 RAW_URL="https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/${BRANCH}"
 
@@ -40,7 +44,7 @@ NC='\033[0m'
 info()  { echo -e "${CYAN}[INFO]${NC} $1"; }
 warn()  { echo -e "${YELLOW}[WARN]${NC} $1"; }
 ok()    { echo -e "${GREEN}[ OK ]${NC} $1"; }
-fail()  { echo -e "${RED}[FAIL]${NC} $1" >&2; exit 1; }
+fail()  { echo -e "${RED}[FAIL]${NC} $1" >&2; return 1; }
 step()  { echo ""; echo -e "${CYAN}========== $1 ==========${NC}"; }
 
 upsert_env() {
@@ -65,6 +69,170 @@ ensure_env_secret() {
     echo "${key}=${value}" >> "$file"
   fi
 }
+
+parse_args() {
+  CONFIG_FILE=""
+  while (($#)); do
+    case "$1" in
+      --config)
+        if (($# < 2)); then
+          fail "--config requires a file"
+          return 1
+        fi
+        if [[ -n "${CONFIG_FILE}" ]]; then
+          fail "--config may only be supplied once"
+          return 1
+        fi
+        CONFIG_FILE="$2"
+        shift 2
+        ;;
+      --help|-h)
+        printf 'Usage: install-enduser.sh [--config /absolute/path]\n'
+        return 2
+        ;;
+      *)
+        fail "Unknown argument: $1"
+        return 1
+        ;;
+    esac
+  done
+  return 0
+}
+
+decode_config_value() {
+  local encoded="$1" decoded
+  if ! decoded="$(printf '%s' "${encoded}" | base64 --decode 2>/dev/null)"; then
+    return 1
+  fi
+  printf '%s' "${decoded}"
+}
+
+load_install_config() {
+  local config_path="$1" line key value required
+  local format_value="" encoded_install_dir="" encoded_serial="" encoded_password=""
+  local auto_update="" decoded_install_dir decoded_serial decoded_password
+  local -A seen=()
+
+  if [[ "${config_path}" != /* || ! -f "${config_path}" ]]; then
+    fail "Config path must be an absolute regular file"
+    return 1
+  fi
+
+  while IFS= read -r line || [[ -n "${line}" ]]; do
+    if [[ "${line}" != *=* ]]; then
+      fail "Config line is missing '='"
+      return 1
+    fi
+    key="${line%%=*}"
+    value="${line#*=}"
+    if [[ -z "${key}" ]]; then
+      fail "Config contains a blank key"
+      return 1
+    fi
+    if [[ -n "${seen[${key}]+present}" ]]; then
+      fail "Duplicate config key: ${key}"
+      return 1
+    fi
+    seen["${key}"]=1
+
+    case "${key}" in
+      format) format_value="${value}" ;;
+      install_dir_base64) encoded_install_dir="${value}" ;;
+      device_serial_base64) encoded_serial="${value}" ;;
+      admin_password_base64) encoded_password="${value}" ;;
+      enable_auto_update) auto_update="${value}" ;;
+      *)
+        fail "Unknown config key: ${key}"
+        return 1
+        ;;
+    esac
+  done < "${config_path}"
+
+  for required in format install_dir_base64 device_serial_base64 admin_password_base64 enable_auto_update; do
+    if [[ -z "${seen[${required}]+present}" ]]; then
+      fail "Missing config key: ${required}"
+      return 1
+    fi
+  done
+
+  if [[ "${format_value}" != "1" ]]; then
+    fail "Unsupported config format"
+    return 1
+  fi
+  if ! decoded_install_dir="$(decode_config_value "${encoded_install_dir}")"; then
+    fail "Invalid install directory encoding"
+    return 1
+  fi
+  if ! decoded_serial="$(decode_config_value "${encoded_serial}")"; then
+    fail "Invalid device serial encoding"
+    return 1
+  fi
+  if ! decoded_password="$(decode_config_value "${encoded_password}")"; then
+    fail "Invalid admin password encoding"
+    return 1
+  fi
+
+  if [[ ! "${decoded_install_dir}" =~ ^/[A-Za-z0-9._+/-]+$ || "${decoded_install_dir}" == "/" ]]; then
+    fail "Invalid install directory"
+    return 1
+  fi
+  if [[ ! "${decoded_serial}" =~ ^[a-z0-9]([a-z0-9-]{0,30}[a-z0-9])?$ ]]; then
+    fail "Invalid device serial"
+    return 1
+  fi
+  if [[ "${decoded_password}" == *$'\n'* || "${decoded_password}" == *$'\r'* ]]; then
+    fail "Invalid admin password"
+    return 1
+  fi
+  if [[ "${auto_update}" != "true" && "${auto_update}" != "false" ]]; then
+    fail "Invalid auto-update value"
+    return 1
+  fi
+
+  INSTALL_DIR="${decoded_install_dir}"
+  WPT_SERIAL="${decoded_serial}"
+  ADMIN_PASSWORD="${decoded_password}"
+  ENABLE_AUTO_UPDATE="${auto_update}"
+  CONFIG_MODE="true"
+}
+
+cleanup_install_config() {
+  if [[ -n "${CONFIG_FILE:-}" ]]; then
+    rm -f -- "${CONFIG_FILE}" || true
+  fi
+}
+
+main() {
+  local parse_status
+  if parse_args "$@"; then
+    parse_status=0
+  else
+    parse_status=$?
+  fi
+  if ((parse_status == 2)); then
+    return 0
+  fi
+  if ((parse_status != 0)); then
+    return "${parse_status}"
+  fi
+
+  if [[ -n "${CONFIG_FILE}" ]]; then
+    if [[ "${CONFIG_FILE}" != /* ]]; then
+      fail "--config requires an absolute path"
+      return 1
+    fi
+    trap cleanup_install_config EXIT
+    if ! load_install_config "${CONFIG_FILE}"; then
+      return 1
+    fi
+    rm -f -- "${CONFIG_FILE}"
+    CONFIG_FILE=""
+  fi
+
+  if [[ "${CONFIG_MODE}" == "true" && ! -f "${INSTALL_DIR}/.env" && -z "${ADMIN_PASSWORD}" ]]; then
+    fail "A non-empty admin password is required for a new config-mode installation"
+    return 1
+  fi
 
 [[ "$(uname -s)" == "Linux" ]] || fail "Linux only."
 [[ $EUID -eq 0 ]] || fail "Run as root: curl ... | sudo bash"
@@ -270,9 +438,14 @@ curl -fsSL "${RAW_URL}/scripts/wpt-image-update.service" -o /etc/systemd/system/
 curl -fsSL "${RAW_URL}/scripts/wpt-image-update.timer"   -o /etc/systemd/system/wpt-image-update.timer
 systemctl daemon-reload
 systemctl enable --now wpt-tls-refresh.timer
-systemctl enable --now wpt-image-update.timer
 ok "wpt-tls-refresh timer enabled (boot + every 15 min)."
-ok "wpt-image-update timer enabled (boot + every 5 min)."
+if [[ "${ENABLE_AUTO_UPDATE:-true}" == "true" ]]; then
+  systemctl enable --now wpt-image-update.timer
+  ok "wpt-image-update timer enabled (boot + every 5 min)."
+else
+  systemctl disable --now wpt-image-update.timer >/dev/null 2>&1 || true
+  ok "wpt-image-update timer disabled by installer configuration."
+fi
 
 step "Step 7/7  Firewall + pull images + start stack"
 
@@ -330,7 +503,7 @@ echo "  Local CA:    ${INSTALL_DIR}/certs/wpt-local-ca.crt"
 echo "  CA download: https://wpt.local/setup/wpt-local-ca.crt"
 echo "  Install dir: ${INSTALL_DIR}"
 echo ""
-if [[ -n "${ADMIN_PASSWORD}" ]]; then
+if [[ -n "${ADMIN_PASSWORD}" && "${CONFIG_MODE}" != "true" ]]; then
   echo "  Admin login: admin / ${ADMIN_PASSWORD}"
 fi
 echo ""
@@ -340,3 +513,8 @@ echo "  2. Trust ${INSTALL_DIR}/certs/wpt-local-ca.crt on the client device."
 echo "  3. Login as admin, then set the PLC Address and Byte Order (BE/LE) under /plc."
 echo "  4. In CODESYS, set GVL_WPT.sTargetIp := '${LAN_IP}' so the PLC streams here."
 echo ""
+}
+
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+  main "$@"
+fi

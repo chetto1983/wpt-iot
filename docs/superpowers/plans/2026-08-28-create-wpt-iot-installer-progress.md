@@ -15,7 +15,7 @@ Plan: `2026-08-28-create-wpt-iot-installer.md`
 | 3. Secure config and redacted process runner | Complete | RED observed for missing modules; 28 package tests, lint, and typecheck pass |
 | 4. Interactive wizard branching | Complete | RED observed for missing module; 33 package tests, lint, and typecheck pass |
 | 5. Immutable installer artifact | Complete | RED observed for missing module; 36 package tests, lint, typecheck, build, ref/hash stamp pass |
-| 6. Bash config contract and update toggle | Pending | — |
+| 6. Bash config contract and update toggle | Complete | RED observed from root checks on source; Git Bash and Ubuntu 24.04 parser/syntax tests pass; 36 package tests and lint pass |
 | 7. Local Linux flow | Pending | — |
 | 8. Remote OpenSSH/SCP flow | Pending | — |
 | 9. CLI, README and tarball | Pending | — |
@@ -49,3 +49,5 @@ Plan: `2026-08-28-create-wpt-iot-installer.md`
 - 2026-08-31 — Task 4 GREEN: 33 tests, lint, and typecheck pass; new installs confirm a hidden password, reinstalls never request it, final cancellation is non-mutating.
 - 2026-08-31 — Task 5 RED: missing artifact download and verification module.
 - 2026-08-31 — Task 5 GREEN: 36 tests, lint, typecheck, and build pass; compiled manifest ref and SHA-256 match git HEAD and the local canonical installer, with no placeholder tokens remaining.
+- 2026-08-31 — Task 6 RED: sourcing the canonical installer executed its root check and `load_install_config` was absent.
+- 2026-08-31 — Task 6 GREEN: Bash syntax and config-contract tests pass in Git Bash and Ubuntu 24.04; a Linux-only Base64 padding bug was caught and fixed; 36 package tests and lint remain green.

@@ -8,6 +8,7 @@
     "lint": "pnpm -r run lint",
     "test": "pnpm -r run test",
     "test:e2e": "playwright test",
+    "test:installer:shell": "bash scripts/__tests__/install-enduser-config.test.sh",
     "clean": "pnpm -r run clean",
     "validate:sparkplug:e2e": "pnpm --filter @wpt/backend run validate:sparkplug:e2e",
     "scan:knip": "knip --reporter json",
