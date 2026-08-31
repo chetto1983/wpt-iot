@@ -37,6 +37,7 @@ describe('local installer', () => {
         .mockResolvedValueOnce({ ...success, stdout: 'aarch64\n' })
         .mockResolvedValueOnce({ ...success, stdout: 'true\n' })
         .mockResolvedValueOnce({ ...success, stdout: 'wpt-0001\n' })
+        .mockResolvedValueOnce({ ...success, stdout: '13000000\n' })
         .mockResolvedValueOnce(success)
         .mockResolvedValueOnce(success)
         .mockResolvedValueOnce(success),
@@ -48,7 +49,7 @@ describe('local installer', () => {
       detectedSerial: 'wpt-0001',
     });
 
-    expect(runner.run).toHaveBeenCalledTimes(10);
+    expect(runner.run).toHaveBeenCalledTimes(11);
     expect(runner.run).toHaveBeenCalledWith(
       'sh',
       ['-c', expect.stringContaining('test -f "$1/docker-compose.yml"'), 'create-wpt-iot', '/opt/wpt-iot'],
@@ -59,6 +60,23 @@ describe('local installer', () => {
         ['-fsS', '-o', '/dev/null', '-m', '10', host],
       );
     }
+  });
+
+  it('rejects a local target with less than 12 GiB free', async () => {
+    const runner = {
+      run: vi.fn()
+        .mockResolvedValueOnce(success)
+        .mockResolvedValueOnce(success)
+        .mockResolvedValueOnce(success)
+        .mockResolvedValueOnce(success)
+        .mockResolvedValueOnce({ ...success, stdout: 'x86_64\n' })
+        .mockResolvedValueOnce({ ...success, stdout: 'false\n' })
+        .mockResolvedValueOnce({ ...success, stdout: '' })
+        .mockResolvedValueOnce({ ...success, stdout: '1000\n' }),
+    };
+
+    await expect(preflightLocal(runner, '/opt/wpt-iot', 'linux'))
+      .rejects.toThrow('insufficientDiskSpace:1000');
   });
 
   it('runs sudo with only artifact and config paths in argv', async () => {

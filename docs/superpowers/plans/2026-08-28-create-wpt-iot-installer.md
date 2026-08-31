@@ -1206,7 +1206,7 @@ Expected: FAIL because remote orchestration is absent.
 
 - [ ] **Step 3: Implement native command preflight**
 
-First verify `ssh -V` and `scp -V` locally. Build destination only from validated username and host:
+Verify `ssh -V` locally. Because the Windows OpenSSH `scp` executable does not implement `-V`, resolve it with `where.exe scp.exe` on Windows and `command -v scp` on Linux instead of treating `scp -V` as a capability check. Build the destination only from validated username and host:
 
 ```ts
 export function sshDestination(target: RemoteTarget): string {

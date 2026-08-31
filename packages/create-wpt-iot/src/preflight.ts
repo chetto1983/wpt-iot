@@ -1,4 +1,5 @@
 export type SupportedArchitecture = 'arm64' | 'amd64';
+export const MINIMUM_DISK_KB = 12 * 1024 * 1024;
 
 export function normalizeArchitecture(raw: string): SupportedArchitecture {
   const architecture = raw.trim().toLowerCase();
@@ -12,4 +13,14 @@ export function normalizeArchitecture(raw: string): SupportedArchitecture {
     default:
       throw new Error(`unsupportedArchitecture:${architecture}`);
   }
+}
+
+export function assertSufficientDiskSpace(raw: string): number {
+  const value = raw.trim();
+  if (!/^\d+$/.test(value)) throw new Error('invalidDiskAvailability');
+  const availableDiskKb = Number(value);
+  if (!Number.isSafeInteger(availableDiskKb) || availableDiskKb < MINIMUM_DISK_KB) {
+    throw new Error(`insufficientDiskSpace:${value}`);
+  }
+  return availableDiskKb;
 }

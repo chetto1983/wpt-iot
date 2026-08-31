@@ -17,6 +17,22 @@ describe('redactText', () => {
 });
 
 describe('ProcessRunner', () => {
+  it('sends dedicated input to a subprocess without putting it in argv', async () => {
+    const runner = new ProcessRunner({ stdout: () => undefined, stderr: () => undefined });
+    const input = 'remote probe input';
+    const script = [
+      'let value = "";',
+      'process.stdin.setEncoding("utf8");',
+      'process.stdin.on("data", (chunk) => { value += chunk; });',
+      'process.stdin.on("end", () => process.stdout.write(value));',
+    ].join('\n');
+
+    const result = await runner.runWithInput(process.execPath, ['-e', script], input);
+
+    expect(result.stdout).toBe(input);
+    expect(JSON.stringify([process.execPath, '-e', script])).not.toContain(input);
+  });
+
   it('redacts secrets from streamed and captured stdout and stderr', async () => {
     const secret = 'correct horse battery staple';
     let stdout = '';

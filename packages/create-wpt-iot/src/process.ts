@@ -28,6 +28,15 @@ export interface CommandRunner {
   run(command: string, args?: readonly string[], options?: ProcessRunOptions): Promise<ProcessResult>;
 }
 
+export interface InputCommandRunner extends CommandRunner {
+  runWithInput(
+    command: string,
+    args: readonly string[],
+    input: string,
+    options?: ProcessRunOptions,
+  ): Promise<ProcessResult>;
+}
+
 function normalizeRedactions(values: readonly RedactionValue[] = []): string[] {
   return [...new Set(values.filter((value): value is string => Boolean(value)))]
     .sort((left, right) => right.length - left.length);
@@ -105,7 +114,7 @@ export class ProcessExecutionError extends Error {
   }
 }
 
-export class ProcessRunner implements CommandRunner {
+export class ProcessRunner implements InputCommandRunner {
   private readonly stdout: OutputSink;
   private readonly stderr: OutputSink;
 
@@ -119,6 +128,24 @@ export class ProcessRunner implements CommandRunner {
     args: readonly string[] = [],
     options: ProcessRunOptions = {},
   ): Promise<ProcessResult> {
+    return this.execute(command, args, undefined, options);
+  }
+
+  async runWithInput(
+    command: string,
+    args: readonly string[],
+    input: string,
+    options: ProcessRunOptions = {},
+  ): Promise<ProcessResult> {
+    return this.execute(command, args, input, options);
+  }
+
+  private async execute(
+    command: string,
+    args: readonly string[],
+    input: string | undefined,
+    options: ProcessRunOptions,
+  ): Promise<ProcessResult> {
     const redactions = options.redactions ?? [];
     const stdout = new StreamingRedactor(this.stdout, redactions);
     const stderr = new StreamingRedactor(this.stderr, redactions);
@@ -127,6 +154,7 @@ export class ProcessRunner implements CommandRunner {
       env: options.env,
       reject: false,
       encoding: 'utf8',
+      ...(input === undefined ? {} : { input }),
     });
 
     subprocess.stdout?.on('data', (chunk: Buffer) => stdout.write(chunk));

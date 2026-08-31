@@ -1,5 +1,5 @@
 import type { TemporaryFile } from './config-file.js';
-import { normalizeArchitecture } from './preflight.js';
+import { assertSufficientDiskSpace, normalizeArchitecture } from './preflight.js';
 import type { CommandRunner } from './process.js';
 import type { InstallSettings, PreflightResult } from './types.js';
 
@@ -37,6 +37,10 @@ export async function preflightLocal(
     '-c',
     'if test -r /etc/wpt/serial; then cat /etc/wpt/serial; fi',
   ])).stdout.trim();
+  assertSufficientDiskSpace((await runner.run('sh', [
+    '-c',
+    "df -Pk / | awk 'NR == 2 { print $4 }'",
+  ])).stdout);
 
   for (const host of REQUIRED_HOSTS) {
     await runner.run('curl', ['-fsS', '-o', '/dev/null', '-m', '10', host]);
