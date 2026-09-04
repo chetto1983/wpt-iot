@@ -10,17 +10,13 @@ on:
       - 'pnpm-lock.yaml'
       - 'pnpm-workspace.yaml'
       - '.github/workflows/create-wpt-iot.yml'
+  # No `paths:` here, deliberately. A path filter applies to tag pushes too, and a tag push
+  # carries no meaningful file diff to match against -- so a path-filtered tag trigger can
+  # silently never fire, and a publish job that never runs looks exactly like one with
+  # nothing to publish. The pull_request filter above still keeps ordinary PRs cheap.
   push:
     branches: [master]
     tags: ['installer-v*']
-    paths:
-      - 'packages/create-wpt-iot/**'
-      - 'scripts/install-enduser.sh'
-      - 'scripts/__tests__/install-enduser-config.test.sh'
-      - 'package.json'
-      - 'pnpm-lock.yaml'
-      - 'pnpm-workspace.yaml'
-      - '.github/workflows/create-wpt-iot.yml'
   workflow_dispatch:
 
 permissions:
