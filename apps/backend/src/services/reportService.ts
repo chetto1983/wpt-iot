@@ -3,7 +3,7 @@ import { db } from '../db/index.js';
 import { machineSnapshots } from '../db/schema/machine.js';
 import { alarmEvents } from '../db/schema/alarms.js';
 import { formatEnumValue } from '../i18n/enumLabels.js';
-import { formatZonedDateTime } from '@wpt/types';
+import { formatZonedDateTime, getAlarmCode } from '@wpt/types';
 
 // ---------------------------------------------------------------------------
 // Interfaces
@@ -136,7 +136,7 @@ export class ReportService {
     locale: 'it' | 'en',
     timezone?: string,
   ): Record<string, string | boolean> {
-    const alarmCode = `A${String(event.alarmIndex + 1).padStart(4, '0')}`;
+    const alarmCode = getAlarmCode(event.alarmIndex);
     const description =
       locale === 'it' ? event.descriptionIt : event.descriptionEn;
     const activatedAt = timezone

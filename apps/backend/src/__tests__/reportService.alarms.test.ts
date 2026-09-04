@@ -209,12 +209,18 @@ describe('ReportService', () => {
 
     it('includes alarmCode, description, activatedAt, resetAt, duration, isActive', () => {
       const result = ReportService.formatAlarmForExport(alarmRow, 'en');
-      expect(result).toHaveProperty('alarmCode');
+      expect(result).toHaveProperty('alarmCode', 'A0005');
       expect(result).toHaveProperty('description');
       expect(result).toHaveProperty('activatedAt');
       expect(result).toHaveProperty('resetAt');
       expect(result).toHaveProperty('duration');
       expect(result).toHaveProperty('isActive');
+    });
+
+    it('uses W codes for warning indices', () => {
+      const warningRow = { ...alarmRow, alarmIndex: 399 };
+      const result = ReportService.formatAlarmForExport(warningRow, 'it');
+      expect(result['alarmCode']).toBe('W0001');
     });
 
     it('uses Italian description when locale is it', () => {
