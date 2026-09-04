@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { getAlarmCode } from '@wpt/types';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -27,13 +28,13 @@ export function loadAlarmDescriptions(): void {
 
 /**
  * Get alarm description by index and locale.
- * Falls back to "A{NNNN}" format for missing/empty descriptions.
+ * Falls back to the operator-facing alarm/warning code for missing descriptions.
  * Per D-03: looked up at write time in alarmStore.
  */
 export function getAlarmDescription(index: number, locale: 'it' | 'en'): string {
   const map = locale === 'it' ? itMap : enMap;
   if (!map) throw new Error('Alarm descriptions not loaded -- call loadAlarmDescriptions() first');
   const desc = map.get(index);
-  if (!desc) return `A${String(index + 1).padStart(4, '0')}`;
+  if (!desc) return getAlarmCode(index);
   return desc;
 }

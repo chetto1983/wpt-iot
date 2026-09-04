@@ -2,7 +2,7 @@
 
 import { memo } from 'react';
 import { useTranslations } from 'next-intl';
-import type { IActiveAlarm } from '@wpt/types';
+import { getAlarmCode, type IActiveAlarm } from '@wpt/types';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useDashboardFormatters } from '@/lib/dashboard/formatters';
@@ -46,7 +46,7 @@ export const ActiveAlarmsPanel = memo(function ActiveAlarmsPanel({ alarms }: Act
                   className="flex items-center gap-3 py-3 px-2 border-b border-border last:border-0 hover:bg-muted/50 transition-colors duration-100"
                 >
                   <span className="text-xs font-mono text-wpt-red font-semibold min-w-[56px]">
-                    A{String(alarm.alarmIndex + 1).padStart(4, '0')}
+                    {getAlarmCode(alarm.alarmIndex)}
                   </span>
                   <span className="text-sm text-foreground/80 flex-1">
                     {formatters.alarmDescription(alarm)}

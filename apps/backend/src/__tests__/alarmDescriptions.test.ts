@@ -52,11 +52,9 @@ describe('alarmDescriptions', () => {
       expect(desc).toBe('A0023');
     });
 
-    it('getAlarmDescription(639, "en") returns either a description or "A0640" fallback', () => {
+    it('getAlarmDescription(639, "en") returns "W0241" for an empty warning slot', () => {
       const desc = getAlarmDescription(639, 'en');
-      expect(desc).toBeTruthy();
-      // Either a real description or the fallback format
-      expect(typeof desc).toBe('string');
+      expect(desc).toBe('W0241');
     });
 
     it('getAlarmDescription(9999, "en") returns "A10000" for out-of-range', () => {
