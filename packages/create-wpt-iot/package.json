@@ -1,6 +1,6 @@
 {
   "name": "create-wpt-iot",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Interactive local and remote installer for WPT IoT edge devices",
   "repository": {
     "type": "git",
