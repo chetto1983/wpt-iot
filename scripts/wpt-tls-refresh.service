@@ -15,9 +15,10 @@ Type=oneshot
 EnvironmentFile=-/etc/default/wpt-iot
 Environment=INSTALL_DIR=/opt/wpt-iot
 ExecStart=/bin/bash -c '\
+  set -e; \
   cd "${INSTALL_DIR}" || { echo "INSTALL_DIR=${INSTALL_DIR} missing" >&2; exit 1; }; \
   PRE=$(openssl x509 -in certs/server.crt -noout -fingerprint -sha256 2>/dev/null || echo ""); \
-  bash scripts/generate-local-tls.sh certs; \
+  bash ./generate-local-tls.sh certs; \
   POST=$(openssl x509 -in certs/server.crt -noout -fingerprint -sha256 2>/dev/null || echo ""); \
   if [ "$PRE" != "$POST" ]; then \
     echo "cert changed — restarting nginx"; \
