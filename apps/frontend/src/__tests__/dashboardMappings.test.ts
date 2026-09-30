@@ -19,6 +19,14 @@ describe('dashboard PLC mappings', () => {
     expect(result.current.cycleLabel(6)).toBe('cycleTypes.MILK');
   });
 
+  it('rounds PLC REAL values to two decimals on the live dashboard', () => {
+    const { result } = renderHook(() => useDashboardFormatters());
+
+    expect(result.current.fieldValue(3.049999952316284)).toBe('3.05');
+    expect(result.current.fieldValue(3.5)).toBe('3.5');
+    expect(result.current.fieldValue(3)).toBe('3');
+  });
+
   it('uses the Italian labels from the approved mapping', () => {
     expect(itMessages.dashboard.machinePhases.IN_ALARM).toBe('In Allarme');
     expect(itMessages.dashboard.machineStatuses.SHREDDING).toBe('Triturazione');

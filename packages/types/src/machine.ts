@@ -62,7 +62,7 @@ export interface IMachineSnapshot {
   spareInt54: number;               // S1_I_DATO_54
   spareInt55: number;               // S1_I_DATO_55
   spareInt56: number;               // S1_I_DATO_56
-  materialInputWeight: number;      // S1_I_DATO_57
+  materialInputWeight: number;      // Spare_R_02 / S1_R_DATO_15 (S1_I_DATO_57 is a legacy wire slot)
   materialOutputWeight: number;     // S1_I_DATO_58
   selectedCycle: number;            // S1_I_DATO_59
   currentPhase: number;             // S1_I_DATO_60
@@ -174,7 +174,8 @@ export const MachineSnapshotSchema = z.object({
   spareInt54: z.int(),
   spareInt55: z.int(),
   spareInt56: z.int(),
-  materialInputWeight: z.int(),
+  // Semantic override sourced from the REAL field Spare_R_02 / S1_R_DATO_15.
+  materialInputWeight: z.number(),
   materialOutputWeight: z.int(),
   selectedCycle: z.int(),
   currentPhase: z.int(),

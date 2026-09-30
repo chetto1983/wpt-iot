@@ -80,6 +80,23 @@ describe('machineStore', () => {
     });
   });
 
+  it('keeps Spare_R_02 precision and rounds only the legacy input-weight column', async () => {
+    const mockValues = vi.fn().mockResolvedValue(undefined);
+    vi.mocked(db.insert).mockReturnValue({ values: mockValues } as never);
+
+    startMachineStore(mockLog);
+    const handler = getMachineHandler();
+    const timestamp = new Date('2026-01-01T00:00:00Z');
+
+    await handler({ materialInputWeight: 625.5, spareReal02: 625.5 }, timestamp);
+
+    expect(mockValues).toHaveBeenCalledWith({
+      timestamp,
+      materialInputWeight: 626,
+      spareReal02: 625.5,
+    });
+  });
+
   it('logs and does NOT throw on DB error (D-12 resilience)', async () => {
     const mockValues = vi.fn().mockRejectedValue(new Error('connection refused'));
     vi.mocked(db.insert).mockReturnValue({ values: mockValues } as never);

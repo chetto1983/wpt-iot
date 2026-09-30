@@ -117,7 +117,7 @@ const MACHINE_DATA_INT_FIELDS: (keyof IMachineSnapshot)[] = [
   'spareInt54',            // S1_I_DATO_54  offset 106
   'spareInt55',            // S1_I_DATO_55  offset 108
   'spareInt56',            // S1_I_DATO_56  offset 110
-  'materialInputWeight',   // S1_I_DATO_57  offset 112
+  'materialInputWeight',   // S1_I_DATO_57  offset 112 (legacy slot; overridden from Spare_R_02 below)
   'materialOutputWeight',  // S1_I_DATO_58  offset 114
   'selectedCycle',         // S1_I_DATO_59  offset 116
   'currentPhase',          // S1_I_DATO_60  offset 118
@@ -253,6 +253,12 @@ export function parseMachineData(buf: Buffer): IMachineSnapshot {
     snapshot[field] = rF(buf, offset, endian);
     offset += 4;
   }
+
+  // Material Input Weight is supplied by the PLC through Spare_R_02
+  // (S1_R_DATO_15). Keep spareReal02 as the raw protocol field as well, while
+  // exposing the same value through the semantic field used by the rest of
+  // the application. S1_I_DATO_57 is retained only to preserve wire offsets.
+  snapshot['materialInputWeight'] = snapshot['spareReal02']!;
 
   // 6 BYTE fields -- unsigned 8-bit (endian-agnostic)
   for (const field of BYTE_FIELDS) {

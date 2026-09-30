@@ -146,7 +146,7 @@ export interface ICycleClosedEvent {
   operator: string | null;
   /** Order number (S1_S_DATO_3) */
   orderNumber: string | null;
-  /** Gross input weight including infectious waste (S1_I_DATO_57, mapped from materialInputWeight) */
+  /** Gross input weight including infectious waste (Spare_R_02 / S1_R_DATO_15) */
   grossInputKg: number | null;
   /** Material input weight alias */
   materialInputKg: number | null;

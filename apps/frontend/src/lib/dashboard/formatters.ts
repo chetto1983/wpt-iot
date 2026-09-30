@@ -59,6 +59,12 @@ export function useDashboardFormatters() {
 
     fieldValue: (value: string | number | undefined): string => {
       if (value === undefined || value === '') return t('states.notAvailable');
+      // PLC REAL values are IEEE-754 float32 numbers, so values such as 3.05
+      // can arrive in JavaScript as 3.049999952316284. Limit live dashboard
+      // readings to two decimals while leaving integer and text values intact.
+      if (typeof value === 'number' && Number.isFinite(value)) {
+        return String(Number(value.toFixed(2)));
+      }
       return String(value);
     },
   };

@@ -39,7 +39,7 @@ export function buildTestMachineBuffer(): Buffer {
   buf.writeInt16BE(2800, 32);
   buf.writeInt16BE(2700, 34);
   // spareInt19..56 = 0 (zeroed by alloc)
-  buf.writeInt16BE(500, 112);  // materialInputWeight (S1_I_DATO_57)
+  buf.writeInt16BE(500, 112);  // legacy input-weight slot (must be ignored)
   buf.writeInt16BE(350, 114);
   buf.writeInt16BE(3, 116);    // selectedCycle = DRY_MIXED
   buf.writeInt16BE(2, 118);    // currentPhase
@@ -83,7 +83,7 @@ export function buildTestMachineBuffer(): Buffer {
   buf.writeFloatBE(230.5, 304);   // lineNeutralVoltL3
   buf.writeFloatBE(0.92, 308);    // pfTotal
   buf.writeFloatBE(55.7, 312);    // waterConsumption (S1_R_DATO_14, V03)
-  buf.writeFloatBE(0.0, 316);     // spareReal02 (S1_R_DATO_15, V03 NEW)
+  buf.writeFloatBE(625.5, 316);   // Spare_R_02: authoritative materialInputWeight
 
   // BYTE fields (V03) — offsets 320..325
   buf.writeUInt8(1, 320);  // thermoLeftLowSel

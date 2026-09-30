@@ -17,9 +17,21 @@ interface IStoreLogger {
 export function startMachineStore(log: IStoreLogger): void {
   dataHub.onMachineData(async (snapshot: IMachineSnapshot, timestamp: Date) => {
     try {
+      // materialInputWeight now comes from the REAL PLC field Spare_R_02. The
+      // legacy material_input_weight database column is still INTEGER, while
+      // the exact value is persisted in spare_real_02 by the snapshot spread.
+      // Coerce only the compatibility column so decimal weights cannot reject
+      // the entire row at insert time.
+      const persistedSnapshot = Number.isFinite(snapshot.materialInputWeight)
+        ? {
+            ...snapshot,
+            materialInputWeight: Math.round(snapshot.materialInputWeight),
+          }
+        : snapshot;
+
       await db.insert(machineSnapshots).values({
         timestamp,
-        ...snapshot,
+        ...persistedSnapshot,
       });
     } catch (err) {
       // D-12: Log and continue -- in-memory cache stays current, lost snapshots acceptable

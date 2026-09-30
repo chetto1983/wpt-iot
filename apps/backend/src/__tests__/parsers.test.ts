@@ -40,7 +40,7 @@ describe('parseMachineData', () => {
     expect(snapshot.chamberPressure).toBe(-50);
     expect(snapshot.mainMotorSpeed).toBe(1500);
     expect(snapshot.vacuumPumpSpeed01).toBe(2800);
-    expect(snapshot.materialInputWeight).toBe(500);
+    expect(snapshot.materialInputWeight).toBeCloseTo(625.5, 1);
     expect(snapshot.materialOutputWeight).toBe(350);
     expect(snapshot.selectedCycle).toBe(3);
     expect(snapshot.currentPhase).toBe(2);
@@ -76,7 +76,7 @@ describe('parseMachineData', () => {
     expect(snapshot.lineNeutralVoltL3).toBeCloseTo(230.5, 1);
     expect(snapshot.pfTotal).toBeCloseTo(0.92, 2);
     expect(snapshot.waterConsumption).toBeCloseTo(55.7, 1); // NEW offset 304
-    expect(snapshot.spareReal02).toBe(0);
+    expect(snapshot.spareReal02).toBeCloseTo(625.5, 1);
 
     // BYTE fields (V03 offsets 312-317)
     expect(snapshot.thermoLeftLowSel).toBe(1);
