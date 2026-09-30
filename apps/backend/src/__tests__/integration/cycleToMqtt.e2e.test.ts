@@ -271,7 +271,7 @@ describe('cycleToMqtt E2E', () => {
       startedAt: new Date('2026-04-10T10:00:00Z'),
       endedAt: new Date('2026-04-10T10:45:00Z'),
       cycleType: 3,
-      machineStatus: 8,
+      machineStatus: 9,
       cycleStatusLabel: 'OK',
       startEnergyKwh: 1250.5,
       endEnergyKwh: 1280.5,
@@ -344,7 +344,7 @@ describe('cycleToMqtt E2E', () => {
       startedAt: new Date('2026-04-10T11:00:00Z'),
       endedAt: new Date('2026-04-10T11:45:00Z'),
       cycleType: 3,
-      machineStatus: 8,
+      machineStatus: 9,
       cycleStatusLabel: 'OK',
       startEnergyKwh: 1000.0,
       endEnergyKwh: 1030.0,
@@ -395,7 +395,7 @@ describe('cycleToMqtt E2E', () => {
       startedAt: new Date('2026-04-10T12:00:00Z'),
       endedAt: new Date('2026-04-10T12:45:00Z'),
       cycleType: 3,
-      machineStatus: 4, // IN_ALARM
+      machineStatus: 4, // EVAPORATION (the alarm verdict is carried by cycleStatusLabel)
       cycleStatusLabel: 'FAILED',
       startEnergyKwh: 1000.0,
       endEnergyKwh: 1005.0,
@@ -490,7 +490,7 @@ describe('cycleToMqtt E2E', () => {
       startedAt: new Date('2026-04-10T14:00:00Z'),
       endedAt: new Date('2026-04-10T14:45:00Z'),
       cycleType: 4, // ORGANIC
-      machineStatus: 8, // DISCHARGE
+      machineStatus: 9, // DISCHARGE
       cycleStatusLabel: 'OK',
       startEnergyKwh: 5000.0,
       endEnergyKwh: 5050.0,

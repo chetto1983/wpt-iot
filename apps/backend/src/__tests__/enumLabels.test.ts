@@ -4,7 +4,8 @@ import { formatEnumValue } from '../i18n/enumLabels.js';
 describe('backend PLC enum labels', () => {
   it('formats the live dashboard state values in Italian', () => {
     expect(formatEnumValue('currentPhase', 4, 'it')).toBe('In Allarme');
-    expect(formatEnumValue('machineStatus', 1, 'it')).toBe('Triturazione');
+    expect(formatEnumValue('machineStatus', 0, 'it')).toBe('');
+    expect(formatEnumValue('machineStatus', 2, 'it')).toBe('Triturazione');
   });
 
   it('uses the cycle 6/11 names from the PLC field mapping', () => {

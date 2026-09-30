@@ -15,7 +15,8 @@ describe('dashboard PLC mappings', () => {
     const { result } = renderHook(() => useDashboardFormatters());
 
     expect(result.current.phaseLabel(4)).toBe('machinePhases.IN_ALARM');
-    expect(result.current.statusLabel(1)).toBe('machineStatuses.SHREDDING');
+    expect(result.current.statusLabel(0)).toBe('machineStatuses.NONE');
+    expect(result.current.statusLabel(2)).toBe('machineStatuses.SHREDDING');
     expect(result.current.cycleLabel(6)).toBe('cycleTypes.MILK');
   });
 
@@ -29,6 +30,7 @@ describe('dashboard PLC mappings', () => {
 
   it('uses the Italian labels from the approved mapping', () => {
     expect(itMessages.dashboard.machinePhases.IN_ALARM).toBe('In Allarme');
+    expect(itMessages.dashboard.machineStatuses.NONE).toBe('');
     expect(itMessages.dashboard.machineStatuses.SHREDDING).toBe('Triturazione');
     expect(itMessages.dashboard.cycleTypes.MILK).toBe('Latte');
     expect(PROCESS_FIELDS).not.toContain('cycleStatus');

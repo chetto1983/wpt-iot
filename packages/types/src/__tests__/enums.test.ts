@@ -13,19 +13,21 @@ describe('PLC enum mappings', () => {
     expect(MachinePhase[4]).toBe('IN_ALARM');
   });
 
-  it('maps S1_I_DATO_61 machine statuses 0..8', () => {
+  it('maps S1_I_DATO_61 machine statuses 0..9', () => {
     expect(MachineStatus).toMatchObject({
-      LOADING: 0,
-      SHREDDING: 1,
-      HEATING: 2,
-      EVAPORATION: 3,
-      OVERHEATING: 4,
-      HOLDING: 5,
-      COOLING: 6,
-      FINAL_DRYING: 7,
-      DISCHARGE: 8,
+      NONE: 0,
+      LOADING: 1,
+      SHREDDING: 2,
+      HEATING: 3,
+      EVAPORATION: 4,
+      OVERHEATING: 5,
+      HOLDING: 6,
+      COOLING: 7,
+      FINAL_DRYING: 8,
+      DISCHARGE: 9,
     });
-    expect(MachineStatus[1]).toBe('SHREDDING');
+    expect(MachineStatus[0]).toBe('NONE');
+    expect(MachineStatus[2]).toBe('SHREDDING');
   });
 
   it('maps cycle 6/11 to MILK according to the field specification', () => {

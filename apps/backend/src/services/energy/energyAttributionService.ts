@@ -8,7 +8,7 @@ import { AttributionStatus } from '@wpt/types';
 // -----------------------------------------------------------------------------
 // CONTEXT D-13 originally specified ABORTED as "machineStatus -> ABORTED without
 // completedCycles increment". The enum has no such value on MachineStatus --
-// only the 9 PLC processing sub-stages (LOADING=0..DISCHARGE=8). The user
+// only the PLC processing sub-stages (NONE=0, LOADING=1..DISCHARGE=9). The user
 // approved an inline reformulation: cycleTracker (Plan 05) detects aborted
 // windows by observing currentPhase transitions
 // (STANDBY -> AUTOMATIC_STARTED -> STANDBY) without a completedCycles

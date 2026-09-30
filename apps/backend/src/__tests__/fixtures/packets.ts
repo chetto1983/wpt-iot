@@ -43,7 +43,7 @@ export function buildTestMachineBuffer(): Buffer {
   buf.writeInt16BE(350, 114);
   buf.writeInt16BE(3, 116);    // selectedCycle = DRY_MIXED
   buf.writeInt16BE(2, 118);    // currentPhase
-  buf.writeInt16BE(3, 120);    // machineStatus = RUNNING
+  buf.writeInt16BE(3, 120);    // machineStatus = HEATING
   // spareInt62..70 = 0
   buf.writeInt16BE(2, 140);    // cycleStatus = COMPLETED (S1_I_DATO_71, V03)
   buf.writeInt16BE(13, 142);   // container = 13 bidoni (S1_I_DATO_72, V03)

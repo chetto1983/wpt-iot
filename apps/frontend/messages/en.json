@@ -456,6 +456,7 @@
       "IN_ALARM": "In Alarm"
     },
     "machineStatuses": {
+      "NONE": "",
       "LOADING": "Loading",
       "SHREDDING": "Shredding",
       "HEATING": "Heating",
