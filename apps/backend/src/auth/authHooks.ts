@@ -4,6 +4,12 @@ import { eq } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import { authUsers } from '../db/schema/auth.js';
 
+// Every early reply is RETURNED, never just sent: @fastify/session saves the
+// session in an async onSend hook, so a merely-sent reply is still in flight
+// when the hook resolves and Fastify runs the route handler anyway. Returning
+// the reply (a thenable that settles on end-of-stream) makes Fastify wait.
+// https://fastify.dev/docs/latest/Reference/Hooks/#respond-to-a-request-from-a-hook
+
 /**
  * Fastify preHandler hook: verify that request has a valid session.
  * Re-reads role from database on every request (per D-03 immediate role sync).
@@ -11,10 +17,9 @@ import { authUsers } from '../db/schema/auth.js';
 export async function requireAuth(
   request: FastifyRequest,
   reply: FastifyReply,
-): Promise<void> {
+): Promise<FastifyReply | undefined> {
   if (!request.session.userId) {
-    reply.code(401).send({ error: 'Unauthorized' });
-    return;
+    return reply.code(401).send({ error: 'Unauthorized' });
   }
 
   // D-03: Re-read role from DB on every authenticated request
@@ -26,12 +31,11 @@ export async function requireAuth(
 
   if (!user) {
     await request.session.destroy();
-    reply.code(401).send({ error: 'Unauthorized' });
-    return;
+    return reply.code(401).send({ error: 'Unauthorized' });
   }
 
-  // Update session role with current DB value
   request.session.role = user.role;
+  return undefined;
 }
 
 /**
@@ -40,15 +44,14 @@ export async function requireAuth(
  */
 export function requireRole(
   ...roles: UserRole[]
-): (request: FastifyRequest, reply: FastifyReply) => Promise<void> {
-  return async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
+): (request: FastifyRequest, reply: FastifyReply) => Promise<FastifyReply | undefined> {
+  return async (request: FastifyRequest, reply: FastifyReply) => {
     await requireAuth(request, reply);
-
-    // If requireAuth already sent a response, stop here
-    if (reply.sent) return;
+    if (reply.sent) return reply;
 
     if (!roles.includes(request.session.role as UserRole)) {
-      reply.code(403).send({ error: 'Forbidden' });
+      return reply.code(403).send({ error: 'Forbidden' });
     }
+    return undefined;
   };
 }

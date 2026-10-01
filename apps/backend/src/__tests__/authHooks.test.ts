@@ -42,6 +42,7 @@ function makeSignedCookie(rawSessionId: string): string {
 }
 
 let app: FastifyInstance;
+let guardedHandlerRuns = 0;
 
 async function buildTestApp(): Promise<FastifyInstance> {
   const instance = Fastify({ logger: false });
@@ -88,12 +89,22 @@ async function buildTestApp(): Promise<FastifyInstance> {
     },
   );
 
+  instance.post(
+    '/role-super-admin-side-effect',
+    { preHandler: requireRole('SUPER_ADMIN') },
+    async (_request, reply) => {
+      guardedHandlerRuns++;
+      return reply.code(201).send({ ok: true });
+    },
+  );
+
   await instance.ready();
   return instance;
 }
 
 beforeEach(async () => {
   await db.execute(sql`TRUNCATE sessions, auth_users CASCADE`);
+  guardedHandlerRuns = 0;
   app = await buildTestApp();
 });
 
@@ -245,5 +256,28 @@ describe('requireRole', () => {
       headers: { Cookie: cookie },
     });
     expect(response.statusCode).toBe(403);
+  });
+
+  // The session's onSend save is async, so a denied reply is still in flight
+  // when the hook resolves; the handler must not run (and mutate) meanwhile.
+  it('does not run the route handler when the role is denied', async () => {
+    const user = await createClientUser();
+    const { sessionId } = await createSessionForUser(user.id);
+    const response = await app.inject({
+      method: 'POST',
+      url: '/role-super-admin-side-effect',
+      headers: { Cookie: makeSignedCookie(sessionId) },
+    });
+    expect(response.statusCode).toBe(403);
+    expect(guardedHandlerRuns).toBe(0);
+  });
+
+  it('does not run the route handler when there is no session', async () => {
+    const response = await app.inject({
+      method: 'POST',
+      url: '/role-super-admin-side-effect',
+    });
+    expect(response.statusCode).toBe(401);
+    expect(guardedHandlerRuns).toBe(0);
   });
 });
