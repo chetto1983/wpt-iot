@@ -1,33 +1,44 @@
 /**
- * Phase 20 — shared fixtures / helpers for the baseline integration tests.
+ * Phase 20 — shared fixtures / helpers for the baseline tests:
+ *  - energyBaseline.integration.test.ts        (service: schema, lock/freeze, startup validator)
+ *  - energyBaselineRoutes.integration.test.ts  (HTTP: lock/retire/savings routes)
+ *  - energyMilestone.e2e.test.ts
  *
- * Split out of the original `energyBaseline.integration.test.ts` (WR-03 —
- * file-size cap violation: 877 lines > 500). The tests that used to live in
- * that single file are now in:
- *  - energyBaselineSchema.test.ts     (Plan 01)
- *  - energyBaselineLockFreeze.test.ts (Plan 03)
- *  - energyBaselineRoutes.test.ts     (Plan 04)
- *  - energyBaselinePredates.test.ts   (Plan 05)
- *
- * This module owns the cross-file helpers: test-server builder, date-wall
- * constants, data seeders, and the shared beforeEach cleanup routine. It
- * does NOT run any tests itself (no `describe`/`it`). It also does NOT end
- * the pool — each test file's `afterAll` is responsible for its own close.
+ * This module owns the date-wall constants, data seeders, and the shared
+ * cleanup routine. It does NOT run any tests itself (no `describe`/`it`).
+ * It also does NOT end the pool — each test file's `afterAll` closes it.
  *
  * Prereq: `cd wpt-iot && docker compose up -d db` before running.
  */
 
-import Fastify, { type FastifyInstance } from 'fastify';
 import { sql } from 'drizzle-orm';
 import { db } from '../../db/index.js';
-import { energyRoutes } from '../../routes/energy.js';
 
-/** Build an isolated Fastify test server wired to the energy plugin. */
-export async function buildTestServer(): Promise<FastifyInstance> {
-  const app = Fastify({ logger: false });
-  await app.register(energyRoutes);
-  await app.ready();
-  return app;
+/**
+ * The Docker init script defines the `setup_*` PL/pgSQL functions but does
+ * not call them — the backend calls applyTimescaleSetup() on boot. Tests
+ * bypass the bootstrap, so they materialise the CAGGs once per file. Both
+ * functions are idempotent but `setup_timescaledb_retention` must NOT run
+ * between tests or the CAGG policies reset mid-suite: call from beforeAll.
+ *
+ * The fixture windows reach 71 days back, past the 30-day raw retention.
+ * setup_timescaledb_retention() re-adds that policy, and a fresh policy job
+ * runs at once in the background — measured 2026-10-01: it dropped the
+ * seeded raw chunk between insert and CAGG refresh, so energy_1d lost days
+ * at random. Deferring the job in the same transaction means the scheduler
+ * never sees it runnable; it resumes on its own after the deferral.
+ * https://www.tigerdata.com/docs/api/latest/jobs-automation/alter_job
+ */
+export async function setupEnergyAggregates(): Promise<void> {
+  await db.transaction(async (tx) => {
+    await tx.execute(sql`SELECT setup_timescaledb_retention()`);
+    await tx.execute(sql`SELECT setup_energy_aggregates()`);
+    await tx.execute(sql`
+      SELECT alter_job(job_id, next_start => now() + INTERVAL '1 hour')
+      FROM timescaledb_information.jobs
+      WHERE proc_name = 'policy_retention' AND hypertable_name = 'machine_snapshots'
+    `);
+  });
 }
 
 /**
@@ -116,7 +127,12 @@ export async function seedEnergyDayBuckets(args: {
 /**
  * Seeds `cyclesPerDay` ATTRIBUTED cycle_records rows per calendar day in
  * the [from, to) window. Each cycle is a 45-minute window starting at hour
- * (8 + cycleIndex) of the day. cycle_number is monotonic across all days.
+ * (8 + cycleIndex) of the day.
+ *
+ * (reset_epoch, cycle_number) is UNIQUE (cycle_records_identity_uidx), and a
+ * test seeds the baseline and measurement windows with separate calls, so
+ * cycle_number is the start hour since the epoch: distinct for every fixture
+ * cycle across calls, and monotonic in time like the real PLC counter.
  */
 export async function seedCycleRecords(args: {
   from: Date;
@@ -125,12 +141,12 @@ export async function seedCycleRecords(args: {
   kgPerCycle: number;
 }): Promise<void> {
   const days = Math.round((args.to.getTime() - args.from.getTime()) / 86_400_000);
-  let cycleNumber = 1;
   for (let d = 0; d < days; d++) {
     const dayBase = new Date(args.from.getTime() + d * 86_400_000);
     for (let c = 0; c < args.cyclesPerDay; c++) {
       const start = new Date(dayBase.getTime() + (8 + c) * 3600_000);
       const end = new Date(start.getTime() + 45 * 60_000);
+      const cycleNumber = Math.floor(start.getTime() / 3600_000);
       await db.execute(sql`
         INSERT INTO cycle_records
           (cycle_number, reset_epoch, started_at, ended_at,
@@ -146,7 +162,6 @@ export async function seedCycleRecords(args: {
           'ATTRIBUTED'
         )
       `);
-      cycleNumber++;
     }
   }
 }
