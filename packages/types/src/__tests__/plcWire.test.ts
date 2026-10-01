@@ -4,17 +4,17 @@ import {
   parseAlarmWords,
   parseUserData,
   parseJobData,
-  buildUserWritePacket,
+  buildUserDataPacket,
   buildJobWritePacket,
   setPlcEndian,
-} from '../udp/parsers.js';
+} from '../plc-wire/index.js';
 import {
   buildTestMachineBuffer,
   buildTestAlarmBuffer,
   buildTestUserBuffer,
   buildTestJobBuffer,
-} from './fixtures/packets.js';
-import { RfidUserGroup, CycleType } from '@wpt/types';
+} from './fixtures/plcPackets.js';
+import { RfidUserGroup, CycleType } from '../enums.js';
 
 // Endianness is now config-driven (default 'le'), and every fixture buffer in
 // this suite is Big-Endian. Pin the parser to BE before each case so the
@@ -169,7 +169,7 @@ describe('parseJobData', () => {
   });
 });
 
-describe('buildUserWritePacket', () => {
+describe('buildUserDataPacket', () => {
   it('produces a 1104-byte buffer that round-trips with parseUserData', () => {
     const users = [
       { tagId: 1, name: 'Operator1', group: RfidUserGroup.OPERATOR, enabled: true },
@@ -181,7 +181,7 @@ describe('buildUserWritePacket', () => {
       users.push({ tagId: i + 1, name: '', group: RfidUserGroup.OPERATOR, enabled: false });
     }
 
-    const buf = buildUserWritePacket(users);
+    const buf = buildUserDataPacket(users);
     expect(buf.length).toBe(1104);
 
     const parsed = parseUserData(buf);

@@ -3,7 +3,7 @@ import { z } from 'zod/v4';
 import { UserRole } from '@wpt/types';
 import { requireRole } from '../auth/authHooks.js';
 import { PlcConfigService } from '../udp/plcConfigService.js';
-import { setPlcEndian } from '../udp/parsers.js';
+import { setPlcEndian } from '@wpt/types/plc-wire';
 import { getSockets } from '../udp/sockets.js';
 import { readUsers } from '../udp/handshakeFsm.js';
 
