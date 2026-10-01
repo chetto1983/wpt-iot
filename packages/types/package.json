@@ -8,6 +8,10 @@
     ".": {
       "import": "./dist/index.js",
       "types": "./dist/index.d.ts"
+    },
+    "./plc-wire": {
+      "import": "./dist/plc-wire/index.js",
+      "types": "./dist/plc-wire/index.d.ts"
     }
   },
   "scripts": {
@@ -21,6 +25,7 @@
     "zod": "^3.25.0"
   },
   "devDependencies": {
+    "@types/node": "^22.0.0",
     "typescript": "^5.8.0",
     "vitest": "^3.2.0"
   }

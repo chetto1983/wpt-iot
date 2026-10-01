@@ -1,7 +1,6 @@
 import type { ISocketManager } from './sockets.js';
 import type { ILogger } from './machineListener.js';
-import { parseAlarmWords } from './parsers.js';
-import { ALARM_PACKET_SIZE } from './packetSizes.js';
+import { ALARM_PACKET_SIZE, parseAlarmWords } from '@wpt/types/plc-wire';
 import { dataHub } from '../events/hub.js';
 import { latestState } from '../cache/latestState.js';
 

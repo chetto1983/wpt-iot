@@ -7,7 +7,7 @@ import { initBroadcaster, shutdownBroadcaster } from './ws/broadcaster.js';
 import { SparkplugService } from './mqtt/sparkplugService.js';
 import { CloudUplinkWorker } from './mqtt/cloudUplinkWorker.js';
 import { PlcConfigService, setPlcConfigLogger } from './udp/plcConfigService.js';
-import { setPlcEndian } from './udp/parsers.js';
+import { setPlcEndian } from '@wpt/types/plc-wire';
 import { applyDatabaseBootstrap } from './db/databaseBootstrap.js';
 import { pool } from './db/index.js';
 import { AlarmRetentionService } from './services/alarmRetentionService.js';

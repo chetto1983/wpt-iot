@@ -5,7 +5,6 @@ export * from './users.js';
 export * from './jobs.js';
 export * from './auth.js';
 export * from './cycleStatus.js';
-export * from './udp.js';
 export * from './websocket.js';
 export * from './dashboard.js';
 export * from './mqtt.js';

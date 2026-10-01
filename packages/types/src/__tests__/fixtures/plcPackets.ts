@@ -7,7 +7,7 @@
  *     block (REAL must be 4-byte aligned)
  *   - RFID enable polarity: 0 = disabled, 1 = enabled (V03 xlsx column C is wrong)
  * All multi-byte values are Big Endian.
- * See packetSizes.ts for the byte-level evidence and the pcap artifacts under
+ * See plc-wire/layout.ts for the byte-level evidence and the pcap artifacts under
  * .planning/debug/artifacts/.
  */
 

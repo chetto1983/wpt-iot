@@ -1,0 +1,199 @@
+/* ===== Checkbox (Fault Injection) ===== */
+.checkbox-group {
+  margin-bottom: var(--sp-md);
+}
+
+.checkbox-group:last-child {
+  margin-bottom: 0;
+}
+
+.checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-sm);
+}
+
+.checkbox-row input[type="checkbox"] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--color-border);
+  border-radius: 3px;
+  background-color: var(--color-card);
+  cursor: pointer;
+  position: relative;
+  flex-shrink: 0;
+}
+
+.checkbox-row input[type="checkbox"]:checked {
+  background-color: var(--color-destructive);
+  border-color: var(--color-destructive);
+}
+
+.checkbox-row input[type="checkbox"]:checked::after {
+  content: "";
+  position: absolute;
+  left: 5px;
+  top: 1px;
+  width: 6px;
+  height: 11px;
+  border: solid #FFFFFF;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+.checkbox-row label {
+  display: inline;
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--color-text);
+  margin-bottom: 0;
+  cursor: pointer;
+}
+
+.fault-warning {
+  font-size: 12px;
+  font-style: italic;
+  color: var(--color-destructive);
+  margin-top: var(--sp-xs);
+  margin-left: 28px;
+}
+
+/* ===== Live Status Dashboard ===== */
+.status-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--sp-sm) 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.status-item:last-child {
+  border-bottom: none;
+}
+
+.status-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.mono {
+  font-family: var(--font-mono);
+  font-size: 14px;
+}
+
+/* ===== FSM State Badges ===== */
+.fsm-badge {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  padding: 2px var(--sp-sm);
+  border-radius: 4px;
+  color: #FFFFFF;
+}
+
+.fsm-idle {
+  background-color: var(--color-success);
+}
+
+.fsm-reading {
+  background-color: var(--color-accent);
+}
+
+.fsm-writing {
+  background-color: var(--color-warning);
+  color: var(--color-text);
+}
+
+.fsm-timeout {
+  background-color: var(--color-destructive);
+}
+
+/* ===== Values Table ===== */
+.values-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.values-table th {
+  text-align: left;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  padding: var(--sp-xs) var(--sp-sm);
+  border-bottom: 2px solid var(--color-border);
+}
+
+.values-table td {
+  padding: var(--sp-xs) var(--sp-sm);
+}
+
+.values-table td:last-child {
+  font-family: var(--font-mono);
+  text-align: right;
+}
+
+.values-table tbody tr:nth-child(odd) {
+  background-color: var(--color-bg);
+}
+
+.values-table tbody tr:nth-child(even) {
+  background-color: var(--color-card);
+}
+
+/* ===== Active Alarms List ===== */
+.alarm-list {
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.alarm-list-item {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-sm);
+  padding: var(--sp-xs) 0;
+  font-size: 12px;
+}
+
+.alarm-list-item .dot {
+  width: 8px;
+  height: 8px;
+  flex-shrink: 0;
+  background-color: var(--color-destructive);
+}
+
+.muted-text {
+  color: var(--color-muted);
+  font-size: 12px;
+  font-style: italic;
+}
+
+/* ===== Responsive Breakpoints ===== */
+@media (max-width: 1199px) {
+  .grid-3 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 959px) {
+  .grid-3,
+  .grid-2 {
+    grid-template-columns: 1fr;
+  }
+
+  .header-bar {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .scenario-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .scenario-row select {
+    max-width: 100%;
+  }
+}

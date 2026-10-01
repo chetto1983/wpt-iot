@@ -1,6 +1,5 @@
 import type { ISocketManager } from './sockets.js';
-import { parseMachineData } from './parsers.js';
-import { MACHINE_PACKET_SIZE } from './packetSizes.js';
+import { MACHINE_PACKET_SIZE, parseMachineData } from '@wpt/types/plc-wire';
 import { dataHub } from '../events/hub.js';
 import { latestState } from '../cache/latestState.js';
 import { MachineSnapshotSchema } from '@wpt/types';

@@ -2,7 +2,7 @@ import type { FastifyPluginAsync } from 'fastify';
 import { latestState } from '../cache/latestState.js';
 import { db } from '../db/index.js';
 import { sql } from 'drizzle-orm';
-import { getCurrentPlcEndian } from '../udp/parsers.js';
+import { getCurrentPlcEndian } from '@wpt/types/plc-wire';
 
 /**
  * Extended health endpoint reporting DB connection + UDP pipeline status (D-13).

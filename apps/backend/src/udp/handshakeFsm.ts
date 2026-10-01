@@ -1,8 +1,14 @@
 import type dgram from 'node:dgram';
 import { HandshakeState } from '@wpt/types';
 import type { IRfidUser, IJobData } from '@wpt/types';
-import { parseUserData, parseJobData, buildUserWritePacket, buildJobWritePacket } from './parsers.js';
-import { USER_DATA_PACKET_SIZE, JOB_DATA_PACKET_SIZE } from './packetSizes.js';
+import {
+  JOB_DATA_PACKET_SIZE,
+  USER_DATA_PACKET_SIZE,
+  buildJobWritePacket,
+  buildUserDataPacket,
+  parseJobData,
+  parseUserData,
+} from '@wpt/types/plc-wire';
 import { config } from '../config.js';
 import { getCachedPlcConfig } from './plcConfigService.js';
 
@@ -10,8 +16,8 @@ import { getCachedPlcConfig } from './plcConfigService.js';
 interface IFsmConfig {
   channelName: string;         // 'users' or 'jobs'
   controlByteIndex: number;    // 0 for jobs (port 9090 byte), 1 for users (port 9092 byte)
-  simTargetDataPort: number;   // Where to send data TO simulator (19092 for users, 19090 for jobs)
-  expectedDataSize: number;    // 1056 for users, 88 for jobs
+  simTargetDataPort: number;   // PLC data port for writes (SIM_USERS_PORT / SIM_DATA_PORT)
+  expectedDataSize: number;    // minimum bytes of a read response
   watchdogMs: number;          // 5000
 }
 
@@ -161,50 +167,21 @@ export class HandshakeFSM {
   }
 
   /**
-   * Write data to PLC via handshake protocol (fire-and-forget).
+   * Write data to PLC via handshake protocol.
    *
-   * REAL PLC behavior verified 2026-04-08 via tcpdump of BOTH write endpoints:
-   * - 9092 RFID write: .planning/debug/artifacts/rfid-write-9092-9093-2026-04-08.pcap
-   * - 9090 job write:  .planning/debug/artifacts/jobs-write-9090-9093-2026-04-08.pcap
-   *
-   * **Channel-asymmetric ACK behavior** — the real PLC treats the two data
-   * channels differently on the write path:
-   *
-   *   9092 (RFID write): TRULY fire-and-forget. 3 frames total:
-   *     1. Bkd→PLC 9093: [IDLE, REQUEST_WRITE] — 2B
-   *     2. Bkd→PLC 9092: 1104B user data (~470 μs after step 1)
-   *     3. Bkd→PLC 9093: [IDLE, ACK(100)] release.
-   *     4. After a short delay, Bkd→PLC 9093: [IDLE, IDLE] cleanup.
-   *     Total ~851 μs, ZERO PLC→Backend frames (verified with 5-second
-   *     post-send capture window — no delayed ACK either).
-   *
-   *   9090 (job write): Delayed ACK on 9090 channel. 4 frames total:
-   *     1. Bkd→PLC 9093: [REQUEST_WRITE, IDLE] — 2B (byte 0 = 9090 channel)
-   *     2. Bkd→PLC 9090: 96B job data (~385 μs after step 1)
-   *     3. Bkd→PLC 9093: [ACK(100), IDLE] release.
-   *     4. After a short delay, Bkd→PLC 9093: [IDLE, IDLE] cleanup.
-   *     5. PLC→Bkd 9093: [ACK(100), IDLE] — 2B, ~22 ms AFTER step 3
-   *     Total ~23 ms exchange. The PLC delivers a late ACK on 9090's channel
-   *     byte AFTER the backend has already released the channel with ACK.
-   *
-   * The current code ignores the delayed 9090-write ACK — `writeJob()` returns
-   * as soon as step 3 is sent, so the caller sees success before step 4 has
-   * even arrived. Functional outcome: correct. A stricter implementation could
-   * wait for the 9090 delayed ACK to confirm PLC actually applied the write,
-   * but that's an optimization, not a correctness requirement. The legacy V01
-   * code (SC_Complete_wpt-40-local-server) sendUsers9092 / sendData9090
-   * established the fire-and-forget pattern and it matches the real PLC's
-   * 9092 behavior exactly; 9090 behavior is more lenient (PLC sends something
-   * back) but doesn't require us to listen.
-   *
-   * Sequence (in code):
+   * Sequence (since 0086f8e, 2026-04-13 — the fix for the live write→next-read
+   * deadlock):
    *   1. Send REQUEST_WRITE(254) on ack port (9093) on this channel's byte.
    *   2. Send the data buffer on the data port.
-   *   3. Send ACK(100) on ack port to release the PLC channel FSM.
-   *   4. Wait one PLC scan window, then send IDLE(2) so `UDP_Send_9093`
-   *      resets and accepts the next command.
+   *   3. Wait for the PLC's ACK(100) on this channel's byte. ACKs that arrive
+   *      before the data is sent are ignored (`ackArmed`); none within the
+   *      watchdog fails the write.
+   *   4. Send ACK(100) to release the PLC channel FSM, wait one scan window,
+   *      then IDLE(2) so `UDP_Send_9093` resets and accepts the next command.
    *
-   * No listener is needed — errors surface only via UDP send failure.
+   * Measurement conflict, not yet re-measured: the 2026-04-08 tcpdumps saw a
+   * late PLC ACK only on 9090 job writes and NO PLC→IoT frame after a 9092
+   * RFID write, while step 3 expects one on both channels.
    */
   async write(
     ackSocket: dgram.Socket,
@@ -294,7 +271,7 @@ export class HandshakeFSM {
    * wire capture) raced past the unattached listener and every read timed out.
    * The read() path now attaches THIS data listener BEFORE sending REQUEST_READ,
    * so the ~54 ms data response is caught without needing to observe the ACK
-   * at all. The write() path is fire-and-forget and doesn't use this.
+   * at all.
    */
   private waitForData(dataSocket: dgram.Socket, log: IFsmLogger): Promise<Buffer> {
     return new Promise((resolve, reject) => {
@@ -362,15 +339,15 @@ export function initHandshakeFsms(): { usersFsm: HandshakeFSM; jobsFsm: Handshak
   usersFsm = new HandshakeFSM({
     channelName: 'users',
     controlByteIndex: 1,                         // Byte 1 = port 9092 control
-    simTargetDataPort: config.simUsersPort,       // 19092
-    expectedDataSize: USER_DATA_PACKET_SIZE,      // 1056
+    simTargetDataPort: config.simUsersPort,
+    expectedDataSize: USER_DATA_PACKET_SIZE,
     watchdogMs: config.handshakeTimeoutMs,        // 5000
   });
   jobsFsm = new HandshakeFSM({
     channelName: 'jobs',
     controlByteIndex: 0,                          // Byte 0 = port 9090 control
-    simTargetDataPort: config.simDataPort,        // 19090
-    expectedDataSize: JOB_DATA_PACKET_SIZE,       // 88
+    simTargetDataPort: config.simDataPort,
+    expectedDataSize: JOB_DATA_PACKET_SIZE,
     watchdogMs: config.handshakeTimeoutMs,        // 5000
   });
   return { usersFsm, jobsFsm };
@@ -400,7 +377,7 @@ export async function writeUsers(
   log: IFsmLogger,
 ): Promise<void> {
   const { usersFsm: fsm } = getFsms();
-  const packet = buildUserWritePacket(users);
+  const packet = buildUserDataPacket(users);
   await fsm.write(ackSocket, dataSocket, packet, log);
 }
 
