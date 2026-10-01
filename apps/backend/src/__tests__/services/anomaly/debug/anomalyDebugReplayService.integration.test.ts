@@ -24,6 +24,7 @@ import { db, pool } from '../../../../db/index.js';
 import { DrizzleSessionStore } from '../../../../auth/sessionStore.js';
 import { wsRoute } from '../../../../ws/route.js';
 import { initBroadcaster, shutdownBroadcaster } from '../../../../ws/broadcaster.js';
+import { loadAlarmDescriptions } from '../../../../i18n/alarmDescriptions.js';
 import { AnomalyDebugReplayService } from '../../../../services/anomaly/debug/anomalyDebugReplayService.js';
 import { createSuperAdminUser } from '../../../fixtures/testUsers.js';
 import { createSessionForUser } from '../../../fixtures/testSessions.js';
@@ -274,6 +275,9 @@ describe('AnomalyDebugReplayService -- integration (real Docker PG)', () => {
 
     app = await buildWsApp();
     serverAddr = await app.listen({ port: 0, host: '127.0.0.1' });
+    // Same order as index.ts: initBroadcaster describes every alarm already
+    // active in the shared DB, so it needs the descriptions loaded.
+    loadAlarmDescriptions();
     await initBroadcaster(mockLog);
 
     const user = await createSuperAdminUser();
