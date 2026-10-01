@@ -11,7 +11,7 @@ import { PlcConfigService } from '../udp/plcConfigService.js';
 import { MachineSchemaMigrationService } from './machineSchemaMigrationService.js';
 import { applyMigrations } from './migrator.js';
 import { pool } from './index.js';
-import { applyTimescaleSetup } from './timescaleSetup.js';
+import { applyTimescaleSetup, updateTimescaleExtension } from './timescaleSetup.js';
 
 export interface DatabaseMigrationStep {
   name: string;
@@ -21,12 +21,14 @@ export interface DatabaseMigrationStep {
 /**
  * Canonical repository-wide migration order.
  *
- * All relational schemas must exist before Timescale functions create and
- * backfill hypertables/continuous aggregates. Adding another boot migration
- * means adding it here, so image updates and fresh installations share the
- * same blocking path.
+ * The extension update comes first, before any pooled session can load the
+ * old Timescale library. All relational schemas must exist before Timescale
+ * functions create and backfill hypertables/continuous aggregates. Adding
+ * another boot migration means adding it here, so image updates and fresh
+ * installations share the same blocking path.
  */
 export const databaseMigrationSteps: DatabaseMigrationStep[] = [
+  { name: 'timescale-extension', run: (logger) => updateTimescaleExtension(logger) },
   { name: 'drizzle', run: (logger) => applyMigrations(pool, logger) },
   { name: 'mqtt-config', run: () => MqttConfigService.ensureTable() },
   { name: 'energy-config', run: () => EnergyConfigService.ensureTable() },

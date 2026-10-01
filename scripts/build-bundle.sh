@@ -41,6 +41,15 @@ if [[ "$TARGET_ARCH" != "amd64" && "$TARGET_ARCH" != "arm64" ]]; then
   fail "TARGET_ARCH must be amd64 or arm64 (got: $TARGET_ARCH)"
 fi
 
+# The bundle ships docker-compose.yml, so it saves exactly the third-party
+# images that file pins. A separate copy here once drifted to an older db.
+compose_image() {
+  docker compose -f docker-compose.yml config --images | grep "^$1:" || \
+    fail "docker-compose.yml pins no $1 image."
+}
+DB_IMAGE="$(compose_image timescale/timescaledb)"
+NGINX_IMAGE="$(compose_image nginx)"
+
 GIT_SHA="$(git rev-parse --short HEAD 2>/dev/null || echo unknown)"
 GIT_DIRTY=""
 if ! git diff --quiet 2>/dev/null || ! git diff --cached --quiet 2>/dev/null; then
@@ -60,18 +69,13 @@ step "Step 1/5  Build backend + frontend images"
 
 if [[ "${SKIP_BUILD}" == "1" ]]; then
   info "SKIP_BUILD=1 - reusing existing local images"
-  docker image inspect timescale/timescaledb:2.25.2-pg17 >/dev/null 2>&1 || \
-    fail "timescale/timescaledb:2.25.2-pg17 not found locally."
-  docker image inspect wpt-iot-backend:latest >/dev/null 2>&1 || \
-    fail "wpt-iot-backend:latest not found locally."
-  docker image inspect wpt-iot-frontend:latest >/dev/null 2>&1 || \
-    fail "wpt-iot-frontend:latest not found locally."
-  docker image inspect nginx:1.28.3-alpine >/dev/null 2>&1 || \
-    fail "nginx:1.28.3-alpine not found locally."
+  for image in "${DB_IMAGE}" wpt-iot-backend:latest wpt-iot-frontend:latest "${NGINX_IMAGE}"; do
+    docker image inspect "${image}" >/dev/null 2>&1 || fail "${image} not found locally."
+  done
 else
   info "Pulling base images (db, nginx) for linux/${TARGET_ARCH}..."
-  docker pull --platform "linux/${TARGET_ARCH}" timescale/timescaledb:2.25.2-pg17
-  docker pull --platform "linux/${TARGET_ARCH}" nginx:1.28.3-alpine
+  docker pull --platform "linux/${TARGET_ARCH}" "${DB_IMAGE}"
+  docker pull --platform "linux/${TARGET_ARCH}" "${NGINX_IMAGE}"
 
   # NOTE: backend/frontend built for host arch. For cross-arch Pilz targets,
   # prefer pulling CI images from GHCR with SKIP_BUILD=1.
@@ -113,17 +117,14 @@ step "Step 3/5  docker save images"
 
 mkdir -p "${BUNDLE_DIR}/images"
 
-info "Saving timescale/timescaledb:2.25.2-pg17..."
-docker save timescale/timescaledb:2.25.2-pg17 | gzip > "${BUNDLE_DIR}/images/db.tar.gz"
-
-info "Saving wpt-iot-backend:latest..."
-docker save wpt-iot-backend:latest | gzip > "${BUNDLE_DIR}/images/backend.tar.gz"
-
-info "Saving wpt-iot-frontend:latest..."
-docker save wpt-iot-frontend:latest | gzip > "${BUNDLE_DIR}/images/frontend.tar.gz"
-
-info "Saving nginx:1.28.3-alpine..."
-docker save nginx:1.28.3-alpine | gzip > "${BUNDLE_DIR}/images/nginx.tar.gz"
+save_image() {
+  info "Saving $2..."
+  docker save "$2" | gzip > "${BUNDLE_DIR}/images/$1.tar.gz"
+}
+save_image db "${DB_IMAGE}"
+save_image backend wpt-iot-backend:latest
+save_image frontend wpt-iot-frontend:latest
+save_image nginx "${NGINX_IMAGE}"
 
 ok "Images saved:"
 ls -lh "${BUNDLE_DIR}/images/" | awk 'NR>1 {printf "    %-25s %s\n", $9, $5}'
@@ -142,10 +143,10 @@ docker_version:    $(docker --version)
 compose_version:   $(docker compose version | head -1)
 
 # Image digests (sha256)
-db:                $(docker image inspect timescale/timescaledb:2.25.2-pg17 --format '{{.Id}}')
+db:                $(docker image inspect "${DB_IMAGE}" --format '{{.Id}}')
 backend:           $(docker image inspect wpt-iot-backend:latest --format '{{.Id}}')
 frontend:          $(docker image inspect wpt-iot-frontend:latest --format '{{.Id}}')
-nginx:             $(docker image inspect nginx:1.28.3-alpine --format '{{.Id}}')
+nginx:             $(docker image inspect "${NGINX_IMAGE}" --format '{{.Id}}')
 VERSIONEOF
 
 ( cd "${BUNDLE_DIR}" && find . -type f -not -name SHA256SUMS -exec sha256sum {} + > SHA256SUMS )

@@ -110,18 +110,33 @@ export async function seedEnergyDayBuckets(args: {
     counter += kwhPerDay;
   }
 
-  // Refresh CAGG chain bottom-up over a wide window covering DST/timezone slack
-  const refreshFrom = new Date(args.from.getTime() - 4 * 3600_000);
-  const refreshTo = new Date(args.to.getTime() + 4 * 3600_000);
-  await db.execute(sql`
-    CALL refresh_continuous_aggregate('energy_5min', ${refreshFrom.toISOString()}::timestamptz, ${refreshTo.toISOString()}::timestamptz, force => TRUE)
-  `);
-  await db.execute(sql`
-    CALL refresh_continuous_aggregate('energy_1h', ${refreshFrom.toISOString()}::timestamptz, ${refreshTo.toISOString()}::timestamptz, force => TRUE)
-  `);
-  await db.execute(sql`
-    CALL refresh_continuous_aggregate('energy_1d', ${refreshFrom.toISOString()}::timestamptz, ${refreshTo.toISOString()}::timestamptz, force => TRUE)
-  `);
+  // Wide window covering DST/timezone slack
+  await refreshEnergyChain(
+    new Date(args.from.getTime() - 4 * 3600_000),
+    new Date(args.to.getTime() + 4 * 3600_000),
+  );
+}
+
+/**
+ * Force-refreshes energy_5min -> energy_1h -> energy_1d bottom-up over
+ * [from, to) in one atomic pass each. Since TimescaleDB 2.28 a manual refresh
+ * defaults to 10 buckets per batch, one transaction per batch: a forced
+ * multi-month window becomes thousands of commits (measured on 2.30.2: 1.8 s
+ * vs 18 ms with buckets_per_batch 0).
+ * https://www.tigerdata.com/docs/api/latest/continuous-aggregates/refresh_continuous_aggregate
+ */
+async function refreshEnergyChain(from: Date, to: Date): Promise<void> {
+  for (const view of ['energy_5min', 'energy_1h', 'energy_1d']) {
+    await db.execute(sql`
+      CALL refresh_continuous_aggregate(
+        ${view}::regclass,
+        ${from.toISOString()}::timestamptz,
+        ${to.toISOString()}::timestamptz,
+        force => TRUE,
+        options => '{"buckets_per_batch": 0}'
+      )
+    `);
+  }
 }
 
 /**
@@ -193,53 +208,6 @@ export async function cleanupBaselineArea(): Promise<void> {
   // Keep the materialized energy chain consistent with the raw-table deletes.
   // Without this, energy_1d can retain stale buckets from prior tests and
   // baseline evidence locks against contaminated totals.
-  await db.execute(sql`
-    CALL refresh_continuous_aggregate(
-      'energy_5min',
-      ${CLEANUP_FROM.toISOString()}::timestamptz,
-      ${CLEANUP_TO.toISOString()}::timestamptz,
-      force => TRUE
-    )
-  `);
-  await db.execute(sql`
-    CALL refresh_continuous_aggregate(
-      'energy_1h',
-      ${CLEANUP_FROM.toISOString()}::timestamptz,
-      ${CLEANUP_TO.toISOString()}::timestamptz,
-      force => TRUE
-    )
-  `);
-  await db.execute(sql`
-    CALL refresh_continuous_aggregate(
-      'energy_1d',
-      ${CLEANUP_FROM.toISOString()}::timestamptz,
-      ${CLEANUP_TO.toISOString()}::timestamptz,
-      force => TRUE
-    )
-  `);
-
-  await db.execute(sql`
-    CALL refresh_continuous_aggregate(
-      'energy_5min',
-      '2098-12-31T00:00:00Z'::timestamptz,
-      '2100-01-02T00:00:00Z'::timestamptz,
-      force => TRUE
-    )
-  `);
-  await db.execute(sql`
-    CALL refresh_continuous_aggregate(
-      'energy_1h',
-      '2098-12-31T00:00:00Z'::timestamptz,
-      '2100-01-02T00:00:00Z'::timestamptz,
-      force => TRUE
-    )
-  `);
-  await db.execute(sql`
-    CALL refresh_continuous_aggregate(
-      'energy_1d',
-      '2098-12-31T00:00:00Z'::timestamptz,
-      '2100-01-02T00:00:00Z'::timestamptz,
-      force => TRUE
-    )
-  `);
+  await refreshEnergyChain(CLEANUP_FROM, CLEANUP_TO);
+  await refreshEnergyChain(new Date('2098-12-31T00:00:00Z'), new Date('2100-01-02T00:00:00Z'));
 }

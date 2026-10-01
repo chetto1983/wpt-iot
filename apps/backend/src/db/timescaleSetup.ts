@@ -1,6 +1,8 @@
 import { readFile } from 'node:fs/promises';
 import type { Pool } from 'pg';
 import type { FastifyBaseLogger } from 'fastify';
+import { config } from '../config.js';
+import { withFreshSession } from './index.js';
 
 const timescaleBootstrapUrl = new URL(
   '../../../../docker/init-timescaledb.sql',
@@ -11,6 +13,44 @@ interface AggregateBackfillState {
   refresh_from: Date | null;
   refresh_to: Date | null;
   requires_backfill: boolean;
+}
+
+/**
+ * Brings the installed TimescaleDB extension up to the version the db image
+ * ships. The image bundles every prior version's library, so after an image
+ * bump the database keeps running the old version until this ALTER runs
+ * (measured 2026-10-01: 2.30.2 image, database stayed on 2.26.3).
+ *
+ * Timescale requires the ALTER as the first command of a fresh session: any
+ * earlier statement makes the loader pull in the old library. Hence a
+ * dedicated session, run before anything touches the pool.
+ * https://www.tigerdata.com/docs/self-hosted/latest/upgrades/minor-upgrade
+ *
+ * A failure is logged, not thrown: the installed version keeps serving machine
+ * data, whereas aborting boot would stop it on every restart.
+ */
+export async function updateTimescaleExtension(
+  logger: FastifyBaseLogger,
+  database: string = config.pgDb,
+): Promise<void> {
+  try {
+    const version = await withFreshSession(database, async (client) => {
+      await client.query('ALTER EXTENSION timescaledb UPDATE');
+      const result = await client.query<{ extversion: string }>(
+        "SELECT extversion FROM pg_extension WHERE extname = 'timescaledb'",
+      );
+      return result.rows[0]?.extversion;
+    });
+    logger.info(
+      { name: 'TimescaleSetup', database, version },
+      'TimescaleDB extension is up to date',
+    );
+  } catch (err) {
+    logger.error(
+      { name: 'TimescaleSetup', database, err },
+      'TimescaleDB extension update failed; continuing on the installed version',
+    );
+  }
 }
 
 /**

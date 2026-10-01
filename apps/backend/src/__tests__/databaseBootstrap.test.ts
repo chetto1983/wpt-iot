@@ -14,8 +14,9 @@ function makeLogger(): FastifyBaseLogger {
 }
 
 describe('applyDatabaseBootstrap', () => {
-  it('includes every repository-owned migration before Timescale aggregates', () => {
+  it('updates the Timescale extension first, then every repository-owned migration before Timescale aggregates', () => {
     expect(databaseMigrationSteps.map((step) => step.name)).toEqual([
+      'timescale-extension',
       'drizzle',
       'mqtt-config',
       'energy-config',

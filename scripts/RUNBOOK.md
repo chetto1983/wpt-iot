@@ -109,7 +109,7 @@ The ship path for air-gapped customers is `scripts/build-bundle.sh` on an intern
 TARGET_ARCH=arm64 bash scripts/build-bundle.sh
 ```
 
-This pulls the `linux/arm64` variant of `timescale/timescaledb:2.25.2-pg17` and `nginx:1.28.3-alpine` before `docker save`. The resulting tarball's `VERSION` file records `target_arch: arm64`; `install.sh` on the Pilz sanity-checks this value before `docker load`.
+This pulls the `linux/arm64` variant of the db and nginx images pinned in `docker-compose.yml` (the script reads them from that file, the one it ships) before `docker save`. The resulting tarball's `VERSION` file records `target_arch: arm64`; `install.sh` on the Pilz sanity-checks this value before `docker load`.
 
 **Do NOT run `TARGET_ARCH=arm64` on an amd64 host for the backend/frontend images** — `docker compose build` produces the host arch regardless of pull platform. Backend and frontend arm64 images should be pulled from GHCR (CI-produced) or built on a native arm64 host (the Pilz itself).
 
@@ -149,11 +149,11 @@ These numbers are estimates derived from current bench measurements; real values
 
 ### Manifest verification record
 
-The CI-built `wpt-backend` and `wpt-frontend` multi-arch manifests are produced fresh on every master push (see `.github/workflows/docker-build.yml`). The three pinned third-party images and the watchtower candidate were verified 2026-04-15:
+The CI-built `wpt-backend` and `wpt-frontend` multi-arch manifests are produced fresh on every master push (see `.github/workflows/docker-build.yml`). The pinned third-party images and the watchtower candidate were verified 2026-04-15; timescaledb was re-verified 2026-10-01 at the 2.30.2 bump:
 
 | Image                                    | Pinned tag           | linux/arm64 digest (recorded) |
 |------------------------------------------|----------------------|-------------------------------|
-| `timescale/timescaledb`                  | `2.25.2-pg17`        | `sha256:d57a1cb97e478fd8963d037e5355e933247d423dcf9f2bcdb8d578026c21dcb2` |
+| `timescale/timescaledb`                  | `2.30.2-pg17`        | `sha256:55507ba6330f376f7daaca5e5e68fecfe3455ebd6f2c8ab66c40dc9df72faa2d` |
 | `eclipse-mosquitto` (retired 2026-10-01, no longer shipped) | `2.0.22` | `sha256:092b2db87a7b65b9e8f70652c94267a3fa4f062048368ba3794327a1e5626d02` |
 | `nginx`                                  | `1.28.3-alpine`      | (pre-existing pin; arm64 manifest confirmed) |
 | `containrrr/watchtower` (verify-only)    | `1.7.1`              | `sha256:f14f090fcc8235449da45ccbb1aea3b424ed3b101bcbd3de56526909397c2369` |
@@ -237,6 +237,12 @@ The installer manifest is not maintained by hand. Every package `build` and `pre
 There is no manual post-deploy energy step. Before opening its HTTP port, every
 backend image runs the complete repository migration chain:
 
+0. `ALTER EXTENSION timescaledb UPDATE` on its own fresh session. A newer db
+   image keeps running the old extension version until this runs, so bumping
+   the image tag alone upgrades nothing. Unlike the steps below, a failure here
+   does not block boot: it logs `TimescaleDB extension update failed` and the
+   box keeps serving on the installed version. Only the `wpt` database is
+   updated; `postgres` and `template1` stay on their install-time version.
 1. all tracked Drizzle migrations;
 2. all idempotent runtime schemas (MQTT, energy, baselines, anomaly, PLC,
    application settings, and the V03 machine schema);
@@ -245,7 +251,7 @@ backend image runs the complete repository migration chain:
 5. a one-time bounded backfill when any aggregate is empty;
 6. a final aggregate-count verification.
 
-The backend does not become healthy if any step fails. Consequently,
+The backend does not become healthy if any of steps 1-6 fails. Consequently,
 `wpt-image-update.service` fails and its timer retries without deleting the
 PostgreSQL volume. PostgreSQL stays configured with `timezone=UTC`.
 
