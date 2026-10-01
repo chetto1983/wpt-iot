@@ -18,17 +18,15 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 
-// Phase 37-03 (D-10, D-11): the 4 legacy publish_* stream toggles were removed
-// from the API + DB. Sparkplug B is now the sole outbound cloud uplink; siteId
-// and machineId survive only as the Local command namespace (D-09).
-interface MqttConfig {
+// Sparkplug B is the edge's only MQTT connection: these broker settings are the
+// uplink's. The legacy publish_* toggles (Phase 37) and the siteId/machineId
+// command namespace (audit 2026-10-01) are retired.
+export interface MqttConfig {
   enabled: boolean;
   brokerHost: string;
   brokerPort: number;
   username: string;
   passwordSet: boolean;
-  siteId: string;
-  machineId: string;
   useTls: boolean;
   caCert: string | null;
   sparkplugGroupId: string;
@@ -55,8 +53,6 @@ export function MqttConfigForm({ config, onSaved }: MqttConfigFormProps) {
   // Password is never returned by GET — leaving this blank means
   // "keep current". On save we only send the password field if non-empty.
   const [password, setPassword] = useState('');
-  const [siteId, setSiteId] = useState(config.siteId);
-  const [machineId, setMachineId] = useState(config.machineId);
   const [useTls, setUseTls] = useState(config.useTls);
   const [caCert, setCaCert] = useState(config.caCert ?? '');
   const [sparkplugGroupId, setSparkplugGroupId] = useState(config.sparkplugGroupId);
@@ -72,8 +68,6 @@ export function MqttConfigForm({ config, onSaved }: MqttConfigFormProps) {
     setBrokerPort(next.brokerPort);
     setUsername(next.username);
     setPassword('');
-    setSiteId(next.siteId);
-    setMachineId(next.machineId);
     setUseTls(next.useTls);
     setCaCert(next.caCert ?? '');
     setSparkplugGroupId(next.sparkplugGroupId);
@@ -91,8 +85,6 @@ export function MqttConfigForm({ config, onSaved }: MqttConfigFormProps) {
     setBrokerHost(draft.brokerHost);
     setBrokerPort(draft.brokerPort);
     setUsername(draft.username);
-    setSiteId(draft.siteId);
-    setMachineId(draft.machineId);
     setUseTls(draft.useTls);
     setCaCert(draft.caCert ?? '');
     if ('sparkplugGroupId' in draft) setSparkplugGroupId((draft as MqttConfig).sparkplugGroupId);
@@ -112,8 +104,6 @@ export function MqttConfigForm({ config, onSaved }: MqttConfigFormProps) {
     brokerHost !== config.brokerHost ||
     brokerPort !== config.brokerPort ||
     username !== config.username ||
-    siteId !== config.siteId ||
-    machineId !== config.machineId ||
     useTls !== config.useTls ||
     caCert !== (config.caCert ?? '') ||
     sparkplugGroupId !== config.sparkplugGroupId ||
@@ -133,8 +123,6 @@ export function MqttConfigForm({ config, onSaved }: MqttConfigFormProps) {
       brokerHost,
       brokerPort,
       username,
-      siteId,
-      machineId,
       useTls,
       caCert: caCert || null,
       sparkplugGroupId,
@@ -149,8 +137,6 @@ export function MqttConfigForm({ config, onSaved }: MqttConfigFormProps) {
     brokerHost,
     brokerPort,
     username,
-    siteId,
-    machineId,
     useTls,
     sparkplugGroupId,
     sparkplugEdgeNodeId,
@@ -167,8 +153,6 @@ export function MqttConfigForm({ config, onSaved }: MqttConfigFormProps) {
         brokerHost,
         brokerPort,
         username,
-        siteId,
-        machineId,
         useTls,
         caCert: caCert || null,
         sparkplugGroupId,
@@ -196,7 +180,7 @@ export function MqttConfigForm({ config, onSaved }: MqttConfigFormProps) {
     } finally {
       setSaving(false);
     }
-  }, [enabled, brokerHost, brokerPort, username, password, siteId, machineId, useTls, caCert, sparkplugGroupId, sparkplugEdgeNodeId, publishCycleRecords, telemetryIntervalSeconds, onSaved, t, tCommon]);
+  }, [enabled, brokerHost, brokerPort, username, password, useTls, caCert, sparkplugGroupId, sparkplugEdgeNodeId, publishCycleRecords, telemetryIntervalSeconds, onSaved, t, tCommon]);
 
   return (
     <Card>
@@ -297,9 +281,9 @@ export function MqttConfigForm({ config, onSaved }: MqttConfigFormProps) {
           </div>
         </div>
 
-        {/* ─── Section 2: Local broker settings ─── */}
+        {/* ─── Section 2: Uplink broker connection ─── */}
         <div className="grid gap-4 border-t pt-4">
-          <Label className="text-sm font-medium">{t('config.localBrokerTitle')}</Label>
+          <Label className="text-sm font-medium">{t('config.brokerTitle')}</Label>
 
           {/* Broker Host + Port */}
           <div className="grid gap-3 sm:grid-cols-3">
@@ -309,7 +293,7 @@ export function MqttConfigForm({ config, onSaved }: MqttConfigFormProps) {
                 id="mqtt-broker-host"
                 value={brokerHost}
                 onChange={(e) => setBrokerHost(e.target.value)}
-                placeholder="mosquitto"
+                placeholder="broker.example.com"
               />
             </div>
             <div className="grid gap-2">
@@ -332,7 +316,6 @@ export function MqttConfigForm({ config, onSaved }: MqttConfigFormProps) {
               id="mqtt-username"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              placeholder="wpt-backend"
               autoComplete="off"
             />
           </div>
@@ -356,28 +339,6 @@ export function MqttConfigForm({ config, onSaved }: MqttConfigFormProps) {
                 ? t('config.passwordHelpKeepCurrent')
                 : t('config.passwordHelpRequired')}
             </p>
-          </div>
-
-          {/* Site ID — relabeled as Local command namespace per D-09 */}
-          <div className="grid gap-2">
-            <Label htmlFor="mqtt-site-id">{t('config.siteId')}</Label>
-            <Input
-              id="mqtt-site-id"
-              value={siteId}
-              onChange={(e) => setSiteId(e.target.value)}
-            />
-            <p className="text-xs text-muted-foreground">{t('config.siteIdHelp')}</p>
-          </div>
-
-          {/* Machine ID — relabeled as Local command namespace per D-09 */}
-          <div className="grid gap-2">
-            <Label htmlFor="mqtt-machine-id">{t('config.machineId')}</Label>
-            <Input
-              id="mqtt-machine-id"
-              value={machineId}
-              onChange={(e) => setMachineId(e.target.value)}
-            />
-            <p className="text-xs text-muted-foreground">{t('config.machineIdHelp')}</p>
           </div>
 
           {/* Security / TLS */}
@@ -422,7 +383,7 @@ export function MqttConfigForm({ config, onSaved }: MqttConfigFormProps) {
         </div>
 
         {/* Save — gated on dirtiness so a no-op click cannot trigger a full
-            disconnect/reconnect cycle on reloadMqttConnection. */}
+            Sparkplug stop/re-init cycle (NDEATH + new birth) on the uplink. */}
         <Button
           onClick={handleSave}
           disabled={saving || !hasDraftChanges}

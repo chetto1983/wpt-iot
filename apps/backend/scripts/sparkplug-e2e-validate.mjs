@@ -118,11 +118,6 @@ function getMetricByName(decoded, name) {
   return decoded.metrics.find((m) => m?.name === name);
 }
 
-function getMetricByAlias(decoded, alias) {
-  if (!decoded?.metrics) return undefined;
-  return decoded.metrics.find((m) => m?.alias === alias || m?.alias?.toNumber?.() === alias);
-}
-
 function aliasToNumber(alias) {
   if (typeof alias === 'number') return alias;
   if (alias && typeof alias.toNumber === 'function') return alias.toNumber();
@@ -354,7 +349,7 @@ async function main() {
     console.log('[MQTT] connected');
   } catch (err) {
     console.error(`[ERROR] Cannot connect to broker at ${brokerHost}:${brokerPort}: ${err instanceof Error ? err.message : String(err)}`);
-    console.error('        Is Mosquitto running? docker compose up -d db mosquitto');
+    console.error('        Is the uplink broker reachable? No broker runs on the box: pass --broker-host/--broker-port.');
     process.exit(2);
   }
 
@@ -400,7 +395,6 @@ async function main() {
 
   const passed = assertions.filter((a) => a.pass).length;
   const failed = assertions.filter((a) => !a.pass).length;
-  const skipped = ['A9', 'A2', 'A7'].length; // approximate — actual skips printed above
   console.log(`\nResult: ${passed} PASS, ${failed} FAIL out of ${assertions.length} assertions run`);
 
   const report = {

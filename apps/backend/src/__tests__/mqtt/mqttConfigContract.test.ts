@@ -1,22 +1,24 @@
 /**
- * Phase 37-03 regression test — D-10 absence + D-12 rejection contract.
+ * MQTT admin API contract.
  *
- * Asserts that the MQTT admin config API no longer exposes or accepts the 4
- * legacy stream toggles (publishMachine / publishAlarms / publishRfid /
- * publishJobs) and that the D-09 Local command namespace fields (siteId +
- * machineId) are still present.
+ * Phase 37-03: the 4 legacy stream toggles (publishMachine / publishAlarms /
+ * publishRfid / publishJobs) are neither exposed nor accepted.
+ *
+ * Edge publish-only (audit 2026-10-01): the command namespace (siteId /
+ * machineId), the command-bus connection and the on-box broker account API
+ * (/mqtt/users) are retired. Status, test and config-save act on the
+ * Sparkplug uplink only.
  *
  * Pattern: mirror energySettingsRoutes.test.ts — register only the
  * mqttRoutes plugin on a minimal Fastify app, mock MqttConfigService + auth
- * + connectionManager so no real DB / MQTT broker is needed.
+ * + SparkplugService so no real DB / MQTT broker is needed.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import Fastify, { type FastifyInstance } from 'fastify';
 
 // ─── Auth mock: SUPER_ADMIN is granted by the x-test-role header ───────────
-// T-37-03-S1 mitigation note: the real SUPER_ADMIN guard is preserved in
-// apps/backend/src/routes/mqtt.ts:31. This mock only exists to let the
-// contract test exercise the narrowed Zod schema behind that guard.
+// The real SUPER_ADMIN guard lives in apps/backend/src/routes/mqtt.ts. This
+// mock only exists to let the contract test exercise the Zod schema behind it.
 const requireAuthMock = vi.fn(async (request: any, reply: any) => {
   const role = request.headers['x-test-role'];
   if (!role) {
@@ -41,12 +43,10 @@ vi.mock('../../auth/authHooks.js', () => ({
   requireRole: requireRoleMock,
 }));
 
-// ─── MQTT config service + connection manager mocks ───────────────────────
+// ─── MQTT config service mocks ────────────────────────────────────────────
 const getPublicConfigMock = vi.fn();
 const getConfigMock = vi.fn();
 const updateConfigMock = vi.fn();
-const reloadMqttConnectionMock = vi.fn(async () => undefined);
-const getMqttClientMock = vi.fn(() => null);
 
 vi.mock('../../mqtt/configService.js', () => ({
   MqttConfigService: {
@@ -56,15 +56,6 @@ vi.mock('../../mqtt/configService.js', () => ({
   },
 }));
 
-vi.mock('../../mqtt/connectionManager.js', () => ({
-  getMqttClient: getMqttClientMock,
-  reloadMqttConnection: reloadMqttConnectionMock,
-}));
-
-// Sparkplug re-init on config save (fix for 2026-04-20 verification bug:
-// saving a new broker config must re-init the Sparkplug uplink, otherwise
-// it stays pinned to the pre-change state and publishCycleRecord silently
-// drops drained cycles).
 const sparkplugStopMock = vi.fn(async () => undefined);
 const sparkplugInitMock = vi.fn(async () => undefined);
 const sparkplugIsConnectedMock = vi.fn(() => false);
@@ -85,17 +76,6 @@ vi.mock('../../mqtt/sparkplugService.js', () => ({
   },
 }));
 
-// DynSecClient + activityLog are touched by other mqttRoutes endpoints; stub
-// them out so the plugin body registers cleanly even though only /mqtt/config
-// is exercised in this file.
-vi.mock('../../mqtt/dynSecClient.js', () => ({
-  DynSecClient: class {
-    async init(): Promise<void> { /* noop */ }
-    shutdown(): void { /* noop */ }
-    async listClients(): Promise<unknown[]> { return []; }
-  },
-}));
-
 vi.mock('../../mqtt/activityLog.js', () => ({
   getEvents: vi.fn(() => []),
 }));
@@ -109,17 +89,15 @@ async function buildTestServer(): Promise<FastifyInstance> {
   return app;
 }
 
-// Post-Phase-37 GET /api/mqtt/config response shape — no legacy publish_*,
-// but siteId/machineId preserved per D-09.
+// GET /api/mqtt/config response shape — no legacy publish_*, no command
+// namespace (siteId/machineId).
 const FAKE_PUBLIC_CONFIG = {
   id: 1,
   enabled: false,
-  brokerHost: 'localhost',
-  brokerPort: 1883,
-  username: 'wpt-backend',
+  brokerHost: 'broker.example.com',
+  brokerPort: 8883,
+  username: 'NW30-020',
   passwordSet: true,
-  siteId: 'site-01',
-  machineId: 'wpt40-001',
   useTls: false,
   caCert: null,
   sparkplugGroupId: 'WPT',
@@ -129,14 +107,16 @@ const FAKE_PUBLIC_CONFIG = {
   updatedAt: new Date('2026-04-14T12:00:00.000Z').toISOString(),
 };
 
-describe('Phase 37 D-10/D-12 — MQTT config API contract narrowing', () => {
+const LEGACY_FIELDS = ['publishMachine', 'publishAlarms', 'publishRfid', 'publishJobs'];
+
+describe('MQTT admin API contract', () => {
   let app: FastifyInstance;
 
   beforeEach(async () => {
     getPublicConfigMock.mockResolvedValue(FAKE_PUBLIC_CONFIG);
     getConfigMock.mockResolvedValue({ ...FAKE_PUBLIC_CONFIG, password: 'dev' });
     updateConfigMock.mockResolvedValue({ ...FAKE_PUBLIC_CONFIG, password: 'dev' });
-    reloadMqttConnectionMock.mockResolvedValue(undefined);
+    sparkplugIsConnectedMock.mockReturnValue(false);
     app = await buildTestServer();
   });
 
@@ -155,82 +135,37 @@ describe('Phase 37 D-10/D-12 — MQTT config API contract narrowing', () => {
 
     expect(response.statusCode).toBe(200);
     const body = response.json() as Record<string, unknown>;
-
-    // Legacy stream toggles must not appear anywhere in the response.
-    expect(body).not.toHaveProperty('publishMachine');
-    expect(body).not.toHaveProperty('publishAlarms');
-    expect(body).not.toHaveProperty('publishRfid');
-    expect(body).not.toHaveProperty('publishJobs');
-
-    // Sparkplug + D-09 local command namespace fields must be present.
+    for (const field of LEGACY_FIELDS) expect(body).not.toHaveProperty(field);
     expect(body).toHaveProperty('sparkplugGroupId');
     expect(body).toHaveProperty('sparkplugEdgeNodeId');
-    expect(body).toHaveProperty('siteId');     // D-09 Local command namespace
-    expect(body).toHaveProperty('machineId');  // D-09 Local command namespace
   });
 
-  // ─── D-12: PUT rejects each removed legacy field with 400 + name in
-  //           error.details (Zod strict unrecognized_keys) ─────────────────
-  it.each(['publishMachine', 'publishAlarms', 'publishRfid', 'publishJobs'])(
-    'PUT /api/mqtt/config rejects legacy field %s with 400 and names it in details (D-12)',
+  // ─── D-12 + retired command namespace: stale clients fail loudly ────────
+  it.each([...LEGACY_FIELDS, 'siteId', 'machineId'])(
+    'PUT /api/mqtt/config rejects retired field %s with 400 and names it in details',
     async (field) => {
       const response = await app.inject({
         method: 'PUT',
         url: '/api/mqtt/config',
         headers: { 'x-test-role': 'SUPER_ADMIN' },
-        payload: { [field]: true },
+        payload: { [field]: field === 'siteId' || field === 'machineId' ? 'x' : true },
       });
 
       expect(response.statusCode).toBe(400);
-      const body = response.json() as {
-        error: string;
-        details: Array<{ code?: string; keys?: string[]; path?: unknown[]; message?: string }>;
-      };
+      const body = response.json() as { error: string; details: unknown };
       expect(body.error).toBe('Invalid config');
-
-      // Zod .strict() emits an `unrecognized_keys` issue whose `keys` array
-      // lists each unknown property. The field name must be visible to the
-      // client so stale callers fail loudly rather than drift silently.
+      // Zod .strict() emits an `unrecognized_keys` issue naming each unknown key.
       const serialized = JSON.stringify(body.details);
       expect(serialized).toContain(field);
       expect(serialized).toContain('unrecognized_keys');
-
-      // Contract is purely rejection at Zod stage — no DB write, no reload.
+      // Rejection happens at the Zod stage — no DB write, no uplink re-init.
       expect(updateConfigMock).not.toHaveBeenCalled();
-      expect(reloadMqttConnectionMock).not.toHaveBeenCalled();
+      expect(sparkplugInitMock).not.toHaveBeenCalled();
     },
   );
 
-  it('PUT /api/mqtt/config rejects ALL 4 legacy fields together with 400 (D-12)', async () => {
-    const response = await app.inject({
-      method: 'PUT',
-      url: '/api/mqtt/config',
-      headers: { 'x-test-role': 'SUPER_ADMIN' },
-      payload: {
-        publishMachine: true,
-        publishAlarms: true,
-        publishRfid: false,
-        publishJobs: false,
-      },
-    });
-
-    expect(response.statusCode).toBe(400);
-    const body = response.json() as {
-      error: string;
-      details: Array<Record<string, unknown>>;
-    };
-    expect(body.error).toBe('Invalid config');
-
-    const serialized = JSON.stringify(body.details);
-    for (const field of ['publishMachine', 'publishAlarms', 'publishRfid', 'publishJobs']) {
-      expect(serialized).toContain(field);
-    }
-
-    expect(updateConfigMock).not.toHaveBeenCalled();
-  });
-
-  // ─── D-11: PUT still accepts Sparkplug + local broker fields ─────────────
-  it('PUT /api/mqtt/config accepts Sparkplug + local broker fields (200)', async () => {
+  // ─── D-11: PUT accepts the Sparkplug uplink fields ───────────────────────
+  it('PUT /api/mqtt/config accepts Sparkplug uplink fields (200)', async () => {
     const response = await app.inject({
       method: 'PUT',
       url: '/api/mqtt/config',
@@ -240,63 +175,74 @@ describe('Phase 37 D-10/D-12 — MQTT config API contract narrowing', () => {
         sparkplugGroupId: 'WPT',
         sparkplugEdgeNodeId: 'NW30-020',
         publishCycleRecords: true,
-        siteId: 'site-01',     // D-09: still accepted (Local command namespace)
-        machineId: 'wpt40-001', // D-09: still accepted (Local command namespace)
       },
     });
 
     expect(response.statusCode).toBe(200);
     expect(updateConfigMock).toHaveBeenCalledTimes(1);
-    // Accepted payload must not carry the 4 legacy fields.
-    const passed = updateConfigMock.mock.calls[0]?.[0] as Record<string, unknown>;
-    expect(passed).not.toHaveProperty('publishMachine');
-    expect(passed).not.toHaveProperty('publishAlarms');
-    expect(passed).not.toHaveProperty('publishRfid');
-    expect(passed).not.toHaveProperty('publishJobs');
-    // D-09 local command namespace fields DO round-trip through the update.
-    expect(passed).toHaveProperty('siteId', 'site-01');
-    expect(passed).toHaveProperty('machineId', 'wpt40-001');
   });
 
-  // ─── D-09 regression guard: the local command namespace fields must not
-  //     be accidentally stripped alongside the publish_* removal ────────────
-  it('GET /api/mqtt/config preserves siteId and machineId (D-09)', async () => {
+  // ─── Regression guard for the 2026-04-20 sacchi verification bug ────────
+  // Saving a new broker config must re-init the Sparkplug uplink, otherwise
+  // it stays pinned to the pre-change (often null) state and
+  // publishCycleRecord silently drops drained cycles.
+  it('PUT /api/mqtt/config saves, then stops and re-initializes the Sparkplug uplink', async () => {
+    const response = await app.inject({
+      method: 'PUT',
+      url: '/api/mqtt/config',
+      headers: { 'x-test-role': 'SUPER_ADMIN' },
+      payload: { brokerHost: 'broker.example.com', brokerPort: 8883 },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(sparkplugStopMock).toHaveBeenCalledTimes(1);
+    expect(sparkplugInitMock).toHaveBeenCalledTimes(1);
+
+    // Ordering matters: save → stop → init. Stop before init prevents a
+    // rogue second mqtt.js client against the stale config from lingering.
+    const saveOrder = updateConfigMock.mock.invocationCallOrder[0] ?? 0;
+    const stopOrder = sparkplugStopMock.mock.invocationCallOrder[0] ?? 0;
+    const initOrder = sparkplugInitMock.mock.invocationCallOrder[0] ?? 0;
+    expect(saveOrder).toBeLessThan(stopOrder);
+    expect(stopOrder).toBeLessThan(initOrder);
+  });
+
+  // ─── Retired on-box broker account API ──────────────────────────────────
+  it.each(['GET', 'POST'] as const)('%s /api/mqtt/users is gone (404)', async (method) => {
+    const response = await app.inject({
+      method,
+      url: '/api/mqtt/users',
+      headers: { 'x-test-role': 'SUPER_ADMIN' },
+      ...(method === 'POST' ? { payload: {} } : {}),
+    });
+    expect(response.statusCode).toBe(404);
+  });
+
+  // ─── Status and test reflect the Sparkplug uplink, the only connection ──
+  it('GET /api/mqtt/status reports the Sparkplug uplink as the connection state', async () => {
+    sparkplugIsConnectedMock.mockReturnValue(true);
     const response = await app.inject({
       method: 'GET',
-      url: '/api/mqtt/config',
+      url: '/api/mqtt/status',
       headers: { 'x-test-role': 'SUPER_ADMIN' },
     });
 
     expect(response.statusCode).toBe(200);
     const body = response.json() as Record<string, unknown>;
-    expect(body.siteId).toBe('site-01');
-    expect(body.machineId).toBe('wpt40-001');
+    expect(body.connected).toBe(true);
+    expect(body).not.toHaveProperty('clientId');
   });
 
-  // ─── Regression guard for the 2026-04-20 sacchi verification bug ────────
-  // Before the fix, PUT /api/mqtt/config reloaded only the local MQTT client;
-  // SparkplugService stayed pinned to the pre-change (often null) state,
-  // and publishCycleRecord then silently no-op'd every drained cycle,
-  // marking them as published in the DB without sending anything.
-  it('PUT /api/mqtt/config re-initializes the Sparkplug uplink after reload', async () => {
+  it.each([
+    [true, 200],
+    [false, 503],
+  ])('POST /api/mqtt/test with Sparkplug connected=%s returns %i', async (connected, status) => {
+    sparkplugIsConnectedMock.mockReturnValue(connected);
     const response = await app.inject({
-      method: 'PUT',
-      url: '/api/mqtt/config',
+      method: 'POST',
+      url: '/api/mqtt/test',
       headers: { 'x-test-role': 'SUPER_ADMIN' },
-      payload: { brokerHost: 'sterilix.emilsoftware.it', brokerPort: 1883 },
     });
-
-    expect(response.statusCode).toBe(200);
-    expect(reloadMqttConnectionMock).toHaveBeenCalledTimes(1);
-    expect(sparkplugStopMock).toHaveBeenCalledTimes(1);
-    expect(sparkplugInitMock).toHaveBeenCalledTimes(1);
-
-    // Ordering matters: reload → stop → init. Stop before init prevents a
-    // rogue second mqtt.js client against the stale config from lingering.
-    const reloadOrder = reloadMqttConnectionMock.mock.invocationCallOrder[0] ?? 0;
-    const stopOrder = sparkplugStopMock.mock.invocationCallOrder[0] ?? 0;
-    const initOrder = sparkplugInitMock.mock.invocationCallOrder[0] ?? 0;
-    expect(reloadOrder).toBeLessThan(stopOrder);
-    expect(stopOrder).toBeLessThan(initOrder);
+    expect(response.statusCode).toBe(status);
   });
 });

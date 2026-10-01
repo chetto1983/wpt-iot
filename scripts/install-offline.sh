@@ -77,7 +77,7 @@ fi
 
 step "Step 2/10  Load Docker images"
 
-for img in db mosquitto backend frontend nginx; do
+for img in db backend frontend nginx; do
   [[ -f "${BUNDLE_DIR}/images/${img}.tar.gz" ]] || fail "Missing image tarball: images/${img}.tar.gz"
   info "Loading ${img}..."
   gunzip -c "${BUNDLE_DIR}/images/${img}.tar.gz" | docker load >/dev/null
@@ -85,12 +85,6 @@ done
 ok "All images loaded."
 
 step "Step 3/10  Free conflicting ports"
-
-if systemctl list-unit-files 2>/dev/null | grep -q '^snap.mosquitto'; then
-  info "Disabling snap mosquitto..."
-  snap stop mosquitto 2>/dev/null || true
-  snap disable mosquitto 2>/dev/null || true
-fi
 
 if systemctl is-enabled grafana-server >/dev/null 2>&1; then
   info "Disabling grafana-server (was holding :3000)..."
@@ -122,23 +116,7 @@ else
   systemctl enable --now avahi-daemon >/dev/null 2>&1 || true
   install -m 0755 "${BUNDLE_DIR}/wpt-local-alias.sh" /usr/local/sbin/wpt-local-alias.sh
 
-  cat > /etc/systemd/system/wpt-local-alias.service <<'UNITEOF'
-[Unit]
-Description=Publish wpt.local as an mDNS alias of this host
-After=avahi-daemon.service network-online.target
-Requires=avahi-daemon.service
-Wants=network-online.target
-
-[Service]
-Type=simple
-ExecStart=/usr/local/sbin/wpt-local-alias.sh
-Restart=on-failure
-RestartSec=5
-
-[Install]
-WantedBy=multi-user.target
-UNITEOF
-
+  install -m 0644 "${BUNDLE_DIR}/wpt-local-alias.service" /etc/systemd/system/wpt-local-alias.service
   systemctl daemon-reload
   systemctl enable --now wpt-local-alias.service >/dev/null 2>&1
   sleep 1
@@ -151,11 +129,10 @@ fi
 
 step "Step 5/8  Install dir ${INSTALL_DIR}"
 
-mkdir -p "${INSTALL_DIR}/docker/nginx/templates" "${INSTALL_DIR}/mosquitto/config" "${INSTALL_DIR}/certs"
+mkdir -p "${INSTALL_DIR}/docker/nginx/templates" "${INSTALL_DIR}/certs"
 cp "${BUNDLE_DIR}/docker-compose.yml" "${INSTALL_DIR}/"
 cp "${BUNDLE_DIR}/docker/init-timescaledb.sql" "${INSTALL_DIR}/docker/"
 cp "${BUNDLE_DIR}/docker/nginx/templates/wpt.conf.template" "${INSTALL_DIR}/docker/nginx/templates/"
-cp -r "${BUNDLE_DIR}/mosquitto/config/." "${INSTALL_DIR}/mosquitto/config/"
 cp "${BUNDLE_DIR}/generate-local-tls.sh" "${INSTALL_DIR}/"
 chmod +x "${INSTALL_DIR}/generate-local-tls.sh"
 ok "Compose, nginx template, DB init, and helpers copied."
@@ -238,7 +215,13 @@ fi
 step "Step 8/8  docker compose up -d + health checks"
 
 cd "${INSTALL_DIR}"
-docker compose up -d
+docker compose up -d --remove-orphans
+# The on-box broker is retired (edge publish-only, audit 2026-10-01): with its
+# container gone, drop its volumes and config (fleet-shared DynSec hashes).
+# Only this compose project's volumes, never another stack's broker.
+project="$(docker compose config 2>/dev/null | sed -n 's/^name: //p')"
+for v in $(docker volume ls -q --filter "label=com.docker.compose.project=${project}" | grep -Ex "${project}_mosquitto_(data|log)" || true); do docker volume rm "$v" >/dev/null; done
+rm -rf -- "${INSTALL_DIR}/mosquitto"
 
 info "Waiting for backend /health..."
 for i in {1..30}; do

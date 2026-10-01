@@ -55,7 +55,7 @@ Air-gapped bundle install:          scripts/install-offline.sh
 
 What it does:
 1. Installs Docker Engine + Compose v2 if missing.
-2. Stops conflicting host services such as Grafana and host Mosquitto.
+2. Stops conflicting host services such as Grafana (:3000) and apache2 (:80/:443).
 3. Downloads the single `docker-compose.yml`, nginx template, and TLS helper into `/opt/wpt-iot`.
 4. Publishes `wpt.local` over mDNS with Avahi.
 5. Generates `.env` with random secrets if needed.
@@ -73,7 +73,7 @@ Important: client devices must trust `/opt/wpt-iot/certs/wpt-local-ca.crt` or th
 
 After the first login, configure the PLC address/byte order, MQTT/Sparkplug, application timezone, energy settings, and users in the frontend. The installer intentionally does not configure or overwrite them. PostgreSQL remains configured in UTC; the selected application timezone is applied only when accepting or displaying dates.
 
-Automatic backend/frontend image updates are enabled by default. They preserve the database, uploads, credentials, certificates, Mosquitto, nginx, and Docker volumes. On the target:
+Automatic backend/frontend image updates are enabled by default. They preserve the database, uploads, credentials, certificates, nginx, and Docker volumes. On the target:
 
 ```bash
 sudo systemctl status wpt-image-update.timer
@@ -109,7 +109,7 @@ The ship path for air-gapped customers is `scripts/build-bundle.sh` on an intern
 TARGET_ARCH=arm64 bash scripts/build-bundle.sh
 ```
 
-This pulls the `linux/arm64` variant of `timescale/timescaledb:2.25.2-pg17`, `eclipse-mosquitto:2.0.22`, and `nginx:1.28.3-alpine` before `docker save`. The resulting tarball's `VERSION` file records `target_arch: arm64`; `install.sh` on the Pilz sanity-checks this value before `docker load`.
+This pulls the `linux/arm64` variant of `timescale/timescaledb:2.25.2-pg17` and `nginx:1.28.3-alpine` before `docker save`. The resulting tarball's `VERSION` file records `target_arch: arm64`; `install.sh` on the Pilz sanity-checks this value before `docker load`.
 
 **Do NOT run `TARGET_ARCH=arm64` on an amd64 host for the backend/frontend images** — `docker compose build` produces the host arch regardless of pull platform. Backend and frontend arm64 images should be pulled from GHCR (CI-produced) or built on a native arm64 host (the Pilz itself).
 
@@ -126,7 +126,7 @@ PG_SYNCHRONOUS_COMMIT=off
 ```
 
 Rationale:
-- `shared_buffers=2GB` — 25% of 8 GB RAM, within mainstream Postgres guidance. Leaves ~4 GB for the Node backend (~500 MB), Next frontend server (~300 MB), nginx, mosquitto, OS, and working memory.
+- `shared_buffers=2GB` — 25% of 8 GB RAM, within mainstream Postgres guidance. Leaves ~4 GB for the Node backend (~500 MB), Next frontend server (~300 MB), nginx, OS, and working memory.
 - `work_mem=16MB` / `effective_cache_size=5GB` — reflect the available RAM headroom on the Pilz.
 - `synchronous_commit=off` — eMMC wear mitigation. Up to `~1 s` of committed transactions may be lost if the Pilz loses power before WAL fsync. Acceptable because dense raw telemetry is still a rolling 30-day window; the 2-year history lives in bounded aggregate tiers (`snapshots_1h`, `snapshots_1d`, `energy_1h`, `energy_1d`) rather than in raw packets.
 
@@ -139,7 +139,7 @@ If you observe `OOMKilled` / exit 137 on the backend or frontend containers unde
 | Component                                                  | Estimated size |
 |------------------------------------------------------------|----------------|
 | RPi OS base                                                | ~4 GB          |
-| Docker engine + five images (db, mosquitto, backend, frontend, nginx) | ~4 GB |
+| Docker engine + four images (db, backend, frontend, nginx) | ~4 GB |
 | PostgreSQL data (30d raw + 90d 5min + 24mo 1h/1d aggregates + 24mo alarm_events + cycle_records) | ~8 GB target ceiling |
 | Logs (json-file rotated, 10 MB × 3 files × ~6 services)    | ~200 MB        |
 | System headroom / swap / apt cache                         | ~4 GB          |
@@ -154,7 +154,7 @@ The CI-built `wpt-backend` and `wpt-frontend` multi-arch manifests are produced 
 | Image                                    | Pinned tag           | linux/arm64 digest (recorded) |
 |------------------------------------------|----------------------|-------------------------------|
 | `timescale/timescaledb`                  | `2.25.2-pg17`        | `sha256:d57a1cb97e478fd8963d037e5355e933247d423dcf9f2bcdb8d578026c21dcb2` |
-| `eclipse-mosquitto`                      | `2.0.22`             | `sha256:092b2db87a7b65b9e8f70652c94267a3fa4f062048368ba3794327a1e5626d02` |
+| `eclipse-mosquitto` (retired 2026-10-01, no longer shipped) | `2.0.22` | `sha256:092b2db87a7b65b9e8f70652c94267a3fa4f062048368ba3794327a1e5626d02` |
 | `nginx`                                  | `1.28.3-alpine`      | (pre-existing pin; arm64 manifest confirmed) |
 | `containrrr/watchtower` (verify-only)    | `1.7.1`              | `sha256:f14f090fcc8235449da45ccbb1aea3b424ed3b101bcbd3de56526909397c2369` |
 

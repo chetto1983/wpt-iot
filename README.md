@@ -171,6 +171,8 @@ Measured baseline on the sacchi dev VM (x86_64, real PLC at 192.168.0.10, nomina
 | mosquitto | 0.4% -> 4.6%     | 8 MiB        |
 | **Total** | ~15% of 4 cores  | **~383 MiB** |
 
+The on-box mosquitto broker was retired on 2026-10-01 (edge publish-only); it no longer ships, so subtract its row.
+
 Storage footprint: Docker images ~8.3 GB resident, `pgdata` volume 77 MB, other volumes <100 KB.
 
 ### Pilz IndustrialPI 4 budget

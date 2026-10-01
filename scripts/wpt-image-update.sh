@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Pull and apply the latest WPT application images on an edge installation.
 # The backend performs the complete repository-owned DB bootstrap before it
-# becomes healthy. Database data, Mosquitto and nginx are never replaced here.
+# becomes healthy. Database data and nginx are never replaced here.
 
 set -Eeuo pipefail
 

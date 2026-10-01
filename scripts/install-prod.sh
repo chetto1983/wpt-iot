@@ -85,14 +85,6 @@ if systemctl is-active --quiet grafana-server 2>/dev/null; then
   systemctl disable grafana-server 2>/dev/null || true
 fi
 
-if snap list mosquitto >/dev/null 2>&1; then
-  warn "Removing snap mosquitto..."
-  snap remove --purge mosquitto
-elif systemctl is-active --quiet mosquitto 2>/dev/null; then
-  warn "Stopping host mosquitto..."
-  systemctl stop mosquitto
-  systemctl disable mosquitto 2>/dev/null || true
-fi
 ok "Host services cleared."
 
 step "Step 3/7  Install dir + runtime files"
@@ -133,22 +125,7 @@ step "Step 4/7  avahi-daemon (mDNS aliases)"
 systemctl enable --now avahi-daemon
 install -m 0755 "${INSTALL_DIR}/wpt-local-alias.sh" /usr/local/sbin/wpt-local-alias.sh
 
-cat > /etc/systemd/system/wpt-local-alias.service <<'UNITEOF'
-[Unit]
-Description=Publish wpt.local mDNS alias for WPT IoT
-After=avahi-daemon.service network-online.target
-Requires=avahi-daemon.service
-Wants=network-online.target
-
-[Service]
-Type=simple
-ExecStart=/usr/local/sbin/wpt-local-alias.sh
-Restart=on-failure
-RestartSec=5
-
-[Install]
-WantedBy=multi-user.target
-UNITEOF
+curl -fsSL "${RAW_URL}/scripts/wpt-local-alias.service" -o /etc/systemd/system/wpt-local-alias.service
 
 systemctl daemon-reload
 systemctl enable --now wpt-local-alias.service
@@ -237,7 +214,13 @@ ok "wpt-tls-refresh timer enabled (boot + every 15 min)."
 
 step "Step 6/7  docker compose up"
 
-docker compose up -d --build
+docker compose up -d --build --remove-orphans
+# The on-box broker is retired (edge publish-only, audit 2026-10-01): with its
+# container gone, drop its volumes and config (fleet-shared DynSec hashes).
+# Only this compose project's volumes, never another stack's broker.
+project="$(docker compose config 2>/dev/null | sed -n 's/^name: //p')"
+for v in $(docker volume ls -q --filter "label=com.docker.compose.project=${project}" | grep -Ex "${project}_mosquitto_(data|log)" || true); do docker volume rm "$v" >/dev/null; done
+rm -rf -- "${INSTALL_DIR}/mosquitto"
 
 info "Waiting for backend /health..."
 for i in {1..30}; do

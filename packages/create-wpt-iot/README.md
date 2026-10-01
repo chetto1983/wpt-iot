@@ -47,7 +47,7 @@ On the first connection, verify the SSH host fingerprint before accepting it. Op
 
 ## Automatic updates
 
-Backend and frontend image updates are enabled by default every five minutes. Database, Mosquitto, nginx, certificates, uploads, and volumes are not replaced by the image updater.
+Backend and frontend image updates are enabled by default every five minutes. Database, nginx, certificates, uploads, and volumes are not replaced by the image updater.
 
 On the target:
 

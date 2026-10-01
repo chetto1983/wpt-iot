@@ -3,7 +3,7 @@
  * Module-level state (no class instantiation) per project conventions.
  */
 
-type MqttEventType = 'connect' | 'disconnect' | 'publish' | 'subscribe' | 'error';
+type MqttEventType = 'connect' | 'disconnect' | 'publish' | 'error';
 
 interface MqttActivityEvent {
   timestamp: string; // ISO 8601

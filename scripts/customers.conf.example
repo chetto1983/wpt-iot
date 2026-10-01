@@ -27,7 +27,8 @@
 #
 # After deploy:
 #   - .env on the customer is preserved (DB password + admin password kept)
-#   - pgdata + uploads + mosquitto volumes preserved (machine history retained)
+#   - pgdata + uploads volumes preserved (machine history retained); the
+#     retired on-box broker's container, volumes and config are removed
 #   - Only docker images + containers are replaced
 # =============================================================================
 

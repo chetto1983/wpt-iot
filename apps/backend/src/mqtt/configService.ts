@@ -28,12 +28,10 @@ export class MqttConfigService {
       CREATE TABLE IF NOT EXISTS mqtt_config (
         id SERIAL PRIMARY KEY,
         enabled BOOLEAN NOT NULL DEFAULT false,
-        broker_host VARCHAR(255) NOT NULL DEFAULT 'localhost',
+        broker_host VARCHAR(255) NOT NULL DEFAULT '',
         broker_port INTEGER NOT NULL DEFAULT 1883,
-        username VARCHAR(255) NOT NULL DEFAULT 'wpt-backend',
+        username VARCHAR(255) NOT NULL DEFAULT '',
         password VARCHAR(512) NOT NULL DEFAULT '',
-        site_id VARCHAR(100) NOT NULL DEFAULT 'site-01',
-        machine_id VARCHAR(100) NOT NULL DEFAULT 'wpt40-001',
         use_tls BOOLEAN NOT NULL DEFAULT false,
         ca_cert VARCHAR(10000),
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -48,7 +46,7 @@ export class MqttConfigService {
       ALTER TABLE mqtt_config ADD COLUMN IF NOT EXISTS ca_cert VARCHAR(10000)
     `);
     await db.execute(sql`
-      ALTER TABLE mqtt_config ADD COLUMN IF NOT EXISTS username VARCHAR(255) NOT NULL DEFAULT 'wpt-backend'
+      ALTER TABLE mqtt_config ADD COLUMN IF NOT EXISTS username VARCHAR(255) NOT NULL DEFAULT ''
     `);
     await db.execute(sql`
       ALTER TABLE mqtt_config ADD COLUMN IF NOT EXISTS password VARCHAR(512) NOT NULL DEFAULT ''
@@ -76,8 +74,9 @@ export class MqttConfigService {
     // Drop legacy publish_* columns. The ad-hoc cloud publisher (publisher.ts) was
     // deleted in plan 37-01; the GET/PUT API contract narrowed in plan 37-03 task 1
     // no longer exposes these fields. This block reconciles existing dev databases
-    // so no inert legacy state remains. site_id/machine_id columns stay (D-09 —
-    // Local command namespace for the cmd/+/req local broker topics).
+    // so no inert legacy state remains. The site_id/machine_id columns of the
+    // retired command namespace (audit 2026-10-01) are no longer created or read;
+    // existing databases keep them until a drop is explicitly approved.
     await db.execute(sql`
       ALTER TABLE mqtt_config DROP COLUMN IF EXISTS publish_machine
     `);
@@ -99,12 +98,10 @@ export class MqttConfigService {
       await db.execute(sql`
         INSERT INTO mqtt_config (
           id, enabled, broker_host, broker_port, username, password,
-          site_id, machine_id,
           use_tls, ca_cert,
           sparkplug_group_id, sparkplug_edge_node_id, publish_cycle_records, telemetry_interval_seconds
         ) VALUES (
-          1, false, 'localhost', 1883, 'wpt-backend', '',
-          'site-01', 'wpt40-001',
+          1, false, '', 1883, '', '',
           false, NULL,
           'WPT', 'iot-box-01', false, 30
         )
@@ -163,7 +160,7 @@ export class MqttConfigService {
         .set({ password: encrypted, updatedAt: new Date() })
         .where(eq(mqttConfig.id, 1));
       console.warn(
-        '[mqtt] migrated legacy default password to AES-256-GCM at rest. ROTATE IT SOON — every deployment before this commit shipped the same plaintext default, so the credential is effectively public. Set a new password via /mqtt and re-key the broker with mosquitto_ctrl dynsec setClientPassword wpt-backend <new>.',
+        '[mqtt] migrated legacy default password to AES-256-GCM at rest. ROTATE IT SOON — every deployment before this commit shipped the same plaintext default, so the credential is effectively public. Set a new password via /mqtt and rotate it on the uplink broker.',
       );
       return;
     }

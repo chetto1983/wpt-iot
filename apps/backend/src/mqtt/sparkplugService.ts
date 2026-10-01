@@ -212,6 +212,9 @@ export class SparkplugService {
       this.client = await mqtt.connectAsync({
         host: cfg.brokerHost,
         port: cfg.brokerPort,
+        protocol: cfg.useTls ? 'mqtts' : 'mqtt',
+        ...(cfg.useTls && { rejectUnauthorized: true }),
+        ...(cfg.useTls && cfg.caCert && { ca: [Buffer.from(cfg.caCert)] }),
         clientId: `wpt-sparkplug-${edgeNodeId}`,
         username: cfg.username,
         password: cfg.password,

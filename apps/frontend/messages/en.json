@@ -843,18 +843,7 @@
   },
   "mqtt": {
     "title": "MQTT Gateway",
-    "subtitle": "Control Sparkplug B cloud uplink, local broker settings, operational users, and recent activity from one console.",
-    "hero": {
-      "kicker": "Control Bus",
-      "cards": {
-        "link": "Broker link",
-        "gateway": "Gateway",
-        "users": "Users",
-        "usersValue": "{count} configured accounts",
-        "endpoint": "Broker endpoint",
-        "identity": "Client identity"
-      }
-    },
+    "subtitle": "Control the Sparkplug B cloud uplink, its broker connection, and recent activity from one console.",
     "status": {
       "title": "Broker Status",
       "subtitle": "Monitor live connectivity, gateway enablement, and the active MQTT identity.",
@@ -864,7 +853,6 @@
       "disabled": "Gateway Disabled",
       "brokerHost": "Broker Host",
       "brokerPort": "Broker Port",
-      "clientId": "Client ID",
       "testConnection": "Test Connection",
       "testSuccess": "Connection active",
       "testFailed": "Connection failed",
@@ -875,9 +863,7 @@
       "refreshStatus": "Refresh status",
       "loadError": "Status unavailable — {error}",
       "loading": "Loading status…",
-      "localBroker": "Local broker",
       "sparkplugUplink": "Sparkplug uplink",
-      "localClientId": "Local client ID",
       "sparkplugClientId": "Sparkplug client ID",
       "notYetAssigned": "Not yet assigned — waiting for PLC",
       "alarmCatalog": "Alarm catalog",
@@ -886,17 +872,13 @@
     "config": {
       "title": "Configuration",
       "enabled": "Enable MQTT Gateway",
-      "siteId": "Site ID",
-      "machineId": "Machine ID",
       "username": "Broker Username",
       "password": "Broker Password",
       "passwordKeepCurrent": "Leave blank to keep current",
       "passwordRequired": "Enter password",
       "passwordHelpKeepCurrent": "A password is currently set. Leave blank to keep it unchanged.",
       "passwordHelpRequired": "No password set yet — required to authenticate with the broker.",
-      "localBrokerTitle": "Local broker settings",
-      "siteIdHelp": "Local command namespace identifier — used for the LAN command bus topics (wpt/{siteId}/{machineId}/cmd/...). Not part of the cloud uplink contract.",
-      "machineIdHelp": "Local command namespace identifier for this machine. Combined with Site ID forms the local command topic prefix.",
+      "brokerTitle": "Uplink broker connection",
       "save": "Save Configuration",
       "saved": "Configuration saved",
       "securityTitle": "Security",
@@ -919,33 +901,6 @@
       "disabledBanner": "Gateway is disabled. Configuration below will apply the next time you enable it.",
       "saveNoChanges": "No changes to save"
     },
-    "users": {
-      "title": "MQTT Users",
-      "subtitle": "Manage operational roles and credentials dedicated to the local broker.",
-      "username": "Username",
-      "password": "Password",
-      "role": "Role",
-      "textName": "Display Name",
-      "roleReader": "Reader (subscribe only)",
-      "roleOperator": "Operator (read + commands)",
-      "roleAdmin": "Admin (full access)",
-      "create": "Create User",
-      "created": "User created",
-      "edit": "Edit User",
-      "editUserLabel": "Edit MQTT user {username}",
-      "save": "Save",
-      "updated": "User updated",
-      "passwordOptional": "Leave blank to keep current",
-      "passwordMinLength": "Password must be at least 8 characters",
-      "delete": "Delete User",
-      "deleteUserLabel": "Delete MQTT user {username}",
-      "deleted": "User deleted",
-      "deleteConfirm": "Delete MQTT user \"{username}\"?",
-      "deleteDescription": "This will remove the user's access to the MQTT broker. This action cannot be undone.",
-      "noUsers": "No MQTT users configured",
-      "cancel": "Cancel",
-      "systemAccount": "System"
-    },
     "activityLog": {
       "title": "Activity Log",
       "subtitle": "Recent broker and gateway events refreshed automatically.",
@@ -953,7 +908,6 @@
       "connect": "Connect",
       "disconnect": "Disconnect",
       "publish": "Publish",
-      "subscribe": "Subscribe",
       "error": "Error",
       "refresh": "Refresh activity log"
     }

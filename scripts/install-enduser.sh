@@ -7,7 +7,7 @@ set -euo pipefail
 # One-command install for a customer edge box (Pilz IndustrialPI 4 / Raspberry
 # Pi 4 ARM64, or an amd64 bench host). Unlike install-prod.sh this NEVER builds
 # from source: it pulls the prebuilt multi-arch backend/frontend images from
-# GHCR and stands up the full stack (db, mosquitto, backend, frontend, nginx)
+# GHCR and stands up the full stack (db, backend, frontend, nginx)
 # behind TLS on https://wpt.local.
 #
 # Run on the target box:
@@ -60,14 +60,33 @@ upsert_env() {
 # SECRETS_ENCRYPTION_KEY must stay identical across reboots — rotating it makes
 # already-encrypted secrets (e.g. mqtt_config.password) unrecoverable.
 ensure_env_secret() {
-  local file="$1" key="$2" value="$3" current
-  if grep -q "^${key}=" "$file"; then
-    current="$(grep -m1 "^${key}=" "$file" | cut -d= -f2-)"
-    if [[ -n "$current" ]]; then return 0; fi
-    sed -i "s|^${key}=.*|${key}=${value}|" "$file"
-  else
-    echo "${key}=${value}" >> "$file"
+  local current
+  current="$(grep -m1 "^$2=" "$1" | cut -d= -f2- || true)"
+  [[ -n "$current" ]] || upsert_env "$@"
+}
+
+# Stop and disable a host service that holds a port the stack needs.
+stop_host_service() {
+  if systemctl is-active --quiet "$1" 2>/dev/null; then
+    warn "Stopping $1 ($2)..."
+    systemctl stop "$1"
+    systemctl disable "$1" 2>/dev/null || true
   fi
+}
+
+# Run a probe every 2 s, at most $2 times; non-zero if it never succeeds.
+wait_for() {
+  local what="$1" tries="$2" i
+  shift 2
+  info "Waiting for ${what}..."
+  for ((i = 1; i <= tries; i++)); do
+    if "$@" >/dev/null 2>&1; then
+      ok "${what} responds."
+      return 0
+    fi
+    sleep 2
+  done
+  return 1
 }
 
 parse_args() {
@@ -273,26 +292,10 @@ else
 fi
 
 step "Step 3/7  Free conflicting host services"
-if systemctl is-active --quiet grafana-server 2>/dev/null; then
-  warn "Stopping grafana-server (holds :3000)..."
-  systemctl stop grafana-server
-  systemctl disable grafana-server 2>/dev/null || true
-fi
+stop_host_service grafana-server "holds :3000"
 # apache2 ships on RevPi/IndustrialPI (PiCtory + Cockpit web console) and holds
 # :80/:443 — nginx cannot bind until it is stopped.
-if systemctl is-active --quiet apache2 2>/dev/null; then
-  warn "Stopping apache2 (holds :80/:443 — RevPi web console/PiCtory)..."
-  systemctl stop apache2
-  systemctl disable apache2 2>/dev/null || true
-fi
-if snap list mosquitto >/dev/null 2>&1; then
-  warn "Removing snap mosquitto..."
-  snap remove --purge mosquitto
-elif systemctl is-active --quiet mosquitto 2>/dev/null; then
-  warn "Stopping host mosquitto..."
-  systemctl stop mosquitto
-  systemctl disable mosquitto 2>/dev/null || true
-fi
+stop_host_service apache2 "holds :80/:443 — RevPi web console/PiCtory"
 ok "Host services cleared."
 
 step "Step 4/7  Install dir + runtime files"
@@ -303,7 +306,6 @@ DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=l apt-get install -y -qq \
   avahi-daemon avahi-utils libnss-mdns openssl >/dev/null
 
 mkdir -p "${INSTALL_DIR}/docker/nginx/templates" \
-         "${INSTALL_DIR}/mosquitto/config" \
          "${INSTALL_DIR}/certs" /etc/wpt
 cd "${INSTALL_DIR}"
 
@@ -324,40 +326,23 @@ ok "Device serial: ${SERIAL} (wpt-${SERIAL}.local)"
 
 # Image-pull compose (saved as docker-compose.yml so `docker compose` finds it
 # by default) plus every file it bind-mounts. install-prod.sh could skip the
-# db/mosquitto assets because its build context carried them; the image path
+# db/nginx assets because its build context carried them; the image path
 # has no source tree, so we fetch them explicitly.
 curl -fsSL "${RAW_URL}/docker-compose.ghcr.yml"                       -o docker-compose.yml
 curl -fsSL "${RAW_URL}/docker/init-timescaledb.sql"                  -o docker/init-timescaledb.sql
 curl -fsSL "${RAW_URL}/docker/nginx/templates/wpt.conf.template"     -o docker/nginx/templates/wpt.conf.template
-curl -fsSL "${RAW_URL}/mosquitto/config/mosquitto.conf"             -o mosquitto/config/mosquitto.conf
-curl -fsSL "${RAW_URL}/mosquitto/config/dynamic-security.json"      -o mosquitto/config/dynamic-security.json
 curl -fsSL "${RAW_URL}/scripts/generate-local-tls.sh"               -o generate-local-tls.sh
 curl -fsSL "${RAW_URL}/scripts/wpt-local-alias.sh"                  -o wpt-local-alias.sh
 curl -fsSL "${RAW_URL}/scripts/wpt-image-update.sh"                 -o wpt-image-update.sh
 chmod +x generate-local-tls.sh wpt-local-alias.sh wpt-image-update.sh
-ok "Compose file, DB/mosquitto/nginx assets, and helpers downloaded."
+ok "Compose file, DB/nginx assets, and helpers downloaded."
 
 step "Step 5/7  avahi-daemon (mDNS aliases)"
 systemctl enable --now avahi-daemon
 install -m 0755 "${INSTALL_DIR}/wpt-local-alias.sh" /usr/local/sbin/wpt-local-alias.sh
 install -m 0755 "${INSTALL_DIR}/wpt-image-update.sh" /usr/local/sbin/wpt-image-update.sh
 
-cat > /etc/systemd/system/wpt-local-alias.service <<'UNITEOF'
-[Unit]
-Description=Publish wpt.local mDNS alias for WPT IoT
-After=avahi-daemon.service network-online.target
-Requires=avahi-daemon.service
-Wants=network-online.target
-
-[Service]
-Type=simple
-ExecStart=/usr/local/sbin/wpt-local-alias.sh
-Restart=on-failure
-RestartSec=5
-
-[Install]
-WantedBy=multi-user.target
-UNITEOF
+curl -fsSL "${RAW_URL}/scripts/wpt-local-alias.service" -o /etc/systemd/system/wpt-local-alias.service
 
 systemctl daemon-reload
 systemctl enable --now wpt-local-alias.service
@@ -466,34 +451,21 @@ else
 fi
 
 docker compose pull
-docker compose up -d
+docker compose up -d --remove-orphans
+# The on-box broker is retired (edge publish-only, audit 2026-10-01): with its
+# container gone, drop its volumes and config (fleet-shared DynSec hashes).
+# Only this compose project's volumes, never another stack's broker.
+project="$(docker compose config 2>/dev/null | sed -n 's/^name: //p')"
+for v in $(docker volume ls -q --filter "label=com.docker.compose.project=${project}" | grep -Ex "${project}_mosquitto_(data|log)" || true); do docker volume rm "$v" >/dev/null; done
+rm -rf -- "${INSTALL_DIR}/mosquitto"
 
-info "Waiting for backend /api/health..."
-for i in {1..45}; do
-  if curl -fsS -m 2 "http://127.0.0.1:3000/api/health" >/dev/null 2>&1; then
-    ok "backend /api/health responds."; break
-  fi
-  sleep 2
-  [[ $i -eq 45 ]] && fail "backend /api/health did not respond in 90s. Check: docker compose logs backend"
-done
-
-info "Waiting for nginx /nginx-health..."
-for i in {1..30}; do
-  if curl -fsS -m 2 "http://127.0.0.1/nginx-health" >/dev/null 2>&1; then
-    ok "nginx /nginx-health responds."; break
-  fi
-  sleep 2
-  [[ $i -eq 30 ]] && fail "nginx /nginx-health did not respond in 60s. Check: docker compose logs nginx"
-done
-
-info "Waiting for HTTPS frontend..."
-for i in {1..30}; do
-  if curl --silent --show-error --fail --cacert "${INSTALL_DIR}/certs/wpt-local-ca.crt" --resolve wpt.local:443:127.0.0.1 "https://wpt.local/" >/dev/null 2>&1; then
-    ok "HTTPS frontend responds."; break
-  fi
-  sleep 2
-  [[ $i -eq 30 ]] && warn "HTTPS frontend not confirmed in 60s (frontend may still be warming). Check: docker compose ps"
-done
+wait_for "backend /api/health" 45 curl -fsS -m 2 "http://127.0.0.1:3000/api/health" \
+  || fail "backend /api/health did not respond in 90s. Check: docker compose logs backend"
+wait_for "nginx /nginx-health" 30 curl -fsS -m 2 "http://127.0.0.1/nginx-health" \
+  || fail "nginx /nginx-health did not respond in 60s. Check: docker compose logs nginx"
+wait_for "HTTPS frontend" 30 curl --silent --show-error --fail --cacert "${INSTALL_DIR}/certs/wpt-local-ca.crt" \
+  --resolve wpt.local:443:127.0.0.1 "https://wpt.local/" \
+  || warn "HTTPS frontend not confirmed in 60s (frontend may still be warming). Check: docker compose ps"
 
 echo ""
 echo -e "${GREEN}=========================================="

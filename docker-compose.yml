@@ -53,41 +53,10 @@ services:
         max-size: "10m"
         max-file: "3"
 
-  # TEMPORARY — the local Mosquitto broker is present for the internal
-  # pub/sub bus while the cloud uplink via Sparkplug B is not yet the
-  # shipping path. In production with the remote MQTT broker over GSM the
-  # local broker is removed entirely. Do not build new features that assume
-  # a local broker exists.
-  mosquitto:
-    image: eclipse-mosquitto:2.0.22
-    container_name: mosquitto
-    # Exposed on all interfaces for external MQTT test clients (mqtt-explorer,
-    # Sparkplug B listener on laptops). Production ships without this service
-    # entirely — cloud uplink replaces the local broker.
-    ports:
-      - "1883:1883"
-      - "9001:9001"
-    volumes:
-      - ./mosquitto/config:/mosquitto/config
-      - mosquitto_data:/mosquitto/data
-      - mosquitto_log:/mosquitto/log
-    healthcheck:
-      test: ["CMD-SHELL", "pidof mosquitto || exit 1"]
-      interval: 10s
-      timeout: 3s
-      retries: 3
-      start_period: 5s
-    restart: unless-stopped
-    logging:
-      driver: json-file
-      options:
-        max-size: "10m"
-        max-file: "3"
-
   # backend runs on the host network so PLC UDP frames (9090-9093) reach the
   # listener sockets. Bridge networking silently drops them. Host mode also
   # means Docker DNS doesn't resolve service names — the backend uses
-  # 127.0.0.1 for db and mosquitto (both are bound to loopback above).
+  # 127.0.0.1 for db (bound to loopback above).
   backend:
     build:
       context: .
@@ -95,8 +64,6 @@ services:
     network_mode: host
     depends_on:
       db:
-        condition: service_healthy
-      mosquitto:
         condition: service_healthy
     environment:
       PG_HOST: 127.0.0.1
@@ -126,8 +93,8 @@ services:
       SECRETS_ENCRYPTION_KEY: ${SECRETS_ENCRYPTION_KEY:-}
       SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-true}
       TRUST_PROXY: ${TRUST_PROXY:-true}
-      # MQTT/Sparkplug settings (broker host/port, credentials, site/machine
-      # identity, publish flags) are NOT env-driven: they live in the
+      # MQTT/Sparkplug uplink settings (broker host/port, credentials, TLS,
+      # Sparkplug identity, publish flags) are NOT env-driven: they live in the
       # mqtt_config DB row, managed via the admin UI. See apps/backend/src/config.ts.
     volumes:
       - uploads:/app/uploads
@@ -222,5 +189,3 @@ services:
 volumes:
   pgdata:
   uploads:
-  mosquitto_data:
-  mosquitto_log:

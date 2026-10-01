@@ -4,7 +4,6 @@ import { loadAlarmDescriptions } from './i18n/alarmDescriptions.js';
 import { seedDefaultAdmin } from './auth/seed.js';
 import { startUdpPipeline, stopUdpPipeline } from './udp/index.js';
 import { initBroadcaster, shutdownBroadcaster } from './ws/broadcaster.js';
-import { connectMqtt, disconnectMqtt } from './mqtt/connectionManager.js';
 import { SparkplugService } from './mqtt/sparkplugService.js';
 import { CloudUplinkWorker } from './mqtt/cloudUplinkWorker.js';
 import { PlcConfigService, setPlcConfigLogger } from './udp/plcConfigService.js';
@@ -32,8 +31,7 @@ function setupGracefulShutdown(server: ReturnType<typeof buildServer>): void {
       shutdownBroadcaster();
       server.log.info({ name: 'Shutdown' }, 'WebSocket broadcaster stopped');
 
-      // 3. Disconnect MQTT (publishes offline LWT, tears down publisher + command handler)
-      await disconnectMqtt(server.log);
+      // 3. Disconnect the Sparkplug uplink (the edge's only MQTT connection)
       await SparkplugService.stop();
       CloudUplinkWorker.stop();
       server.log.info({ name: 'Shutdown' }, 'MQTT and Sparkplug disconnected');
@@ -113,12 +111,8 @@ async function main(): Promise<void> {
     // if very old rows get trimmed immediately afterward.
     AlarmRetentionService.start(server.log);
 
-    // Connect to MQTT broker using DB-backed config and initialize publisher +
-    // command handler. Reads enabled / brokerHost / brokerPort / siteId /
-    // machineId / useTls / caCert from the mqtt_config row.
-    await connectMqtt(server.log);
-
-    // Initialize Cloud Uplink (Sparkplug B) and its Outbox worker
+    // Initialize Cloud Uplink (Sparkplug B) and its Outbox worker. The edge
+    // only publishes: no MQTT subscription, no command path to the PLC.
     await SparkplugService.init(server.log);
     CloudUplinkWorker.start(server.log);
 

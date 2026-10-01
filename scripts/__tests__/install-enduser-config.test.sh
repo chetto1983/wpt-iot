@@ -95,4 +95,19 @@ if bash "${ROOT_DIR}/scripts/install-enduser.sh" --unknown >/dev/null 2>&1; then
   exit 1
 fi
 
+# ensure_env_secret never overwrites a non-empty value (SECRETS_ENCRYPTION_KEY
+# must survive reinstalls), fills an empty one and appends a missing one.
+printf 'KEEP=old\nEMPTY=\n' > "${TMP_DIR}/env"
+ensure_env_secret "${TMP_DIR}/env" KEEP new
+ensure_env_secret "${TMP_DIR}/env" EMPTY filled
+ensure_env_secret "${TMP_DIR}/env" MISSING added
+[[ "$(cat "${TMP_DIR}/env")" == $'KEEP=old\nEMPTY=filled\nMISSING=added' ]]
+
+# wait_for succeeds as soon as its probe does and fails once the tries run out.
+wait_for "always-up probe" 1 true >/dev/null
+if wait_for "never-up probe" 1 false >/dev/null; then
+  echo "wait_for reported success for a probe that never succeeded" >&2
+  exit 1
+fi
+
 echo "install-enduser config tests passed"

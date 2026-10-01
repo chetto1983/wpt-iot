@@ -52,42 +52,15 @@ services:
         max-size: "10m"
         max-file: "3"
 
-  # TEMPORARY local broker for the internal pub/sub bus. Production with the
-  # remote Sparkplug B broker over GSM removes this service entirely.
-  mosquitto:
-    image: eclipse-mosquitto:2.0.22
-    container_name: mosquitto
-    ports:
-      - "1883:1883"
-      - "9001:9001"
-    volumes:
-      - ./mosquitto/config:/mosquitto/config
-      - mosquitto_data:/mosquitto/data
-      - mosquitto_log:/mosquitto/log
-    healthcheck:
-      test: ["CMD-SHELL", "pidof mosquitto || exit 1"]
-      interval: 10s
-      timeout: 3s
-      retries: 3
-      start_period: 5s
-    restart: unless-stopped
-    logging:
-      driver: json-file
-      options:
-        max-size: "10m"
-        max-file: "3"
-
   # backend runs on the host network so PLC UDP frames (9090-9093) reach the
   # listener sockets. Bridge networking silently drops them. Host mode also
   # means Docker DNS doesn't resolve service names — the backend uses
-  # 127.0.0.1 for db and mosquitto (both bound to loopback above).
+  # 127.0.0.1 for db (bound to loopback above).
   backend:
     image: ${WPT_BACKEND_IMAGE:-ghcr.io/chetto1983/wpt-backend:latest}
     network_mode: host
     depends_on:
       db:
-        condition: service_healthy
-      mosquitto:
         condition: service_healthy
     environment:
       PG_HOST: 127.0.0.1
@@ -193,5 +166,3 @@ services:
 volumes:
   pgdata:
   uploads:
-  mosquitto_data:
-  mosquitto_log:

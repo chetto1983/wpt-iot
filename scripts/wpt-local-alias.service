@@ -1,0 +1,14 @@
+[Unit]
+Description=Publish wpt.local mDNS alias for WPT IoT
+After=avahi-daemon.service network-online.target
+Requires=avahi-daemon.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/sbin/wpt-local-alias.sh
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

@@ -9,10 +9,10 @@
 #
 # Produces a single tarball that contains everything an air-gapped edge PC
 # needs to bring up the stack:
-#   - All 5 Docker images (db, mosquitto, backend, frontend, nginx)
+#   - All 4 Docker images (db, backend, frontend, nginx)
 #   - docker-compose.yml (single file — overlays removed in Phase 37.3)
-#   - nginx template + init-timescaledb.sql + mosquitto config
-#   - install.sh + internal helpers (install-offline.sh, generate-local-tls.sh, wpt-local-alias.sh)
+#   - nginx template + init-timescaledb.sql
+#   - install.sh + internal helpers (install-offline.sh, generate-local-tls.sh, wpt-local-alias.sh + unit)
 #   - VERSION file with the source git SHA + build timestamp
 # =============================================================================
 
@@ -62,8 +62,6 @@ if [[ "${SKIP_BUILD}" == "1" ]]; then
   info "SKIP_BUILD=1 - reusing existing local images"
   docker image inspect timescale/timescaledb:2.25.2-pg17 >/dev/null 2>&1 || \
     fail "timescale/timescaledb:2.25.2-pg17 not found locally."
-  docker image inspect eclipse-mosquitto:2.0.22 >/dev/null 2>&1 || \
-    fail "eclipse-mosquitto:2.0.22 not found locally."
   docker image inspect wpt-iot-backend:latest >/dev/null 2>&1 || \
     fail "wpt-iot-backend:latest not found locally."
   docker image inspect wpt-iot-frontend:latest >/dev/null 2>&1 || \
@@ -71,9 +69,8 @@ if [[ "${SKIP_BUILD}" == "1" ]]; then
   docker image inspect nginx:1.28.3-alpine >/dev/null 2>&1 || \
     fail "nginx:1.28.3-alpine not found locally."
 else
-  info "Pulling base images (db, mosquitto, nginx) for linux/${TARGET_ARCH}..."
+  info "Pulling base images (db, nginx) for linux/${TARGET_ARCH}..."
   docker pull --platform "linux/${TARGET_ARCH}" timescale/timescaledb:2.25.2-pg17
-  docker pull --platform "linux/${TARGET_ARCH}" eclipse-mosquitto:2.0.22
   docker pull --platform "linux/${TARGET_ARCH}" nginx:1.28.3-alpine
 
   # NOTE: backend/frontend built for host arch. For cross-arch Pilz targets,
@@ -96,13 +93,12 @@ mkdir -p "${BUNDLE_DIR}/docker"
 cp docker/init-timescaledb.sql "${BUNDLE_DIR}/docker/"
 mkdir -p "${BUNDLE_DIR}/docker/nginx/templates"
 cp docker/nginx/templates/wpt.conf.template "${BUNDLE_DIR}/docker/nginx/templates/"
-mkdir -p "${BUNDLE_DIR}/mosquitto/config"
-cp -r mosquitto/config/. "${BUNDLE_DIR}/mosquitto/config/"
 
 cp scripts/install.sh "${BUNDLE_DIR}/"
 cp scripts/install-offline.sh "${BUNDLE_DIR}/"
 cp scripts/generate-local-tls.sh "${BUNDLE_DIR}/"
 cp scripts/wpt-local-alias.sh "${BUNDLE_DIR}/"
+cp scripts/wpt-local-alias.service "${BUNDLE_DIR}/"
 cp scripts/wpt-tls-refresh.service "${BUNDLE_DIR}/"
 cp scripts/wpt-tls-refresh.timer "${BUNDLE_DIR}/"
 chmod +x \
@@ -119,9 +115,6 @@ mkdir -p "${BUNDLE_DIR}/images"
 
 info "Saving timescale/timescaledb:2.25.2-pg17..."
 docker save timescale/timescaledb:2.25.2-pg17 | gzip > "${BUNDLE_DIR}/images/db.tar.gz"
-
-info "Saving eclipse-mosquitto:2.0.22..."
-docker save eclipse-mosquitto:2.0.22 | gzip > "${BUNDLE_DIR}/images/mosquitto.tar.gz"
 
 info "Saving wpt-iot-backend:latest..."
 docker save wpt-iot-backend:latest | gzip > "${BUNDLE_DIR}/images/backend.tar.gz"
@@ -150,7 +143,6 @@ compose_version:   $(docker compose version | head -1)
 
 # Image digests (sha256)
 db:                $(docker image inspect timescale/timescaledb:2.25.2-pg17 --format '{{.Id}}')
-mosquitto:         $(docker image inspect eclipse-mosquitto:2.0.22 --format '{{.Id}}')
 backend:           $(docker image inspect wpt-iot-backend:latest --format '{{.Id}}')
 frontend:          $(docker image inspect wpt-iot-frontend:latest --format '{{.Id}}')
 nginx:             $(docker image inspect nginx:1.28.3-alpine --format '{{.Id}}')

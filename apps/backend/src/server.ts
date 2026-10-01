@@ -182,8 +182,8 @@ export function buildServer(): FastifyInstance {
   server.register(dashboardRoutes, apiOpts);
 
   // 18. MQTT admin routes (Super Admin only).
-  // Note: the broker connection itself is initialized after server.listen()
-  // by `connectMqtt()` in index.ts, which reads its config from the DB.
+  // Note: the Sparkplug uplink itself is initialized after server.listen()
+  // by `SparkplugService.init()` in index.ts, which reads its config from the DB.
   server.register(mqttRoutes, apiOpts);
 
   // 19. PLC config routes (Super Admin only) — DB-backed PLC target host
