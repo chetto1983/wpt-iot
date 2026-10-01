@@ -219,8 +219,47 @@ services:
         max-size: "10m"
         max-file: "3"
 
+  # Dev/test stand-in for the ABB AC500: `docker compose --profile simulator
+  # up -d simulator`, then set the PLC target host to 172.28.0.10 in /plc.
+  # Own IP + standard ports, so the backend needs no port or env change to
+  # switch between simulator and real PLC. It answers the host-network
+  # backend through the wpt-sim gateway, where the backend listens.
+  simulator:
+    build:
+      context: .
+      dockerfile: apps/simulator/Dockerfile
+    profiles: ["simulator"]
+    ports:
+      - "127.0.0.1:3002:3002"
+    environment:
+      TARGET_HOST: 172.28.0.1
+      PLC_ENDIAN: ${SIM_PLC_ENDIAN:-le}
+      DATA_INTERVAL_MS: ${SIM_DATA_INTERVAL_MS:-15000}
+      ALARM_INTERVAL_MS: ${SIM_ALARM_INTERVAL_MS:-1000}
+    volumes:
+      - simulator-data:/app/data
+    networks:
+      wpt-sim:
+        ipv4_address: 172.28.0.10
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
 volumes:
   pgdata:
   uploads:
   mosquitto_data:
   mosquitto_log:
+  simulator-data:
+
+networks:
+  # Fixed subnet so the simulator's static IP and the gateway the backend is
+  # reached on stay stable across recreations.
+  wpt-sim:
+    ipam:
+      config:
+        - subnet: 172.28.0.0/24
+          gateway: 172.28.0.1
